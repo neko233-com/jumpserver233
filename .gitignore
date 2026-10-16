@@ -1,0 +1,48 @@
+# Go
+server/bin/
+server/internal/agentbundle/artifacts/jms-agent-*
+server/internal/agentbundle/artifacts/manifest.json
+server/internal/agentbundle/artifacts/.build-*
+
+# Node
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+web/.auth/
+
+# Local tooling
+.codely-cli/
+/CODELY.md
+.cache/
+*.tsbuildinfo
+
+# Local configuration and runtime state
+.env
+.env.*
+!.env.example
+!.env.*.example
+/data/
+/server/data/
+
+# Additional build / test outputs
+/dist/
+/coverage/
+/web/coverage/
+/server/coverage.out
+/server/coverage.html
+*.test
+*.test.exe
+/*.exe
+/server/*.exe
+/server/server
+/server/jms
+/server/jms-agent
+/.idea/
+/server/.idea/
+/web/.idea/
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,105 @@
+.database-console {
+  width: min(1100px, 95vw);
+  max-height: 92vh;
+  overflow: auto;
+}
+.database-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+.database-console label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.database-console textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, monospace;
+  resize: vertical;
+}
+.database-options {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+  padding: 12px 0;
+}
+.database-options label:last-child {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+}
+.database-console .database-options input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0;
+  flex: 0 0 16px;
+}
+.database-console .database-options textarea {
+  min-height: 56px;
+}
+.database-table {
+  overflow: auto;
+  max-height: 48vh;
+  margin: 16px 0;
+}
+.database-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.database-table td,
+.database-table th {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border, #333);
+  text-align: left;
+  vertical-align: top;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 600px;
+}
+.database-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel, #202124);
+}
+.database-table small {
+  display: block;
+}
+.database-history {
+  display: block;
+  text-align: left;
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--border, #444);
+  border-radius: 6px;
+}
+.database-history code {
+  display: block;
+  margin-top: 6px;
+  white-space: pre-wrap;
+}
+.database-audit {
+  padding: 24px;
+}
+.database-result {
+  margin: 18px 0;
+  padding: 12px;
+  border: 1px solid var(--border, #444);
+  border-radius: 8px;
+}
+@media (max-width: 700px) {
+  .database-options {
+    grid-template-columns: 1fr;
+  }
+  .database-audit {
+    padding: 12px;
+  }
+}

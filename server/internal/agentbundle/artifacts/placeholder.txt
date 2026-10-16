@@ -1,0 +1,2 @@
+Generated native helpers are created here by go generate ./internal/agentbundle.
+The server embeds them. Generated executables and manifest are not source files.

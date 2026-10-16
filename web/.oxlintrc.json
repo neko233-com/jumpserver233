@@ -1,0 +1,9 @@
+{
+  "ignorePatterns": ["dist", "node_modules"],
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "plugins": ["typescript", "react", "unicorn"],
+  "rules": {}
+}

@@ -1,0 +1,123 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: jumpserver
+          POSTGRES_PASSWORD: test-password
+          POSTGRES_DB: jumpserver_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jumpserver -d jumpserver_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      JMS_TEST_DATABASE_URL: postgres://jumpserver:test-password@127.0.0.1:5432/jumpserver_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+      - name: Install frontend dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+      - name: Test owned fixture lifecycle helpers
+        run: node --test server/testsupport/docker-qa.test.mjs scripts/docker-qa.test.mjs
+      - name: Build embedded native recovery agents
+        working-directory: server
+        run: go generate ./internal/agentbundle
+      - name: Check bilingual content and upstream provenance
+        run: node scripts/check-content.mjs
+      - name: Start disposable Linux OpenSSH fixture
+        env:
+          JMS_QA_KEYHOST_SSH_PORT: "12245"
+          JMS_QA_KEYHOST_HTTP_PORT: "12246"
+          JMS_QA_KEYHOST_PROTECTION: "true"
+        run: |
+          node server/testsupport/openssh/run.mjs > "$RUNNER_TEMP/keyhost.log" 2>&1 &
+          node server/testsupport/openssh/ci-env.mjs
+      - name: Start disposable TLS PostgreSQL query fixture
+        run: |
+          node server/testsupport/postgres/run.mjs > "$RUNNER_TEMP/postgres-query.log" 2>&1 &
+          node server/testsupport/postgres/ci-env.mjs
+      - name: Start disposable SQL and NoSQL TLS fixtures
+        run: |
+          JMS_QA_SQL_ENGINE=mysql node server/testsupport/mysql/run.mjs > "$RUNNER_TEMP/mysql-query.log" 2>&1 &
+          JMS_QA_SQL_ENGINE=mariadb node server/testsupport/mysql/run.mjs > "$RUNNER_TEMP/mariadb-query.log" 2>&1 &
+          node server/testsupport/sqlserver/run.mjs > "$RUNNER_TEMP/sqlserver-query.log" 2>&1 &
+          node server/testsupport/clickhouse/run.mjs > "$RUNNER_TEMP/clickhouse-query.log" 2>&1 &
+          JMS_QA_NOSQL_ENGINE=redis node server/testsupport/nosql/run.mjs > "$RUNNER_TEMP/redis-query.log" 2>&1 &
+          JMS_QA_NOSQL_ENGINE=mongodb node server/testsupport/nosql/run.mjs > "$RUNNER_TEMP/mongodb-query.log" 2>&1 &
+          node server/testsupport/kubernetes/run.mjs > "$RUNNER_TEMP/kubernetes-query.log" 2>&1 &
+          node server/testsupport/rdp/run.mjs > "$RUNNER_TEMP/rdp.log" 2>&1 &
+          node server/testsupport/telnet/run.mjs > "$RUNNER_TEMP/telnet.log" 2>&1 &
+          node server/testsupport/mysql/ci-env.mjs
+      - name: Start isolated Debian systemd VM
+        run: |
+          node server/testsupport/systemdvm/run.mjs > "$RUNNER_TEMP/systemd-vm.log" 2>&1 &
+          node server/testsupport/systemdvm/ci-env.mjs
+      - name: Backend tests (including PostgreSQL HA integration)
+        working-directory: server
+        run: go test -race -timeout 20m -p 1 ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
+      - name: Backend static analysis
+        working-directory: server
+        run: go vet ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
+      - name: Backend build
+        working-directory: server
+        run: go build ./...
+      - name: Frontend lint
+        working-directory: web
+        run: pnpm lint
+      - name: Frontend production build
+        working-directory: web
+        run: pnpm build
+      - name: Install Playwright Chromium
+        working-directory: web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Browser end-to-end tests
+        working-directory: web
+        run: pnpm test:e2e
+
+      - name: Clean disposable backend OpenSSH fixture
+        if: always()
+        run: node server/testsupport/openssh/ci-env.mjs --cleanup
+      - name: Clean disposable PostgreSQL query fixture
+        if: always()
+        run: node server/testsupport/postgres/ci-env.mjs --cleanup
+      - name: Clean disposable SQL and NoSQL fixtures
+        if: always()
+        run: node server/testsupport/mysql/ci-env.mjs --cleanup
+      - name: Clean isolated systemd VM
+        if: always()
+        run: node server/testsupport/systemdvm/ci-env.mjs --cleanup
+
+  docker-qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify clean production images and isolated ports
+        run: node scripts/docker-qa.mjs verify

@@ -1,0 +1,33 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "${JMS_QA_HOST:-127.0.0.2}:${JMS_QA_API_PORT:-18080}:8080"
+    environment:
+      JMS_PUBLIC_URL: "http://${JMS_QA_HOST:-127.0.0.2}:${JMS_QA_WEB_PORT:-15173}"
+      JMS_DEFAULT_ADMIN_ENABLED: "true"
+    volumes:
+      - data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${JMS_QA_HOST:-127.0.0.2}:${JMS_QA_WEB_PORT:-15173}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+volumes:
+  data:

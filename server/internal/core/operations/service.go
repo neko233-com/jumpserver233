@@ -1,0 +1,905 @@
+package operations
+
+import (
+	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+	"unicode"
+
+	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
+	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
+	"github.com/neko233-com/jumpserver233/server/internal/storage"
+)
+
+var (
+	ErrInvalid  = jobs.ErrInvalid
+	ErrNotFound = jobs.ErrNotFound
+	ErrConflict = jobs.ErrConflict
+	ErrBusy     = jobs.ErrBusy
+	ErrDenied   = errors.New("operation access denied")
+)
+
+type TemplateInput struct {
+	Name           string `json:"name"`
+	Command        string `json:"command"`
+	TimeoutSeconds int    `json:"timeout_seconds"`
+	Revision       int    `json:"revision"`
+}
+type Template struct {
+	ID      string `json:"id"`
+	OwnerID string `json:"owner_id"`
+	Owner   string `json:"owner"`
+	TemplateInput
+	UpdatedAt time.Time `json:"updated_at"`
+}
+type PlanInput struct {
+	Origin          accesspolicies.Origin `json:"-"`
+	Name            string                `json:"name"`
+	AssetIDs        []string              `json:"asset_ids"`
+	Command         string                `json:"command"`
+	TimeoutSeconds  int                   `json:"timeout_seconds"`
+	TemplateID      string                `json:"template_id,omitempty"`
+	Kind            string                `json:"kind"` // batch, once, interval
+	RunAt           time.Time             `json:"run_at,omitzero"`
+	IntervalSeconds int                   `json:"interval_seconds,omitempty"`
+	RequestID       string                `json:"request_id"`
+}
+type Plan struct {
+	HostPlugin          *hostplugins.Operation `json:"host_plugin,omitempty"`
+	CollectionSequence  uint64                 `json:"collection_sequence,omitempty"`
+	CollectionAccount   string                 `json:"collection_account,omitempty"`
+	CollectionAssetName string                 `json:"collection_asset_name,omitempty"`
+	AccessOrigin        accesspolicies.Origin  `json:"access_origin,omitempty"`
+	ID                  string                 `json:"id"`
+	OwnerID             string                 `json:"owner_id"`
+	Owner               string                 `json:"owner"`
+	PlanInput
+	TemplateRevision int       `json:"template_revision,omitempty"`
+	Enabled          bool      `json:"enabled"`
+	NextRun          time.Time `json:"next_run,omitzero"`
+	LastRunID        string    `json:"last_run_id,omitempty"`
+	ErrorCode        string    `json:"error_code,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+type Item struct {
+	AssetID   string    `json:"asset_id"`
+	JobID     string    `json:"job_id,omitempty"`
+	State     string    `json:"state"`
+	ReviewID  string    `json:"review_id,omitempty"`
+	ErrorCode string    `json:"error_code,omitempty"`
+	RetryAt   time.Time `json:"retry_at,omitzero"`
+}
+type Run struct {
+	HostPlugin          *hostplugins.Operation `json:"host_plugin,omitempty"`
+	CollectionSequence  uint64                 `json:"collection_sequence,omitempty"`
+	CollectionAccount   string                 `json:"collection_account,omitempty"`
+	CollectionAssetName string                 `json:"collection_asset_name,omitempty"`
+	AccessOrigin        accesspolicies.Origin  `json:"access_origin,omitempty"`
+	ID                  string                 `json:"id"`
+	PlanID              string                 `json:"plan_id"`
+	OwnerID             string                 `json:"owner_id"`
+	Name                string                 `json:"name"`
+	Command             string                 `json:"command"`
+	TimeoutSeconds      int                    `json:"timeout_seconds"`
+	CreatedAt           time.Time              `json:"created_at"`
+	Cancelled           bool                   `json:"cancelled"`
+	Items               []Item                 `json:"items"`
+	State               string                 `json:"state"`
+}
+type Submission struct {
+	Job      jobs.Job
+	ReviewID string
+}
+type SubmitFunc func(ownerID string, input jobs.Input, reviewID string) (Submission, error)
+type state struct {
+	Templates map[string]Template `json:"templates"`
+	Plans     map[string]Plan     `json:"plans"`
+	Runs      map[string]Run      `json:"runs"`
+}
+type envelope struct {
+	Version    int    `json:"version"`
+	Nonce      []byte `json:"nonce"`
+	Ciphertext []byte `json:"ciphertext"`
+}
+type Service struct {
+	mu        sync.Mutex
+	tickMu    sync.Mutex
+	path      string
+	documents *storage.Documents
+	aead      cipher.AEAD
+	data      state
+	jobs      *jobs.Service
+	ctx       context.Context
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
+	started   bool
+	abandoned bool
+	archive   func(Run, *jobs.Job) error
+	resolve   func(jobs.Input) (jobs.Input, error)
+	submit    SubmitFunc
+	now       func() time.Time
+}
+
+func Open(path string, key []byte, documents *storage.Documents, jobService *jobs.Service) (*Service, error) {
+	if jobService == nil {
+		return nil, fmt.Errorf("job service is required")
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s := &Service{path: path, documents: documents, aead: aead, jobs: jobService, ctx: ctx, cancel: cancel, now: time.Now, data: state{Templates: map[string]Template{}, Plans: map[string]Plan{}, Runs: map[string]Run{}}}
+	var data []byte
+	if documents != nil {
+		data, err = documents.LoadOrImport("operations", path)
+	} else {
+		data, err = os.ReadFile(path)
+		if errors.Is(err, os.ErrNotExist) {
+			err = nil
+		}
+	}
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	if len(data) > 0 {
+		var e envelope
+		if json.Unmarshal(data, &e) != nil || e.Version != 1 || len(e.Nonce) != aead.NonceSize() {
+			cancel()
+			return nil, fmt.Errorf("invalid operations store")
+		}
+		plain, err := aead.Open(nil, e.Nonce, e.Ciphertext, []byte("jms233/operations/v1"))
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		if json.Unmarshal(plain, &s.data) != nil || s.data.Templates == nil || s.data.Plans == nil || s.data.Runs == nil || len(s.data.Templates) > 500 || len(s.data.Plans) > 1000 || len(s.data.Runs) > 1000 {
+			cancel()
+			return nil, fmt.Errorf("invalid operations records")
+		}
+	}
+	for _, p := range s.data.Plans {
+		if p.HostPlugin != nil && (!collectorOperation(p.HostPlugin) || p.Command != p.HostPlugin.Command() || len(p.AssetIDs) != 1 || p.Kind != "interval") {
+			cancel()
+			return nil, ErrInvalid
+		}
+	}
+	// A persisted claim may have crossed the SSH boundary. Link an existing
+	// idempotent job, otherwise mark interrupted; never submit the claim again.
+	changed := false
+	for id, run := range s.data.Runs {
+		if run.ID != id || run.OwnerID == "" || len(run.Items) > 50 || run.HostPlugin != nil && (!collectorOperation(run.HostPlugin) || run.CollectionSequence == 0 || len(run.Items) != 1) {
+			cancel()
+			return nil, fmt.Errorf("invalid operation run")
+		}
+		if run.AccessOrigin.Method == "" {
+			run.AccessOrigin.Method = "scheduled_exec"
+			if p, ok := s.data.Plans[run.PlanID]; ok && p.Kind == "batch" {
+				run.AccessOrigin.Method = "exec"
+			}
+			changed = true
+		}
+		for i, item := range run.Items {
+			if item.State != "dispatching" {
+				continue
+			}
+			in := jobInput(run, item.AssetID)
+			job, found, err := s.jobs.FindRequest(run.OwnerID, in)
+			if err != nil {
+				cancel()
+				return nil, err
+			}
+			if found {
+				item.JobID = job.ID
+				item.State = job.State
+			} else {
+				item.State = "interrupted"
+				item.ErrorCode = "dispatch_interrupted"
+			}
+			run.Items[i] = item
+			changed = true
+		}
+		run.State = runState(run)
+		s.data.Runs[id] = run
+	}
+	if changed {
+		if err := s.persist(s.data); err != nil {
+			cancel()
+			return nil, err
+		}
+	}
+	return s, nil
+}
+func clone(in state) state {
+	out := state{Templates: map[string]Template{}, Plans: map[string]Plan{}, Runs: map[string]Run{}}
+	for id, t := range in.Templates {
+		out.Templates[id] = t
+	}
+	for id, p := range in.Plans {
+		p.AssetIDs = append([]string(nil), p.AssetIDs...)
+		p.HostPlugin = clonePlugin(p.HostPlugin)
+		out.Plans[id] = p
+	}
+	for id, r := range in.Runs {
+		r.Items = append([]Item(nil), r.Items...)
+		r.HostPlugin = clonePlugin(r.HostPlugin)
+		out.Runs[id] = r
+	}
+	return out
+}
+func (s *Service) mutate(fn func(*state) error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ctx.Err() != nil || s.abandoned {
+		return ErrBusy
+	}
+	next := clone(s.data)
+	if err := fn(&next); err != nil {
+		return err
+	}
+	if err := s.persist(next); err != nil {
+		return err
+	}
+	s.data = next
+	return nil
+}
+func newID(prefix string) (string, error) {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	return prefix + hex.EncodeToString(raw[:]), nil
+}
+func validName(name string) bool {
+	return strings.TrimSpace(name) != "" && len(name) <= 100 && strings.IndexFunc(name, unicode.IsControl) < 0
+}
+func (s *Service) SaveTemplate(id, ownerID, owner string, in TemplateInput) (Template, error) {
+	in.Name = strings.TrimSpace(in.Name)
+	validated, err := jobs.Validate(jobs.Input{AssetID: "template", Command: in.Command, TimeoutSeconds: in.TimeoutSeconds})
+	if err != nil || !validName(in.Name) {
+		return Template{}, ErrInvalid
+	}
+	in.Command = validated.Command
+	in.TimeoutSeconds = validated.TimeoutSeconds
+	var result Template
+	err = s.mutate(func(next *state) error {
+		if id == "" {
+			if len(next.Templates) >= 500 {
+				return ErrBusy
+			}
+			var err error
+			id, err = newID("template-")
+			if err != nil {
+				return err
+			}
+			in.Revision = 1
+		} else {
+			old, ok := next.Templates[id]
+			if !ok || old.OwnerID != ownerID {
+				return ErrNotFound
+			}
+			if old.Revision != in.Revision {
+				return ErrConflict
+			}
+			in.Revision++
+		}
+		result = Template{ID: id, OwnerID: ownerID, Owner: owner, TemplateInput: in, UpdatedAt: s.now().UTC()}
+		next.Templates[id] = result
+		return nil
+	})
+	return result, err
+}
+func (s *Service) DeleteTemplate(id, owner string, revision int) error {
+	return s.mutate(func(next *state) error {
+		t, ok := next.Templates[id]
+		if !ok || t.OwnerID != owner {
+			return ErrNotFound
+		}
+		if t.Revision != revision {
+			return ErrConflict
+		}
+		delete(next.Templates, id)
+		return nil
+	})
+}
+func (s *Service) Templates(owner string) []Template {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	items := []Template{}
+	for _, t := range s.data.Templates {
+		if t.OwnerID == owner {
+			items = append(items, t)
+		}
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+	return items
+}
+func (s *Service) Prepare(owner string, in PlanInput) (PlanInput, int, error) {
+	in.Name = strings.TrimSpace(in.Name)
+	in.AssetIDs = append([]string(nil), in.AssetIDs...)
+	sort.Strings(in.AssetIDs)
+	if !validName(in.Name) || len(in.AssetIDs) < 1 || len(in.AssetIDs) > 50 || len(in.RequestID) < 1 || len(in.RequestID) > 100 || strings.IndexFunc(in.RequestID, unicode.IsControl) >= 0 {
+		return in, 0, ErrInvalid
+	}
+	for i, id := range in.AssetIDs {
+		if id == "" || len(id) > 128 || (i > 0 && id == in.AssetIDs[i-1]) {
+			return in, 0, ErrInvalid
+		}
+	}
+	revision := 0
+	if in.TemplateID != "" {
+		if in.Command != "" {
+			return in, 0, ErrInvalid
+		}
+		s.mu.Lock()
+		t, ok := s.data.Templates[in.TemplateID]
+		s.mu.Unlock()
+		if !ok || t.OwnerID != owner {
+			return in, 0, ErrNotFound
+		}
+		in.Command = t.Command
+		in.TimeoutSeconds = t.TimeoutSeconds
+		revision = t.Revision
+	}
+	validated, err := jobs.Validate(jobs.Input{AssetID: in.AssetIDs[0], Command: in.Command, TimeoutSeconds: in.TimeoutSeconds})
+	if err != nil {
+		return in, 0, err
+	}
+	in.Command = validated.Command
+	in.TimeoutSeconds = validated.TimeoutSeconds
+	now := s.now().UTC()
+	if !in.RunAt.IsZero() {
+		in.RunAt = in.RunAt.UTC()
+	}
+	switch in.Kind {
+	case "batch":
+		if !in.RunAt.IsZero() || in.IntervalSeconds != 0 {
+			return in, 0, ErrInvalid
+		}
+	case "once":
+		if !in.RunAt.After(now) || in.IntervalSeconds != 0 {
+			return in, 0, ErrInvalid
+		}
+	case "interval":
+		if in.IntervalSeconds < 60 || in.IntervalSeconds > 31*86400 || (!in.RunAt.IsZero() && !in.RunAt.After(now)) {
+			return in, 0, ErrInvalid
+		}
+	default:
+		return in, 0, ErrInvalid
+	}
+	return in, revision, nil
+}
+
+// CreatePlan accepts only a prepared snapshot; templates are resolved by the
+// caller before authorization so template edits cannot alter approved payloads.
+func (s *Service) CreatePlan(ownerID, owner string, in PlanInput, revision int) (Plan, error) {
+	return s.createPlan(ownerID, owner, in, revision, nil, "", "")
+}
+func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, plugin *hostplugins.Operation, account, assetName string) (Plan, error) {
+	var result Plan
+	err := s.mutate(func(next *state) error {
+		for _, p := range next.Plans {
+			if p.OwnerID == ownerID && p.RequestID == in.RequestID {
+				previous := p.PlanInput
+				previous.Origin = p.AccessOrigin
+				if !reflect.DeepEqual(previous, in) || !reflect.DeepEqual(p.HostPlugin, plugin) {
+					return ErrConflict
+				}
+				result = p
+				return nil
+			}
+		}
+		if plugin != nil {
+			for _, p := range next.Plans {
+				if p.HostPlugin != nil && p.Enabled && p.OwnerID == ownerID && p.AssetIDs[0] == in.AssetIDs[0] {
+					return ErrConflict
+				}
+			}
+		}
+		if len(next.Plans) >= 1000 {
+			return ErrBusy
+		}
+		id, err := newID("plan-")
+		if err != nil {
+			return err
+		}
+		now := s.now().UTC()
+		due := in.RunAt
+		if due.IsZero() {
+			due = now
+			if in.Kind == "interval" {
+				due = now.Add(time.Duration(in.IntervalSeconds) * time.Second)
+			}
+		}
+		result = Plan{HostPlugin: clonePlugin(plugin), CollectionAccount: account, CollectionAssetName: assetName, AccessOrigin: in.Origin, ID: id, OwnerID: ownerID, Owner: owner, PlanInput: in, TemplateRevision: revision, Enabled: true, NextRun: due, CreatedAt: now}
+		result.AssetIDs = append([]string(nil), in.AssetIDs...)
+		next.Plans[id] = result
+		return nil
+	})
+	result.HostPlugin = clonePlugin(result.HostPlugin)
+	result.AssetIDs = append([]string(nil), result.AssetIDs...)
+	return result, err
+}
+func (s *Service) Plans(owner string) []Plan {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	items := []Plan{}
+	for _, p := range s.data.Plans {
+		if owner == "" || p.OwnerID == owner {
+			p.AssetIDs = append([]string(nil), p.AssetIDs...)
+			p.HostPlugin = clonePlugin(p.HostPlugin)
+			items = append(items, p)
+		}
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.After(items[j].CreatedAt) })
+	return items
+}
+func (s *Service) Plan(id string) (Plan, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.data.Plans[id]
+	if !ok {
+		return p, ErrNotFound
+	}
+	p.AssetIDs = append([]string(nil), p.AssetIDs...)
+	p.HostPlugin = clonePlugin(p.HostPlugin)
+	return p, nil
+}
+func (s *Service) SetEnabled(id string, enabled bool) error {
+	return s.mutate(func(next *state) error {
+		p, ok := next.Plans[id]
+		if !ok {
+			return ErrNotFound
+		}
+		if p.Kind == "batch" || p.Kind == "once" && p.LastRunID != "" {
+			return ErrConflict
+		}
+		p.Enabled = enabled
+		p.ErrorCode = ""
+		if enabled && !p.NextRun.After(s.now()) {
+			if p.Kind == "once" {
+				return ErrConflict
+			}
+			p.NextRun = s.now().UTC().Add(time.Duration(p.IntervalSeconds) * time.Second)
+		}
+		next.Plans[id] = p
+		return nil
+	})
+}
+func (s *Service) Runs(owner string, offset, limit int) ([]Run, int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	items := []Run{}
+	for _, r := range s.data.Runs {
+		if owner == "" || r.OwnerID == owner {
+			r.Items = append([]Item(nil), r.Items...)
+			r.HostPlugin = clonePlugin(r.HostPlugin)
+			items = append(items, r)
+		}
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.After(items[j].CreatedAt) })
+	total := len(items)
+	offset = min(max(offset, 0), total)
+	return items[offset:min(total, offset+limit)], total
+}
+func (s *Service) Run(id string) (Run, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r, ok := s.data.Runs[id]
+	if !ok {
+		return r, ErrNotFound
+	}
+	r.Items = append([]Item(nil), r.Items...)
+	r.HostPlugin = clonePlugin(r.HostPlugin)
+	return r, nil
+}
+func (s *Service) CancelRun(id string) error {
+	var ids []string
+	err := s.mutate(func(next *state) error {
+		r, ok := next.Runs[id]
+		if !ok {
+			return ErrNotFound
+		}
+		r.Cancelled = true
+		for i, item := range r.Items {
+			if item.JobID != "" {
+				ids = append(ids, item.JobID)
+			}
+			if item.JobID == "" && item.State != "dispatching" {
+				item.State = "cancelled"
+				r.Items[i] = item
+			}
+		}
+		r.State = runState(r)
+		next.Runs[id] = r
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for _, jobID := range ids {
+		_ = s.jobs.Cancel(jobID)
+	}
+	return nil
+}
+func (s *Service) Start(submit SubmitFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.started || s.ctx.Err() != nil {
+		return
+	}
+	s.started = true
+	s.submit = submit
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-s.ctx.Done():
+				return
+			case <-ticker.C:
+				s.Tick()
+			}
+		}
+	}()
+}
+func (s *Service) Tick() {
+	s.tickMu.Lock()
+	defer s.tickMu.Unlock()
+	if s.ctx.Err() != nil {
+		return
+	}
+	s.archiveCollectors()
+	s.mu.Lock()
+	resolve := s.resolve
+	s.mu.Unlock()
+	now := s.now().UTC()
+	_ = s.mutate(func(next *state) error {
+		changed := false
+		for id, p := range next.Plans {
+			if !p.Enabled || p.NextRun.After(now) {
+				continue
+			}
+			if p.Kind == "interval" {
+				overlaps := false
+				for _, prior := range next.Runs {
+					if prior.PlanID == p.ID && (prior.State == "running" || prior.State == "waiting_review") {
+						overlaps = true
+						break
+					}
+				}
+				if overlaps {
+					p.NextRun = now.Add(time.Duration(p.IntervalSeconds) * time.Second)
+					p.ErrorCode = "previous_run_active"
+					next.Plans[id] = p
+					changed = true
+					continue
+				}
+			}
+			if len(next.Runs) >= 1000 {
+				p.Enabled = false
+				p.ErrorCode = "history_full"
+				next.Plans[id] = p
+				changed = true
+				continue
+			}
+			runID, err := newID("run-")
+			if err != nil {
+				return err
+			}
+			origin := p.AccessOrigin
+			origin.Method = "scheduled_exec"
+			if p.Kind == "batch" {
+				origin.Method = "exec"
+			}
+			if p.HostPlugin != nil {
+				p.CollectionSequence++
+			}
+			r := Run{HostPlugin: clonePlugin(p.HostPlugin), CollectionSequence: p.CollectionSequence, CollectionAccount: p.CollectionAccount, CollectionAssetName: p.CollectionAssetName, AccessOrigin: origin, ID: runID, PlanID: p.ID, OwnerID: p.OwnerID, Name: p.Name, Command: p.Command, TimeoutSeconds: p.TimeoutSeconds, CreatedAt: now, State: "running", Items: []Item{}}
+			for _, assetID := range p.AssetIDs {
+				r.Items = append(r.Items, Item{AssetID: assetID, State: "pending"})
+			}
+			next.Runs[runID] = r
+			p.LastRunID = runID
+			p.ErrorCode = ""
+			if p.Kind == "interval" {
+				p.NextRun = now.Add(time.Duration(p.IntervalSeconds) * time.Second)
+			} else {
+				p.Enabled = false
+				p.NextRun = time.Time{}
+			}
+			next.Plans[id] = p
+			changed = true
+		}
+		if !changed {
+			return errNoChange
+		}
+		return nil
+	})
+	runs, _ := s.Runs("", 0, 1000)
+	sort.Slice(runs, func(i, j int) bool { return runs[i].CreatedAt.Before(runs[j].CreatedAt) })
+	for _, run := range runs {
+		for index, item := range run.Items {
+			if s.ctx.Err() != nil {
+				return
+			}
+			if item.JobID != "" {
+				job, err := s.jobs.Get(item.JobID)
+				if err == nil && job.State != item.State {
+					_ = s.updateItem(run.ID, index, func(current *Item) { current.State = job.State; current.ErrorCode = job.ErrorCode })
+				}
+				continue
+			}
+			if run.Cancelled || item.State != "pending" && item.State != "waiting_review" || item.RetryAt.After(now) {
+				continue
+			}
+			if s.submit == nil {
+				continue
+			}
+			if run.HostPlugin != nil && resolve != nil {
+				input, e := resolve(jobInput(run, item.AssetID))
+				if e != nil {
+					_ = s.updateItem(run.ID, index, func(x *Item) { x.State = "denied"; x.ErrorCode = "access_denied" })
+					continue
+				}
+				run.HostPlugin = clonePlugin(input.Plugin)
+				run.Command = input.Command
+			}
+			claimed := false
+			err := s.mutate(func(next *state) error {
+				r := next.Runs[run.ID]
+				if r.Cancelled || r.Items[index].State != item.State {
+					return errNoChange
+				}
+				r.Items[index].State = "dispatching"
+				r.HostPlugin = clonePlugin(run.HostPlugin)
+				r.Command = run.Command
+				next.Runs[run.ID] = r
+				claimed = true
+				return nil
+			})
+			if err != nil || !claimed {
+				continue
+			}
+			result, err := s.submit(run.OwnerID, jobInput(run, item.AssetID), item.ReviewID)
+			cancelJob := false
+			_ = s.mutate(func(next *state) error {
+				r := next.Runs[run.ID]
+				target := r.Items[index]
+				if r.Cancelled {
+					target.State = "cancelled"
+					target.JobID = result.Job.ID
+					cancelJob = result.Job.ID != ""
+				} else {
+					switch {
+					case errors.Is(err, ErrBusy):
+						target.State = "pending"
+						target.ErrorCode = "capacity"
+						target.RetryAt = now.Add(time.Second)
+					case errors.Is(err, ErrDenied):
+						target.State = "denied"
+						target.ErrorCode = "access_denied"
+					case err != nil:
+						target.State = "failed"
+						target.ErrorCode = "dispatch_failed"
+					case result.ReviewID != "":
+						target.State = "waiting_review"
+						target.ReviewID = result.ReviewID
+						target.ErrorCode = ""
+						target.RetryAt = now.Add(time.Second)
+					case result.Job.ID != "":
+						target.State = result.Job.State
+						target.JobID = result.Job.ID
+						target.ErrorCode = result.Job.ErrorCode
+					default:
+						target.State = "failed"
+						target.ErrorCode = "dispatch_failed"
+					}
+				}
+				r.Items[index] = target
+				r.State = runState(r)
+				next.Runs[run.ID] = r
+				return nil
+			})
+			if cancelJob {
+				_ = s.jobs.Cancel(result.Job.ID)
+			}
+		}
+	}
+}
+
+var errNoChange = errors.New("no operations change")
+
+func (s *Service) updateItem(id string, index int, fn func(*Item)) error {
+	return s.mutate(func(next *state) error {
+		r := next.Runs[id]
+		fn(&r.Items[index])
+		r.State = runState(r)
+		next.Runs[id] = r
+		return nil
+	})
+}
+func jobInput(r Run, assetID string) jobs.Input {
+	digest := sha256.Sum256([]byte(r.ID + ":" + assetID))
+	return jobs.Input{Plugin: clonePlugin(r.HostPlugin), Origin: r.AccessOrigin, AssetID: assetID, Command: r.Command, TimeoutSeconds: r.TimeoutSeconds, RequestID: "operation-" + hex.EncodeToString(digest[:])}
+}
+func runState(r Run) string {
+	if r.Cancelled {
+		return "cancelled"
+	}
+	success, pending, waiting := 0, 0, 0
+	for _, i := range r.Items {
+		switch i.State {
+		case "succeeded":
+			success++
+		case "pending", "dispatching", "running":
+			pending++
+		case "waiting_review", "pending_review":
+			waiting++
+		}
+	}
+	if pending > 0 {
+		return "running"
+	}
+	if waiting > 0 {
+		return "waiting_review"
+	}
+	if success == len(r.Items) {
+		return "succeeded"
+	}
+	if success > 0 {
+		return "partial"
+	}
+	return "failed"
+}
+func (s *Service) Close()   { s.mu.Lock(); s.cancel(); s.mu.Unlock(); s.wg.Wait() }
+func (s *Service) Abandon() { s.mu.Lock(); s.abandoned = true; s.cancel(); s.mu.Unlock() }
+func (s *Service) persist(next state) error {
+	if s.abandoned {
+		return ErrBusy
+	}
+	plain, err := json.Marshal(next)
+	if err != nil {
+		return err
+	}
+	nonce := make([]byte, s.aead.NonceSize())
+	if _, err = rand.Read(nonce); err != nil {
+		return err
+	}
+	data, err := json.Marshal(envelope{Version: 1, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte("jms233/operations/v1"))})
+	if err != nil {
+		return err
+	}
+	if s.documents != nil {
+		return s.documents.Save("operations", data)
+	}
+	if err = os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(filepath.Dir(s.path), ".operations-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	if err = f.Chmod(0600); err == nil {
+		_, err = f.Write(data)
+	}
+	if err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return os.Rename(f.Name(), s.path)
+}
+
+func clonePlugin(o *hostplugins.Operation) *hostplugins.Operation {
+	if o == nil {
+		return nil
+	}
+	c := o.Clone()
+	return &c
+}
+func collectorOperation(o *hostplugins.Operation) bool {
+	return o != nil && o.Plugin == "banhack233" && o.Action == "events_collect" && o.Validate() == nil
+}
+func (s *Service) CreateCollector(ownerID, owner string, in PlanInput, op hostplugins.Operation, account, assetName string) (Plan, error) {
+	if !collectorOperation(&op) || len(in.AssetIDs) != 1 || in.Kind != "interval" || in.IntervalSeconds < 60 || in.IntervalSeconds > 86400 || in.TemplateID != "" || account == "" {
+		return Plan{}, ErrInvalid
+	}
+	in.Command = op.Command()
+	in.TimeoutSeconds = 60
+	prepared, revision, e := s.Prepare(ownerID, in)
+	if e != nil {
+		return Plan{}, e
+	}
+	return s.createPlan(ownerID, owner, prepared, revision, &op, account, assetName)
+}
+func (s *Service) SetCollectorHooks(resolve func(jobs.Input) (jobs.Input, error), archive func(Run, *jobs.Job) error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.resolve = resolve
+	s.archive = archive
+}
+func (s *Service) archiveCollectors() {
+	s.mu.Lock()
+	archive := s.archive
+	s.mu.Unlock()
+	if archive == nil {
+		return
+	}
+	runs, _ := s.Runs("", 0, 1000)
+	sort.Slice(runs, func(i, j int) bool {
+		if runs[i].PlanID == runs[j].PlanID {
+			return runs[i].CollectionSequence < runs[j].CollectionSequence
+		}
+		return runs[i].PlanID < runs[j].PlanID
+	})
+	blocked := map[string]bool{}
+	for _, r := range runs {
+		if blocked[r.PlanID] {
+			continue
+		}
+		if !collectorOperation(r.HostPlugin) || len(r.Items) != 1 || r.State == "running" || r.State == "waiting_review" {
+			continue
+		}
+		var job *jobs.Job
+		if r.Items[0].JobID != "" {
+			j, e := s.jobs.Get(r.Items[0].JobID)
+			if e == nil {
+				if j.State == "running" || j.State == "pending_review" {
+					continue
+				}
+				job = &j
+			} else if !errors.Is(e, jobs.ErrNotFound) {
+				continue
+			}
+		}
+		if archive(r, job) != nil {
+			blocked[r.PlanID] = true
+			continue
+		}
+		if job != nil {
+			if s.jobs.PruneCollector(job.ID) != nil {
+				blocked[r.PlanID] = true
+				continue
+			}
+		}
+		_ = s.mutate(func(next *state) error {
+			current, ok := next.Runs[r.ID]
+			if !ok {
+				return errNoChange
+			}
+			if current.State != r.State {
+				return ErrConflict
+			}
+			delete(next.Runs, r.ID)
+			return nil
+		})
+	}
+}

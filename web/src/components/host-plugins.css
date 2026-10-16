@@ -1,0 +1,117 @@
+.asset-modal.host-plugins-dialog {
+  width: min(960px, 100%);
+  min-width: 0;
+  max-width: 100%;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  display: block;
+  padding: 24px;
+}
+.host-plugins-dialog > header,
+.host-plugin-card > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+.host-plugins-dialog h2,
+.host-plugin-card h3 {
+  margin: 0;
+}
+.host-plugins-hint,
+.host-plugin-card > p,
+.host-plugin-card details > p,
+.host-plugin-job > p {
+  color: var(--color-text-muted, #8d94a4);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.host-plugin-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.host-plugin-card {
+  border: 1px solid var(--color-border, #363b45);
+  border-radius: 12px;
+  padding: 18px;
+  min-width: 0;
+}
+.host-plugin-card a {
+  font-size: 13px;
+}
+.host-plugin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+.host-plugin-state {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+}
+.host-plugin-state p {
+  width: 100%;
+  margin: 0;
+}
+.host-plugin-card summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.host-plugin-card code {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.host-plugin-output {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}
+.host-plugin-job {
+  border-top: 1px solid var(--color-border, #363b45);
+  padding-top: 16px;
+}
+.host-protection-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.host-protection-form h4 {
+  margin: 0;
+}
+.host-protection-form p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.host-protection-form label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.host-protection-form input,
+.host-protection-form select,
+.host-protection-form textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+@media (max-width: 720px) {
+  .host-plugin-cards {
+    grid-template-columns: 1fr;
+  }
+  .asset-modal.host-plugins-dialog {
+    padding: 16px;
+  }
+}

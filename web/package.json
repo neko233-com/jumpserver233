@@ -1,0 +1,34 @@
+{
+  "name": "jumpserver233-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node ../scripts/check-web-bundle.mjs",
+    "preview": "vite preview",
+    "lint": "vp lint src vite.config.ts --react-plugin",
+    "format": "vp fmt src vite.config.ts",
+    "test:e2e": "node --test ./testsupport/plugin-artifact-cache.test.mjs && tsc --noEmit -p tsconfig.e2e.json && node ./e2e/run-tests.mjs"
+  },
+  "dependencies": {
+    "@xterm/xterm": "^6.0.0",
+    "i18next": "^26.4.4",
+    "motion": "^12.43.0",
+    "ogl": "^1.0.11",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-i18next": "^17.0.16",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vite-plus": "^1.1.0"
+  }
+}

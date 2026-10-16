@@ -1,0 +1,18 @@
+Port 22
+ListenAddress 0.0.0.0
+HostKey /run/keyhost-ed25519
+PidFile /run/keyhost.pid
+PasswordAuthentication yes
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+PermitEmptyPasswords no
+PermitRootLogin no
+UsePAM no
+UseDNS no
+StrictModes yes
+AuthorizedKeysFile .ssh/authorized_keys
+AllowUsers keyqa keyha rotationqa rotationha sharedkeyqa sharedkeyha pluginqa
+AllowTcpForwarding yes
+PrintMotd no
+LogLevel ERROR
+Subsystem sftp internal-sftp

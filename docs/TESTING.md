@@ -1,0 +1,276 @@
+# 自动化验证
+
+> 中文 | [English](./TESTING.en.md)
+
+## 稳定基线：systemd、性能与 Docker 隔离
+
+2026-10-16：Windows 完整 Go/Testify 54 包 / 737 项、零失败和零用例跳过；完整 Playwright 58/58（13.8 分钟）。后端 vet/build、前端零警告 lint/build、E2E 类型检查及 12/12 夹具/制品/隔离参数辅助检查通过。完整 Linux race 54 包 / 745 项、零失败和零用例跳过、无数据竞争。长跑输出通道中断后，恢复同一环境并用相同代码的成功缓存完成最终复核，退出码为 0；中断输出另存为 jms233-systemd-race-interrupted-output.log。
+
+真实 Debian PID 1 systemd 覆盖 root/普通账号服务、cgroup 归属、进程崩溃与内核表恢复、版本升级/回退、实际整机重启、未知 drop-in 拒绝、停用后手动生命周期和保留数据卸载。新动作仍检查平台授权、访问策略与复核；无效版本请求不会暂停健康服务。首轮修复授权错误包装、服务状态组装顺序和 systemd 路径语法；夹具改为 512 MiB guest、1 GiB 容器和 64 MiB TCG 缓存。完整包含真实重启后超过原 10 分钟限制，现使用 20 分钟包级时限。
+
+生产主入口从 628.26 kB 降至 442.11 kB，Windows 精简程序从 51,472,896 字节降至 38,855,168 字节；严格类型检查保留，增量缓存分离，构建自动检查体积预算。详见 [性能基线](./PERFORMANCE.md)。Docker 全新隔离环境实测约 18.6 秒（含双环境浏览器），已有环境复查约 6.5 秒。不同回环地址避免跨端口 Cookie 冲突，同一浏览器上下文的两套登录均保持。另从暂存区导出无 .git、依赖及生成程序的纯净源码，Docker 构建、鉴权与内容检查全部通过，约 18.9 秒。详见 [Docker 验证](./DOCKER-QA.md)。
+
+内置浏览器实际完成已有原生组件 v3 更新、中英状态检查和生产镜像登录；原 qa-operator 仍仅有 Browser QA / qa-monitor / view，旧用户库 root 数量为零。5173 与 5177 原预览保留，独立 Docker 调试环境为 127.0.0.2:15173/18080 和 127.0.0.3:15174/18081。ARM64 仍仅交叉构建，生产 HA、真实 Windows Agent 和其余企业版范围保持进行中。
+
+成功证据：临时目录的 jms233-systemd-go-verified.log、jms233-systemd-race-verified.log、jms233-systemd-e2e-final.log，及工作区被忽略的 .cache/docker-qa/、.cache/clean-index-verify.log。首轮失败/超时日志 jms233-systemd-go.log、jms233-systemd-go-final.log 保留。自动审批拒绝清理临时纯净检出目录 jms233-clean-index-ItyLVB，已保留；不会进入 Git。
+
+2026-10-16 既有主机组件更新回执与防护健康：
+
+![原生组件更新后的中文状态](./images/native-agent-v3.zh-CN.png)
+
+## Agent 事件与集中审计验收
+
+2026-10-16：[Agent 事件](./AGENT-EVENTS.md) 验收通过。完整 Windows Go/Testify 为 54 包 / 725 项，完整 Linux race 为 54 包 / 730 项，零失败、零用例跳过、无数据竞争；完整 Playwright 56/56（8.5 分钟），最终事件筛选与原生恢复定向复验 2/2（3.3 分钟）。最后补强原生组件 shell 完整性检查后，Windows 和全新 Linux 夹具分别重新运行全部 hostplugins 26/26，验证符号链接目标未执行。后端 vet/build、前端零警告 lint/build、E2E 类型与辅助用例 6/6 均通过。构建仍有 626.69 kB 主包体积提示。
+
+新增检查覆盖事件哈希链、轮转、只读分页、中断记录、重复/并发补采、游标回滚/重置/断档、索引持久化失败、跨段 1005 份回执、组织 PostgreSQL 隔离/重启、从本地迁移时保留游标，以及内部计划元数据防注入、凭据绑定刷新、先归档后释放热槽位。首轮发现计划返回指针别名和空 PostgreSQL 初始化分支问题，均已修复并复跑。最后一次 Linux 定向复验在复用已有状态夹具时等待恢复超时，换全新夹具后 26/26 通过；失败日志保留。
+
+浏览器另外验证：既有原生组件升级；平台离线时实际 cron 修复丢失的内核表；重连补采与服务重启后历史/计划保留；成功采集回执和主机事件分别筛选；中英界面与 390px 无横向溢出，控制台无警告/错误。本机 5173 预览保留五分钟采集及 12291/12292 隔离防护主机，8084/5177 旧预览恢复到当前代码。原 qa-operator 仍只有 Browser QA / qa-monitor / view，旧用户库未添加 root。当前批次临时主机和浏览器夹具按归属清理，已有预览及此前审批拒绝资源保留。验证对象为 Linux amd64，ARM64 仅交叉构建；systemd、真实 Windows Agent 与生产 HA 演练等企业版范围仍在推进。
+
+证据日志：临时目录中的 `jms233-agent-events-go-final.log`、`jms233-agent-events-race-final.log`、`jms233-agent-events-e2e-final.log`、`jms233-agent-events-browser-final.log`、`jms233-agent-events-integrity-win.log` 与 `jms233-agent-events-integrity-race-final.log`。失败运行另存，不替换成功记录。
+
+## 既有原生恢复组件验收基线
+
+2026-10-16 原生封禁恢复集中验收通过：[恢复组件](./HOST-AGENT.md) 已接入构建、服务端生命周期及中英状态。Windows Go/Testify 完整 53 包/701 项、Linux race 完整 53 包/704 项，零失败、零用例跳过、无数据竞争；完整 Playwright 55/55（6.4 分钟）、辅助用例 6/6、vet、后端构建、前端零警告 lint、build 和 E2E 类型检查通过。主包大小提示为 622.47 kB；中英各 1369 个翻译键、78 份双语文档、624 个相对链接检查通过。
+
+原生用例验证实际 cron、存活进程丢失内核表后的停止/锁定恢复、真实容器重启、IPv4/IPv6、原到期时间、恢复组件篡改拒绝、短暂 nft 不可用时保留原进程。Linux 多出 3 项文件锁和并发原子快照检查。生成物与当前源码摘要、两种架构 ELF/哈希均纳入验证；ARM64 仅构建，未执行真实主机验收。首轮完整 Go 中，恢复和封禁已成功，但以整行 JSON 比较到期时间误受逗号变化影响；已改为解析时间值并在最终完整回归通过。首轮浏览器 55/55（6.7 分钟）及失败记录保留；补齐原子快照读取和内核自检失败处理后，重新完整运行 Go/race/浏览器，以上结果均对应最终实现。
+
+内置浏览器另完成既有 Agent 的显式迁移、真实合成来源封禁、计数与中英 715px/375px 布局，控制台无警告/错误。5173 根账号预览及 8084/5177 原预览均运行当前代码；12291/12292 隔离防护主机保留，测试用临时 Windows/race 主机按归属清理，旧预览及此前审批拒绝资源保留。原 qa-operator 仍仅有 Browser QA / qa-monitor / view，旧用户库无 root。systemd、集中原生修复事件历史、真实 ARM64/Windows 主机和生产 HA 演练仍待完成，完整企业版目标保持进行中。
+
+## 版本升级与防护配置验收基线
+
+2026-10-16 版本升级与 SSH 防护集中验收通过：Windows Go/Testify 与 Linux race 各完整 50 包、673 项测试及子用例，零失败、零用例跳过、无数据竞争；完整 Playwright 54/54（7.5 分钟）、辅助用例 6/6、后端 vet/build、前端零警告 lint、build 与 E2E 类型检查通过。Linux race 首轮因官方制品下载 EOF 中断，第二轮完整通过，保留首轮记录。构建主包大小提示为 621.60 kB。中英各 1361 个翻译键、76 份双语文档、608 个相对链接通过检查。
+
+真实 Linux amd64 覆盖两种工具从固定旧版升级、回退、显式恢复，以及在清单切换后注入中断、拒绝普通启动并显式回退。root + NET_ADMIN 夹具位于独立 network namespace，不使用 privileged、宿主网络或宿主文件挂载。实际 TCP 验证攻击来源访问 SSH 22 被阻断、18080 可达，当前管理来源和白名单不被封禁；恢复审计策略后 SSH 可达，外部同名 nftables 表拒绝接管且保留。首轮实测发现 nftables 1.0.6 的 JSON 不返回内核表注释，已加入严格顶层文本校验并验证实际封禁；另一轮仅测试对原始 JSON 的断言错误，改用结构化所有权状态后通过。失败记录保留。
+
+内置浏览器在 5173 实际完成安装、启动、启用 SSH 封禁、策略回读及已有 cron 守护；中英页面、715px/375px 布局无横向溢出、无控制台警告/错误，新截图见 [主机工具与 Agent](./HOST-PLUGINS.md)。独立 12291/12292 夹具保留为预览；8084/5177 旧预览已恢复到当前代码。本批临时 race 夹具按归属清理，已有预览和此前审批拒绝的资源保留。原 qa-operator 仍只有 Browser QA / qa-monitor / view，旧存储未增设 root。主机重启/内核表重建后的未到期封禁恢复尚未验收，完整企业版和生产 HA 演练仍在进行。
+
+## 既有生命周期验收基线
+
+2026-10-16 Agent 生命周期集中验收通过：Windows Go/Testify 和 Linux race 各 50 包、664 项测试及子用例，零失败、零用例跳过、无数据竞争；完整 Playwright 52/52（4.9 分钟），辅助用例 6/6，vet、后端构建、前端零警告 lint/build 与 E2E 类型检查均通过。构建仍提示主包 618.51 kB；中英各 1338 个翻译键、76 份双语文档、604 个相对链接通过检查。
+
+新增真实主机重启及 cron 实际调度恢复、启动器完整性漂移拒绝、启停/停用守护、重复卸载、保留配置日志及重新安装。内置浏览器在 5173 验证两种 Agent 运行与守护、中英页面和控制台无错误；自动化覆盖 715px/375px 布局。新预览主机使用独立 12287/12288 夹具，原 qa-operator 仍仅有 Browser QA 节点、qa-monitor 账号的 view 授权；Linux race 新夹具按归属清理，已有及审批拒绝清理的资源保留。
+
+首轮浏览器环境启动因 MongoDB 夹具退出 48 而中止，没有进入业务用例；保留记录，并增强夹具错误级启动日志。第二轮完整 52 项通过。真实 SSH 首轮发现重复卸载脚本缺少空格，修复后针对性和完整 Go/race 均通过。该基线当时不包含版本升级及封禁配置；当前能力和 systemd 等边界见 [主机工具与 Agent](./HOST-PLUGINS.md)。
+
+## 上轮工具接入验收
+
+2026-10-16 最终集中验收：Windows Go/Testify 与 Linux race 各 50 个包、655 项测试及子用例通过，零失败、零用例跳过、无数据竞争；完整 Playwright 51/51（4.9 分钟）、6/6 夹具/制品缓存辅助用例、vet、后端构建、前端 lint/build 和 E2E 类型检查均通过。前端 lint 零警告，构建仍有 617.55 kB 主包大小提示。
+
+本轮交付固定版本 BanHack/Exporter 检测、SSH/SFTP 安装、后台进程启停、巡检/扫描/保活预览和 SSH 隧道指标读取，原生 API/CLI 与中英界面。验证覆盖原始 view-only 拒绝、双重复核、运行中撤权、配置/制品完整性、单活接管不重放、启动回执丢失恢复，以及 715px/375px 中英布局和键盘焦点。root 默认账号、RDP 原生桌面/剪贴板/加密回放与所有既有协议均在本次完整套件中验证。
+
+排错保留了真实缺陷与环境失败记录：修复 RDP 漏记实际网关链、修正撤权用例文案；Windows 网络缓冲不足曾导致未到达后端的请求及脚本加载失败，当前使用正常站内导航并复用公开制品缓存，未重试未知结果的写操作或放宽安全校验。缓存只复制固定命名的有界公开制品，每次安装仍由生产代码重新校验固定 SHA-256。内置浏览器也已验证默认 root 登录、两个实际运行的 Linux Agent、中英布局与主机指标。完整企业版目标仍在进行；开机自启、插件升级/卸载与生产封禁配置等边界见 [主机工具与 Agent](./HOST-PLUGINS.md)。
+
+## 本轮排错记录
+
+2026-10-16 远程工具整批集中验证：修复后 Windows Go/Testify 与 Linux race 各 50 个包、655 项测试及子用例通过，零失败、零用例跳过、无数据竞争；vet、后端构建、前端 lint 零警告、build 与 E2E 类型检查通过，构建仍提示主包 617.55 kB。新增固定版本及 SHA-256 制品、只读检测、原生 Linux SSH/SFTP 安装与启停、进程回执丢失恢复、配置完整性、逐操作和运行中授权复查、请求去重/单活接管不重放，以及 CLI JSON 与所有者隔离用例。
+
+首轮完整浏览器 48 项通过、1 项 RDP 网关链审计断言失败、1 项串行用例未运行。截图和真实点击成功，审计漏记实际路由；已修复为使用连接器实际打开的网关链，并新增持久化/切片拷贝测试，保留首轮 trace 与错误记录。第二轮 49/50：RDP 网关审计通过；此前未执行的撤权用例实际已断开，但预期文案错误（Closed 与已有 Session ended 不同）。已按实际界面契约修正，并新增撤权后禁止文本输入及重新连接仍返回 403 的检查；保留第二轮截图/trace，正在重跑全部 50 项。
+
+2026-10-16 RDP 与默认账号基线：在新增远程工具模块之前，Windows Go/Testify 和 Linux race 各 49 个测试包、641 项测试及子用例通过，零失败、零用例跳过、无数据竞争。包含真实 RDP 桌面、鼠标/键盘、文本剪贴板、证书/安全模式、网关、复核、撤权、组织隔离、加密图形录像和本机单活接管；默认 root 初始化覆盖普通 HTTP 认证、哈希存储、重启不重置密码、保留已有账号及显式停用。
+
+集中回归稳定复现并修正 Windows 审计索引打开读句柄时的原子替换冲突；读写同步后连续五轮针对性验证通过，随后完成以上全套。剪贴板新增每次回复的修订号，覆盖相同/空文字及未就绪提示；CLI 遇到输入拒绝会失败并移除未完成截图。当前 Linux xrdp 声明 Unicode 却会忽略直接中文，显式中文剪贴板由远端状态确认，见 [RDP](./RDP.md)。
+
+后端 vet/build、前端 lint/build、E2E 类型检查和 4/4 夹具辅助测试通过。前端主包提示 612.56 kB。内置浏览器已实际以 root 登录 5173，检查真实 Linux SSH 主机指标、原生 RDP、中英文字剪贴板往返和相同内容重读。新增完整浏览器用例尚未运行最终回归；后续远程工具模块完成后，须重新执行当前工作树的完整 Go、race 和浏览器验证，不能沿用该基线宣称新模块通过。
+
+2026-10-16 Telnet 与集中回归验收：最终 Windows Go/Testify 和 Linux race 各 45 个测试包、619 项测试及子用例通过，零失败、零用例跳过、无数据竞争。新增协议协商去重、IAC/NVT/二进制、NAWS/终端类型、畸形子协商与控制序列上限、提示规则及凭据验证、跨块密码回显脱敏、取消与登录数据上限；真实 Debian/BusyBox Telnet 覆盖校验 TLS、明文 TCP、实际账号/窗口尺寸、固定 SSH 网关、独立登录复核、命令拒绝和撤权中断。双节点接管在取消主节点前验证真实活动连接输出，随后验证旧连接关闭、票据失效、协议审计保留、实际重新连接及跨组织 404。
+
+完整 Playwright 44/44（4.0 分钟）通过，新增中英 Telnet/TLS/提示规则表单、明文说明与默认端口切换、真实 Linux 输出与录像、经固定网关的 jms telnet、view-only 拒绝、独立登录复核和活动连接撤权。统一验证修正了共享终端组件中传输变量遮蔽，以及新增 SDK 用例缺少 /ws/ 前缀的测试响应；首轮浏览器又发现说明文字进入控件名称，已为传输选择器设置独立可访问标签和关联说明，保留失败截图/trace 后重跑完整套。后端 vet/build、前端零警告 lint/build、E2E 类型检查、4/4 夹具辅助测试通过；主包提示仍存在，608.19 kB。
+
+内容检查通过：中英各 1237 个翻译键/插值参数一致，70 份双语文档及 552 个相对文件链接有效。SQL Server 104 份原始运行时文件仍仅有记录的 types.go、mssql.go 两处补丁，原始哈希清单保留。
+
+内置浏览器另实际通过直接 TLS 登录 Telnet，在中英界面运行 id、uname、stty，核对命令记录和完整录像播放。HTML 语言、页面宽度及最终控制台检查通过，无警告/错误。README 与 [Telnet 文档](./TELNET.md) 已同步真实、注明日期的中英截图。11 项资产均原生探测在线，包含七种数据库、Kubernetes、Telnet 和两个 SSH 监控主机；原 qa-operator 仍仅有默认 Browser QA 节点、qa-monitor 账号的 view 权限，访问隔离组织为 403。
+
+预览 API 8084 / Vite 5177、Telnet TLS 16992 / 明文 16523 / health 16524 及既有预览保留。本批四个临时 Go-test OpenSSH、race/E2E 资源和附加测试网络按归属清理，原有预览网络保留。E2E 退出流程补齐 Kubernetes 证书/工作目录清理，并纳入 Telnet；旧审批拒绝的停止容器和证书目录未重试或绕过。
+
+Telnet 设备 MFA、脚本登录、账号自动改密及资源监控仍未实现；明文链路、提示匹配和共享 PTY 审计边界已在协议文档写明。RDP、其他企业数据库/应用、账号发现、云同步、应用市场、多活与生产 HA 演练等继续保持待办，完整企业版目标保持进行中。未提交、推送或 release，未修改 changelog。
+
+2026-10-16 Kubernetes 与集中回归验收：最终 Windows Go/Testify 与 Linux race 各 44 个测试包、608 项测试及子用例通过，零失败、零用例跳过、无数据竞争。真实 K3s 覆盖验证 TLS、WebSocket v5 和官方 SPDY 回退、main/sidecar 两个容器、终端尺寸、原生退出状态与 RBAC 403、固定 SSH 网关、令牌加密、独立登录复核、命令拒绝、撤权中断及组织隔离。双节点接管用例在取消主节点前再次检查实际在线连接的命令输出，随后确认旧连接关闭、票据失效、审计保留及重新连接；这是本机单活热备验收。
+
+完整 Playwright 41/41（4.0 分钟）通过，新增中英集群资产/TLS 表单、命名空间/Pod/容器选择、真实终端输出与录像、网关 Agent CLI、操作员登录复核和撤权拒绝。审计页及复核通用文案已去除错误的 SSH 专属称呼，并新增中英审计页断言。后端 vet/build、前端零警告 lint/build、4/4 夹具辅助测试通过；主包大小提示仍存在，605.30 kB。中英各 1212 个翻译键/插值参数一致，68 份双语文档及 528 个相对文件链接通过检查；内容检查已接入 CI 与 make test。SQL Server 104 份原始运行时文件仍仅有文档记录的 types.go、mssql.go 两处补丁。
+
+集中验证修正了新用例对既有 blocked 枚举及会话结束文案的错误预期；终端用例改为观察实际 WebSocket 提示符后输入，并要求真实输出行，保留共享 PTY 命令识别边界。增加用例曾触发生产登录频率限制，测试改为复用真实认证得到的 HttpOnly 会话，未放宽生产限制。K3s 夹具显式创建默认服务账号并使用镜像中的独立 kubectl，避免启动竞态及包装命令差异。最后回归还发现既有计划测试在秒数恰好为 00 时填写非规范 datetime-local 值，已按浏览器规则省略零秒，并新增真实浏览器的零秒/非零秒/整点边界用例。完整 Go/race 已通过，测试调整后重跑完整浏览器回归。
+
+内置浏览器另实际连接 main 与 sidecar，运行 id、uname -s、stty size，并核对命令记录和完整录像播放。中文/英文 HTML 语言、页面宽度及浏览器控制台检查通过；README 与 [Kubernetes 文档](./KUBERNETES.md) 保存注明日期的真实中英截图。资产清单同时展示七种数据库、Kubernetes 及两个 SSH 监控主机，均原生探测在线。原 qa-operator 仍仅有默认 Browser QA 节点、qa-monitor 账号的 view 权限，访问隔离组织为 403。
+
+预览 API 8084 / Vite 5177、K3s TLS 16443 / health 16444 及既有预览保留。本批六个临时 OpenSSH、race/E2E 资源和附加测试网络按归属清理，原 ClickHouse 预览网络保留。此前自动审批拒绝的旧停止容器和证书目录未重试或绕过。
+
+完整企业版目标继续保持进行中：RDP/Telnet、其他数据库与应用协议、账号发现/数据库改密、应用市场、多活及生产 HA 演练等仍未完成；Kubernetes 文件、非交互作业、资源管理、命名空间发现与云 IAM 令牌刷新也未实现。未提交、推送或 release，未修改 changelog。
+
+2026-10-16 Redis/MongoDB 与集中回归验收：最终 Windows Go/Testify 和 Linux race 各 43 个测试包、600 项测试及子用例通过，零失败、零用例跳过、无数据竞争。真实 TLS 集成覆盖七种数据库、固定 SSH 网关和组织内双节点接管；新增 RESP 分配前限制、二进制/NULL/精确整数、只读策略、取消/撤权、MongoDB 1005 行分批游标、Extended BSON、NULL/缺失字段、部分批写和数字错误码。长期审计及恢复副本清除结果和缺失字段坐标，参数、字段名、集合/键名和错误正文不进入长期记录。
+
+首轮集中回归发现并修复三处问题，随后重新完整验证：Redis socket 截止先于 context 定时器时规范化为取消；MongoDB 原生 WriteException/BulkWriteException 提取数字代码且不泄露正文；既有 SQL Server 驱动关闭连接时过早归还缓冲区导致真实跨连接 race。驱动现在先关闭传输，只回收读取协程已完成的缓冲区；活动读取保留分配直至 GC。Testify 关闭顺序用例及十次真实 TLS 超限/重连循环纳入全量与 race。104 份原始驱动运行时文件中仅 types.go、mssql.go 含记录的补丁，原始哈希清单保留。
+
+最终完整 Playwright 37/37（4.0 分钟）通过，新增 Redis/MongoDB 中英资产配置、JSON 命令、浏览键/集合模板、NULL/缺失字段、资产只读不可覆盖、固定网关 Agent CLI、实际写入和无回滚保证提示。后端 vet/build、前端零警告 lint/build、4/4 夹具生命周期检查通过；中英各 1187 个翻译键一致，66 份双语文档配对及 506 个相对链接检查通过。构建仍提示主包 602.62 kB。CI 和 E2E 自动准备、验证和清理两种独立官方镜像 TLS 夹具。
+
+内置浏览器另行实测 Redis 二进制、NULL 和中英命令，MongoDB 精确 Int64、NULL/缺失字段及原生错误码 2；错误只显示通用文案和数字代码。两种审计仅显示命令和占位符，无命令参数值、字段/集合名和结果。中英 HTML 语言、页面宽度及最终浏览器控制台检查通过，无警告/错误。README 与 [NoSQL 文档](./NOSQL.md) 已更新真实中英截图，资产页同时展示七种数据库和两个 SSH 监控主机。
+
+预览 API 8084 / Vite 5177、Redis TLS 15491 / health 15492、MongoDB TLS 15501 / health 15502 及既有预览保留。四个本批临时 OpenSSH、race/E2E 资源与附加测试网络已按归属清理；七种数据库脱离附加网络后原生探测均在线，保留 ClickHouse 原有预览网络。原 qa-operator 仍仅有默认 Browser QA 节点、qa-monitor 账号的 view 权限，隔离组织请求为 403。此前自动审批拒绝的旧停止容器与证书目录继续保留，未重试或绕过。
+
+原生 TCP 客户端代理、Redis Cluster/Sentinel 自动路由、MongoDB 多节点发现、其它企业协议、账号发现/数据库自动改密、应用市场、多活和生产 HA 演练仍待完成；完整企业版目标保持进行中。Redis 数据库序号不构成权限隔离，写入原生命令/脚本按数据库账号权限执行，边界在 NoSQL 文档中说明。未提交、推送或 release，未修改 changelog。
+
+2026-10-16 ClickHouse HTTPS SQL 与全量回归验收：最终 Windows Go/Testify 与 Linux race 各 41 个测试包、573 项测试及子用例通过，零失败、零用例跳过。覆盖五种真实 TLS 数据库、ClickHouse 类型参数/NULL/精确大整数/Array/Tuple/Map、只读限制、DDL/DML、原生数字错误码、取消及服务端查询清理、结果与流量上限、二进制原始字节、固定 SSH 网关和五种数据库的组织内单活接管。新增审计用例验证列别名/类型、所有结果集与参数值均不进入解密后的长期记录，兼容恢复时清除旧结果元数据。
+
+最终完整 Playwright 33/33（3.1 分钟）通过，新增中英 ClickHouse 资产/类型参数、NULL、资产只读拒绝、限制覆盖拒绝、经固定网关的 Agent CLI、实际写入与无回滚保证提示。后端 vet/build、前端零警告 lint/build、4/4 夹具生命周期检查通过。中英各 1174 个翻译键一致；64 份双语文档配对及 486 个相对链接通过检查。主包体积提示仍存在，601.08 kB。详细协议边界见 [ClickHouse](./CLICKHOUSE.md)。
+
+集中回归修正了真实运行发现的差异：官方 JSONCompact 强制替换无效 UTF-8，改为带名称/类型的逐行格式并禁用 UTF-8 替换；完整解析可发现 HTTP 200 后的错误。测试实例扩大线程池、限制查询线程并停用高频系统日志。测试数据超限/取消语句按实际服务端限制调整，网关夹具保持逐跳回环边界。初次中断后合成 SSH 账号已改密，最终回归为 Windows/Linux 各创建新主机，避免旧账号状态污染 HA 验收。Shell 夹具保持 LF，Git 属性固定 `.sh` 换行。
+
+内置浏览器实际执行中英参数查询、NULL 和错误码 47，确认只显示通用错误与数字代码、审计保留 `{p1:?}` 而不含参数值、HTML 语言正确、无横向溢出；连接修复后的最终检查无控制台警告/错误。中英截图同步至协议文档和 README；资产清单展示五种数据库、合成 SSH 及真实 Linux OpenSSH 的 CPU、内存、网速和磁盘。原 qa-operator 仍只有默认 Browser QA 节点的 view 权限，访问隔离组织返回 403。
+
+预览 API 8084 / Vite 5177 和 ClickHouse HTTPS 15481 / health 15482 保留。清理测试网络曾导致该演示容器连接中断；恢复其网络后已用真实 TLS 会话、参数查询和资产探测验证恢复。其 Docker 网络 `jms233-clickhouse-final-20261016` 现作为预览依赖保留，不能当作无用测试网络删除。四个本批临时 OpenSSH、race 和 E2E 运行资源已清理，既有预览保留。
+
+本机自动审批拒绝清理旧的停止状态容器 `jms233-clickhouse-e573a745-898b-4c60-928f-77e40f77a8d9` 及证书目录 `jms233-clickhouse-cert-9St0qc`，只给出 blocked by policy；未绕过或声称已清理。此前保留的 `jms233-sqlserver-cert-vGKVIW` 同样未处理。完整企业版仍未全部对齐，目标保持进行中；未执行提交、推送或 release，未修改 changelog。
+
+2026-10-16 SQL Server 原生访问验收：最终 Windows Go/Testify 与 Linux race 各 40 个测试包、539 项测试及子用例通过，零失败、零用例跳过。覆盖真实 TLS TDS、绑定参数/NULL、多结果集、DDL/DML、影响行数、存储过程、批次部分提交、取消/撤权、结果与流量上限、固定 SSH 网关、资产配置及组织内双节点接管。只读用例覆盖数字紧邻控制语句、Unicode 数字、SELECT INTO、序列、远程查询与动态执行；资产只读不能被请求覆盖。各结果集深复制且不写入长期审计。
+
+官方驱动副本增加分配前保护：PLP 声明/累计块、旧 text/image 和 variant 超过 4 MiB 时拒绝。Testify 用不带字段正文的 2 GiB 声明验证分配前失败，并保留正常值与真实数据库回归。运行时源码、原始许可证、原始文件哈希及补丁说明随仓库提供，统一 Go 与 race 命令显式包含补丁测试包。详见 [SQL Server](./SQLSERVER.md)。
+
+最终完整 Playwright 31/31（2.8 分钟），新增中英 SQL Server、多结果集、只读拒绝、经固定 SSH 网关的 Agent CLI 和实际批次写入；后端 vet/build、前端零警告 lint/build、4/4 项夹具生命周期检查通过。62 份双语文档与 470 个相对链接通过检查；104 份原始驱动运行时源码中仅 types.go 存在记录的解码器补丁。首次浏览器预备被 Docker Hub EOF 中断，修正镜像构建的有限网络重试与缺失对象错误大小写处理，并按归属记录恢复清理后完整重跑。静态复核补强数字/标识符词法边界后，后端与浏览器再次全量通过。主包体积提示仍存在，约 600 kB。
+
+内置浏览器另验证中英参数、NULL、两个结果集、只读回滚、HTML 语言和无横向溢出，控制台无警告/错误；最终 API 与审计页面回读确认参数名 @p1 保留、参数值不入审计，紧邻控制语句在执行前被拒绝。当前预览同时展示四种 SQL 资产与合成/真实 OpenSSH 监控；原 qa-operator 仍只有默认 Browser QA 的 view 权限，跨组织为 403。保留 SQL Server `15471` / health `15472` 和已有预览；本批临时 SSH、E2E 容器及网络已清理。重建夹具遗留的 `jms233-sqlserver-cert-vGKVIW` 目录因本机自动审批策略拒绝删除而保留，未声称其已清理。完整企业版差距仍按 [PLAN](./PLAN.md) 推进，未标记整体完成。
+
+2026-10-16 MySQL/MariaDB 原生访问验收：最终 Windows Go/Testify 与 Linux race 各 38 个测试包、522 项测试及子用例通过，零失败、零用例跳过。覆盖真实 TLS MySQL 8.4 / MariaDB 11.4、绑定参数/NULL、只读策略、DDL/DML、影响行数、MyISAM 部分写入、存储过程、预备语句拒绝后的受限直接执行、禁止多条顶层语句、结果/连接流量上限、取消/撤权、SSH 网关及两种数据库的组织内单活接管。新增服务生命周期用例确认关闭或失去所有权后，审批、取消、会话和超时回调不能修改待处理查询或重新派发执行。
+
+完整 Playwright 29/29（2.9 分钟）通过，新增两种引擎的中英资产/查询 UI、connect 授权与撤销、只读拒绝、可信方言、经固定 SSH 网关的真实 Agent CLI，以及写入模式提示和实际 DDL。后端 vet/build、前端零警告 lint/build 通过。首次 MySQL 过程定义验证暴露服务器不支持预备语句的差异，修正后全部重跑；一次 Linux race 的 SSH 审计测试遇到一秒等待超时，调整等待边界后全量通过，未发现 data race。主包大小提示仍存在，约 599 kB。
+
+内置浏览器另实际核对两种引擎的中英结果、NULL、只读回滚、SQL 审计脱敏、HTML 语言和无横向溢出；控制台无警告/错误。资产清单继续展示真实 OpenSSH 与合成主机的 CPU、内存、上下行网速和磁盘。中英 README、数据库文档及真实截图同步更新；含 AGENTS 的 58 份双语文档、446 个相对链接检查通过。保留本机 MySQL `15461` / health `15462`、MariaDB `15463` / health `15464` 和已有预览，临时 Windows/Linux OpenSSH、E2E 容器、证书目录与本批测试网络已清理。原 qa-operator 仍只有默认 Browser QA 的 view 权限，跨组织返回 403。其它企业数据库、RDP/K8s、账号自动收集/数据库改密、应用市场、多活及生产 HA 演练仍待完成；完整企业版目标保持进行中。
+
+2026-10-16 PostgreSQL 原生访问验收：Windows Go/Testify 与 Linux race 各 36 个包、498 项测试通过，零失败、零跳过；包含真实 TLS PostgreSQL、SSH 网关、独立真实 Linux OpenSSH 和双节点接管。新增 16 个 Testify 用例，覆盖参数/注释脱敏、环境配置隔离、绑定参数/NULL、只读与写事务、超限回滚、取消/撤权、审批/所有权、幂等、持久化失败、结果仅存内存及恢复禁止重放。现有接管用例扩展验证组织内数据库审计保留、旧会话失效、重新连接和跨组织拒绝。
+
+完整 Playwright 为 25/25（2.2 分钟），新增真实 PostgreSQL 的中英 UI、TLS、参数查询、SQL 复核、只读账号拒绝、取消及经固定 SSH 网关的 Agent CLI。此前并行运行时浏览器发生 ERR_NO_BUFFER_SPACE，单独完整重跑后全部通过。后端 vet/build、前端零警告 lint/build 通过；主包约 599 kB 的构建警告仍存在。内置浏览器另验证真实查询结果、NULL、只读回滚、审计无参数值、HTML 中英语言和无页面溢出；控制台无警告/错误。最后的控件尺寸和文案调整已再次通过 lint/build，并在内置浏览器复核。
+
+保留本机 PostgreSQL 预览端口 15441 / health 15442，以及原有 OpenSSH 预览；本批临时 Windows/Linux OpenSSH、E2E 容器和测试网络已清理。原 qa-operator 仍只拥有默认 Browser QA 的 view 权限，访问其他组织为 403；组织只读账号连接数据库也为 403。中英 README 和 PostgreSQL 文档已包含真实、注明日期的产品截图；54 份双语文档及 416 个相对链接通过检查。其它数据库协议、RDP/K8s、组织聚合/映射、多活和生产 HA 演练仍待完成，完整企业版目标保持进行中。
+
+2026-10-16 共享 SSH 私钥验收：最终 Windows Go/Testify 与 Linux race 均为 34 个包通过，包含 PostgreSQL、双节点接管及独立真实 Linux OpenSSH。新增 14 个 Testify 用例覆盖全部副本提交后才能撤销旧钥、部分提交、从副本继续或取消、未准备副本的取消退避、完成记录中断后无远端操作恢复、同组织副本、自动计划去重、不同密钥隔离、归档组织、加密清单篡改拒绝及源日志先于全局清单的恢复。接管用例覆盖源已提交而组织副本尚未切换的实际 SSH 账号，验证两侧新钥执行和旧钥认证拒绝。
+
+最终完整 Playwright 为 22/22（2.2 分钟），新增真实 SSH 同组织与跨组织私钥副本轮换、限制选项保留、公钥文件核对、三份保管库一致、监控、新钥 Web SSH、Agent CLI 和中英提示。后端 vet/build、前端 lint/build、52 份双语产品文档及 394 个相对链接均通过；主包约 592 kB 的构建警告仍存在。
+
+内置浏览器另核对本机真实 OpenSSH 预览：默认组织和 Browser QA isolated 的两个副本轮换为同一新指纹，中文/英文监控在线，并实际通过新钥打开 Web SSH；HTML 语言和控制台检查正常。保留专用预览主机 12253 / health 12254 及其网络，供后续查看；其他本批次测试容器被清理。原 qa-operator 仍只拥有默认 Browser QA 的 view 权限，访问新组织为 403。地址别名合并、其他资产协议、组织聚合/映射、多活和生产 HA 演练仍待完成，完整企业版目标保持进行中。
+
+2026-10-16 共享 SSH 密码账号验收：最终 Windows Go/Testify 和 Linux race 各 34 个包通过，包含 PostgreSQL、双节点接管和独立真实 Linux OpenSSH。新增 11 个 Testify 测试覆盖七天调度并发去重、全部保管库预备后才发起远端改密、执行中状态、跨组织副本、凭据冲突、历史恢复、准备阶段失败、部分提交、加密重启恢复及归档组织。HA 用例验证接管后两份凭据仍可认证并可恢复原密码。后端 vet/build、前端 lint/build 均通过。
+
+最终完整 Playwright 为 21/21（1.9 分钟），新增真实 SSH 跨组织改密、两侧认证、冲突 API 和编辑表单错误提示、中英文协同状态及历史恢复。内置浏览器在本机预览确认组织切换、中英文监控与 HTML 语言，控制台无警告/错误；原 qa-operator 仍只拥有默认 Browser QA 的 view 权限。52 份产品文档及 388 个相对链接通过检查。主包约 591 kB 的构建警告仍存在。地址别名合并、共享同一私钥的退休协调、其他企业协议和生产 HA 演练仍待完成；完整企业版目标保持进行中。
+
+组织通过 `X-JMS-ORG`、浏览器切换和 Agent CLI 选择隔离资源、角色与运维审计，支持单机存储和 PostgreSQL 单活 HA。详见 [组织隔离](./ORGANIZATIONS.md)；完整企业版目标仍在进行。
+
+平台登录审批与站内通知已接入：认证后等待、原来源一次性兑换、加密持久化及 PostgreSQL 单活 HA。详见 [平台登录复核](./PLATFORM-LOGIN-REVIEWS.md)；完整企业版目标仍在进行。
+
+来源、每周时段及执行通道限制支持单机和单活 HA，详见 [访问策略](./ACCESS-POLICIES.md)；完整企业版对齐仍在推进。
+
+SSH 密钥安装、验证后轮换、显式启用的七天计划及持久化阶段恢复见 [SSH 密钥轮换](./SSH-KEY-ROTATION.md)。
+
+目标资产与网关现支持导入 SSH 私钥：输入只写、保管库加密、公钥指纹及验证后恢复历史版本。密码轮换仍按密码凭据调度，详见 [SSH 私钥](./SSHKEYS.md)。
+
+SSH 网关现支持最多三跳，监控、Web SSH、CLI、SFTP、任务和改密共用逐跳指纹校验连接。配置与加密凭据支持单机及 PostgreSQL 单活 HA，详见 [SSH 网关](./GATEWAYS.md)。完整企业版对齐仍在推进。
+
+Passkey 注册、设备验证登录、本地 MFA、撤销与 HA 恢复见 [Passkey](./PASSKEY.md)。
+
+SAML 签名断言、浏览器绑定、本地 MFA、SP 身份加密和配置审计见 [SAML](./SAML.md)；其余协议配置及生产 IdP 对接仍待完成。
+
+CAS 用例覆盖 HTTPS、2/3 票据、service/renew、防重放及严格 XML；浏览器验证取消、强制 MFA、无默认授权和停用失权。合成 CAS/健康端口为 `12233`，运行前需释放；这不等于生产 CAS 验收。详见 [CAS.md](./CAS.md)。
+
+LDAP 用例经过真实合成 LDAPS/StartTLS：覆盖证书校验、查询转义、重复/缺失/越界身份、AD 禁用标记、搜索密码加密、跨来源隔离及 MFA 错误预算。浏览器配置 CA、准备账号、完成 MFA 并验证停用失权。合成目录端口为 LDAPS `12229`、健康接口 `12230`，运行前需释放。详见 [LDAP.md](./LDAP.md)。
+
+修改完成后统一运行后端测试、静态检查、前端 lint/构建和真实浏览器端到端验证。`make verify` 提供本地入口，`.github/workflows/ci.yml` 在 Linux 上运行 PostgreSQL 集成与完整 race 检查。
+
+## 本地入口
+
+需要 Go 1.27、Node.js 24、pnpm、已安装的前端依赖及 Playwright Chromium。在 `web` 中用 `pnpm install --frozen-lockfile` 和 `pnpm exec playwright install chromium` 准备环境。
+
+有 Make 时在仓库根执行 `make verify`。Windows PowerShell 可按顺序运行：
+
+```powershell
+# 仓库根目录
+node scripts/check-content.mjs
+node --test server/testsupport/docker-qa.test.mjs
+
+# server 目录
+go test -count=1 ./... github.com/microsoft/go-mssqldb
+go vet ./... github.com/microsoft/go-mssqldb
+go build ./...
+
+# web 目录
+pnpm lint
+pnpm build
+pnpm test:e2e
+```
+
+设置 `JMS_TEST_DATABASE_URL` 为专用测试 PostgreSQL 连接串，才能覆盖数据库与 HA 集成；未设置时相关用例明确跳过，不能宣称已验证 HA。CI 自动提供专用 PostgreSQL，使用 `go test -race ./...`。Windows 本地缺少 C 编译器时使用 Linux CI/容器执行 race，普通 `go test` 不代表 race 验收。
+
+## 覆盖层次
+
+- `node scripts/check-content.mjs` 检查中英翻译键/插值参数、双语文档配对与开头语言链接、相对文件链接和 SQL Server 驱动原始哈希；纳入 `make test` 与 CI。文档检查仅验证本地链接目标存在，不验证外部 URL 或 Markdown 锚点。
+- Go 原生测试与 Testify `assert`/`require` 覆盖输入边界、授权、登录/MFA、密码轮换、SSH/SFTP、审计、作业与调度。本次作业用例还覆盖容量排队、模板版本/快照、领取状态恢复、取消、审批和失主拒绝写入。
+- PostgreSQL 集成验证共享状态；双节点 HA 用例实际启动主备、切换活动节点，并验证登录会话、模板及未来计划保留。这不等于生产网络、共享文件系统或多活故障演练。
+- Playwright 启动独立 API、Vite 和真实 SSH 合成服务，经过浏览器 UI 执行命令与双主机批量，核对实际 stdout/退出码；验证模板变更不影响已创建的一次性计划、周期暂停/恢复、计划分页、HttpOnly 登录、永久 Token 撤销、中英自动识别和 view-only 越权拒绝。
+- SSH 合成服务确定性返回监控与命令数据；它证明协议和应用链路，不代表已连接用户生产主机。
+- RBAC 用例覆盖用户/组角色并集、即时撤销、资产管理与连接分离、审计读取与中断/取消分离、委派用户管理的提权拒绝、系统角色 MFA、审计回滚、版本并发和 HA 恢复。浏览器实际创建/绑定角色，再验证现有登录会话在撤销后失权，详见 [RBAC.md](./RBAC.md)。
+
+## 隔离与产物
+
+OIDC 用例覆盖三种客户端认证、PKCE/state/浏览器证明、JWT 声明拒绝及密钥轮换、Secret 只写/加密、受控建号与防提权、MFA 强制绑定/恢复码、跨登录流程错误预算、近期会话证明及身份源停用。浏览器经过真实合成 IdP 的授权页面与重定向，完成本地 MFA，检查 HttpOnly 会话、无资产授权和停用后的失权。PostgreSQL/HA 用例覆盖加密 OIDC 配置、身份映射与会话认证时间恢复。详见 [OIDC.md](./OIDC.md)。
+
+E2E 固定使用本机 API `8083`、Vite `5177`、SSH `12222`、SSH 健康接口 `12223` 和合成 OIDC IdP `12226`；运行前应释放这些测试端口。默认不复用既有服务。用户的开发实例可使用其它端口。
+
+`web/e2e/run-tests.mjs` 为每次运行分配独立系统临时目录，等待 Playwright 及其服务退出后检查路径并清理该目录。不会读取或清除用户数据目录。失败截图、trace 及结果位于已忽略的 `web/test-results/`；可使用 `pnpm exec playwright show-trace <trace.zip>` 定位失败。CI、测试及文档不保存真实凭据；仅使用隔离的合成账号。
+
+构建中的 chunk 大小提示应单独报告；成功构建不会自动证明性能达标。任何用例失败都应保留具体失败证据，修复后重新验证受影响部分。
+
+2026-10-15 SAML 批次验证：Windows 全量 `go test -count=1 ./...`（含 PostgreSQL/HA）、Linux 全量 `go test -race -count=1 ./...`（含 PostgreSQL/HA）、`go vet ./...`、`go build ./...`、前端 lint/build 及 13 条 Playwright 用例全部通过。SAML IdP 使用 `127.0.0.2:12235`，验证跨站 POST 不携带 Lax 流程 cookie，随后同源完成浏览器绑定。内置浏览器另核对了真实登录、操作员配置拒绝、中英文界面和合成来源停用。这是本地隔离验收，不代表生产 IdP 或完整企业版验收。
+
+2026-10-15 Passkey 批次：Windows 全量 Go/Testify（含 PostgreSQL 与双节点接管）、Linux 全量 race（含 PostgreSQL）、vet/后端构建、前端 lint/build 和 14/14 条 Playwright 用例通过。原生 WebAuthn 注册/断言使用 Chromium 虚拟认证器，覆盖取消、重命名、MFA 绑定/恢复码、配置代次撤销和凭据移除。内置浏览器核对了隔离 localhost 实例中的中英文配置与个人管理。真实认证器设备验收仍待完成。本机拒绝 IPv6 回环套接字，Vite 显式监听 IPv4；WebAuthn 可信 origin 仍为 localhost。
+
+网关浏览器夹具使用 SSH `12237`、健康接口 `12238`，只转发明确允许的合成目标至 SSH `12222`。运行前释放这些测试端口。Passkey Vite 监听 IPv4 `127.0.0.1`，WebAuthn 的页面源仍为 `http://localhost:15178`；主浏览器测试端口为 `5177`。
+
+2026-10-15 网关批次：Windows Go/Testify 全量 31 个测试包通过（含 PostgreSQL 与双节点接管），Linux race 全量 31 个测试包通过（含 PostgreSQL）；后端 vet/build、前端 lint/build 和 15/15 条 Playwright 用例通过。覆盖实际一至三跳 SSH、逐跳指纹/认证、PTY/缩放、SFTP、改密、图校验/持久化、目标独占授权、Web SSH、路由审计和 Agent CLI。本地 Passkey 注册/移除恢复为必须验证当前密码，启用 MFA 时还需新的第二因素；API 用例确认近期 Passkey 会话也不能绕过密码。内置浏览器核对中英网关表单、已保存路由和合成 CPU/内存/网速/磁盘数据，本次检查无控制台错误或警告。这是本地隔离验收，生产网络与真实认证器仍待验收。生产构建仍有既有主包体积提示（约 561 kB）。
+
+2026-10-15 SSH 私钥批次：Windows Go/Testify 全量 31 个测试包通过（含 PostgreSQL/双节点接管），Linux race 全量 31 个测试包通过（含 PostgreSQL）；后端 vet/build、前端 lint/build 通过，最终稳定版本的浏览器回归 16/16 通过。覆盖加密私钥导入、KDF/算法边界、API/表单只写、目标及网关私钥认证、PTY/SFTP/指标/CLI、带类型的加密历史、验证后恢复私钥、凭据快照变化拒绝、私钥认证下恢复密码及 HA 重新加载。内置浏览器核对中英表单、编辑时私钥/口令为空、合成监控指标，以及实际通过网关连接成功的 SSH PTY；本次浏览器检查无控制台警告或错误。单机预览端点已更新到当前源码，测试数据库/race 资源已清理。这些是本地隔离验收，远端密钥安装/轮换、生产网络验收及完整企业版对齐仍待完成。生产构建保留既有主包体积提示，现约 562 kB。
+
+## 真实 SQL 夹具
+
+SQL Server 2022 Developer 夹具为 `node server/testsupport/sqlserver/run.mjs`，默认数据库 `15471` / health `15472`，只发布到回环，校验证书和主机名。设置 `JMS_TEST_SQLSERVER_FIXTURE_URL`，跨容器另设置 `JMS_TEST_SQLSERVER_NETWORK_ADDR`；E2E 自动使用独立 `15473` / `15474`。CI 自动启动并清理。驱动分配保护测试通过显式包名 `github.com/microsoft/go-mssqldb` 纳入统一 Go/Testify 与 race 命令。
+
+夹具镜像构建仅对 EOF、连接重置等瞬时网络错误最多重试三次；确定性构建错误不重试。删除前仍验证资源归属，不存在的 Docker 对象按大小写无关处理。`node --test server/testsupport/docker-qa.test.mjs` 验证这些边界。清理失败保留记录，可在仓库根运行 `node web/e2e/run-tests.mjs --cleanup <当次系统临时目录>`，使用该次记录中的路径，不猜测或替换其它目录；同样执行路径、名称和 Docker label 检查。
+
+完整浏览器套件需要 Docker，并自动启动校验 TLS 的 PostgreSQL、MySQL 8.4 和 MariaDB 11.4。MySQL 使用数据库端口 `15465` / 健康接口 `15466`，MariaDB 使用 `15467` / `15468`；仅监听本机回环。私钥和证书放在当次系统临时目录，归属记录供退出后清理。
+
+后端独立验证可分别以 `JMS_QA_SQL_ENGINE=mysql`、`JMS_QA_SQL_ENGINE=mariadb` 启动 `node server/testsupport/mysql/run.mjs`。默认端口分别为 `15461` / `15462` 和 `15463` / `15464`。把健康接口完整 URL 设置为 `JMS_TEST_MYSQL_FIXTURE_URL`、`JMS_TEST_MARIADB_FIXTURE_URL`；跨容器验证时另以 `JMS_TEST_MYSQL_NETWORK_ADDR`、`JMS_TEST_MARIADB_NETWORK_ADDR` 指定同一专用网络内地址。CI 自动提供两种夹具并在退出时清理。缺少变量时真实 SQL 集成明确跳过，不能据此宣称协议已验收。
+
+## 真实 Kubernetes 夹具
+
+Kubernetes 集成夹具另由 `node server/testsupport/kubernetes/run.mjs` 启动隔离的官方 K3s，默认 TLS 16443 / health 16444；设置 `JMS_TEST_KUBERNETES_FIXTURE_URL`，跨容器时另设 `JMS_TEST_KUBERNETES_NETWORK_ADDR`。缺少变量时真实集成明确跳过，不能宣称 Kubernetes 验收。CI 自动准备和清理，E2E 使用独立 16445 / 16446。集群令牌仅留在夹具进程和回环 health 回复中，不复制完整 health 正文到报告或日志；权限与协议边界见 [Kubernetes](./KUBERNETES.md)。
+
+## 真实 RDP 夹具
+
+`node server/testsupport/rdp/run.mjs` 提供独立 Debian/xrdp/Xorg/Openbox/Tk 桌面，默认 TLS 19389 / health 19390。全量 Go 测试设置 `JMS_TEST_RDP_FIXTURE_URL`，跨容器另设 `JMS_TEST_RDP_NETWORK_ADDR`；缺少变量时真实集成明确跳过。E2E 使用独立 19391 / 19392，并通过实际画面颜色及远端程序状态核对冷启动、鼠标、Unicode 文字和显式文本剪贴板，不以端口连通代替桌面验收。CI 与 `make verify` 包含导入的 RDP 运行库补丁测试。实际 Windows NLA 和生产 HA 尚待验收，见 [RDP](./RDP.md)。
+
+SSH、Telnet 和 RDP 夹具启动脚本允许容器重启，保留已有账号、SSH 主机密钥及账号公钥，初始化仅用于新账号。RDP 桌面由就绪的窗口管理器启动，避免首次连接在应用启动竞态中停留黑屏。
+
+## 真实 Telnet 夹具
+
+`node server/testsupport/telnet/run.mjs` 提供原生 Linux Telnet 与直接 TLS，默认明文 16523、TLS 16992、health 16524。全量 Go 测试设置 `JMS_TEST_TELNET_FIXTURE_URL`，跨容器另设置 `JMS_TEST_TELNET_NETWORK_ADDR` 和 `JMS_TEST_TELNET_PLAINTEXT_NETWORK_ADDR`。缺少变量时相关真实集成明确跳过，不能宣称 Telnet 验收。CI 自动提供，E2E 使用独立 16525 / 16994 / 16526。详情见 [Telnet](./TELNET.md)。
+
+## 真实 OpenSSH 夹具
+
+完整浏览器套件和真实密钥生命周期验收需要 Docker。夹具使用 Debian/OpenSSH，端口只发布到 IPv4 回环。后端 HA 使用独立账号，避免跨包文件并发。
+
+设置 `JMS_QA_KEYHOST_SSH_PORT=12245`、`JMS_QA_KEYHOST_HTTP_PORT=12246` 后启动 `node server/testsupport/openssh/run.mjs`。读取 `127.0.0.1:12246/health`，在全量 Go 测试前将其 `address`、`fingerprint`、`container_name` 分别设置为 `JMS_TEST_KEY_HOST_ADDR`、`JMS_TEST_KEY_HOST_FINGERPRINT`、`JMS_TEST_KEY_HOST_NAME`。Linux race 容器加入同一个专用 Docker 网络，地址使用 `network_address`。缺少这些变量时真实主机集成明确跳过；CI 默认提供夹具。
+
+Playwright 自行启动 SSH `12241` / 健康接口 `12242` 的独立夹具，网关将 `keyhost.synthetic.invalid:22` 映射到它。容器归属记录在当次 E2E 临时目录，清理前核对 Docker label；清理失败会保留记录并使运行失败。测试前释放相关端口。
+
+2026-10-15 SSH 密钥生命周期验收：Windows 全量 Go/Testify 31 个测试包、Linux 全量 race 31 个测试包通过，均提供 PostgreSQL 与真实 Linux OpenSSH 夹具；覆盖双节点接管后继续清理旧钥并执行真实命令。后端 vet/build、前端 lint/build 和完整 Playwright 17/17 用例通过。真实主机用例验证安装、限制选项保留、旧钥失效、加密日志恢复、取消、重复请求、版本冲突及不安全路径拒绝。浏览器用例经过 UI 安装/轮换、检查远端公钥文件、启用七天计划、运行 CLI/Web SSH，并验证中英显示与只读权限拒绝。
+
+内置浏览器另创建了本机演示主机并核对中文页面、轮换后的新公钥指纹、计划状态及真实 CPU/内存/磁盘指标。其原生确认窗口导致控制接口无响应，安装/再次轮换由本机 API 完成；对应 UI 操作已由 Playwright 验证。演示实例与独立 OpenSSH 主机保留供查看，测试 PostgreSQL/race 容器及 E2E 容器已清理。生产构建保留既有主包体积提示，约 566 kB。生产主机、生产 HA 故障演练及完整企业版对齐仍待完成。
+
+2026-10-15 访问策略验收：Windows Go/Testify 全量 32 个测试包、Linux 全量 race 32 个测试包通过，均启用 PostgreSQL 与独立真实 OpenSSH 夹具。覆盖 IP/CIDR/IPv6 区间、可信代理链、DST、优先级、用户组/节点范围、修订冲突、防止当前管理员自锁、拒绝审计、审批原始来源、计划重检与在线 SSH 拦截。双节点用例验证接管后规则继续拒绝上传并保留计划来源。后端 vet/build、前端 lint/build 通过；最终完整 Playwright 回归 18/18 通过，包括策略启停/编辑/删除、登录拒绝、CLI/Web SSH 恢复、文件动作拒绝及中英界面。新增用例的定位与夹具命令问题已在集中回归中修正。
+
+内置浏览器另保存并回读了停用的演示策略，核对中英表单、Asia/Shanghai、周一至周五 09:00–18:00、配置审计和页面语言；本次检查无控制台警告或错误。现有 `qa-operator` 仍仅可查看原 Browser QA 资产，策略管理请求返回 403。48 份产品文档的配对和 342 条相对链接检查通过。此次 PostgreSQL、race、OpenSSH 和 E2E 临时资源已清理，既有演示主机与实例保留。当前主包体积提示约 574 kB。允许/拒绝之外的登录审批/通知、组织级策略、RDP 剪贴板、数据库脱敏与完整企业版验收仍待完成。
+
+2026-10-16 平台登录复核验收：Windows Go/Testify 33 个包、Linux race 33 个包均通过，包含 PostgreSQL、双节点接管和独立真实 Linux OpenSSH；后端 vet/build、前端 lint/build 均通过。最后完整 Playwright 为 19/19，覆盖等待页刷新恢复、通过/拒绝/取消、浏览器与 API 一次性兑换、站内通知、中英页面及审批后一分钟期限。认证证明用例还覆盖 MFA 首次设置、密码/角色/MFA/身份源/Passkey 变化、审批人权限撤销、加密重启、持久化失败回滚和并发兑换。50 份产品文档的双语配对与 362 个相对链接检查通过。
+
+内置浏览器确认中文审批/历史、等待页刷新、审批后自动登录、英文切换和修正后的完成期限；该检查中没有控制台警告或错误。原 qa-operator 仍仅能查看 Browser QA，平台复核管理返回 403。本地预览实例已更新；本轮 PostgreSQL/race/OpenSSH/E2E 临时资源已清理，先前预览主机继续保留。既有主包体积警告约 582 kB。组织隔离、其它资产协议、外部通知投递、生产 HA 演练和完整企业版验收仍待完成。
+
+2026-10-16 组织隔离验收：Windows Go/Testify 34 个包和 Linux race 34 个包均通过，包含 PostgreSQL、双节点接管及独立真实 Linux OpenSSH。覆盖默认数据兼容、规范组织头/查询校验、四种认证方式、跨组织资产/网关/文件/作业/审计 ID、组织角色防系统提权、既有系统角色组保护、成员移出后的在线 SSH 和计划撤销、加密作用域以及 HA 后的组织资产/角色/计划/成员恢复。SFTP 入口补为所有身份先验证当前组织资产，未知资产返回 404，不进入传输服务。后端 vet/build、前端 lint/build 均通过。
+
+最后完整 Playwright 为 20/20（1.8 分钟），涵盖既有全部场景及创建组织、成员管理、切换、组织角色、监控、Web SSH、Agent CLI、撤销、归档/恢复和中英文界面。创建后的切换器已改为即时更新；浏览器响应体读取停滞的测试改为同时核对 UI 完成状态与权威 API 回读。组织权限页面明确显示当前组织范围。52 份产品文档的双语配对及 384 个相对链接检查通过。
+
+内置浏览器创建并保留 Browser QA isolated 组织，为 browser.org 配置仅查看其独立合成主机 Organization QA monitor 的权限，核对中英监控、成员、切换器、组织权限目录及页面语言；该检查中没有控制台警告或错误。该主机使用独立合成 SSH 12249 / health 12250，避免与默认组织演示账户的自动轮换互相影响。原 qa-operator 仍仅能查看默认组织的 Browser QA，对新组织返回 403。预览 API 已更新；本轮 PostgreSQL、race、OpenSSH 和 E2E 临时资源已清理，已有预览主机保留。主包体积告警约 591 kB。跨组织汇总、共享远端账户改密协调、自动组织映射、生产 HA 演练及其它企业版协议/能力仍未完成。

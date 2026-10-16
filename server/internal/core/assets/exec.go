@@ -1,0 +1,15 @@
+package assets
+
+import (
+	"context"
+	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
+)
+
+// Exec keeps decrypted SSH credentials inside the asset/connector boundary.
+func (s *Service) Exec(ctx context.Context, id, command string) (sshclient.ExecResult, error) {
+	_, target, credentials, err := s.store.connection(id)
+	if err != nil {
+		return sshclient.ExecResult{ExitCode: -1}, err
+	}
+	return sshclient.Exec(ctx, target, credentials, command)
+}
