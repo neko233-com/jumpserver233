@@ -18,6 +18,23 @@ import (
 )
 
 func run(args []string) int {
+	if len(args) > 0 && args[0] == "accounts" {
+		flags := flag.NewFlagSet("accounts", flag.ContinueOnError)
+		flags.SetOutput(io.Discard)
+		offset := flags.Int("offset", 0, "")
+		if flags.Parse(args[1:]) != nil || flags.NArg() != 0 {
+			return 2
+		}
+		page, e := hostagent.LocalAccountPage(*offset)
+		if e != nil {
+			_ = json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "account_inventory_unavailable"})
+			return 1
+		}
+		if json.NewEncoder(os.Stdout).Encode(page) != nil {
+			return 1
+		}
+		return 0
+	}
 	if len(args) > 0 && args[0] == "supervise" {
 		flags := flag.NewFlagSet("supervise", flag.ContinueOnError)
 		flags.SetOutput(io.Discard)

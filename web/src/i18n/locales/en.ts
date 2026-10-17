@@ -1,4 +1,42 @@
 const en = {
+  accountDiscovery: {
+    open: "Collected accounts",
+    title: "Account discovery · {{name}}",
+    hint: "Collect local Linux usernames, UID/GID, home directories and login shells using the current SSH account. The verified native collector is installed in that account's private directory on first use.",
+    collect: "Collect now",
+    retry: "Retry after login approval",
+    audit: "Account collection activity",
+    failed:
+      "Could not complete the request. Refresh and check current permissions, login approval and job status before retrying.",
+    loginReview: "Login approval required: {{id}}",
+    job: "Collection job {{id}}",
+    jobFailed: "Collection did not complete. Check job status and target access before retrying.",
+    summary: "{{count}} observed · {{new}} new · {{missing}} newly missing",
+    account: "Account",
+    ids: "UID / GID",
+    presence: "Presence",
+    review: "Review",
+    uidZero: "UID 0",
+    paths: "Home and shell",
+    present: "Present",
+    missing: "Missing",
+    empty: "No accounts collected for the current target. Start a collection when ready.",
+    note: "Review note",
+    collected: "Accounts collected",
+    reviewed: "Review updated",
+    states: { unreviewed: "Unreviewed", acknowledged: "Acknowledged", ignored: "Ignored" },
+    errors: {
+      unsupported_platform: "Collection currently requires Linux amd64 or arm64.",
+      integrity_failed: "Collector integrity or account metadata validation failed.",
+      inventory_changed:
+        "Account inventory changed during collection or the collector is busy. Start a new collection after checking the target.",
+      storage_full:
+        "Account history reached its storage limit. Preserve and archive the records before collecting again.",
+      access_denied: "Current account collection authority was revoked.",
+      unavailable:
+        "Collection or persistence failed. Check the target connection and platform storage.",
+    },
+  },
   desktopMonitor: {
     title: "Live desktop monitor · {{name}}",
     hint: "Read-only live desktop. Closing this view keeps the operator connected. Clipboard sync is disabled.",
@@ -1056,6 +1094,9 @@ const en = {
       audit_sessions_view_all: "View every session audit",
       audit_sessions_monitor_all: "Monitor any live terminal (read only)",
       audit_desktops_monitor_all: "Monitor any live RDP desktop (read only)",
+      accounts_discover: "Collect local SSH host account metadata",
+      accounts_view: "Read collected host accounts and activity",
+      accounts_review: "Acknowledge or ignore collected accounts",
       sessions_share: "Create invitations to own live terminal sessions",
       audit_sessions_terminate_all: "Terminate any active session",
       audit_replays_view_all: "Read every session recording",

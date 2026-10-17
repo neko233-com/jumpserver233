@@ -19,6 +19,7 @@ import (
 
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 )
@@ -32,31 +33,33 @@ var (
 )
 
 type Input struct {
-	Plugin         *hostplugins.Operation `json:"-"`
-	Origin         accesspolicies.Origin  `json:"-"`
-	AssetID        string                 `json:"asset_id"`
-	Command        string                 `json:"command"`
-	TimeoutSeconds int                    `json:"timeout_seconds"`
-	RequestID      string                 `json:"request_id"`
+	Discovery      *accountdiscovery.Operation `json:"-"`
+	Plugin         *hostplugins.Operation      `json:"-"`
+	Origin         accesspolicies.Origin       `json:"-"`
+	AssetID        string                      `json:"asset_id"`
+	Command        string                      `json:"command"`
+	TimeoutSeconds int                         `json:"timeout_seconds"`
+	RequestID      string                      `json:"request_id"`
 }
 type Job struct {
-	Plugin         *hostplugins.Operation `json:"plugin,omitempty"`
-	AccessOrigin   accesspolicies.Origin  `json:"access_origin,omitempty"`
-	ID             string                 `json:"id"`
-	AssetID        string                 `json:"asset_id"`
-	AssetName      string                 `json:"asset_name"`
-	Account        string                 `json:"account"`
-	OperatorID     string                 `json:"operator_id"`
-	Operator       string                 `json:"operator"`
-	Command        string                 `json:"command"`
-	TimeoutSeconds int                    `json:"timeout_seconds"`
-	RequestID      string                 `json:"request_id,omitempty"`
-	State          string                 `json:"state"`
-	RuleName       string                 `json:"rule_name,omitempty"`
-	ReviewedBy     string                 `json:"reviewed_by,omitempty"`
-	CreatedAt      time.Time              `json:"created_at"`
-	StartedAt      time.Time              `json:"started_at,omitzero"`
-	FinishedAt     time.Time              `json:"finished_at,omitzero"`
+	Discovery      *accountdiscovery.Operation `json:"account_discovery,omitempty"`
+	Plugin         *hostplugins.Operation      `json:"plugin,omitempty"`
+	AccessOrigin   accesspolicies.Origin       `json:"access_origin,omitempty"`
+	ID             string                      `json:"id"`
+	AssetID        string                      `json:"asset_id"`
+	AssetName      string                      `json:"asset_name"`
+	Account        string                      `json:"account"`
+	OperatorID     string                      `json:"operator_id"`
+	Operator       string                      `json:"operator"`
+	Command        string                      `json:"command"`
+	TimeoutSeconds int                         `json:"timeout_seconds"`
+	RequestID      string                      `json:"request_id,omitempty"`
+	State          string                      `json:"state"`
+	RuleName       string                      `json:"rule_name,omitempty"`
+	ReviewedBy     string                      `json:"reviewed_by,omitempty"`
+	CreatedAt      time.Time                   `json:"created_at"`
+	StartedAt      time.Time                   `json:"started_at,omitzero"`
+	FinishedAt     time.Time                   `json:"finished_at,omitzero"`
 	sshclient.ExecResult
 	ErrorCode string `json:"error_code,omitempty"`
 }
@@ -73,6 +76,7 @@ type Service struct {
 	wg             sync.WaitGroup
 	exec           Executor
 	pluginExec     func(context.Context, Job) (sshclient.ExecResult, error)
+	discoveryExec  func(context.Context, Job) (sshclient.ExecResult, error)
 	executionGuard func(Job) error
 	abandoned      bool
 }
@@ -163,6 +167,13 @@ func validState(v string) bool {
 	return false
 }
 func Validate(in Input) (Input, error) {
+	if in.Discovery != nil {
+		if in.Plugin != nil || in.Discovery.Validate() != nil || in.Command != in.Discovery.Command() {
+			return in, ErrInvalid
+		}
+		o := in.Discovery.Clone()
+		in.Discovery = &o
+	}
 	if in.Plugin != nil {
 		if in.Plugin.Validate() != nil || in.Command != in.Plugin.Command() {
 			return in, ErrInvalid
@@ -207,7 +218,7 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 	}
 	for _, j := range s.jobs {
 		if in.RequestID != "" && j.OperatorID == actorID && j.RequestID == in.RequestID {
-			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || !samePlugin(j.Plugin, in.Plugin) {
+			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery)) {
 				return Job{}, ErrConflict
 			}
 			return cloneJob(j), nil
@@ -220,7 +231,7 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 	if _, err = rand.Read(raw[:]); err != nil {
 		return Job{}, err
 	}
-	j := Job{Plugin: in.Plugin, AccessOrigin: in.Origin, ID: "job-" + hex.EncodeToString(raw[:]), AssetID: in.AssetID, AssetName: assetName, Account: account, OperatorID: actorID, Operator: actor, Command: in.Command, TimeoutSeconds: in.TimeoutSeconds, RequestID: in.RequestID, RuleName: rule, CreatedAt: time.Now().UTC(), ExecResult: sshclient.ExecResult{ExitCode: -1}}
+	j := Job{Discovery: in.Discovery, Plugin: in.Plugin, AccessOrigin: in.Origin, ID: "job-" + hex.EncodeToString(raw[:]), AssetID: in.AssetID, AssetName: assetName, Account: account, OperatorID: actorID, Operator: actor, Command: in.Command, TimeoutSeconds: in.TimeoutSeconds, RequestID: in.RequestID, RuleName: rule, CreatedAt: time.Now().UTC(), ExecResult: sshclient.ExecResult{ExitCode: -1}}
 	switch decision {
 	case "deny":
 		j.State = "denied"
@@ -308,7 +319,18 @@ func samePlugin(a, b *hostplugins.Operation) bool {
 	return a.Command() == b.Command()
 }
 
+func sameDiscovery(a, b *accountdiscovery.Operation) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Command() == b.Command()
+}
+
 func cloneJob(j Job) Job {
+	if j.Discovery != nil {
+		o := j.Discovery.Clone()
+		j.Discovery = &o
+	}
 	if j.Plugin != nil {
 		o := j.Plugin.Clone()
 		j.Plugin = &o
@@ -320,6 +342,11 @@ func (s *Service) SetPluginExecutor(exec func(context.Context, Job) (sshclient.E
 	defer s.mu.Unlock()
 	s.pluginExec = exec
 }
+func (s *Service) SetDiscoveryExecutor(exec func(context.Context, Job) (sshclient.ExecResult, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.discoveryExec = exec
+}
 func (s *Service) SetExecutionGuard(guard func(Job) error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -329,6 +356,9 @@ func (s *Service) launchLocked(j Job) {
 	j = cloneJob(j)
 	guard := s.executionGuard
 	pluginExec := s.pluginExec
+	if j.Discovery != nil {
+		pluginExec = s.discoveryExec
+	}
 	timeoutCtx, timeoutCancel := context.WithTimeout(s.ctx, time.Duration(j.TimeoutSeconds)*time.Second)
 	ctx, causeCancel := context.WithCancelCause(timeoutCtx)
 	cancel := func() { causeCancel(context.Canceled); timeoutCancel() }
@@ -343,7 +373,7 @@ func (s *Service) launchLocked(j Job) {
 			err = guard(j)
 		}
 		if err == nil {
-			if j.Plugin != nil {
+			if j.Plugin != nil || j.Discovery != nil {
 				if pluginExec == nil || guard == nil {
 					err = ErrAccessDenied
 				} else {
@@ -442,7 +472,7 @@ func (s *Service) FindRequest(owner string, in Input) (Job, bool, error) {
 	defer s.mu.Unlock()
 	for _, j := range s.jobs {
 		if in.RequestID != "" && j.OperatorID == owner && j.RequestID == in.RequestID {
-			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || !samePlugin(j.Plugin, in.Plugin) {
+			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery)) {
 				return Job{}, false, ErrConflict
 			}
 			return cloneJob(j), true, nil

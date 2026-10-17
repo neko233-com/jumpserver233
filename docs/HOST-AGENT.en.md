@@ -2,6 +2,8 @@
 
 > [中文](./HOST-AGENT.md) | English
 
+The embedded Go component also provides fixed `accounts --offset N` for paged local Linux account metadata, discarding password/GECOS fields on the target. See [Account discovery](./ACCOUNT-DISCOVERY.en.md) for platform identity, approval and persistent records. It uses a separate private directory without starting recovery supervision.
+
 2026-10-16 preceding native-recovery acceptance baseline: Windows Go/Testify passed 53 packages/701 cases; Linux race passed 53 packages/704 cases, with no failed/skipped cases or data races. Full browser acceptance passed 55/55 (6.4 minutes), helpers 6/6 and vet/lint/build. Linux adds three file-lock/atomic-snapshot cases. Native Go `jms-agent` reconciles persisted BanHack bans with kernel state. The platform-identity CLI remains `jms plugin`; see [host tools](./HOST-PLUGINS.en.md).
 
 ## Build and installation

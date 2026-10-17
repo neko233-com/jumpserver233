@@ -36,6 +36,7 @@ var catalog = []string{
 	"audit.sessions.view_all", "audit.sessions.monitor_all", "audit.desktops.monitor_all", "audit.sessions.terminate_all", "audit.replays.view_all", "audit.commands.view_all", "audit.files.view_all", "audit.agents.view_all",
 	"jobs.view_all", "jobs.cancel_all", "jobs.review", "plans.view_all", "plans.manage_all",
 	"sessions.share",
+	"accounts.discover", "accounts.view", "accounts.review",
 	"database.audit.view_all", "database.cancel_all",
 	"plugins.inspect", "plugins.manage", "plugins.protect",
 }

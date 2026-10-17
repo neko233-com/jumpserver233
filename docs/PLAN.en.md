@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 7 adds local Linux account discovery: native Go collection, pinned gateways, both approvals, ongoing authorization, complete-page publication, encrypted present/missing findings, human review and Web/CLI. State supports standalone and PostgreSQL active/standby. Account synchronization, multiple-account credentials, schedules and other platforms remain open; see [Account discovery](./ACCOUNT-DISCOVERY.en.md). Overall Enterprise parity remains in progress.
+
 Phase 6/7 adds read-only live RDP monitoring: independent `audit.desktops.monitor_all`, durable viewer audit, source/membership/current-permission checks, Web/CLI capture and bounded frame decoding. Historical replay permission cannot read another user's active screen. Standalone comes first; live state does not migrate. See [Live RDP monitoring](./RDP-LIVE-MONITOR.en.md). Overall phases remain in progress.
 
 Phase 4/7 adds terminal collaboration: named platform users, expiring codes, read-only/single-writer control, removal/revocation, continuous authorization, dual-identity command review and collaboration audit, with Web/CLI and bilingual UI. It defaults off with independent `sessions.share` permission. Live state does not migrate; RDP sharing remains open. See [Session collaboration](./SESSION-SHARING.en.md). Overall phases remain in progress.

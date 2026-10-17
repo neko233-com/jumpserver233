@@ -14,6 +14,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -117,8 +118,10 @@ type Fetcher interface {
 	Fetch(context.Context, Artifact) (Blob, error)
 }
 type Service struct {
-	open  OpenFunc
-	cache Fetcher
+	discoveryMu     sync.Mutex
+	discoveryActive map[string]bool
+	open            OpenFunc
+	cache           Fetcher
 }
 
 func New(open OpenFunc, cache Fetcher) *Service { return &Service{open: open, cache: cache} }

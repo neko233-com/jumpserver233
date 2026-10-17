@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+See [Account discovery](./ACCOUNT-DISCOVERY.en.md) for native Linux collection, approvals, human review, metadata protection and CLI.
+
 See [Live RDP monitoring](./RDP-LIVE-MONITOR.en.md) for independently authorized read-only viewing, viewer audit, CLI capture and permission boundaries.
 
 Named-user read-only sharing, input control, removal and collaboration audit are documented in [Terminal collaboration](./SESSION-SHARING.en.md).

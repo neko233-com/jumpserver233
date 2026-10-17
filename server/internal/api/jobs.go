@@ -66,7 +66,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		if !ok {
 			return jobs.ErrAccessDenied
 		}
-		if !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) {
+		if !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) || !discoveryJobAllowed(d, owner, job.AssetID, job.Discovery, job.AccessOrigin) {
 			return jobs.ErrAccessDenied
 		}
 		_, account, decision, status := authorize(owner, job.AssetID, job.Command, job.AccessOrigin)
@@ -84,7 +84,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		}
 		accessMu.RLock()
 		defer accessMu.RUnlock()
-		if !pluginJobAllowed(d, user, input.AssetID, input.Plugin) {
+		if !pluginJobAllowed(d, user, input.AssetID, input.Plugin) || !discoveryJobAllowed(d, user, input.AssetID, input.Discovery, input.Origin) {
 			return operations.Submission{}, operations.ErrDenied
 		}
 		assetName, account, decision, status := authorize(user, input.AssetID, input.Command, input.Origin)
@@ -137,6 +137,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		return operations.Submission{Job: job}, err
 	}
 	if d.HostPlugins != nil {
+		registerAccountDiscoveryRoutes(mux, d, submitUser, accessMu, jobGuard, jobGuardLocked)
 		d.Jobs.SetPluginExecutor(func(ctx context.Context, j jobs.Job) (sshclient.ExecResult, error) {
 			if (j.Plugin.Action == "events" || j.Plugin.Action == "events_collect") && d.AgentEvents != nil {
 				src := agentevents.Source{AssetID: j.AssetID, AssetName: j.AssetName, Account: j.Account}
@@ -296,7 +297,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 				return
 			}
 			_, account, decision, status := authorize(owner, job.AssetID, job.Command, job.AccessOrigin)
-			if status != http.StatusOK || account != job.Account || decision.Action == commandfilters.ActionDeny || !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) {
+			if status != http.StatusOK || account != job.Account || decision.Action == commandfilters.ActionDeny || !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) || !discoveryJobAllowed(d, owner, job.AssetID, job.Discovery, job.AccessOrigin) {
 				writeJSON(w, http.StatusForbidden, map[string]string{"detail": "job authorization or command policy changed"})
 				return
 			}

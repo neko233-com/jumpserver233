@@ -14,6 +14,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/config"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -302,6 +303,18 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		}
 		return nil, e
 	}
+	if id != organizations.DefaultID {
+		d.AccountDiscovery, e = accountdiscovery.Open(filepath.Join(orgPath, "account-discovery"), orgKey, docs)
+		if e != nil {
+			d.Operations.Close()
+			d.Jobs.Close()
+			d.DatabaseQueries.Close()
+			d.Sessions.CloseAll()
+			d.AgentEvents.Close()
+			d.Desktops.CloseAll()
+			return nil, e
+		}
+	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID {
 		ctx, cancel := context.WithCancel(r.ctx)
@@ -309,6 +322,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		runtime.done = make(chan struct{})
 		d.DatabaseQueries.BindOwner(ctx)
 		d.AgentEvents.BindOwner(ctx)
+		d.AccountDiscovery.BindOwner(ctx)
 		go func() { defer close(runtime.done); d.Assets.Run(ctx, r.cfg.MonitorInterval) }()
 	}
 	r.items[id] = runtime
@@ -348,6 +362,9 @@ func (r *organizationRuntimes) changed(id string) {
 	}
 }
 func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) {
+	if current.d.AccountDiscovery != nil {
+		current.d.AccountDiscovery.Close()
+	}
 	if current.d.AgentEvents != nil {
 		current.d.AgentEvents.Close()
 	}

@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+Linux 账号收集已接入原生 Go 组件、后台作业、审批、人工确认与加密记录，支持固定 SSH 网关、Web/CLI 和 PostgreSQL 单活状态存储。见 [账号收集](./docs/ACCOUNT-DISCOVERY.md)及其剩余账号托管范围。
+
 RDP 活动桌面支持独立权限的只读实时监看、观看者审计与 CLI 截图，关闭监看保留原连接。权限、资源限制和真实截图见 [RDP 实时监看](./docs/RDP-LIVE-MONITOR.md)。
 
 活动终端支持指定平台用户的只读分享、输入接管、成员移除与协作审计，Web 和 CLI 共用持续授权；默认需显式启用，见 [终端会话协作](./docs/SESSION-SHARING.md)。

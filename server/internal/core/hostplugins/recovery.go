@@ -56,7 +56,7 @@ func (b recoveryBinary) ensure(ctx context.Context, h Transport, dir, jobID stri
 	if e = h.Upload(ctx, path.Join(stage, "binary"), bytes.NewReader(b.Data)); e != nil {
 		return e
 	}
-	script := operationLock(dir) + "stage=" + quote(stage) + "; [ ! -L \"$stage/binary\" ] && [ \"$(sha256sum \"$stage/binary\" | cut -d ' ' -f 1)\" = " + quote(b.SHA256) + " ]; [ ! -L " + quote(b.file) + " ]; if [ -e " + quote(b.file) + " ]; then " + b.verify() + "rm \"$stage/binary\"; else chmod 700 \"$stage/binary\"; mv \"$stage/binary\" " + quote(b.file) + "; fi; rmdir \"$stage\"; printf ready"
+	script := operationLock(dir) + "stage=" + quote(stage) + "; [ ! -L \"$stage/binary\" ]; [ -f \"$stage/binary\" ]; [ \"$(sha256sum \"$stage/binary\" | cut -d ' ' -f 1)\" = " + quote(b.SHA256) + " ]; [ ! -L " + quote(b.file) + " ]; if [ -e " + quote(b.file) + " ]; then " + b.verify() + "rm \"$stage/binary\"; else chmod 700 \"$stage/binary\"; mv \"$stage/binary\" " + quote(b.file) + "; fi; rmdir \"$stage\"; printf ready"
 	_, e = run(ctx, h, script)
 	return e
 }

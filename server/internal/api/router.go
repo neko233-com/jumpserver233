@@ -6,6 +6,7 @@ import (
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	coreaccessreviews "github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -32,6 +33,7 @@ import (
 )
 
 type Dependencies struct {
+	AccountDiscovery     *accountdiscovery.Store
 	SessionPolicy        *sessionpolicy.Store
 	AgentEvents          *agentevents.Store
 	HostPlugins          *hostplugins.Service

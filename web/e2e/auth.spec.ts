@@ -29,8 +29,15 @@ test.beforeAll(async () => {
   if (e2eInitialized) return;
   const api = await request.newContext({ baseURL: "http://127.0.0.1:8083" });
   try {
-    const response = await api.post("/api/v1/authentication/bootstrap", { data: syntheticAdmin });
-    await expectAPIStatus(response, 201, "administrator bootstrap");
+    let response = await api.post("/api/v1/authentication/bootstrap", { data: syntheticAdmin });
+    // Other independent files may already have initialized this isolated server.
+    // Only the same synthetic administrator may resume setup after a conflict.
+    if (response.status() === 409) {
+      response = await api.post("/api/v1/authentication/auth/", { data: syntheticAdmin });
+      await expectAPIStatus(response, 200, "existing synthetic administrator login");
+    } else {
+      await expectAPIStatus(response, 201, "administrator bootstrap");
+    }
     const adminSession = (await response.json()) as { access_token: string };
     const adminHeaders = { Authorization: `Bearer ${adminSession.access_token}` };
 

@@ -44,6 +44,7 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args)>0&&args[0]=="accounts"{return runAccounts(args[1:])}
 	if len(args) > 0 && args[0] == "share" {
 		return runShare(args[1:])
 	}

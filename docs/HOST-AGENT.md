@@ -2,6 +2,8 @@
 
 > 中文 | [English](./HOST-AGENT.en.md)
 
+嵌入式 Go 组件另提供固定 `accounts --offset N` 命令，分页采集 Linux 本地账号元数据并在目标侧丢弃密码/GECOS，平台身份、复核和持久记录见 [账号收集](./ACCOUNT-DISCOVERY.md)。采集组件使用独立私有目录，不启动恢复守护。
+
 2026-10-16 原生恢复组件首批验收基线：Windows Go/Testify 53 包、701 项，Linux race 53 包、704 项，零失败、零用例跳过、无数据竞争；完整浏览器 55/55（6.4 分钟）、辅助用例 6/6，vet/lint/build 通过。Linux 多出 3 项文件锁及原子快照用例。原生 Go `jms-agent` 恢复 BanHack 的持久封禁与内核状态；平台身份 CLI 仍是 `jms plugin`，见 [主机工具](./HOST-PLUGINS.md)。
 
 ## 构建与安装

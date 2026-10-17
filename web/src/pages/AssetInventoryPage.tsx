@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 
 import RDPSettingsFields, { defaultRDP, type RDPSettings } from "../components/RDPSettingsFields";
 const HostPluginsDialog = lazy(() => import("../components/HostPluginsDialog"));
+const AccountDiscoveryDialog = lazy(() => import("../components/AccountDiscoveryDialog"));
 const RDPDesktopDialog = lazy(() => import("../components/RDPDesktopDialog"));
 const DatabaseConsoleDialog = lazy(() => import("../components/DatabaseConsoleDialog"));
 const KubernetesTerminalDialog = lazy(() => import("../components/KubernetesTerminalDialog"));
@@ -290,6 +291,7 @@ export default function AssetInventoryPage() {
   const [rotationFailed, setRotationFailed] = useState(false);
   const [credentialBackupsAsset, setCredentialBackupsAsset] = useState<Asset | null>(null);
   const [pluginAsset, setPluginAsset] = useState<Asset | null>(null);
+  const [discoveryAsset, setDiscoveryAsset] = useState<Asset | null>(null);
   const [rdpAsset, setRDPAsset] = useState<Asset | null>(null);
   const [kubernetesAsset, setKubernetesAsset] = useState<Asset | null>(null);
   const [terminalAsset, setTerminalAsset] = useState<Asset | null>(null);
@@ -1008,13 +1010,26 @@ export default function AssetInventoryPage() {
                         {(canManage ||
                           allows("assets.probe") ||
                           allows("assets.rotate") ||
-                          allows("assets.backups")) && (
+                          allows("assets.backups") ||
+                          (isSSHProtocol(asset.protocol) && allows("accounts.view"))) && (
                           <>
                             <details className="asset-more">
                               <summary className="button-text asset-more-trigger">
                                 {t("assets.more")}
                               </summary>
                               <div className="asset-more-menu">
+                                {isSSHProtocol(asset.protocol) && allows("accounts.view") && (
+                                  <button
+                                    type="button"
+                                    className="button-text"
+                                    onClick={(event) => {
+                                      closeDetails(event.currentTarget);
+                                      setDiscoveryAsset(asset);
+                                    }}
+                                  >
+                                    {t("accountDiscovery.open")}
+                                  </button>
+                                )}
                                 {allows("assets.probe") && (
                                   <button
                                     type="button"
@@ -1792,6 +1807,17 @@ export default function AssetInventoryPage() {
             </div>
           </form>
         </div>
+      )}
+      {discoveryAsset && (
+        <Suspense fallback={null}>
+          <AccountDiscoveryDialog
+            assetId={discoveryAsset.id}
+            assetName={discoveryAsset.name}
+            accessToken={accessToken}
+            canConnect={Boolean(discoveryAsset.permissions?.includes("connect"))}
+            onClose={() => setDiscoveryAsset(null)}
+          />
+        </Suspense>
       )}
       {pluginAsset && (
         <Suspense fallback={null}>

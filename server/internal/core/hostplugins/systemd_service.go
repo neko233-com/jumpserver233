@@ -97,7 +97,8 @@ func (s *Service) executeManaged(ctx context.Context, assetID, jobID string, o O
 	if len(guards) == 1 && guards[0] != nil {
 		h = &guardedTransport{Transport: h, guard: guards[0]}
 	}
-	core := *s
+	// This invocation borrows one connection; collection locks belong to s.
+	core := Service{cache: s.cache}
 	core.open = func(context.Context, string) (Transport, error) { return borrowedTransport{h}, nil }
 	invoke := func(op Operation) (sshclient.ExecResult, error) {
 		return core.executeCore(ctx, assetID, jobID, op, cursor, guards...)

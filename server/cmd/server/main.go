@@ -19,6 +19,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/config"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	coreaccessreviews "github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -201,6 +202,12 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 	agentEvents.BindOwner(ctx)
 	defer agentEvents.Close()
+	discoveredAccounts, err := accountdiscovery.Open(filepath.Join(cfg.DataDir, "account-discovery"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	discoveredAccounts.BindOwner(ctx)
+	defer discoveredAccounts.Close()
 	databaseService, err := databasequery.Open(filepath.Join(cfg.DataDir, "database-queries.json"), vaultKey, documents, assetService.QueryDatabase)
 	if err != nil {
 		return err
@@ -259,6 +266,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}, pluginCache)
 	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
+	root.AccountDiscovery = discoveredAccounts
 	root.SessionPolicy = sessionSettings
 	root.DatabaseQueries = databaseService
 	root.GlobalRBAC = roleStore
@@ -286,6 +294,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global.DatabaseQueries = nil
 	global.Operations = nil
 	global.AgentEvents = nil
+	global.AccountDiscovery = nil
 	handler := api.NewOrganizationRouter(cfg.Version, global, runtimes.handler)
 	identityService.SetPrivilegedCheck(runtimes.isPrivileged)
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
