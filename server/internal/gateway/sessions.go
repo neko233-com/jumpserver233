@@ -114,6 +114,7 @@ type SessionRecord struct {
 
 type activeSession struct {
 	accessPolicy   func(context.Context) error
+	accessContext  context.Context
 	id             string
 	asset          AssetInfo
 	operatorID     string
@@ -132,6 +133,8 @@ type activeSession struct {
 	writeMu        sync.Mutex
 	inputMu        sync.Mutex
 	pendingReview  *pendingCommandReview
+	monitors       map[*sessionMonitor]struct{} // guarded by Broker.mu
+	cols, rows     int                          // guarded by Broker.mu
 }
 
 // Broker owns live SSH PTYs, short-lived single-use WebSocket tickets, and
@@ -142,6 +145,7 @@ type Broker struct {
 	vaultKey       []byte
 	mu             sync.Mutex
 	sessions       map[string]*activeSession
+	monitors       map[[32]byte]*sessionMonitor
 	auditMu        sync.Mutex
 	auditPath      string
 	commandAuditMu sync.Mutex
@@ -154,6 +158,7 @@ func NewBroker(dataDir string, vaultKey []byte, open OpenFunc) *Broker {
 		dataDir:     dataDir,
 		vaultKey:    append([]byte(nil), vaultKey...),
 		sessions:    make(map[string]*activeSession),
+		monitors:    make(map[[32]byte]*sessionMonitor),
 		auditPath:   filepath.Join(dataDir, "sessions", "index.jsonl"),
 		commandPath: filepath.Join(dataDir, "sessions", "commands.jsonl"),
 	}
@@ -171,10 +176,17 @@ func (b *Broker) Create(ctx context.Context, request CreateRequest) (CreatedSess
 		return CreatedSession{}, fmt.Errorf("%w: asset ID and terminal dimensions are required", ErrInvalidSessionRequest)
 	}
 	setupCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if request.AccessPolicy != nil && request.AccessPolicy(setupCtx) != nil {
+		return CreatedSession{}, errSessionPolicyDenied
+	}
 	asset, terminal, err := open(setupCtx, request.AssetID, request.Cols, request.Rows)
-	cancel()
 	if err != nil {
 		return CreatedSession{}, err
+	}
+	if request.AccessPolicy != nil && request.AccessPolicy(setupCtx) != nil {
+		_ = terminal.Close()
+		return CreatedSession{}, errSessionPolicyDenied
 	}
 	startedAt := time.Now().UTC()
 	sessionID, err := randomToken(18)
@@ -203,9 +215,13 @@ func (b *Broker) Create(ctx context.Context, request CreateRequest) (CreatedSess
 		commands:      newCommandCapture(),
 		commandPolicy: request.CommandPolicy,
 		accessPolicy:  request.AccessPolicy,
+		accessContext: context.WithoutCancel(ctx),
 		startedAt:     startedAt,
 		ticketHash:    sha256.Sum256([]byte(ticket)),
 		ticketExpiry:  startedAt.Add(terminalTicketLifetime),
+		monitors:      make(map[*sessionMonitor]struct{}),
+		cols:          request.Cols,
+		rows:          request.Rows,
 	}
 	if err := b.appendAudit(session, "started", ""); err != nil {
 		_ = terminal.Close()
@@ -474,6 +490,7 @@ func (b *Broker) ServeTerminal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session.terminalSocket = conn
+	session.accessContext = context.WithoutCancel(r.Context())
 	b.mu.Unlock()
 	conn.SetReadLimit(terminalReadLimit)
 	ctx, cancel := context.WithCancel(r.Context())
@@ -504,7 +521,8 @@ func (b *Broker) ServeTerminal(w http.ResponseWriter, r *http.Request) {
 	<-done
 }
 
-var errSessionPolicyDenied = errors.New("terminal access policy denied")
+var ErrSessionAccessDenied = errors.New("terminal access policy denied")
+var errSessionPolicyDenied = ErrSessionAccessDenied
 
 func terminalCloseReason(err error) string {
 	if errors.Is(err, errSessionPolicyDenied) {
@@ -531,6 +549,7 @@ func (b *Broker) writeTerminal(ctx context.Context, conn *websocket.Conn, sessio
 			if recordErr := session.recorder.Record('o', data); recordErr != nil {
 				return recordErr
 			}
+			b.publishMonitorOutput(session, data)
 			if writeErr := session.writeWebSocket(ctx, conn, websocket.MessageBinary, data); writeErr != nil {
 				return writeErr
 			}
@@ -585,9 +604,15 @@ func (b *Broker) readTerminal(ctx context.Context, conn *websocket.Conn, session
 			}
 			switch control.Type {
 			case "resize":
+				if control.Cols < 2 || control.Cols > 500 || control.Rows < 2 || control.Rows > 500 {
+					return ErrInvalidSessionRequest
+				}
 				if err := session.terminal.Resize(control.Cols, control.Rows); err != nil {
 					return err
 				}
+				b.mu.Lock()
+				session.cols, session.rows = control.Cols, control.Rows
+				b.mu.Unlock()
 			case "close":
 				return io.EOF
 			default:
@@ -704,6 +729,9 @@ func (b *Broker) closeSession(session *activeSession, reason string) {
 		session.inputMu.Lock()
 		b.mu.Lock()
 		session.closing = true
+		for monitor := range session.monitors {
+			b.stopMonitorLocked(monitor)
+		}
 		session.terminalSocket = nil
 		pendingReview := session.pendingReview
 		session.pendingReview = nil
@@ -776,6 +804,10 @@ func (b *Broker) appendAudit(session *activeSession, event, reason string) error
 		Reason:     reason,
 		At:         time.Now().UTC(),
 	}
+	return b.appendSessionAudit(record)
+}
+
+func (b *Broker) appendSessionAudit(record any) error {
 	encoded, err := json.Marshal(record)
 	if err != nil {
 		return fmt.Errorf("encode session audit event: %w", err)

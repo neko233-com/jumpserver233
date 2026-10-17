@@ -39,9 +39,6 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 12.9.1
-      - name: Install frontend dependencies
-        working-directory: web
-        run: pnpm install --frozen-lockfile
       - name: Test owned fixture lifecycle helpers
         run: node --test server/testsupport/docker-qa.test.mjs scripts/docker-qa.test.mjs
       - name: Build embedded native recovery agents
@@ -79,26 +76,22 @@ jobs:
           node server/testsupport/systemdvm/ci-env.mjs
       - name: Backend tests (including PostgreSQL HA integration)
         working-directory: server
+        env:
+          JMS_TEST_RDP_CAPTURE: ${{ runner.temp }}/native-rdp.png
         run: go test -race -timeout 20m -p 1 ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
+      - name: Retain failed native desktop evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-rdp-failure
+          path: ${{ runner.temp }}/native-rdp.png
+          if-no-files-found: ignore
       - name: Backend static analysis
         working-directory: server
         run: go vet ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
       - name: Backend build
         working-directory: server
         run: go build ./...
-      - name: Frontend lint
-        working-directory: web
-        run: pnpm lint
-      - name: Frontend production build
-        working-directory: web
-        run: pnpm build
-      - name: Install Playwright Chromium
-        working-directory: web
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Browser end-to-end tests
-        working-directory: web
-        run: pnpm test:e2e
-
       - name: Clean disposable backend OpenSSH fixture
         if: always()
         run: node server/testsupport/openssh/ci-env.mjs --cleanup
@@ -111,6 +104,38 @@ jobs:
       - name: Clean isolated systemd VM
         if: always()
         run: node server/testsupport/systemdvm/ci-env.mjs --cleanup
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+      - name: Install frontend dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+      - name: Check bilingual content and upstream provenance
+        run: node scripts/check-content.mjs
+      - name: Frontend lint
+        working-directory: web
+        run: pnpm lint
+      - name: Frontend production build
+        working-directory: web
+        run: pnpm build
+      - name: Install Playwright Chromium
+        working-directory: web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Browser end-to-end tests
+        working-directory: web
+        run: pnpm test:e2e
 
   docker-qa:
     runs-on: ubuntu-latest

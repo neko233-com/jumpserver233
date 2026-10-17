@@ -8,6 +8,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/testsupport/postgresfixture"
 	"github.com/neko233-com/jumpserver233/server/testsupport/rdpfixture"
 	"github.com/neko233-com/jumpserver233/server/testsupport/sshgateway"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"image/png"
 	"net"
@@ -69,9 +70,14 @@ func TestNativeDesktop(t *testing.T) {
 	require.NoError(t, client.Input(rdpclient.Input{Type: "pointer", Action: "button", Button: "left", Down: false, X: 100, Y: 260}))
 	require.Eventually(t, func() bool { s, e := rdpfixture.ReadState(); return e == nil && s.Clicks > before.Clicks && s.Focus }, 5*time.Second, 50*time.Millisecond)
 	require.NoError(t, client.Input(rdpclient.Input{Type: "text", Text: "Native RDP 233"}))
-	require.Eventually(t, func() bool {
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		s, e := rdpfixture.ReadState()
-		return e == nil && s.Clicks > 0 && strings.Contains(s.Text, "Native RDP 233") && strings.HasPrefix(s.Display, ":")
+		if !assert.NoError(c, e) {
+			return
+		}
+		assert.Greater(c, s.Clicks, 0)
+		assert.Contains(c, s.Text, "Native RDP 233")
+		assert.True(c, strings.HasPrefix(s.Display, ":"))
 	}, 5*time.Second, 50*time.Millisecond)
 	click := func(x, y int) {
 		require.NoError(t, client.Input(rdpclient.Input{Type: "pointer", Action: "button", Button: "left", Down: true, X: x, Y: y}))

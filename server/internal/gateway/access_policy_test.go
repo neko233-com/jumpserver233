@@ -18,7 +18,6 @@ func TestTerminalPolicyRecheckedAtTicketAttachAndBeforeInput(t *testing.T) {
 	for _, atAttach := range []bool{true, false} {
 		t.Run(map[bool]string{true: "attach", false: "input"}[atAttach], func(t *testing.T) {
 			var denied atomic.Bool
-			denied.Store(atAttach)
 			terminal := newEchoTerminal()
 			broker := NewBroker(t.TempDir(), make([]byte, 32), func(context.Context, string, int, int) (AssetInfo, Terminal, error) {
 				return AssetInfo{ID: "host", Name: "host", Username: "ops"}, terminal, nil
@@ -31,6 +30,7 @@ func TestTerminalPolicyRecheckedAtTicketAttachAndBeforeInput(t *testing.T) {
 				return nil
 			}})
 			require.NoError(t, e)
+			denied.Store(atAttach)
 			mux := http.NewServeMux()
 			mux.HandleFunc("GET /ws/api/v1/sessions/{sessionID}/terminal", broker.ServeTerminal)
 			server := httptest.NewServer(mux)

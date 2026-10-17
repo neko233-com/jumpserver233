@@ -35,6 +35,26 @@ func TestExternalLoginFailsWithoutProviderInitializer(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
+func TestActiveSessionIdentityFollowsExternalSourceState(t *testing.T) {
+	s := externalService(t)
+	user, e := s.EnsureOIDCUser("https://issuer.example.invalid", "live-session", "", true)
+	require.NoError(t, e)
+	_, ok := s.ActiveUserByID(user.ID)
+	assert.True(t, ok)
+	s.SetExternalIssuerAllowed(nil)
+	_, ok = s.ActiveUserByID(user.ID)
+	assert.False(t, ok)
+	found := false
+	for _, local := range s.ListUsers() {
+		if local.Source == "" {
+			_, ok = s.ActiveUserByID(local.ID)
+			assert.True(t, ok)
+			found = true
+		}
+	}
+	assert.True(t, found)
+}
+
 func TestExternalSourcesNeverCrossAuthenticateOrRevokeEachOther(t *testing.T) {
 	for _, source := range []string{"ldap", "cas", "saml"} {
 		t.Run(source, func(t *testing.T) {

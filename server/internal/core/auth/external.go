@@ -34,6 +34,19 @@ func (s *Service) externalAllowedLocked(record storedUser) bool {
 	return record.Source == "" || (check != nil && check(record.ExternalIssuer))
 }
 
+// ActiveUserByID validates the current identity source for a long-lived session
+// without requiring the remote client to resend a platform credential.
+func (s *Service) ActiveUserByID(id string) (User, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, record := range s.users {
+		if record.ID == id && s.externalAllowedLocked(record) {
+			return record.User, true
+		}
+	}
+	return User{}, false
+}
+
 // Identity is bound to the exact issuer/subject pair. Provider names, email,
 // preferred_username and role claims never link or promote existing accounts.
 func (s *Service) EnsureOIDCUser(issuer, subject, alias string, provision bool) (User, error) {

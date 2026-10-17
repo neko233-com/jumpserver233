@@ -1824,6 +1824,30 @@ a {
   }
 }
 
+.session-monitor-notice {
+  margin: 0;
+  padding: 10px 20px;
+  color: var(--text-secondary);
+}
+
+.session-monitor-surface {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.session-monitor-watermark {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  pointer-events: none;
+  user-select: none;
+  color: rgba(219, 231, 245, 0.35);
+  font: 12px Consolas, monospace;
+}
+
 .ssh-terminal-backdrop {
   position: fixed;
   z-index: 30;

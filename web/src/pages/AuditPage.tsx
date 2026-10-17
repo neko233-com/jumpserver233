@@ -6,6 +6,7 @@ import { usePermissions } from "../auth/usePermissions";
 const RDPDesktopAudit = lazy(() => import("../components/RDPDesktopAudit"));
 const SessionReplayDialog = lazy(() => import("../components/SessionReplayDialog"));
 const SessionCommandsDialog = lazy(() => import("../components/SessionCommandsDialog"));
+const SessionMonitorDialog = lazy(() => import("../components/SessionMonitorDialog"));
 const pageSize = 50;
 
 type SessionRecord = {
@@ -88,6 +89,7 @@ export default function AuditPage() {
   const [pendingStop, setPendingStop] = useState<SessionRecord | null>(null);
   const [selectedReplay, setSelectedReplay] = useState<SessionRecord | null>(null);
   const [selectedCommands, setSelectedCommands] = useState<SessionRecord | null>(null);
+  const [selectedMonitor, setSelectedMonitor] = useState<SessionRecord | null>(null);
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"sessions" | "files">("sessions");
   const [fileTransfers, setFileTransfers] = useState<FileTransfer[]>([]);
@@ -331,6 +333,17 @@ export default function AuditPage() {
                       <div className="session-actions">
                         {session.status === "active" &&
                           (session.operator_id === userID ||
+                            allows("audit.sessions.monitor_all")) && (
+                            <button
+                              type="button"
+                              className="button-text"
+                              onClick={() => setSelectedMonitor(session)}
+                            >
+                              {t("audit.monitor")}
+                            </button>
+                          )}
+                        {session.status === "active" &&
+                          (session.operator_id === userID ||
                             allows("audit.sessions.terminate_all")) && (
                             <button
                               type="button"
@@ -466,6 +479,22 @@ export default function AuditPage() {
             session={selectedReplay}
             accessToken={accessToken}
             onClose={() => setSelectedReplay(null)}
+          />
+        </Suspense>
+      )}
+      {selectedMonitor && (
+        <Suspense
+          fallback={
+            <div className="ssh-terminal-backdrop">
+              <div className="replay-loading">{t("terminal.connecting")}</div>
+            </div>
+          }
+        >
+          <SessionMonitorDialog
+            session={selectedMonitor}
+            accessToken={accessToken}
+            viewerID={userID}
+            onClose={() => setSelectedMonitor(null)}
           />
         </Suspense>
       )}

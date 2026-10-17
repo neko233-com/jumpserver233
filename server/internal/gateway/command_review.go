@@ -159,10 +159,22 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 	b.mu.Lock()
 	active := b.sessions[session.id] == session && session.pendingReview == pending
 	conn := session.terminalSocket
+	policyContext := session.accessContext
 	b.mu.Unlock()
 	if !active || conn == nil {
 		session.inputMu.Unlock()
 		return ErrCommandReviewNotFound
+	}
+	if session.accessPolicy != nil && session.accessPolicy(policyContext) != nil {
+		session.inputMu.Unlock()
+		b.closeSession(session, "access_policy_denied")
+		return ErrSessionAccessDenied
+	}
+	if approve && session.commandPolicy != nil {
+		decision := session.commandPolicy(pending.submission.PolicyCommand, pending.submission.Supported, time.Now().UTC())
+		if !decision.Allowed && (!decision.RequireReview || decision.RuleName != pending.request.RuleName) {
+			outcome, noticeType, input = "denied", "command_review_denied", []byte{0x03}
+		}
 	}
 	submission := pending.submission
 	submission.SubmittedAt = time.Now().UTC()

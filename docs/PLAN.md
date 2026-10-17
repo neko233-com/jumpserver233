@@ -46,6 +46,8 @@ SAML 签名断言、浏览器绑定、本地 MFA、SP 身份加密和配置审�
 
 ## 1. 范围
 
+新增切片：活动 SSH / Telnet / Kubernetes 终端支持只读实时监看、独立监看权限和观看者审计；SSH 持续复查当前授权与连接修订。详见 [在线终端监看](./LIVE-SESSIONS.md)。会话分享、协同输入、RDP 监看与完整企业版仍在进行。
+
 ### 1.1 复刻对象与竞品
 
 - **竞品 = JumpServer 企业版**（https://www.jumpserver.org/enterprise.html ），最终目标是对齐企业版全部功能（X-Pack 增强包 + 应用商店能力）。

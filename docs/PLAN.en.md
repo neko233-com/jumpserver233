@@ -46,6 +46,8 @@ Align all JumpServer Enterprise software features on Go + React, with Community 
 
 ## 1. Scope
 
+New slice: active SSH / Telnet / Kubernetes terminals support read-only live monitoring, separate monitoring permission and viewer audit. SSH continuously rechecks current authorization and connection revisions. See [live terminal monitoring](./LIVE-SESSIONS.en.md). Session sharing, collaborative input, RDP monitoring and full Enterprise parity remain in progress.
+
 ### 1.1 Target and competitor
 
 - **Competitor = JumpServer Enterprise** (https://www.jumpserver.org/enterprise.html). The end goal is feature parity with Enterprise (the X-Pack add-on plus app-store capabilities).

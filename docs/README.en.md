@@ -4,6 +4,8 @@
 
 [Clean Docker verification and parallel debugging](./DOCKER-QA.en.md) · [Performance and packaging](./PERFORMANCE.en.md)
 
+See [live terminal monitoring](./LIVE-SESSIONS.en.md) for read-only SSH / Telnet / Kubernetes views, separate permissions, audit and continuous authorization.
+
 See [host tools](./HOST-PLUGINS.en.md) for SSH tool detection, installation, agent operations and current integration status.
 
 See [native host recovery](./HOST-AGENT.en.md) for Go component builds, persisted-ban restoration, kernel health and status limits.

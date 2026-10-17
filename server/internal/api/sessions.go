@@ -22,6 +22,7 @@ import (
 )
 
 func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToken string, identities *coreauth.Service, assets *coreassets.Service, grants *coregrants.Store, commandFilters *corecommandfilters.Store, groups *coregroups.Store, nodes *corenodes.Store, accessReviews *coreaccessreviews.Store, accessMu *sync.RWMutex) {
+	registerSessionMonitorRoutes(mux, broker, adminToken, identities)
 	mux.Handle("POST /api/v1/sessions", protectAuthenticatedAPI(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request gateway.CreateRequest
 		if err := decodeRequestJSON(w, r, &request); err != nil {
@@ -58,8 +59,19 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 					nodeIDs = nodes.AncestorIDs(asset.NodeID)
 				}
 				if commandFilters != nil {
-					scope := corecommandfilters.Scope{UserID: principal.ID, GroupIDs: append([]string(nil), groupIDs...), AssetID: asset.ID, NodeIDs: append([]string(nil), nodeIDs...), Account: asset.Username}
 					request.CommandPolicy = func(command string, supported bool, at time.Time) gateway.CommandPolicyDecision {
+						current, e := assets.Get(asset.ID)
+						if e != nil {
+							return gateway.CommandPolicyDecision{}
+						}
+						var currentGroups, currentNodes []string
+						if groups != nil {
+							currentGroups = groups.GroupIDsForUser(principal.ID)
+						}
+						if nodes != nil {
+							currentNodes = nodes.AncestorIDs(current.NodeID)
+						}
+						scope := corecommandfilters.Scope{UserID: principal.ID, GroupIDs: currentGroups, AssetID: current.ID, NodeIDs: currentNodes, Account: current.Username}
 						decision := commandFilters.Decide(scope, command, supported, at)
 						return gateway.CommandPolicyDecision{Allowed: decision.Allowed, RequireReview: decision.Action == corecommandfilters.ActionReview, RuleName: decision.RuleName}
 					}
@@ -83,26 +95,23 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 					return
 				}
 				d := policyDependencies(r)
-				if d.AccessPolicies != nil {
-					request.AccessPolicy = func(ctx context.Context) error {
-						currentAsset, e := assets.Get(asset.ID)
-						if e != nil {
+				binding := databaseRouteBinding(d, asset)
+				request.AccessPolicy = func(ctx context.Context) error {
+					currentUser := principal
+					if identities != nil && principal.ID != "admin-token" && principal.ID != "loopback-admin" {
+						var ok bool
+						currentUser, ok = identities.ActiveUserByID(principal.ID)
+						if !ok {
 							return accesspolicies.ErrDenied
 						}
-						currentUser := principal
-						if d.Auth != nil && principal.ID != "admin-token" && principal.ID != "loopback-admin" {
-							var ok bool
-							currentUser, ok = d.Auth.UserByID(principal.ID)
-							if !ok {
-								return accesspolicies.ErrDenied
-							}
-						}
-						decision, e := checkAccessPolicies(d, currentUser, currentAsset, accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(ctx), Method: "ssh"}, true)
-						if e != nil || !decision.Allowed {
-							return accesspolicies.ErrDenied
-						}
-						return nil
 					}
+					accessMu.RLock()
+					defer accessMu.RUnlock()
+					current, e := authorizeTerminalAsset(d, currentUser, asset.ID, coreassets.ProtocolSSH, accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(ctx), Method: "ssh"}, false)
+					if e != nil || binding == "" || databaseRouteBinding(d, current) != binding {
+						return accesspolicies.ErrDenied
+					}
+					return nil
 				}
 				if requireReview {
 					if accessReviews == nil {
@@ -130,6 +139,8 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 		session, err := broker.Create(r.Context(), request)
 		if err != nil {
 			switch {
+			case errors.Is(err, gateway.ErrSessionAccessDenied):
+				writeJSON(w, http.StatusForbidden, map[string]string{"detail": "terminal access denied"})
 			case errors.Is(err, gateway.ErrInvalidSessionRequest):
 				writeJSON(w, http.StatusBadRequest, map[string]string{"detail": "invalid session request"})
 			case errors.Is(err, coreassets.ErrNotFound):
@@ -180,7 +191,7 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 		principal, _ := PrincipalFromContext(r.Context())
 		var results []gateway.SessionRecord
 		var total, activeTotal int
-		if hasPermission(r, "audit.sessions.view_all") {
+		if hasPermission(r, "audit.sessions.view_all") || hasPermission(r, "audit.sessions.monitor_all") {
 			results, total, activeTotal, err = broker.ListSessions(offset, limit)
 		} else {
 			results, total, activeTotal, err = broker.ListSessionsForOperator(principal.ID, offset, limit)

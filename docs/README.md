@@ -4,6 +4,8 @@
 
 [Docker 纯净验证与并行调试](./DOCKER-QA.md) · [性能与打包基线](./PERFORMANCE.md)
 
+活动 SSH / Telnet / Kubernetes 终端的只读监看、独立权限、审计与持续授权见 [在线终端监看](./LIVE-SESSIONS.md)。
+
 SSH 远程工具检测、安装与 Agent 运维的范围和接入状态见 [远程工具](./HOST-PLUGINS.md)。
 
 原生 Go 组件的构建、封禁持久恢复、内核健康和状态边界见 [原生主机恢复](./HOST-AGENT.md)。

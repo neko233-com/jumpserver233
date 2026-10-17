@@ -2,6 +2,18 @@
 
 > [中文](./TESTING.md) | English
 
+## Live monitoring and continuous authorization (2026-10-17)
+
+- An uncached local Go run passed 54 packages / 681 cases and skipped 71 cases without external integration fixtures. This does not establish complete protocol integration. Vet, build, frontend lint/build and E2E type checks passed.
+- New Testify coverage includes separate monitoring permission, single-use/expired tickets, input isolation, capacity/slow viewers, viewer revocation, primary termination, failed audit writes, SSH grant/group/role/credential/organization changes, and access/rule changes during pending command approval.
+- Linux Docker race checks cover API, Gateway, Auth and RBAC; gateway monitoring also repeats five times. Complete CI fixtures remain responsible for external protocol integrations.
+- A new Playwright flow passed on isolated production images in approximately 4.8 seconds: real SSH output, no viewer input transmission, primary survival after viewer closure, bilingual text and a 390×844 mobile layout. The in-app browser separately confirmed Chinese output, watermark, meaningful rendering and no console warnings/errors.
+- Production Docker uses fresh namespaces/data volumes and tests parallel browser logins on a different loopback host, then cleans only its disposable environment. Production contexts exclude tests and fixtures. Monitoring adds an approximately 3.13 kB lazy module; the approximately 442.88 kB main entry passes size budgets.
+- Repository PR creation permission was fixed and release-please generated a release PR, without merging or publishing a version. CI separates backend, frontend and production Docker work for parallel execution.
+- The earlier remote CI RDP text assertion has no confirmed root cause. Six local CPU-limited cold-start Linux race runs against real xrdp passed. Assertions now retain final target state, and CI preserves a desktop screenshot on failure. This does not establish that the remote failure is fixed.
+
+See [live terminal monitoring](./LIVE-SESSIONS.en.md) for scope and interfaces. This batch does not establish full Enterprise parity or production HA acceptance.
+
 ## Stabilized baseline: systemd, performance and Docker isolation
 
 2026-10-16: complete Windows Go/Testify passed 54 packages / 737 cases with no failures or skipped cases; full Playwright passed 58/58 (13.8 minutes). Backend vet/build, warning-free frontend lint/build, E2E types and 12/12 fixture/artifact/isolation argument checks passed. Complete Linux race passed 54 packages / 745 cases with no failures, skipped cases or data races. After the long-run output channel was interrupted, the same environment and code were restored and successful test-cache results were rechecked with exit code 0. Interrupted output remains in jms233-systemd-race-interrupted-output.log.

@@ -2,6 +2,8 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+Production Docker contexts exclude Go tests, protocol fixtures, Playwright cases and documentation. Test edits therefore do not invalidate the production source copy layer. CI tests use a complete checkout and remain unaffected by `.dockerignore`. Live monitoring loads on demand, while the main entry retains its existing size budgets.
+
 Local production build measurements on 2026-10-16:
 
 | Metric | Before | After |
