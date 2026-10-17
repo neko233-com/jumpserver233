@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import OperationsPanel from "../components/OperationsPanel";
 import { usePermissions } from "../auth/usePermissions";
@@ -33,6 +34,7 @@ const pageSize = 50;
 const active = (job: Job) => job.state === "running" || job.state === "pending_review";
 
 export default function WorkbenchPage() {
+  const { search: notificationSearch } = useLocation();
   const { t, i18n } = useTranslation();
   const { accessToken } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -57,6 +59,23 @@ export default function WorkbenchPage() {
     },
     [accessToken],
   );
+  useEffect(() => {
+    const id = new URLSearchParams(notificationSearch).get("job");
+    if (!id || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) return;
+    const controller = new AbortController();
+    void request(`/api/v1/ops/jobs/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((v) => {
+        if (!controller.signal.aborted) setSelected(v);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      });
+    return () => controller.abort();
+  }, [notificationSearch, request]);
   const load = useCallback(
     async (signal?: AbortSignal) => {
       try {

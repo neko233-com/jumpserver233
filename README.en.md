@@ -2,6 +2,12 @@
 
 > [中文](./README.md) | English
 
+Notifications support personal subscriptions, verified contacts, in-app messages, TLS email, signed Webhooks and custom SMS for tickets, SSH jobs and rotation results. See [Notification center](./docs/NOTIFICATIONS.en.md).
+
+2026-10-18: notifications in isolated Docker, with synthetic contacts and a real OpenSSH job:
+
+![Notification center](./docs/images/notifications.en.png)
+
 Access request tickets provide published scopes, one to five distinct reviewers, copied discussion, amendment reset, temporary grants and revocation through real CLI/Web SSH. See [Access request tickets](./docs/ACCESS-TICKETS.en.md).
 
 Multi-host SSH rotation plans support passwords/keys, privileged resets, weekly schedules, per-account results and recovery. Web/CLI share organization permissions and encrypted receipts; see [Credential rotation plans](./docs/ROTATION-PLANS.en.md).

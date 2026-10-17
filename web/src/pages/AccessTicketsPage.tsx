@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import "../i18n/locales/features/access-tickets/register";
 import "./rotation-plans.css";
@@ -143,6 +144,7 @@ function Dialog({
   );
 }
 export default function AccessTicketsPage() {
+  const { search: notificationSearch } = useLocation();
   const { t, i18n } = useTranslation(),
     { accessToken } = useAuth();
   const life = useRef<AbortController | null>(null),
@@ -217,6 +219,19 @@ export default function AccessTicketsPage() {
   const fail = useCallback((e: unknown) => {
     if (!life.current?.signal.aborted) setError(e instanceof TicketError ? e.code : "unavailable");
   }, []);
+  useEffect(() => {
+    const id = new URLSearchParams(notificationSearch).get("request");
+    if (!id || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) return;
+    const controller = new AbortController();
+    void request<Ticket>(`requests/${encodeURIComponent(id)}`, "GET", undefined, controller.signal)
+      .then((v) => {
+        if (!controller.signal.aborted) setDetail(v);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) fail(e);
+      });
+    return () => controller.abort();
+  }, [notificationSearch, request, fail]);
   const load = useCallback(
     async (signal: AbortSignal) => {
       try {

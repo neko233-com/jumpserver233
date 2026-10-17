@@ -105,6 +105,14 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 			}
 		}
 		if problem.Detail == "" {
+			if strings.HasPrefix(target.Path, "/api/v1/notifications/") {
+				switch problem.Code {
+				case "invalid", "denied", "not_found", "conflict", "verification_required", "rate_limit", "capacity", "unavailable":
+					problem.Detail = problem.Code
+				}
+			}
+		}
+		if problem.Detail == "" {
 			if strings.HasPrefix(target.Path, "/api/v1/tickets/") {
 				switch problem.Code {
 				case "invalid", "denied", "not_found", "conflict", "source_changed", "reviewers_unavailable", "capacity", "unavailable":

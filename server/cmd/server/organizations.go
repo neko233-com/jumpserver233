@@ -27,6 +27,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/nodes"
+	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"github.com/neko233-com/jumpserver233/server/internal/core/operations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
@@ -361,6 +362,13 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return nil, e
 		}
 	}
+	if id != organizations.DefaultID {
+		d.Notifications, e = notifications.Open(filepath.Join(orgPath, "notifications.json"), orgKey, docs)
+		if e != nil {
+			r.stop(&organizationRuntime{d: d}, false)
+			return nil, e
+		}
+	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID {
 		ctx, cancel := context.WithCancel(r.ctx)
@@ -372,6 +380,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		d.AccountRisks.Start(ctx)
 		d.RotationPlans.Start(ctx)
 		d.Tickets.Start(ctx)
+		d.Notifications.Start(ctx)
 		go func() { defer close(runtime.done); d.Assets.Run(ctx, r.cfg.MonitorInterval) }()
 	}
 	r.items[id] = runtime
@@ -411,6 +420,9 @@ func (r *organizationRuntimes) changed(id string) {
 	}
 }
 func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) {
+	if current.d.Notifications != nil {
+		current.d.Notifications.Close()
+	}
 	if current.d.Tickets != nil {
 		current.d.Tickets.Close()
 	}

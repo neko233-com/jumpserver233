@@ -28,6 +28,13 @@ export default defineConfig({
   },
   webServer: [
     {
+      command: "go run ./testsupport/notificationfixture/cmd",
+      cwd: serverDir,
+      url: "http://127.0.0.1:12604/health",
+      timeout: 120_000,
+      reuseExistingServer: false,
+    },
+    {
       command: "node ./testsupport/systemdvm/run.mjs",
       cwd: serverDir,
       url: "http://127.0.0.1:12326/health",

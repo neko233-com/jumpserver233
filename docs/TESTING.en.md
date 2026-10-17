@@ -2,6 +2,16 @@
 
 > [中文](./TESTING.md) | English
 
+## Notification center (2026-10-18)
+
+- Full isolated Playwright: 71/71 pass, no failures/skips, 16.0 minutes, exit 0; all 6 preceding artifact-cache/frame tests pass. Coverage includes real SSH, database protocols, login identities, native plugins, systemd user/system services, reboot recovery and this notification scenario.
+
+- Uncached full Go/Testify: 62 packages, 996 passes, 35 absent-fixture/capability skips, no failures, exit 0. Subsequent retry-limit, configuration/unsubscription/account withdrawal and muted-history cases passed with the complete 45-case notification package, no skips, including real PostgreSQL takeover. Core coverage: 81.5%.
+- Final Linux Docker race: 5 packages, 194 passes, 5 absent-fixture skips, no failures. Supplementary notification race: 45 passes, no skips. Five fault classes (atomic cursor, unknown receipt, permission withdrawal, shutdown cancellation and PostgreSQL takeover) passed 30 consecutive runs. Skips are not passes.
+- Latest production-image scenario: 9.2 seconds, 9.7 including the runner, with all three external channels, TLS email/phone codes, real OpenSSH/CLI, approval-task withdrawal, detail links, both languages, 390px and zero pageerror. Mail, Webhooks and SMS go only to local capture services and synthetic contacts; this does not prove production provider or end-user delivery. Rotation cancellation notifications and access boundaries also have real API regression coverage.
+- Latest clean-volume dual-instance Docker browser checks: 18.83 seconds (cached build 2.90, startup 12.11, checks 3.82), followed by disposable cleanup. Retained debug UI: http://127.0.0.27:15193; API: http://127.0.0.27:18100. Older instances are preserved.
+- Go vet, frontend lint/types/production build and 10 Docker Node tests pass. Native helpers were prepared through go generate, without manual edits to generated files. Screenshots: [Notifications](./NOTIFICATIONS.en.md); performance: [PERFORMANCE.en.md](./PERFORMANCE.en.md).
+
 ## Access request tickets (2026-10-18)
 
 - Final uncached serial Go/Testify after lifecycle concurrency repair: 60 packages, 951 passes, 35 absent-fixture/capability skips, no failures, exit 0. Final Linux Docker race: 7 packages, 322 passes, 8 such skips, no failures, exit 0. Skips are not counted as passes.

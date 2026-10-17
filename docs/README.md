@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+站内信、邮件、Webhook、自定义短信、联系方式验证和送达恢复见[通知中心](./NOTIFICATIONS.md)。
+
 发布申请范围、1–5 级审批、调整重审、限时授权、撤销和 Web/CLI 见[访问授权工单](./ACCESS-TICKETS.md)。
 
 多主机 SSH 密码/密钥轮换、每周计划、特权账号、逐项结果及恢复见[账号改密计划](./ROTATION-PLANS.md)。

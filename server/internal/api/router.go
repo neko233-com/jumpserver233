@@ -22,6 +22,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginreviews"
 	corenodes "github.com/neko233-com/jumpserver233/server/internal/core/nodes"
+	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"github.com/neko233-com/jumpserver233/server/internal/core/oidclogin"
 	coreoperations "github.com/neko233-com/jumpserver233/server/internal/core/operations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
@@ -36,6 +37,7 @@ import (
 )
 
 type Dependencies struct {
+	Notifications        *notifications.Service
 	Tickets              *tickets.Service
 	RotationPlans        *rotationplans.Service
 	AccountRisks         *accountrisks.Service
@@ -103,6 +105,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/health", HealthHandler(version))
 	if len(dependencies) > 0 {
 		registerTicketRoutes(mux, dependencies[0], accessMu)
+		registerNotificationRoutes(mux, dependencies[0])
 	}
 	if len(dependencies) > 0 && dependencies[0].RotationPlans != nil {
 		registerRotationPlanRoutes(mux, dependencies[0], accessMu)

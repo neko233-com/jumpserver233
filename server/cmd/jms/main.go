@@ -47,6 +47,9 @@ func run(args []string) error {
 	if len(args) > 0 && args[0] == "ticket" {
 		return runTickets(args[1:])
 	}
+	if len(args) > 0 && args[0] == "notifications" {
+		return runNotifications(args[1:])
+	}
 	selector := ""
 	if len(args) > 0 && args[0] == "--account" {
 		if len(args) < 4 || strings.TrimSpace(args[1]) == "" {

@@ -33,7 +33,7 @@ By default the CLI writes remote stdout/stderr to the corresponding local stream
 - At most eight jobs run globally and two per user. Each user can have 20 pending reviews. The store holds 1000 audit records; new jobs are refused at capacity, without silently deleting old audits.
 - Cancellation, timeout, or node shutdown closes the SSH transport. Detached remote descendants may continue; verify them separately when needed.
 - Restart or HA takeover marks unfinished jobs interrupted without replay. A node that loses its election lock stops writing job documents. Failure to persist the final audit reports `audit_unavailable`; verify the remote outcome before retrying.
-- Current coverage includes SSH jobs, batch dispatch, templates, and interval schedules. Playbook/Ansible, cron/calendar scheduling, notifications, and full ticket workflows remain outstanding.
+- Current coverage includes SSH jobs, batch dispatch, templates, and interval schedules. Playbook/Ansible, cron/calendar scheduling and other ticket types remain open; access tickets and external notifications are covered in [Access tickets](./ACCESS-TICKETS.en.md) and [Notifications](./NOTIFICATIONS.en.md).
 
 ## Batches, templates, and schedules
 

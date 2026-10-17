@@ -2,6 +2,14 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Notification center (2026-10-18)
+
+The page and both locales load lazily at about 27.25 kB JS. Main entry: 478,611 bytes; initial JS: 495,955 bytes, gzip 160,098; total JS: 1,428,607. Existing 500 kB / 1.5 MB budgets pass. The local Vite build stage took 170 ms, excluding preceding type checks. No dependencies were added.
+
+Three same-machine runs over 10,000 messages improved unread queries from 7.3–8.0 ms, 23.3 MB and 45–48 allocations to 4.1–4.5 ms, about 2.25 MB and 4 allocations. Queries preallocate for the caller's messages, filter in place and cap returned slices. Idle Tick over 10,000 messages and 10,000 sent deliveries took 0.24–0.40 ms, 272 B and 4 allocations, excluding event-source reads, HTTP, encrypted persistence and SSH. Benchmarks are in the notification package's performance_test.go; rerun with go test -run '^$' -bench BenchmarkNotification -benchmem -count 3.
+
+Windows stripped API: 41,965,056 bytes; CLI: 12,541,952 bytes. Local Linux API image uncompressed size: 24,702,658 bytes. Pages contain 20 records; the header refreshes every 30 seconds and pauses when hidden. Idle cursors do not write state; senders are bounded to 4. Retention/capacity: [Notifications](./NOTIFICATIONS.en.md). Existing .gitignore/.dockerignore exclude caches, builds, test output and generated native helpers; this slice tracks no binaries.
+
 ## Access request tickets (2026-10-18)
 
 The ticket page and both languages load lazily: about 33.89 kB JS / 0.81 kB CSS. Main entry: 476,681 bytes; initial JS and static dependencies: 494,025 bytes, gzip 159,552; all JS: 1,398,372 bytes. Existing 500 kB / 1.5 MB budgets pass with no added dependencies. See [TESTING](./TESTING.en.md) for build sizes and isolated verification timings.

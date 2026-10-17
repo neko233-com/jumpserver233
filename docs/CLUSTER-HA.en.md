@@ -2,6 +2,8 @@
 
 > [中文](./CLUSTER-HA.md) | English
 
+Notification organization state, cursors and outbox share one encrypted document. Takeover preserves sending records without a committed receipt as uncertain and never automatically replays them. Isolated PostgreSQL state takeover is verified; production provider delivery and multi-active remain open. See [Notifications](./NOTIFICATIONS.en.md).
+
 Host plugins use existing encrypted job storage. Takeover marks unfinished jobs interrupted and does not replay installations or starts. Remote agents survive platform nodes; detect and act explicitly after takeover. Verified artifacts can be fetched again by their pinned hashes. See [host tools and agents](./HOST-PLUGINS.en.md).
 
 RDP desktops join organization/process shutdown. Historical frames require shared storage and matching keys; takeover requires reconnection and never replays input. RDP production takeover drills remain unverified; see [RDP](./RDP.en.md).

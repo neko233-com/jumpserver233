@@ -37,6 +37,7 @@ var catalog = []string{
 	"jobs.view_all", "jobs.cancel_all", "jobs.review", "plans.view_all", "plans.manage_all",
 	"sessions.share",
 	"tickets.manage", "tickets.review", "tickets.view_all", "tickets.revoke",
+	"notifications.manage", "notifications.audit", "notifications.retry",
 	"accounts.discover", "accounts.view", "accounts.review", "accounts.manage", "accounts.schedule",
 	"accounts.remote.create", "accounts.remote.disable", "accounts.remote.enable", "accounts.remote.delete",
 	"accounts.import",

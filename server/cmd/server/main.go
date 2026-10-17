@@ -35,6 +35,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginreviews"
 	corenodes "github.com/neko233-com/jumpserver233/server/internal/core/nodes"
+	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"github.com/neko233-com/jumpserver233/server/internal/core/oidclogin"
 	coreoperations "github.com/neko233-com/jumpserver233/server/internal/core/operations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
@@ -226,6 +227,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	defer accessTickets.Close()
+	notificationService, err := notifications.Open(filepath.Join(cfg.DataDir, "notifications.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	defer notificationService.Close()
 	databaseService, err := databasequery.Open(filepath.Join(cfg.DataDir, "database-queries.json"), vaultKey, documents, assetService.QueryDatabase)
 	if err != nil {
 		return err
@@ -288,6 +294,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.AccountRisks = accountRisks
 	root.RotationPlans = credentialPlans
 	root.Tickets = accessTickets
+	root.Notifications = notificationService
 	root.GlobalAccessMu = root.AccessMu
 	root.SessionPolicy = sessionSettings
 	root.DatabaseQueries = databaseService
@@ -320,6 +327,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global.AccountRisks = nil
 	global.RotationPlans = nil
 	global.Tickets = nil
+	global.Notifications = nil
 	handler := api.NewOrganizationRouter(cfg.Version, global, runtimes.handler)
 	identityService.SetPrivilegedCheck(runtimes.isPrivileged)
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
@@ -332,6 +340,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	accountRisks.Start(nodeCtx)
 	credentialPlans.Start(nodeCtx)
 	accessTickets.Start(nodeCtx)
+	notificationService.Start(nodeCtx)
 	monitorDone := make(chan struct{})
 	go func() {
 		defer close(monitorDone)

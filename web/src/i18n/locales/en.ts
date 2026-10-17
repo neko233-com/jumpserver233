@@ -1494,6 +1494,8 @@ const en = {
     accountRisks: "Account risks",
     rotationPlans: "Credential rotation",
     accessTickets: "Access requests",
+    notifications: "Notifications",
+    notificationUnread: "{{count}} unread notifications",
     console: "Console",
     audit: "Audit",
     workbench: "Workbench",

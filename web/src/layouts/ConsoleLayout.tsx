@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import OrganizationSwitcher from "../components/OrganizationSwitcher";
+import NotificationBell from "../components/NotificationBell";
 import { usePermissions } from "../auth/usePermissions";
 import { toggleLang } from "../i18n";
 
@@ -69,6 +70,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
           ))}
         </nav>
         <OrganizationSwitcher />
+        <NotificationBell />
         <button type="button" className="lang-switch" onClick={toggleLang} title="中文 / English">
           {isZh ? "EN" : "中文"}
         </button>

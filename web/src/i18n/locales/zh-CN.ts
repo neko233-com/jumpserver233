@@ -1389,6 +1389,8 @@ const zhCN = {
     accountRisks: "账号风险",
     rotationPlans: "账号改密",
     accessTickets: "授权工单",
+    notifications: "通知中心",
+    notificationUnread: "{{count}} 条未读通知",
     console: "控制台",
     audit: "审计台",
     workbench: "工作台",

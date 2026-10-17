@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import "../i18n/locales/features/rotation-plans/register";
@@ -127,6 +128,7 @@ function Modal({
   );
 }
 export default function RotationPlansPage() {
+  const { search: notificationSearch } = useLocation();
   const { t, i18n } = useTranslation();
   const { accessToken } = useAuth();
   const { ready, allows, userID } = usePermissions();
@@ -233,6 +235,20 @@ export default function RotationPlansPage() {
     return () => controller.abort();
   }, [editing, view, candidateOffset, query, request, fail]);
   const collectorID = collectorFor?.account_id;
+  useEffect(() => {
+    const id = new URLSearchParams(notificationSearch).get("run");
+    if (!id || !/^[A-Za-z0-9_-]{1,128}$/.test(id) || !view) return;
+    const controller = new AbortController();
+    void request(`runs/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((v) => {
+        if (!controller.signal.aborted) setSelectedRun(v);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) fail(e);
+      });
+    return () => controller.abort();
+  }, [notificationSearch, view, request, fail]);
   useEffect(() => {
     if (!collectorID) return;
     const controller = new AbortController();

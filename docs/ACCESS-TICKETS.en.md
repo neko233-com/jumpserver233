@@ -48,7 +48,7 @@ Approved access uses native user grants. Actual connections still enforce MFA, o
 - Per organization: 256 policies, 2,000 retained tickets, 20,000 rolling audit events. Each ticket supports 100 comments and 100 idempotent decision receipts. Terminal tickets retain 180 days; audit retains up to 365 days subject to its rolling count. Native grant receipts are capped at 5,000 batches. Revoked receipts are pruned hourly after both creation and expiry are older than 180 days. Capacity limits reject new work; they do not prevent revoking existing access.
 - Historical names and published scope remain in tickets for audit. Responses omit private bindings and digests. Reasons and comments are participant-visible metadata; do not enter credentials.
 
-File mode is single process. PostgreSQL uses the existing single-active coordinator. Evidence covers isolated state-store takeover, while production multi-active, cross-region fault drills and external notifications remain open. Console assignments and copied views are available; email/SMS delivery is not implemented by this feature.
+File mode is single process. PostgreSQL uses the existing single-active coordinator. Evidence covers isolated state-store takeover; production multi-active and cross-region fault drills remain open. Approval tasks and external delivery are covered by the [notification center](./NOTIFICATIONS.en.md).
 
 ## CLI / SDK
 
