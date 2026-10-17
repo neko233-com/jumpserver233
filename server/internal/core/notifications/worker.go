@@ -119,6 +119,12 @@ func (s *Service) syncFeed(ctx context.Context, feed Feed) error {
 				link = feed.Link(event)
 			}
 			m := Message{ID: messageID(src, target.Topic, target.UserID), UserID: target.UserID, Topic: target.Topic, Source: src, Name: event.Name, State: event.State, At: event.At, Link: link}
+			s.mu.Lock()
+			_, alreadyPublished := s.data.Messages[m.ID]
+			s.mu.Unlock()
+			if alreadyPublished {
+				continue
+			}
 			ok, e := s.allowed(ctx, target.UserID, m)
 			if e != nil {
 				return e

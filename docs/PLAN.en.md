@@ -2,7 +2,7 @@
 
 > [中文](./PLAN.md) | English
 
-Phase 5 adds the [notification center](./NOTIFICATIONS.en.md): in-app unread messages, personal subscriptions/contact verification, TLS SMTP, signed HTTPS Webhooks, custom SMS gateway, ticket/SSH job/rotation results, delivery receipts and explicit retries, with organization encryption and PostgreSQL single-active recovery. Security alerts/more sources, native cloud SMS and instant messaging remain open.
+Phase 5 adds the [notification center](./NOTIFICATIONS.en.md): in-app unread messages, personal subscriptions/contact verification, TLS SMTP, signed HTTPS Webhooks, custom SMS gateway, ticket/SSH job/rotation results, delivery receipts and explicit retries, with organization encryption and PostgreSQL single-active recovery. Security messages now cover native asset/command reviews, blocked SSH input, risk scans and host Agent repair reports, with current-permission inline review details. Monitoring threshold alerts, global platform sign-in aggregation, native cloud SMS and instant messaging remain open.
 
 Phase 5/7 adds [access request tickets](./ACCESS-TICKETS.en.md): published asset/node and account scopes, one to five distinct reviewers, user/group/role selectors, copied discussion, amendment reset, time-limited native grants, revocation and recovery across Web/CLI/SDK with organization encryption. External delivery is in the notification center; production multi-active, the phase and full Enterprise goal remain in progress.
 

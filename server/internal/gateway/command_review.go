@@ -59,7 +59,7 @@ func (b *Broker) createCommandReview(ctx context.Context, conn *websocket.Conn, 
 	submission.Outcome = "pending"
 	submission.RuleName = ruleName
 	submission.ReviewID = id
-	if err := b.appendCommand(session.id, submission); err != nil {
+	if err := b.appendCommand(session.id, submission, session); err != nil {
 		return CommandReview{}, err
 	}
 	pending := &pendingCommandReview{request: review, submission: submission}
@@ -72,7 +72,7 @@ func (b *Broker) createCommandReview(ctx context.Context, conn *websocket.Conn, 
 		submission.SubmittedAt = time.Now().UTC()
 		submission.Outcome = "cancelled"
 		submission.ReviewedBy = "system"
-		_ = b.appendCommand(session.id, submission)
+		_ = b.appendCommand(session.id, submission, session)
 		return CommandReview{}, ErrCommandReviewInProgress
 	}
 	session.pendingReview = pending
@@ -198,7 +198,7 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 	submission.SubmittedAt = time.Now().UTC()
 	submission.Outcome = outcome
 	submission.ReviewedBy = reviewer
-	if err := b.appendCommand(session.id, submission); err != nil {
+	if err := b.appendCommand(session.id, submission, session); err != nil {
 		session.inputMu.Unlock()
 		b.closeSession(session, "command_review_audit_failed")
 		return err

@@ -16,9 +16,28 @@
 | 工单评论、拒绝、取消、撤销等 | 仍可读工单的申请人及当前抄送对象 |
 | SSH 作业终态 | 仍可读作业的发起人 |
 | 改密计划终态 | 仍有改密及全资产查看权限的运行发起人 |
+| 资产访问复核 | 申请人收安全消息；持有 reviews.login.manage 的当前复核人另收待办；覆盖 SSH/SFTP/数据库/Kubernetes/Telnet/RDP/账号采集和远程账号操作 |
+| SSH 作业命令拒绝、复核及结果 | 发起人与有 jobs.view_all 的审计者收安全消息；jobs.review 收当前待办 |
+| 交互 Web SSH 命令 | 当前命令复核人收待办；会话所有者、输入参与人和 audit.commands.view_all 收拒绝、输入阻断、复核结果及取消元数据 |
+| 主机 Agent 事件 | 采集人及 audit.agents.view_all；读取时仍检查原事件权限，包括修复完成/失败/中断、历史缺口、事件流变更和日志缺失 |
+| 账号风险扫描终态 | accounts.risks.view 且具有 assets.view_all 或 assets.manage；仅扫描摘要 |
 | 系统测试 | 本人，账号与组织保持有效 |
 
-消息仅含类型、资源名称、状态、时间、ID 和详情链接。不含命令、stdout/stderr、评论正文、目标登录凭据或改密秘密。安全告警、平台/资产登录复核、数据库和其他协议事件尚未接入本中心；现有复核页面仍可用。原生云短信/CMPP、即时通信适配器和完整企业版目标仍在进行。
+消息仅含类型、资源名称、状态、时间、ID 和详情链接，不含命令、stdout/stderr、评论正文、目标登录凭据或改密秘密。平台登录复核保留独立全局入口；监控阈值规则、原生云短信/CMPP、即时通信适配器及完整企业版目标仍在进行。
+
+## 安全消息与原生复核
+
+详情页按当前组织与原事件权限读取。资产访问、SSH 作业及交互命令可直接批准/拒绝，保留原接口的实时授权、一次性许可、过期与命令策略检查。复核权限只授予当前待办正文，不能读取他人终态作业；通知管理/审计权限本身也不授予主机事件权限。外部消息始终只带元数据。
+
+待办采用可重复遍历的快照，处理完成、角色撤回或过期立即隐藏；后续获得角色也能补收部署起点后生成、仍有效的待办。固定 ID 避免重复入队，空闲重复扫描不写通知文件。详情页每 5 秒刷新未处理请求，隐藏暂停、导航取消；决策会取消旧读取，延迟响应不能恢复旧批准按钮。
+
+交互命令完整审计 fsync 后写入组织 AES-GCM 加密的 command-alerts.json（PostgreSQL 对应组织文档），再允许转发。普通允许命令不新增告警写盘；告警持久化失败会阻止转发。元数据最多保留 20,000 条、30 天，解密文档上限 32 MiB；裁剪导致的游标缺口在健康页可见。会话关闭先完成复核取消审计，再关闭该存储。批准记录表示批准决定，不能作为远端命令执行成功证明。
+
+Agent 告警元数据与采集游标一并提交到加密索引，轮询不读取大型原始采集输出。旧存档升级时建立起点，不补发升级前告警；原始审计仍可查看。保留上限同为 20,000 条、30 天；为保证索引可在重启后读取，加密文档最多 16 MiB，达到体积预算时提前裁剪旧告警元数据并保留缺口标记。源文档自身超限则拒绝提交，不推进采集游标。时间使用平台采集时间。主机报告受远端主机信任边界约束，详情有明确说明。
+
+2026-10-18，隔离 Docker 中真实 OpenSSH 命令复核：
+
+![命令复核详情](./images/security-review.zh-CN.png)
 
 ## 配置与订阅
 
@@ -62,9 +81,11 @@ timestamp + "\n" + delivery_id + "\n" + exact_request_body
 | /test | POST request_id |
 | /deliveries、/audit、/health | GET 分页送达、审计、健康 |
 | /deliveries/{id}/retry | POST revision / acknowledge_uncertain |
+| /sources/{kind}/{id} | GET 当前授权的精简详情；kind 为 access-reviews / job-security / command-reviews / command-alerts / agent-events / account-risks |
 
 ```sh
 jms notifications list --unread --limit 25
+jms notifications source command-alerts command-event-ID
 jms notifications preferences
 jms notifications preferences-save --file preferences.json
 jms notifications request-code email

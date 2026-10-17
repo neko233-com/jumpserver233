@@ -2,7 +2,7 @@
 
 > [中文](./README.md) | English
 
-Notifications support personal subscriptions, verified contacts, in-app messages, TLS email, signed Webhooks and custom SMS for tickets, SSH jobs and rotation results. See [Notification center](./docs/NOTIFICATIONS.en.md).
+Notifications support subscriptions, verified contacts, in-app messages, TLS email, signed Webhooks and custom SMS for tickets, SSH jobs, rotations, command safety, asset/command reviews, risk scans and host Agent reports. Details support inline review with current permissions. See [Notification center](./docs/NOTIFICATIONS.en.md).
 
 2026-10-18: notifications in isolated Docker, with synthetic contacts and a real OpenSSH job:
 

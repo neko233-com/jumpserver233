@@ -101,6 +101,8 @@ func titleAndBody(v Outbound) (string, string) {
 	status := [2]string{"Updated", "已更新"}
 	if p, ok := states[v.Message.State]; ok {
 		status = p
+	} else if p, ok := securityStateText(v.Message.State); ok {
+		status = p
 	}
 	body := title + "\n" + status[i]
 	if v.Message.Name != "" {

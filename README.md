@@ -2,7 +2,7 @@
 
 > 中文 | [English](./README.en.md)
 
-通知中心支持个人订阅、联系方式验证、站内信、TLS 邮件、签名 Webhook 和自定义短信，已接入工单、SSH 作业及改密结果；见[通知中心](./docs/NOTIFICATIONS.md)。
+通知中心支持个人订阅、联系方式验证、站内信、TLS 邮件、签名 Webhook 和自定义短信；覆盖工单、SSH 作业、改密、安全命令、资产/命令复核、风险扫描和主机 Agent 报告，详情可按当前权限复核；见[通知中心](./docs/NOTIFICATIONS.md)。
 
 2026-10-18，隔离 Docker 中的通知中心（合成联系方式与真实 OpenSSH 作业）：
 

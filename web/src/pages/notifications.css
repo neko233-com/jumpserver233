@@ -71,6 +71,23 @@
 .notification-feedback {
   min-height: 1.4em;
 }
+.notification-source-fields {
+  display: grid;
+  grid-template-columns: minmax(100px, 160px) minmax(0, 1fr);
+  gap: 12px;
+  max-width: 960px;
+}
+.notification-source-fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.notification-command {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid #ffffff30;
+  padding: 16px;
+  border-radius: 8px;
+}
 @media (max-width: 600px) {
   .notifications-page {
     padding: 16px;

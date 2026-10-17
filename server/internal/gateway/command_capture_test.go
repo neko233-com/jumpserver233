@@ -68,3 +68,19 @@ func TestRedactCommandCoversCommonPasswordFormsWithoutMaskingSSHPort(t *testing.
 		}
 	}
 }
+func TestCommandCaptureKeepsFullInputDuringFragmentedReadlineEcho(t *testing.T) {
+	for _, command := range []string{"printf 'SYNTHETIC_DENIED_%s\\n' NEVER", "echo 'x# y> password: '", "echo 'token: ' && echo policy-denied"} {
+		capture := newCommandCapture()
+		capture.ObserveOutput([]byte("ops@host:~$ "))
+		for _, char := range []byte(command) {
+			if got := capture.ObserveInput([]byte{char}); len(got) != 0 {
+				t.Fatal("premature submission")
+			}
+			capture.ObserveOutput([]byte{char})
+		}
+		got := capture.ObserveInput([]byte{'\r'})
+		if len(got) != 1 || !got[0].Supported || got[0].PolicyCommand != command {
+			t.Fatalf("fragmented echo truncated policy input: %#v", got)
+		}
+	}
+}

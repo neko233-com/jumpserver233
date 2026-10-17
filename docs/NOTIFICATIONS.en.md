@@ -16,9 +16,28 @@ The console header opens notifications with unread filtering, mark all read and 
 | Ticket comments, rejection, cancellation and revocation | Requester and current CC subjects who can still read the ticket |
 | Terminal SSH jobs | Owner who can still read the job |
 | Terminal rotation plans | Run owner retaining rotation and all-assets view permissions |
+| Asset access reviews | Requesters receive security messages; current reviews.login.manage holders receive tasks for SSH/SFTP/database/Kubernetes/Telnet/RDP/account collection/remote account access |
+| SSH job command denial and review results | Owner and jobs.view_all auditors receive security messages; jobs.review receives current tasks |
+| Interactive Web SSH commands | Current reviewers receive tasks; session owner, input participant and audit.commands.view_all receive denial, input blocking, review outcomes and cancellation metadata |
+| Host Agent events | Collector and audit.agents.view_all, subject to original event access; repair completed/failed/interrupted, history gaps, stream changes and missing journals |
+| Terminal account risk scans | accounts.risks.view plus assets.view_all or assets.manage; scan summaries only |
 | System test | Caller with active account and organization |
 
-Messages contain only type, resource name, state, time, ID and detail link. Commands, stdout/stderr, comment text, target credentials and rotation secrets are excluded. Security alerts, platform/asset login reviews, databases and other protocol events are not connected to this center yet; existing review pages remain available. Native cloud SMS/CMPP, instant messaging adapters and overall Enterprise parity remain pending.
+Messages contain only type, resource name, state, time, ID and detail link, excluding commands, stdout/stderr, comment text, target credentials and rotation secrets. Platform sign-in reviews retain their separate global entry. Monitoring threshold rules, native cloud SMS/CMPP, instant messaging adapters and overall Enterprise parity remain pending.
+
+## Security messages and native reviews
+
+Details use the selected organization and current source permissions. Asset access, SSH jobs and interactive commands support inline approval/denial through native APIs, preserving live authorization, one-use permits, expiry and command policy. Review permissions expose only current task commands and do not grant another user's terminal job history. Notification management/audit alone grants no host event access. External messages always contain metadata only.
+
+Task snapshots revisit retained records. Completion, role withdrawal or expiry hides tasks; later role assignment can receive still-valid tasks created after the deployment boundary. Stable IDs deduplicate enqueue and idle passes do not rewrite notification state. Pending details refresh every 5 seconds, pause while hidden and abort on navigation. Decisions cancel older reads so a delayed response cannot restore stale approval controls.
+
+After full command audit fsync, interactive commands persist metadata in organization AES-GCM encrypted command-alerts.json (an organization document in PostgreSQL) before forwarding. Ordinary allowed commands add no alert write. Alert persistence failure stops forwarding. Metadata retains at most 20,000 entries/30 days, with a 32 MiB decrypted document limit; health shows cursor gaps after pruning. Session shutdown completes cancellation audit before closing this store. An approval record proves a decision, not successful remote execution.
+
+Agent alert metadata commits with collection cursors in the encrypted index; polling avoids bulky raw collection output. Legacy archives establish an upgrade boundary without sending older alerts; original audit remains readable. Retention is 20,000 entries/30 days. The encrypted document is bounded to 16 MiB for restart readability; its byte budget can prune older alert metadata earlier with a retained gap boundary. An oversized source document fails without advancing the collection cursor. Timestamps use platform observation time. Details explicitly identify these as host reports within the remote-host trust boundary.
+
+2026-10-18, real OpenSSH command review in isolated Docker:
+
+![Command review details](./images/security-review.en.png)
 
 ## Configuration and subscriptions
 
@@ -62,9 +81,11 @@ Base `/api/v1/notifications` supports the existing four authentication methods a
 | /test | POST request_id |
 | /deliveries, /audit, /health | GET paged deliveries, audit, health |
 | /deliveries/{id}/retry | POST revision / acknowledge_uncertain |
+| /sources/{kind}/{id} | GET currently authorized compact details; kinds: access-reviews / job-security / command-reviews / command-alerts / agent-events / account-risks |
 
 ```sh
 jms notifications list --unread --limit 25
+jms notifications source command-alerts command-event-ID
 jms notifications preferences
 jms notifications preferences-save --file preferences.json
 jms notifications request-code email

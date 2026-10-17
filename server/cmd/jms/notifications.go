@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const notificationUsage = "usage: jms notifications list|deliveries|audit [--offset 0 --limit 25 --unread --state STATE] | preferences|settings|health | preferences-save|settings-save --file FILE.json (or - for stdin) | read ID | read-all | test --request-id ID | request-code email|sms | verify email|sms --code-stdin | retry ID --revision N [--acknowledge-uncertain]"
+const notificationUsage = "usage: jms notifications list|deliveries|audit [--offset 0 --limit 25 --unread --state STATE] | preferences|settings|health | preferences-save|settings-save --file FILE.json (or - for stdin) | source KIND ID | read ID | read-all | test --request-id ID | request-code email|sms | verify email|sms --code-stdin | retry ID --revision N [--acknowledge-uncertain]"
 
 func runNotifications(args []string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
@@ -31,7 +31,13 @@ func executeNotifications(ctx context.Context, c *sessionclient.Client, args []s
 	f := flag.NewFlagSet("notifications", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	action, id, start := args[0], "", 1
+	sourceKind := ""
 	switch action {
+	case "source":
+		if len(args) < 3 {
+			return errors.New(notificationUsage)
+		}
+		sourceKind, id, start = args[1], args[2], 3
 	case "read", "retry", "request-code", "verify":
 		if len(args) < 2 {
 			return errors.New(notificationUsage)
@@ -143,6 +149,9 @@ func executeNotifications(ctx context.Context, c *sessionclient.Client, args []s
 			return errors.New(notificationUsage)
 		}
 		v, e := c.RetryNotification(ctx, id, *revision, *ack)
+		return emit(v, e)
+	case "source":
+		v, e := c.NotificationSource(ctx, sourceKind, id)
 		return emit(v, e)
 	default:
 		return errors.New(notificationUsage)

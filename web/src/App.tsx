@@ -10,6 +10,7 @@ const AccountRisksPage = lazy(() => import("./pages/AccountRisksPage"));
 const RotationPlansPage = lazy(() => import("./pages/RotationPlansPage"));
 const AccessTicketsPage = lazy(() => import("./pages/AccessTicketsPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const NotificationSourcePage = lazy(() => import("./pages/NotificationSourcePage"));
 const DatabaseAuditPage = lazy(() => import("./pages/DatabaseAuditPage"));
 const AuditPage = lazy(() => import("./pages/AuditPage"));
 const ConsolePage = lazy(() => import("./pages/ConsolePage"));
@@ -67,6 +68,7 @@ export default function App() {
             <Route path="rotation-plans" element={<RotationPlansPage />} />
             <Route path="access-tickets" element={<AccessTicketsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="notification-sources/:kind/:id" element={<NotificationSourcePage />} />
             <Route path="database-audit" element={<DatabaseAuditPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="roles" element={<RolesPage />} />

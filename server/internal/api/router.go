@@ -12,6 +12,7 @@ import (
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
+	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	corecommandfilters "github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
 	"github.com/neko233-com/jumpserver233/server/internal/core/databasequery"
 	corefiles "github.com/neko233-com/jumpserver233/server/internal/core/files"
@@ -37,6 +38,7 @@ import (
 )
 
 type Dependencies struct {
+	CommandAlerts        *commandalerts.Store
 	Notifications        *notifications.Service
 	Tickets              *tickets.Service
 	RotationPlans        *rotationplans.Service
@@ -103,6 +105,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	}
 
 	mux.HandleFunc("GET /api/health", HealthHandler(version))
+	if len(dependencies) > 0 && dependencies[0].CommandAlerts != nil && dependencies[0].Sessions != nil {
+		dependencies[0].Sessions.SetCommandAlerts(dependencies[0].CommandAlerts.Publish)
+	}
 	if len(dependencies) > 0 {
 		registerTicketRoutes(mux, dependencies[0], accessMu)
 		registerNotificationRoutes(mux, dependencies[0])

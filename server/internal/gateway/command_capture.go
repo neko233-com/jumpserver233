@@ -58,6 +58,12 @@ func (c *commandCapture) ObserveOutput(data []byte) {
 	if len(c.outputTail) > 2048 {
 		c.outputTail = append(c.outputTail[:0], c.outputTail[len(c.outputTail)-2048:]...)
 	}
+	// Readline echoes may arrive one character at a time. An echoed %, #, >
+	// or "password:" inside an in-progress line is not a fresh prompt. Keep
+	// the complete input for policy evaluation until submission/cancellation.
+	if len(c.line) > 0 || c.unsupported || len(c.escape) > 0 || c.pasteMode {
+		return
+	}
 	text := strings.TrimRight(stripTerminalControls(c.outputTail), " \t\r\n")
 	if sensitivePromptPattern.MatchString(text) {
 		c.sensitive = true

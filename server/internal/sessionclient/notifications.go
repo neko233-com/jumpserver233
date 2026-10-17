@@ -2,9 +2,46 @@ package sessionclient
 
 import (
 	"context"
+	"fmt"
 	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"net/url"
+	"strings"
+	"time"
 )
+
+type NotificationSourceDetails struct {
+	ReviewID  string    `json:"review_id,omitempty"`
+	ID        string    `json:"id"`
+	Kind      string    `json:"kind"`
+	Name      string    `json:"name"`
+	State     string    `json:"state"`
+	AssetID   string    `json:"asset_id,omitempty"`
+	Account   string    `json:"account,omitempty"`
+	Owner     string    `json:"owner,omitempty"`
+	Command   string    `json:"command,omitempty"`
+	Rule      string    `json:"rule,omitempty"`
+	Method    string    `json:"method,omitempty"`
+	At        time.Time `json:"at"`
+	ExpiresAt time.Time `json:"expires_at,omitzero"`
+	CanReview bool      `json:"can_review"`
+	Accounts  int       `json:"accounts,omitempty"`
+	Open      int       `json:"open,omitempty"`
+	Resolved  int       `json:"resolved,omitempty"`
+}
+
+func (c *Client) NotificationSource(ctx context.Context, kind, id string) (NotificationSourceDetails, error) {
+	var out NotificationSourceDetails
+	switch kind {
+	case "access-reviews", "job-security", "command-reviews", "command-alerts", "agent-events", "account-risks":
+	default:
+		return out, fmt.Errorf("invalid notification source kind")
+	}
+	if len(id) == 0 || len(id) > 128 || strings.Trim(id, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") != "" {
+		return out, fmt.Errorf("invalid notification source ID")
+	}
+	e := c.jobRequest(ctx, "GET", "/api/v1/notifications/sources/"+kind+"/"+url.PathEscape(id), nil, &out)
+	return out, e
+}
 
 type Notification = notifications.Message
 type NotificationDelivery = notifications.Delivery

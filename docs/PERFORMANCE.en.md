@@ -2,6 +2,14 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Security notifications and review details (2026-10-18)
+
+Details load lazily at about 6.60 kB JS. Main entry: 478,877 bytes; initial JS: 496,221 bytes, gzip 160,183; total JS: 1,441,758. Existing budgets pass. The Vite build stage took 222 ms, excluding type checks. No dependencies were added. Windows stripped API: 42,102,784 bytes; CLI: 12,547,584 bytes. Uncompressed Linux API image: 24,754,481 bytes.
+
+Agent notifications read a compact index committed atomically with collection cursors, avoiding recurring decryption of bulky collection_run output. Idle reads with 20,000 interactive alerts took about 188 ns/op, 168 B/op and 5 allocations. This measures an in-memory cursor check, excluding HTTP, event persistence, fsync, delivery and SSH. Ordinary allowed commands add no alert write; deduplicated idle snapshots do not rewrite notification state.
+
+Latest production Docker browser coverage took 11.8 seconds, 12.2 including the runner. Fresh-volume, dual-instance browser verification totaled 19.78 seconds (cached build 3.68, startup 12.15, smoke 3.95). Debug UI remains at http://127.0.0.29:15194, API 18101. Existing .gitignore/.dockerignore rules cover caches, reports, builds and generated native helpers; no binaries entered Git.
+
 ## Notification center (2026-10-18)
 
 The page and both locales load lazily at about 27.25 kB JS. Main entry: 478,611 bytes; initial JS: 495,955 bytes, gzip 160,098; total JS: 1,428,607. Existing 500 kB / 1.5 MB budgets pass. The local Vite build stage took 170 ms, excluding preceding type checks. No dependencies were added.

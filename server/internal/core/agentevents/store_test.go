@@ -202,12 +202,21 @@ func TestAgentEventsPostgresOrganizationIsolationAndRestart(t *testing.T) {
 	c, e := s.Cursor(src)
 	require.NoError(t, e)
 	require.Equal(t, uint64(2), c.Sequence)
+	alerts, e := s.NotificationFeed(context.Background(), "", time.Time{}, 100)
+	require.NoError(t, e)
+	require.Len(t, alerts.Events, 2)
+	source, e := s.NotificationSource(alerts.Events[0].ResourceID)
+	require.NoError(t, e)
+	require.Equal(t, src, source.Source)
 	other, e := Open(t.TempDir(), make([]byte, 32), docs)
 	require.NoError(t, e)
 	defer other.Close()
 	c, e = other.Cursor(src)
 	require.NoError(t, e)
 	require.Empty(t, c.Stream)
+	empty, e := other.NotificationFeed(context.Background(), "", time.Time{}, 100)
+	require.NoError(t, e)
+	require.Empty(t, empty.Events)
 }
 
 func TestReceiptCopiesMutablePayloads(t *testing.T) {

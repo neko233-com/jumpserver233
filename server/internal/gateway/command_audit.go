@@ -55,7 +55,7 @@ var ErrInvalidCommandRequest = errors.New("invalid command audit request")
 
 // appendCommand stores only encrypted command payloads. Session IDs remain
 // visible for efficient authorization-scoped lookups.
-func (b *Broker) appendCommand(sessionID string, submission commandSubmission) error {
+func (b *Broker) appendCommand(sessionID string, submission commandSubmission, contexts ...*activeSession) error {
 	command := strings.TrimSpace(submission.Command)
 	if submission.Outcome == "" {
 		submission.Outcome = "allowed"
@@ -106,6 +106,14 @@ func (b *Broker) appendCommand(sessionID string, submission commandSubmission) e
 	}
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("close command audit index: %w", err)
+	}
+	if b.commandAlert != nil && commandAlertState(submission) != "" {
+		if len(contexts) != 1 || contexts[0] == nil {
+			return fmt.Errorf("command alert context unavailable")
+		}
+		if err := b.commandAlert(commandAlertRecord(contexts[0], submission, id)); err != nil {
+			return fmt.Errorf("persist command security metadata: %w", err)
+		}
 	}
 	return nil
 }

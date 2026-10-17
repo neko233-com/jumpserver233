@@ -2,6 +2,18 @@
 
 > [中文](./TESTING.md) | English
 
+## Security notifications and command reviews (2026-10-18)
+
+- Final complete production-frontend Playwright: 72/72 passes, no failures/skips, 16.4 minutes. It used a prebuilt static frontend, fresh temporary data and all existing real-protocol/native fixtures; all 850 source fingerprints remained identical. Coverage includes SSH filtering/native reviews, permission withdrawal, sharing, databases, Telnet, Kubernetes, RDP, and actual systemd repair/reboot followed by Agent repair notification collection and detail navigation. The run's owned fixtures were cleaned afterward.
+- Final uncached full Go/Testify run: 63 packages, 1,026 passes, 35 absent-fixture/platform-capability skips, no failures, exit 0. The complete run was repeated after the byte-budget patch. Native helpers were prepared through go generate.
+- Final Linux Docker race: 9 packages, 290 passes, 4 skips lacking real database/Kubernetes/RDP/Telnet fixtures, no failures, exit 0. Real protocols are covered separately in the full browser suite; skips are not passes.
+- Seven focused fault classes passed 30 consecutive runs: atomic indexes, legacy migration, interactive alert persistence failure, later snapshot authorization, complete command capture under fragmented echoes and permission withdrawal. New alert store coverage: 83.9%; event metadata package: 93.9%. A 20,000-entry worst-label encoding test verifies pruning/readback without creating an unrecoverable oversized document.
+- Latest production Docker scenario: 11.8 seconds, 12.2 including the runner; real OpenSSH access review, one-use permit consumption, denied commands not executing, execution after approval, job denial, risk summaries, later role assignment/withdrawal, stale-response cancellation, CLI compact details, signed metadata Webhook, both languages, 390px and zero pageerror. External channels connect only to local TLS capture services and synthetic data.
+- Fresh-volume dual-instance Docker browser verification: 19.78 seconds (cached build 3.68, startup 12.15, smoke 3.95), with automatic disposable cleanup. The in-app browser also verified both languages and old security records after Docker restart and sign-in. Retained UI: http://127.0.0.29:15194; API 18101; older environments remain intact.
+- Go vet, lint, strict types, production builds, 10 Docker utility tests and 6 frontend cache/frame tests pass. Bilingual checks: 2,339 keys/locale, 112 documents, 1,008 relative links. Screenshots/boundaries: [Notifications](./NOTIFICATIONS.en.md); size/timing: [Performance](./PERFORMANCE.en.md).
+- The first full run had 63 passes, 2 failures and 7 not executed; it was not a complete pass. Kubernetes CLI read a missing import during the byte-budget patch, and plugin CLI installation also failed. A fresh-fixture rerun followed with fixed fingerprints for 850 source files.
+- The frozen development-frontend run had 71 passes and 1 failure (16.7 minutes): the sharing test's Chromium trace showed ERR_NO_BUFFER_SPACE before page scripts loaded. The same scenario passed independently against production Docker in 11.1 seconds, followed by the complete production-frontend pass above. Business assertions and permission rules were not relaxed.
+
 ## Notification center (2026-10-18)
 
 - Full isolated Playwright: 71/71 pass, no failures/skips, 16.0 minutes, exit 0; all 6 preceding artifact-cache/frame tests pass. Coverage includes real SSH, database protocols, login identities, native plugins, systemd user/system services, reboot recovery and this notification scenario.

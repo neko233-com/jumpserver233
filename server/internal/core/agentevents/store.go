@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -69,9 +70,10 @@ type SourceState struct {
 	Records    uint64                `json:"records"`
 }
 type index struct {
-	Total      uint64                 `json:"total"`
-	Sources    map[string]SourceState `json:"sources"`
-	Collectors map[string]Record      `json:"collectors"`
+	Notifications *notificationIndex     `json:"notifications,omitempty"`
+	Total         uint64                 `json:"total"`
+	Sources       map[string]SourceState `json:"sources"`
+	Collectors    map[string]Record      `json:"collectors"`
 }
 type envelope struct {
 	Version int    `json:"version"`
@@ -134,6 +136,9 @@ func OpenNamespace(dir string, key []byte, docs *storage.Documents, namespace st
 			return nil, e
 		}
 	}
+	if e := s.initializeNotifications(); e != nil {
+		return nil, e
+	}
 	return s, nil
 }
 func (s *Store) BindOwner(ctx context.Context) { s.mu.Lock(); defer s.mu.Unlock(); s.ctx = ctx }
@@ -177,7 +182,7 @@ func (s *Store) load(key string, v any) error {
 	if len(raw) == 0 {
 		return os.ErrNotExist
 	}
-	if len(raw) > 16<<20 {
+	if len(raw) > maxEncryptedDocumentBytes {
 		return ErrInvalid
 	}
 	var box envelope
@@ -201,13 +206,49 @@ func (s *Store) save(key string, v any) error {
 	if e != nil {
 		return e
 	}
+	return s.savePlain(key, plain)
+}
+
+const maxEncryptedDocumentBytes = 16 << 20
+
+// Leave room for the JSON envelope, nonce and base64 expansion.
+const maxPlainDocumentBytes = (maxEncryptedDocumentBytes - 256) / 4 * 3
+
+func (s *Store) saveIndex(next *index) error {
+	if e := s.active(); e != nil {
+		return e
+	}
+	plain, e := json.Marshal(next)
+	for e == nil && len(plain) > maxPlainDocumentBytes && next.Notifications != nil && len(next.Notifications.Alerts) > 0 {
+		list := next.Notifications.Alerts
+		drop := max(1, (len(list)+3)/4)
+		next.Notifications.Boundary = list[drop-1].Index
+		next.Notifications.Alerts = slices.Clone(list[drop:])
+		plain, e = json.Marshal(next)
+	}
+	if e != nil {
+		return e
+	}
+	return s.savePlain("index", plain)
+}
+func (s *Store) savePlain(key string, plain []byte) error {
+	if e := s.active(); e != nil {
+		return e
+	}
+	if len(plain) > maxPlainDocumentBytes {
+		return ErrInvalid
+	}
 	nonce := make([]byte, s.aead.NonceSize())
+	var e error
 	if _, e = rand.Read(nonce); e != nil {
 		return e
 	}
 	raw, e := json.Marshal(envelope{1, nonce, s.aead.Seal(nil, nonce, plain, []byte("jms233/"+s.namespace+"/v1/"+key))})
 	if e != nil {
 		return e
+	}
+	if len(raw) > maxEncryptedDocumentBytes {
+		return ErrInvalid
 	}
 	if s.saveHook != nil {
 		if e = s.saveHook(key, raw); e != nil {
@@ -259,7 +300,7 @@ func (s *Store) segment(n uint64) ([]Record, error) {
 	return rows, nil
 }
 func copyIndex(v index) index {
-	out := index{Total: v.Total, Sources: map[string]SourceState{}, Collectors: map[string]Record{}}
+	out := index{Total: v.Total, Sources: map[string]SourceState{}, Collectors: map[string]Record{}, Notifications: cloneNotificationIndex(v.Notifications)}
 	for k, x := range v.Sources {
 		out.Sources[k] = x
 	}
@@ -289,6 +330,7 @@ func (s *Store) commit(next index, rows []Record) error {
 			r := rows[i]
 			total++
 			r.Index = total
+			addNotificationAlert(&next, r)
 			tail = append(tail, r)
 			i++
 		}
@@ -297,7 +339,8 @@ func (s *Store) commit(next index, rows []Record) error {
 		}
 	}
 	next.Total = total
-	if e := s.save("index", next); e != nil {
+	pruneNotificationAlerts(&next, time.Now().UTC())
+	if e := s.saveIndex(&next); e != nil {
 		return e
 	}
 	s.data = next

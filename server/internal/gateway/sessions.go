@@ -21,6 +21,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/kubeclient"
+	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionshares"
 	"github.com/neko233-com/jumpserver233/server/internal/recorder"
@@ -163,6 +164,7 @@ type Broker struct {
 	auditPath      string
 	commandAuditMu sync.Mutex
 	commandPath    string
+	commandAlert   func(commandalerts.Record) error
 }
 
 func NewBroker(dataDir string, vaultKey []byte, open OpenFunc) *Broker {
@@ -697,7 +699,7 @@ func (b *Broker) prepareTerminalInput(ctx context.Context, conn *websocket.Conn,
 		if decision.Allowed {
 			if submission.Supported && submission.Command != "" {
 				submission.Outcome = "allowed"
-				if err := b.appendCommand(session.id, submission); err != nil {
+				if err := b.appendCommand(session.id, submission, session); err != nil {
 					return nil, err
 				}
 			}
@@ -712,7 +714,7 @@ func (b *Broker) prepareTerminalInput(ctx context.Context, conn *websocket.Conn,
 		}
 		submission.Outcome = "blocked"
 		submission.RuleName = decision.RuleName
-		if err := b.appendCommand(session.id, submission); err != nil {
+		if err := b.appendCommand(session.id, submission, session); err != nil {
 			return nil, err
 		}
 		blockedOffsets = append(blockedOffsets, submission.Offset)
@@ -811,7 +813,7 @@ func (b *Broker) closeSession(session *activeSession, reason string) {
 			submission.SubmittedAt = time.Now().UTC()
 			submission.Outcome = "cancelled"
 			submission.ReviewedBy = "system"
-			_ = b.appendCommand(session.id, submission)
+			_ = b.appendCommand(session.id, submission, session)
 		}
 		session.inputMu.Unlock()
 		_ = session.recorder.Close()

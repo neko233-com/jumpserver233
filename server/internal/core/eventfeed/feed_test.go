@@ -24,3 +24,19 @@ func TestReadRetainedCursorCutoffAndBoundedReplay(t *testing.T) {
 	assert.Empty(t, allOld.Events)
 	assert.Equal(t, rows[2].ID, allOld.Cursor)
 }
+func TestSnapshotCyclesForLateInsertsAndDisappearingAnchors(t *testing.T) {
+	now := time.Now()
+	rows := []Event{{ID: "b", At: now}, {ID: "c", At: now}}
+	first := Snapshot(rows, "", now, 1)
+	assert.Equal(t, "b", first.Cursor)
+	assert.Equal(t, []Event{rows[0]}, first.Events)
+	second := Snapshot(rows[1:], first.Cursor, now, 1)
+	assert.Equal(t, "", second.Cursor)
+	assert.Equal(t, []Event{rows[1]}, second.Events)
+	rows = append([]Event{{ID: "a", At: now}}, rows...)
+	cycle := Snapshot(rows, second.Cursor, now, 1)
+	assert.Equal(t, "a", cycle.Events[0].ID)
+	assert.Equal(t, "a b", MetadataText("a\nb", 10))
+	assert.Equal(t, "中", MetadataText("中文", 4))
+	assert.Empty(t, MetadataText("anything", 0))
+}

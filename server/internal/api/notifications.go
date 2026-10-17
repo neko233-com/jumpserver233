@@ -110,6 +110,7 @@ func registerNotificationRoutes(mux *http.ServeMux, d Dependencies) {
 			return p.Allows("accounts.rotation.view") && p.Allows("assets.view_all"), ctx.Err()
 		}, Link: func(e eventfeed.Event) string { return "/console/rotation-plans?run=" + url.QueryEscape(e.ResourceID) }})
 	}
+	runner.Feeds = append(runner.Feeds, securityNotificationFeeds(d)...)
 	s.SetRunner(runner)
 	handle := func(pattern string, h func(http.ResponseWriter, *http.Request, string)) {
 		mux.Handle(pattern, protectAuthenticatedAPI(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -153,6 +154,10 @@ func registerNotificationRoutes(mux *http.ServeMux, d Dependencies) {
 		return offset, limit, true
 	}
 	const base = "/api/v1/notifications"
+	handle("GET "+base+"/sources/{kind}/{id}", func(w http.ResponseWriter, r *http.Request, id string) {
+		out, e := notificationSourceDetails(r.Context(), d, id, r.PathValue("kind"), r.PathValue("id"))
+		respond(w, out, e)
+	})
 	handle("GET "+base+"/inbox", func(w http.ResponseWriter, r *http.Request, id string) {
 		offset, limit, ok := paging(w, r)
 		if !ok {

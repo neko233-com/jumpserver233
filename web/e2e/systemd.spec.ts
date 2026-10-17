@@ -244,6 +244,15 @@ test("systemd root supervision repairs native kernel state and keeps new service
     .toBe("ready");
   const synced = await plugin(api, rootAsset, "banhack233", "events");
   expect(synced.imported).toBeGreaterThan(0);
+  let securityMessage: any;
+  await expect.poll(async () => {
+    const inbox = await (await api.get("http://127.0.0.1:8083/api/v1/notifications/inbox?limit=100", { headers: { Authorization: `Bearer ${token}` } })).json();
+    securityMessage = inbox.results.find((v: any) => v.source.kind === "agent-events" && v.name === rootName && v.state === "agent_repair_completed");
+    return Boolean(securityMessage);
+  }, { timeout: 15_000 }).toBe(true);
+  const securitySource = await api.get("http://127.0.0.1:8083/api/v1/notifications/sources/agent-events/" + securityMessage.source.id, { headers: { Authorization: `Bearer ${token}` } });
+  expect(securitySource.status()).toBe(200);
+  expect(await securitySource.text()).not.toMatch(/config_sha|previous_hash|error_code|receipt|allowed_cidrs/);
   const viewer = await api.post("http://127.0.0.1:8083/api/v1/users", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
@@ -282,5 +291,8 @@ test("systemd root supervision repairs native kernel state and keeps new service
   await page.context().addCookies(cookies);
   await page.goto("/console/agent-audit");
   await expect(page.locator(".agent-events")).toContainText("Local supervisor recovery");
+  await page.goto("http://127.0.0.1:5177" + securityMessage.link);
+  await expect(page.getByRole("heading", { name: "Host Agent event", exact: true })).toBeVisible();
+  await expect(page.getByText("This event was reported by a managed host and collected by the platform. It is not an independently authenticated operator action.", { exact: true })).toBeVisible();
   await plugin(api, rootAsset, "banhack233", "uninstall");
 });

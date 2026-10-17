@@ -25,6 +25,7 @@ import (
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
+	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	corecommandfilters "github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
 	"github.com/neko233-com/jumpserver233/server/internal/core/databasequery"
 	corefiles "github.com/neko233-com/jumpserver233/server/internal/core/files"
@@ -232,6 +233,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	defer notificationService.Close()
+	commandAlertStore, err := commandalerts.Open(filepath.Join(cfg.DataDir, "command-alerts.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	defer commandAlertStore.Close()
 	databaseService, err := databasequery.Open(filepath.Join(cfg.DataDir, "database-queries.json"), vaultKey, documents, assetService.QueryDatabase)
 	if err != nil {
 		return err
@@ -295,6 +301,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.RotationPlans = credentialPlans
 	root.Tickets = accessTickets
 	root.Notifications = notificationService
+	root.CommandAlerts = commandAlertStore
 	root.GlobalAccessMu = root.AccessMu
 	root.SessionPolicy = sessionSettings
 	root.DatabaseQueries = databaseService
@@ -328,6 +335,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global.RotationPlans = nil
 	global.Tickets = nil
 	global.Notifications = nil
+	global.CommandAlerts = nil
 	handler := api.NewOrganizationRouter(cfg.Version, global, runtimes.handler)
 	identityService.SetPrivilegedCheck(runtimes.isPrivileged)
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}

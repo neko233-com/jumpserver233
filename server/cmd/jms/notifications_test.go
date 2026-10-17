@@ -46,10 +46,12 @@ func TestNotificationCLIAndSDKPathsCASStdinVerificationAndRedaction(t *testing.T
 	c, e := sessionclient.New(server.URL, "synthetic-notification-client")
 	require.NoError(t, e)
 	var output bytes.Buffer
-	for _, args := range [][]string{{}, {"retry"}, {"retry", "delivery-synthetic"}, {"verify", "sms"}, {"list", "--limit", "101"}, {"read"}, {"settings-save"}} {
+	for _, args := range [][]string{{}, {"retry"}, {"retry", "delivery-synthetic"}, {"verify", "sms"}, {"list", "--limit", "101"}, {"read"}, {"settings-save"}, {"source"}, {"source", "unknown", "id"}, {"source", "command-alerts", "../escape"}} {
 		assert.Error(t, executeNotifications(context.Background(), c, args, strings.NewReader(""), &output))
 	}
 	assert.Zero(t, calls)
+	require.NoError(t, executeNotifications(context.Background(), c, []string{"source", "command-alerts", "command-event-synthetic"}, strings.NewReader(""), &output))
+	calls = 0
 	bad := `{"revision":1,"language":"en","email_verified":true}`
 	assert.Error(t, executeNotifications(context.Background(), c, []string{"preferences-save", "--file", "-"}, strings.NewReader(bad), &output))
 	assert.Zero(t, calls)
