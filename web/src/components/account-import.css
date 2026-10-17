@@ -1,0 +1,109 @@
+.account-import-dialog {
+  width: min(1040px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  overflow: auto;
+  border: 1px solid var(--border, #ffffff1f);
+  border-radius: 14px;
+  padding: 22px;
+  background: var(--surface, #151b23);
+  color: var(--text, #dbe7f5);
+}
+.account-import-dialog::backdrop {
+  background: #050a12b8;
+}
+.account-import-dialog header,
+.account-import-history li {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+.account-import-dialog h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+.account-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block: 12px;
+}
+.account-import-dialog input {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+.account-import-dialog input[type="file"] {
+  display: block;
+  width: 100%;
+  margin-block: 10px;
+}
+.account-import-dialog label {
+  display: grid;
+  gap: 6px;
+}
+.account-import-dialog details {
+  margin-block: 16px;
+}
+.account-import-dialog summary {
+  cursor: pointer;
+  margin-block: 10px;
+}
+.account-import-hosts,
+.account-import-history {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.account-import-hosts li {
+  display: grid;
+  gap: 4px;
+}
+.account-import-hosts input {
+  width: 100%;
+}
+.account-import-history li {
+  border-bottom: 1px solid var(--border, #ffffff1f);
+  padding-block: 12px;
+}
+.account-import-history small,
+.account-import-history code {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.account-import-table {
+  overflow-x: auto;
+  margin-block: 18px;
+}
+.account-import-table table {
+  width: 100%;
+  min-width: 560px;
+  text-align: start;
+  border-collapse: collapse;
+}
+.account-import-table th,
+.account-import-table td {
+  padding: 10px 8px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border, #ffffff1f);
+}
+.account-import-table small,
+.account-import-table code {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+  max-width: 220px;
+}
+@media (max-width: 600px) {
+  .account-import-dialog {
+    padding: 16px;
+  }
+  .account-import-dialog header,
+  .account-import-history li {
+    flex-direction: column;
+  }
+}

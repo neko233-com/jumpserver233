@@ -86,19 +86,23 @@ func remoteTaskTerminal(v RemoteAccountTask) bool {
 
 // A versioned outer document makes older binaries refuse lifecycle metadata.
 // Existing inventories without remote operations keep their original array format.
-func decodeRemoteAssetRecords(raw []byte, out *[]storedAsset) error {
+func decodeRemoteAssetRecords(raw []byte, out *[]storedAsset, imports ...*[]accountImportRecord) error {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) > 0 && trimmed[0] == '{' {
 		var box struct {
-			Format  int           `json:"format"`
-			Records []storedAsset `json:"records"`
+			Format  int                   `json:"format"`
+			Records []storedAsset         `json:"records"`
+			Imports []accountImportRecord `json:"account_imports,omitempty"`
 		}
 		d := json.NewDecoder(bytes.NewReader(raw))
 		d.DisallowUnknownFields()
-		if d.Decode(&box) != nil || d.Decode(new(any)) != io.EOF || box.Format != 2 || box.Records == nil {
+		if d.Decode(&box) != nil || d.Decode(new(any)) != io.EOF || box.Format != 2 && box.Format != 3 || box.Records == nil || box.Format == 2 && len(box.Imports) > 0 || box.Format == 3 && (len(imports) != 1 || len(box.Imports) == 0) || validateImportRecords(box.Imports) != nil {
 			return ErrInvalidInput
 		}
 		*out = box.Records
+		if len(imports) == 1 {
+			*imports[0] = box.Imports
+		}
 		return nil
 	}
 	if e := json.Unmarshal(raw, out); e != nil {
@@ -111,7 +115,7 @@ func decodeRemoteAssetRecords(raw []byte, out *[]storedAsset) error {
 	}
 	return nil
 }
-func encodeRemoteAssetRecords(records []storedAsset, indent bool) ([]byte, error) {
+func encodeRemoteAssetRecords(records []storedAsset, indent bool, receipts ...[]accountImportRecord) ([]byte, error) {
 	var value any = records
 	for _, v := range records {
 		if v.RemoteAccount != nil || len(v.RemoteOperations) > 0 {
@@ -121,6 +125,13 @@ func encodeRemoteAssetRecords(records []storedAsset, indent bool) ([]byte, error
 			}{2, records}
 			break
 		}
+	}
+	if len(receipts) == 1 && len(receipts[0]) > 0 {
+		value = struct {
+			Format  int                   `json:"format"`
+			Records []storedAsset         `json:"records"`
+			Imports []accountImportRecord `json:"account_imports"`
+		}{3, records, receipts[0]}
 	}
 	if indent {
 		return json.MarshalIndent(value, "", "  ")

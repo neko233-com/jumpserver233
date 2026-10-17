@@ -17,7 +17,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
 )
 
-const managedAccountUsage = "usage: jms account list ASSET [--offset 0] [--limit 50] | jms account show|activity ASSET USERNAME_OR_ID | jms account create ASSET --username USER --password-stdin|--private-key-file PATH [--name LABEL] | jms account update ASSET USERNAME_OR_ID [--active=false] [--password-rotation=false] [--key-rotation=true] [--password-stdin|--private-key-file PATH] [--version TOKEN] | jms account delete ASSET ACCOUNT_ID --version TOKEN"
+const managedAccountUsage = "usage: jms account list ASSET [--offset 0] [--limit 50] | jms account show|activity ASSET USERNAME_OR_ID | jms account create ASSET --username USER --password-stdin|--private-key-file PATH [--name LABEL] | jms account update ASSET USERNAME_OR_ID [--active=false] [--password-rotation=false] [--key-rotation=true] [--password-stdin|--private-key-file PATH] [--version TOKEN] | jms account delete ASSET ACCOUNT_ID --version TOKEN | " + accountImportUsage
 
 func runManagedAccounts(args []string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
@@ -48,6 +48,9 @@ func readManagedSecret(input io.Reader) (string, error) {
 }
 
 func executeManagedAccount(ctx context.Context, c *sessionclient.Client, args []string, input io.Reader, output io.Writer) error {
+	if len(args) > 0 && strings.HasPrefix(args[0], "import") {
+		return executeAccountImport(ctx, c, args, output)
+	}
 	if len(args) < 2 || args[1] == "" {
 		return errors.New(managedAccountUsage)
 	}

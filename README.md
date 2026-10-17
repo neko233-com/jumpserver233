@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+多主机 CSV/XLSX 凭据批量新增和更新已接入 Web、CLI 与组织权限，先预览再整批提交，保留幂等回执；见[账号凭据导入](./docs/ACCOUNT-IMPORT.md)。
+
 Linux 普通账号现支持原生创建、停用、恢复、保留目录删除和显式恢复，Web/CLI 共用持续授权及审批。详见 [远端账号生命周期](./docs/REMOTE-ACCOUNTS.md)。
 
 2026-10-17，独立 Docker 与真实 OpenSSH 的内置浏览器截图：

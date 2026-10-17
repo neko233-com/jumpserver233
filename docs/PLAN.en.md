@@ -4,7 +4,7 @@
 
 Native creation, disabling, restoration, retained home deletion and explicit recovery for regular Linux users are covered in [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md).
 
-Phase 7 adds managed SSH accounts: independent encrypted credentials, account grants/enablement/rotation, discovery association, named gateways, Web SSH/SFTP/workbench and platform CLI, with standalone and PostgreSQL active/standby takeover. Bulk import and other protocol account management remain open. See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Overall Enterprise parity remains in progress.
+Phase 7 adds managed SSH accounts: independent encrypted credentials, account grants/enablement/rotation, discovery association, named gateways, Web SSH/SFTP/workbench and platform CLI, with standalone and PostgreSQL active/standby takeover. CSV/XLSX bulk credential import now supports multi-host create/update, preview, atomic commits and idempotent receipts; see [Account import](./ACCOUNT-IMPORT.en.md). Other protocol account management remains open. See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Overall Enterprise parity remains in progress.
 
 Local Linux discovery supports native Go collection, pinned gateways, both approvals, ongoing authorization, complete-page publication, encrypted present/missing findings, human review and Web/CLI. Interval plans add per-run approval isolation, pause cancellation, credential revision refresh and independent run archives, with standalone and PostgreSQL active/standby takeover. See [Scheduled account discovery](./SCHEDULED-ACCOUNT-DISCOVERY.en.md). Other platforms and retention policies remain open.
 

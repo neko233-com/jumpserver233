@@ -53,4 +53,4 @@ jms --account ops accounts discover <asset-id> --request-id discover-001
 
 2026-10-17 的 Testify、真实 OpenSSH、固定网关、Web SSH、SFTP、CLI、轮换和停用检查见 [自动化验证](./TESTING.md)。生产 Docker 与开发实例独立，端口仅暴露到专用回环地址。
 
-当前具名多账号适用于 SSH；其他协议仍使用原来的单账号模型。发现间隔计划已接入当前具名身份，见[计划账号收集](./SCHEDULED-ACCOUNT-DISCOVERY.md)。Linux 系统账号生命周期见本文开头链接；批量凭据导入、凭据自动校准、多协议账号管理、多活集群与完整企业版仍待完成。关联发现 ID 是保存时的来源记录，远程删除、UID 或目标变化后需重新采集并人工核对；它不能证明当前凭据有效或远端账号允许登录。
+当前具名多账号适用于 SSH；其他协议仍使用原来的单账号模型。发现间隔计划已接入当前具名身份，见[计划账号收集](./SCHEDULED-ACCOUNT-DISCOVERY.md)。Linux 系统账号生命周期见本文开头链接；CSV/XLSX 批量凭据新增/更新见[账号导入](./ACCOUNT-IMPORT.md)；凭据自动校准、多协议账号管理、多活集群与完整企业版仍待完成。关联发现 ID 是保存时的来源记录，远程删除、UID 或目标变化后需重新采集并人工核对；它不能证明当前凭据有效或远端账号允许登录。

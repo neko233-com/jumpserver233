@@ -4,7 +4,7 @@
 
 远端 Linux 普通账号的原生创建、停用、恢复、保留目录删除及显式恢复见 [远端账号生命周期](./REMOTE-ACCOUNTS.md)。
 
-Phase 7 新增 SSH 多账号托管：独立加密凭据、账号级授权/启停/轮换、发现身份关联、具名网关、Web SSH/SFTP/工作台和平台 CLI，支持单机与 PostgreSQL 单活接管。批量导入及其他协议账号管理仍待完成，见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。企业版总体目标保持进行中。
+Phase 7 新增 SSH 多账号托管：独立加密凭据、账号级授权/启停/轮换、发现身份关联、具名网关、Web SSH/SFTP/工作台和平台 CLI，支持单机与 PostgreSQL 单活接管。CSV/XLSX 批量凭据导入已支持多主机新增/更新、预览、原子提交与幂等回执，见[账号导入](./ACCOUNT-IMPORT.md)。其他协议账号管理仍待完成，见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。企业版总体目标保持进行中。
 
 Linux 本地账号收集支持原生 Go 组件、固定网关、两类审批、持续授权、完整分页后提交、加密发现/缺失记录、人工确认和 Web/CLI。新增间隔计划、逐轮审批隔离、暂停取消、凭据修订刷新与独立运行归档，支持单机和 PostgreSQL 单活接管，见[计划账号收集](./SCHEDULED-ACCOUNT-DISCOVERY.md)。其它平台发现及保留策略仍待完成。
 

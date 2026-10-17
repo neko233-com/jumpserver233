@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Multi-host CSV/XLSX create/update, atomic commits, idempotent receipts and Web/CLI are covered in [Account credential import](./ACCOUNT-IMPORT.en.md).
+
 Native creation, disabling, restoration, retained home deletion and explicit recovery for regular Linux users are covered in [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md).
 
 See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md) for independently encrypted named credentials, discovery association, grants and seven-day rotation.

@@ -134,9 +134,10 @@ func (c *Client) DeleteManagedAccount(ctx context.Context, asset, id, version st
 }
 
 type ManagedAccountAudit struct {
-	At     time.Time `json:"at"`
-	Action string    `json:"action"`
-	Actor  struct {
+	ImportID string    `json:"import_id,omitempty"`
+	At       time.Time `json:"at"`
+	Action   string    `json:"action"`
+	Actor    struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	} `json:"actor"`

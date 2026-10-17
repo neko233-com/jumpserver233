@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+CSV/XLSX 多主机新增/更新、原子提交、幂等回执与 Web/CLI 见[账号凭据导入](./ACCOUNT-IMPORT.md)。
+
 远端 Linux 普通账号的原生创建、停用、恢复、保留目录删除及显式恢复见 [远端账号生命周期](./REMOTE-ACCOUNTS.md)。
 
 独立加密的具名 SSH 凭据、发现记录关联、授权和七天轮换见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。

@@ -150,6 +150,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	if len(dependencies) > 0 && dependencies[0].Assets != nil {
 		registerAssetRoutes(mux, dependencies[0].Assets, dependencies[0].AdminToken, dependencies[0].Auth, dependencies[0].Grants, dependencies[0].Groups, dependencies[0].Nodes, accessMu)
 		registerManagedAccountRoutes(mux, dependencies[0], accessMu)
+		registerAccountImportRoutes(mux, dependencies[0], accessMu)
 	}
 	if len(dependencies) > 0 && dependencies[0].Sessions != nil {
 		registerSessionRoutes(mux, dependencies[0].Sessions, dependencies[0].AdminToken, dependencies[0].Auth, dependencies[0].Assets, dependencies[0].Grants, dependencies[0].CommandFilters, dependencies[0].Groups, dependencies[0].Nodes, dependencies[0].AccessReviews, accessMu)

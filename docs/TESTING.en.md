@@ -2,6 +2,21 @@
 
 > [中文](./TESTING.md) | English
 
+## CSV/XLSX account credential import (2026-10-18)
+
+Final full Playwright passed 67/67 in 15.1 minutes, with no failures or skips and exit code 0, covering native protection, a real VM reboot, every existing protocol and the new import scenario. The first run exposed incorrect test cleanup ordering: deleting a parent with managed accounts correctly failed. Account-first cleanup passed against the production image without retention in 11.0 seconds. A scheduled-job assertion was separately interrupted by a language-resource hot update; its trace showed Vite reconnecting and the panel resetting. The full run with frozen source passed every case.
+
+- Final uncached serial Go/Testify passed 57 packages with tests and 881 tests, with 35 missing-fixture skips. Real OpenSSH, PostgreSQL state storage and xrdp were provided. Missing integrations are not counted as passes.
+- Linux Docker race passed 365 tests across 8 related packages, with 7 skips. Final BOM compatibility, 500-row batches and SDK activity changes passed a further race run of 27 tests across 4 packages, without skips.
+- The final production image passed its real OpenSSH scenario 1/1 in 10.3 seconds (10.9 including runner overhead): Web CSV/XLSX templates, two-host password/key import, actual CLI/Web SSH, XLSX updates, retained credentials, disable/enable, idempotent retries, atomic version conflicts, CLI/Web batch activity, both languages, Escape/focus and a 390px viewport, with zero pageerrors. Private-key upload request traces are disabled; temporary source files are deleted on exit.
+- Testify covers signed preview binding, expiry and committed acknowledgement, altered/cross-user/cross-organization proofs, permission/target revocation, independent rotation authority, persistence rollback, concurrent retries, encrypted history, shared aliases and cross-organization references, receipt capacity/pruning, CSV BOM/multiline keys, rejected XLSX formulas/macros/external relationships/paths/XML, and the same receipt after PostgreSQL takeover. Review fixed the PostgreSQL encoder's omission of receipts.
+- All 500-row creations and updates pass. Three local 500-password preview samples measured 3.14–3.73 ms/op, excluding network, disk and parsing. No dependencies were added; the dialog loads lazily and bundle budgets pass. See [Performance](./PERFORMANCE.en.md).
+- `go vet`, `go build ./...`, stripped server/CLI builds, frontend lint/types/production build, E2E types and 10 Docker lifecycle Node tests pass. Content checks cover 1726 keys per locale, 104 bilingual documents and 897 relative links.
+- Final fresh-volume Docker browser checks with a second instance took 17.37 seconds (warm build 2.95, startup 12.14, checks 2.28); ownership-checked disposal completed. Retained debug project `jms233-account-import-qa` exposes Web `http://127.0.0.19:15189` and API `http://127.0.0.19:18096` on loopback only. After restart, the in-app browser reread receipts, checked per-account import activity and saved Chinese/English captures with no console warnings or errors.
+- The preceding stable commit `dbe91ba` has confirmed green `verify`, `frontend` and `docker-qa` jobs in [CI 39047933815](https://github.com/neko233-com/jumpserver233/actions/runs/39047933815).
+
+See [Account import](./ACCOUNT-IMPORT.en.md) for behavior, format 3 upgrades and remaining scope. CHANGELOG and release tags were unchanged. Full Enterprise parity and production HA acceptance remain open.
+
 ## Remote Linux account lifecycle (2026-10-18)
 
 The full Playwright suite passed 66/66 in 15.0 minutes, with no failures or skips and exit code 0. It includes remote provisioning, all existing protocols, native protection/recovery, ordinary/root systemd services and a real VM reboot. Final task-state display and terminal resize coalescing changes were separately rechecked against production images: 2/2 in 21.6 seconds.

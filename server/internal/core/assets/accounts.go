@@ -24,6 +24,7 @@ type AccountActor struct {
 	Name string `json:"name"`
 }
 type AccountAudit struct {
+	ImportID  string       `json:"import_id,omitempty"`
 	At        time.Time    `json:"at"`
 	Action    string       `json:"action"`
 	Actor     AccountActor `json:"actor"`

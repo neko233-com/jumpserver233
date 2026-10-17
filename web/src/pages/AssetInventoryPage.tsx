@@ -12,6 +12,7 @@ import RDPSettingsFields, { defaultRDP, type RDPSettings } from "../components/R
 const HostPluginsDialog = lazy(() => import("../components/HostPluginsDialog"));
 const AccountDiscoveryDialog = lazy(() => import("../components/AccountDiscoveryDialog"));
 const ManagedAccountsDialog = lazy(() => import("../components/ManagedAccountsDialog"));
+const AccountImportDialog = lazy(() => import("../components/AccountImportDialog"));
 const RDPDesktopDialog = lazy(() => import("../components/RDPDesktopDialog"));
 const DatabaseConsoleDialog = lazy(() => import("../components/DatabaseConsoleDialog"));
 const KubernetesTerminalDialog = lazy(() => import("../components/KubernetesTerminalDialog"));
@@ -303,6 +304,7 @@ export default function AssetInventoryPage() {
   const [pluginAsset, setPluginAsset] = useState<Asset | null>(null);
   const [discoveryAsset, setDiscoveryAsset] = useState<Asset | null>(null);
   const [managedAccountsAsset, setManagedAccountsAsset] = useState<Asset | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [managedFinding, setManagedFinding] = useState<
     { id: string; username: string } | undefined
   >();
@@ -722,6 +724,16 @@ export default function AssetInventoryPage() {
                 disabled={tokenRequired}
               >
                 + {t("assets.add")}
+              </button>
+            )}
+            {allows("accounts.manage") && allows("accounts.import") && (
+              <button
+                type="button"
+                className="button-secondary"
+                disabled={tokenRequired}
+                onClick={() => setImportOpen(true)}
+              >
+                {t("accountImport.title")}
               </button>
             )}
           </div>
@@ -1873,6 +1885,16 @@ export default function AssetInventoryPage() {
               setManagedAccountsAsset(null);
               setManagedFinding(undefined);
             }}
+          />
+        </Suspense>
+      )}
+      {importOpen && (
+        <Suspense fallback={null}>
+          <AccountImportDialog
+            accessToken={accessToken}
+            hosts={assets}
+            onChanged={() => void loadAssets()}
+            onClose={() => setImportOpen(false)}
           />
         </Suspense>
       )}

@@ -98,6 +98,12 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 				problem.Detail = problem.Code
 			}
 		}
+		if problem.Detail == "" && strings.HasPrefix(target.Path, "/api/v1/accounts/imports") {
+			switch problem.Code {
+			case "invalid", "denied", "not_found", "conflict", "expired", "capacity", "unavailable":
+				problem.Detail = problem.Code
+			}
+		}
 		if problem.Detail == "" {
 			problem.Detail = resp.Status
 		}

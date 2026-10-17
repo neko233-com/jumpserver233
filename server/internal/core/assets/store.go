@@ -160,6 +160,8 @@ type Store struct {
 	documents *storage.Documents
 	aead      cipher.AEAD
 	assets    map[string]storedAsset
+	imports   []accountImportRecord
+	importKey []byte
 }
 
 func OpenStore(path string, key []byte) (*Store, error) {
@@ -185,7 +187,7 @@ func openStore(path string, key []byte, documents *storage.Documents) (*Store, e
 	if err != nil {
 		return nil, fmt.Errorf("create vault AEAD: %w", err)
 	}
-	store := &Store{path: path, documents: documents, aead: aead, assets: make(map[string]storedAsset)}
+	store := &Store{path: path, documents: documents, aead: aead, assets: make(map[string]storedAsset), importKey: accountImportKey(key)}
 	var data []byte
 	if documents != nil {
 		data, err = documents.LoadOrImport("assets", path)
@@ -202,7 +204,7 @@ func openStore(path string, key []byte, documents *storage.Documents) (*Store, e
 		return store, nil
 	}
 	var records []storedAsset
-	if err := decodeRemoteAssetRecords(data, &records); err != nil {
+	if err := decodeRemoteAssetRecords(data, &records, &store.imports); err != nil {
 		return nil, fmt.Errorf("decode asset store: %w", err)
 	}
 	migrated := false
@@ -884,7 +886,7 @@ func (s *Store) persistLocked() error {
 		records = append(records, persistedAsset(record))
 	}
 	sort.Slice(records, func(i, j int) bool { return records[i].ID < records[j].ID })
-	data, err := encodeRemoteAssetRecords(records, true)
+	data, err := encodeRemoteAssetRecords(records, true, s.imports)
 	if err != nil {
 		return fmt.Errorf("encode asset store: %w", err)
 	}
@@ -921,7 +923,7 @@ func (s *Store) persistDocumentLocked() error {
 		records = append(records, persistedAsset(record))
 	}
 	sort.Slice(records, func(i, j int) bool { return records[i].ID < records[j].ID })
-	data, err := encodeRemoteAssetRecords(records, false)
+	data, err := encodeRemoteAssetRecords(records, false, s.imports)
 	if err != nil {
 		return fmt.Errorf("encode asset document: %w", err)
 	}

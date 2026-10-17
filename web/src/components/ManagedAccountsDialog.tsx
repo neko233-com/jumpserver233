@@ -8,6 +8,7 @@ const RemoteAccountsPanel = lazy(() => import("./RemoteAccountsPanel"));
 
 type AccountPage = { results: ManagedAccount[]; total: number; version: string };
 type Activity = {
+  import_id?: string;
   at: string;
   action: string;
   actor: { name: string };
@@ -681,7 +682,13 @@ export default function ManagedAccountsDialog({
                   <time dateTime={e.at}>{new Date(e.at).toLocaleString(i18n.language)}</time> ·{" "}
                   {e.actor.name} · {e.username} ·{" "}
                   {t(
-                    `managedAccounts.events.${["created", "updated", "deleted"].includes(e.action) ? e.action : "updated"}`,
+                    `managedAccounts.events.${["created", "updated", "deleted", "import_create", "import_update"].includes(e.action) ? e.action : "updated"}`,
+                  )}
+                  {e.import_id && (
+                    <>
+                      {" "}
+                      · {t("accountImport.requestID")}: <code>{e.import_id}</code>
+                    </>
                   )}
                 </li>
               ))}
