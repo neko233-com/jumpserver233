@@ -3,6 +3,42 @@
   max-height: calc(100vh - 32px);
   overflow: auto;
 }
+.remote-accounts-panel {
+  margin-block: 16px;
+  padding: 16px;
+  border: 1px solid var(--border, #ffffff1f);
+  border-radius: 12px;
+}
+.remote-accounts-panel form > button {
+  margin-top: 16px;
+}
+.remote-accounts-panel details {
+  margin-block: 12px;
+}
+.remote-accounts-panel summary {
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.remote-accounts-tasks {
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.remote-accounts-tasks li {
+  display: grid;
+  gap: 6px;
+  padding-block: 12px;
+  border-top: 1px solid var(--border, #ffffff1f);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.remote-accounts-tasks code,
+.remote-accounts-tasks small {
+  opacity: 0.72;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
 .managed-accounts-dialog header {
   display: flex;
   align-items: start;

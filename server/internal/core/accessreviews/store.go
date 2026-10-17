@@ -25,6 +25,7 @@ const (
 	ActionTelnet           = "telnet"
 	ActionRDP              = "rdp"
 	ActionAccountDiscovery = "account_discovery"
+	ActionRemoteAccount    = "remote_account"
 	StatePending           = "pending"
 	StateApproved          = "approved"
 	StateDenied            = "denied"
@@ -418,21 +419,25 @@ func validate(review Review) error {
 }
 
 func validAction(action string) bool {
-	return action == ActionSSH || action == ActionSFTP || action == ActionDatabase || action == ActionKubernetes || action == ActionTelnet || action == ActionRDP || action == ActionAccountDiscovery
+	return action == ActionSSH || action == ActionSFTP || action == ActionDatabase || action == ActionKubernetes || action == ActionTelnet || action == ActionRDP || action == ActionAccountDiscovery || action == ActionRemoteAccount
 }
 
 func validScope(action, scope string) bool {
-	if action != ActionAccountDiscovery {
+	if action != ActionAccountDiscovery && action != ActionRemoteAccount {
 		return scope == ""
 	}
-	if len(scope) > 100 || !strings.HasPrefix(scope, "plan-") {
+	prefix := "plan-"
+	if action == ActionRemoteAccount {
+		prefix = "ra-"
+	}
+	if len(scope) > 100 || !strings.HasPrefix(scope, prefix) {
 		return false
 	}
 	parts := strings.Split(scope, ":")
-	if len(parts) != 2 || len(parts[0]) != 37 {
+	if len(parts) != 2 || len(parts[0]) != len(prefix)+32 {
 		return false
 	}
-	if _, e := hex.DecodeString(parts[0][5:]); e != nil {
+	if _, e := hex.DecodeString(parts[0][len(prefix):]); e != nil {
 		return false
 	}
 	n, e := strconv.ParseUint(parts[1], 10, 53)

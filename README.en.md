@@ -2,6 +2,12 @@
 
 > [中文](./README.md) | English
 
+Regular Linux accounts support native creation, disabling, restoration, retained home deletion and explicit recovery through Web/CLI with continuous authorization and approvals. See [Remote account lifecycle](./docs/REMOTE-ACCOUNTS.en.md).
+
+Actual in-app browser capture from isolated Docker and OpenSSH, 2026-10-17:
+
+![Remote account tasks](./docs/images/remote-accounts.en.png)
+
 SSH hosts support independently managed credentials, discovery association, account grants and seven-day rotation. Web SSH, SFTP, workbench and platform CLI use the selected identity. See [Managed SSH accounts](./docs/MANAGED-ACCOUNTS.en.md).
 
 Linux account discovery includes native Go collection, jobs, approvals, human review and encrypted history, plus interval plans, per-run approval isolation, pause cancellation and run archives. Pinned SSH gateways, Web/CLI and PostgreSQL active/standby state storage are supported. See [Scheduled account discovery](./docs/SCHEDULED-ACCOUNT-DISCOVERY.en.md).

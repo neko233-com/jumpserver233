@@ -21,6 +21,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
+	"github.com/neko233-com/jumpserver233/server/internal/hostagent"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 )
 
@@ -33,6 +34,7 @@ var (
 )
 
 type Input struct {
+	RemoteAccount  *hostagent.AccountOperation `json:"-"`
 	Discovery      *accountdiscovery.Operation `json:"-"`
 	Plugin         *hostplugins.Operation      `json:"-"`
 	Origin         accesspolicies.Origin       `json:"-"`
@@ -42,6 +44,7 @@ type Input struct {
 	RequestID      string                      `json:"request_id"`
 }
 type Job struct {
+	RemoteAccount  *hostagent.AccountOperation `json:"remote_account,omitempty"`
 	Discovery      *accountdiscovery.Operation `json:"account_discovery,omitempty"`
 	Plugin         *hostplugins.Operation      `json:"plugin,omitempty"`
 	AccessOrigin   accesspolicies.Origin       `json:"access_origin,omitempty"`
@@ -65,20 +68,21 @@ type Job struct {
 }
 type Executor func(context.Context, string, string) (sshclient.ExecResult, error)
 type Service struct {
-	mu             sync.Mutex
-	path           string
-	documents      *storage.Documents
-	aead           cipher.AEAD
-	jobs           map[string]Job
-	running        map[string]context.CancelFunc
-	ctx            context.Context
-	cancel         context.CancelFunc
-	wg             sync.WaitGroup
-	exec           Executor
-	pluginExec     func(context.Context, Job) (sshclient.ExecResult, error)
-	discoveryExec  func(context.Context, Job) (sshclient.ExecResult, error)
-	executionGuard func(Job) error
-	abandoned      bool
+	mu                sync.Mutex
+	path              string
+	documents         *storage.Documents
+	aead              cipher.AEAD
+	jobs              map[string]Job
+	running           map[string]context.CancelFunc
+	ctx               context.Context
+	cancel            context.CancelFunc
+	wg                sync.WaitGroup
+	exec              Executor
+	pluginExec        func(context.Context, Job) (sshclient.ExecResult, error)
+	discoveryExec     func(context.Context, Job) (sshclient.ExecResult, error)
+	remoteAccountExec func(context.Context, Job) (sshclient.ExecResult, error)
+	executionGuard    func(Job) error
+	abandoned         bool
 }
 type envelope struct {
 	Version    int    `json:"version"`
@@ -115,7 +119,7 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 	}
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version != 1 && e.Version != 2 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 3 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid encrypted job store")
 		}
@@ -130,7 +134,11 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 			return nil, fmt.Errorf("invalid job records")
 		}
 		for _, j := range records {
-			if j.Discovery != nil && (j.Discovery.Validate() != nil || j.Discovery.PlanID != "" && (e.Version != 2 || j.Discovery.Sequence == 0)) {
+			if j.RemoteAccount != nil && (e.Version != 3 || j.RemoteAccount.Validate() != nil || j.Command != j.RemoteAccount.Command() || j.Discovery != nil || j.Plugin != nil) {
+				cancel()
+				return nil, ErrInvalid
+			}
+			if j.Discovery != nil && (j.Discovery.Validate() != nil || j.Discovery.PlanID != "" && (e.Version < 2 || j.Discovery.Sequence == 0)) {
 				cancel()
 				return nil, ErrInvalid
 			}
@@ -171,6 +179,13 @@ func validState(v string) bool {
 	return false
 }
 func Validate(in Input) (Input, error) {
+	if in.RemoteAccount != nil {
+		if in.Discovery != nil || in.Plugin != nil || in.RemoteAccount.Validate() != nil || in.Command != in.RemoteAccount.Command() {
+			return in, ErrInvalid
+		}
+		o := in.RemoteAccount.Clone()
+		in.RemoteAccount = &o
+	}
 	if in.Discovery != nil {
 		if in.Plugin != nil || in.Discovery.Validate() != nil || in.Discovery.PlanID != "" && in.Discovery.Sequence == 0 || in.Command != in.Discovery.Command() {
 			return in, ErrInvalid
@@ -222,7 +237,7 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 	}
 	for _, j := range s.jobs {
 		if in.RequestID != "" && j.OperatorID == actorID && j.RequestID == in.RequestID {
-			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery)) {
+			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery) || !sameRemoteAccount(j.RemoteAccount, in.RemoteAccount)) {
 				return Job{}, ErrConflict
 			}
 			return cloneJob(j), nil
@@ -235,7 +250,7 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 	if _, err = rand.Read(raw[:]); err != nil {
 		return Job{}, err
 	}
-	j := Job{Discovery: in.Discovery, Plugin: in.Plugin, AccessOrigin: in.Origin, ID: "job-" + hex.EncodeToString(raw[:]), AssetID: in.AssetID, AssetName: assetName, Account: account, OperatorID: actorID, Operator: actor, Command: in.Command, TimeoutSeconds: in.TimeoutSeconds, RequestID: in.RequestID, RuleName: rule, CreatedAt: time.Now().UTC(), ExecResult: sshclient.ExecResult{ExitCode: -1}}
+	j := Job{RemoteAccount: in.RemoteAccount, Discovery: in.Discovery, Plugin: in.Plugin, AccessOrigin: in.Origin, ID: "job-" + hex.EncodeToString(raw[:]), AssetID: in.AssetID, AssetName: assetName, Account: account, OperatorID: actorID, Operator: actor, Command: in.Command, TimeoutSeconds: in.TimeoutSeconds, RequestID: in.RequestID, RuleName: rule, CreatedAt: time.Now().UTC(), ExecResult: sshclient.ExecResult{ExitCode: -1}}
 	switch decision {
 	case "deny":
 		j.State = "denied"
@@ -331,6 +346,10 @@ func sameDiscovery(a, b *accountdiscovery.Operation) bool {
 }
 
 func cloneJob(j Job) Job {
+	if j.RemoteAccount != nil {
+		o := j.RemoteAccount.Clone()
+		j.RemoteAccount = &o
+	}
 	if j.Discovery != nil {
 		o := j.Discovery.Clone()
 		j.Discovery = &o
@@ -351,6 +370,18 @@ func (s *Service) SetDiscoveryExecutor(exec func(context.Context, Job) (sshclien
 	defer s.mu.Unlock()
 	s.discoveryExec = exec
 }
+
+func (s *Service) SetRemoteAccountExecutor(exec func(context.Context, Job) (sshclient.ExecResult, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.remoteAccountExec = exec
+}
+func sameRemoteAccount(a, b *hostagent.AccountOperation) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
 func (s *Service) SetExecutionGuard(guard func(Job) error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -362,6 +393,9 @@ func (s *Service) launchLocked(j Job) {
 	pluginExec := s.pluginExec
 	if j.Discovery != nil {
 		pluginExec = s.discoveryExec
+	}
+	if j.RemoteAccount != nil {
+		pluginExec = s.remoteAccountExec
 	}
 	timeoutCtx, timeoutCancel := context.WithTimeout(s.ctx, time.Duration(j.TimeoutSeconds)*time.Second)
 	ctx, causeCancel := context.WithCancelCause(timeoutCtx)
@@ -377,7 +411,7 @@ func (s *Service) launchLocked(j Job) {
 			err = guard(j)
 		}
 		if err == nil {
-			if j.Plugin != nil || j.Discovery != nil {
+			if j.Plugin != nil || j.Discovery != nil || j.RemoteAccount != nil {
 				if pluginExec == nil || guard == nil {
 					err = ErrAccessDenied
 				} else {
@@ -476,7 +510,7 @@ func (s *Service) FindRequest(owner string, in Input) (Job, bool, error) {
 	defer s.mu.Unlock()
 	for _, j := range s.jobs {
 		if in.RequestID != "" && j.OperatorID == owner && j.RequestID == in.RequestID {
-			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery)) {
+			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery) || !sameRemoteAccount(j.RemoteAccount, in.RemoteAccount)) {
 				return Job{}, false, ErrConflict
 			}
 			return cloneJob(j), true, nil
@@ -579,9 +613,12 @@ func (s *Service) persistLocked() error {
 	}
 	version := 1
 	for _, j := range records {
+		if j.RemoteAccount != nil {
+			version = 3
+			break
+		}
 		if j.Discovery != nil && j.Discovery.PlanID != "" {
 			version = 2
-			break
 		}
 	}
 	data, err := json.Marshal(envelope{Version: version, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte(fmt.Sprintf("jms233/ssh-jobs/v%d", version)))})

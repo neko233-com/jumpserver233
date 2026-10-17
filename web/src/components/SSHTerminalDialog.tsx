@@ -91,7 +91,14 @@ export default function SSHTerminalDialog({
         socket.send(JSON.stringify({ type: "resize", cols, rows }));
       }
     };
-    const observer = new ResizeObserver(sendResize);
+    let resizeFrame = 0;
+    const observer = new ResizeObserver(() => {
+      if (resizeFrame) return;
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        sendResize();
+      });
+    });
     observer.observe(host);
     const inputSubscription = terminal.onData((data) => {
       if (socket?.readyState === WebSocket.OPEN) socket.send(new TextEncoder().encode(data));
@@ -259,6 +266,7 @@ export default function SSHTerminalDialog({
       window.clearTimeout(startTimer);
       controller.abort();
       observer.disconnect();
+      cancelAnimationFrame(resizeFrame);
       inputSubscription.dispose();
       socket?.close(1000, "terminal closed");
       terminal.dispose();

@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -37,6 +36,7 @@ const maxCredentialBackups = 10
 // Asset contains non-secret inventory fields. Credential material is encrypted
 // separately and never appears in API representations.
 type Asset struct {
+	RemoteAccount            *RemoteAccountState    `json:"remote_account,omitempty"`
 	ParentAssetID            string                 `json:"parent_asset_id,omitempty"`
 	AccountName              string                 `json:"account_name,omitempty"`
 	AccountRemark            string                 `json:"account_remark,omitempty"`
@@ -110,13 +110,14 @@ type encryptedSecret struct {
 }
 
 type storedAsset struct {
-	AccountAudit           []AccountAudit    `json:"account_audit,omitempty"`
-	PendingKeyChange       *pendingKeyChange `json:"pending_key_change,omitempty"`
-	KeyLastAttemptAt       time.Time         `json:"key_last_attempt_at,omitempty"`
-	KeyLastError           string            `json:"key_last_error,omitempty"`
-	LastKeyRequestID       string            `json:"last_key_request_id,omitempty"`
-	LastKeyRequestRevision uint64            `json:"last_key_request_revision,omitempty"`
-	LastKeyResult          string            `json:"last_key_result,omitempty"`
+	RemoteOperations       []RemoteAccountTask `json:"remote_operations,omitempty"`
+	AccountAudit           []AccountAudit      `json:"account_audit,omitempty"`
+	PendingKeyChange       *pendingKeyChange   `json:"pending_key_change,omitempty"`
+	KeyLastAttemptAt       time.Time           `json:"key_last_attempt_at,omitempty"`
+	KeyLastError           string              `json:"key_last_error,omitempty"`
+	LastKeyRequestID       string              `json:"last_key_request_id,omitempty"`
+	LastKeyRequestRevision uint64              `json:"last_key_request_revision,omitempty"`
+	LastKeyResult          string              `json:"last_key_result,omitempty"`
 	Asset
 	Credential            encryptedSecret    `json:"credential"`
 	CredentialBackups     []credentialBackup `json:"credential_backups,omitempty"`
@@ -201,11 +202,14 @@ func openStore(path string, key []byte, documents *storage.Documents) (*Store, e
 		return store, nil
 	}
 	var records []storedAsset
-	if err := json.Unmarshal(data, &records); err != nil {
+	if err := decodeRemoteAssetRecords(data, &records); err != nil {
 		return nil, fmt.Errorf("decode asset store: %w", err)
 	}
 	migrated := false
 	for _, record := range records {
+		if err := validateRemoteAssetRecord(record); err != nil {
+			return nil, err
+		}
 		if err := validateProtocolAsset(record.Asset); err != nil {
 			return nil, err
 		}
@@ -325,6 +329,9 @@ func (s *Store) createCredentials(asset Asset, c sshclient.Credentials, parentVe
 	if _, ok := s.assets[asset.ID]; ok {
 		return Asset{}, fmt.Errorf("asset ID already exists")
 	}
+	if err := s.remoteAccountCopyAllowedLocked(asset); err != nil {
+		return Asset{}, err
+	}
 	if asset.ParentAssetID != "" {
 		parent, ok := s.assets[asset.ParentAssetID]
 		if !ok || parentVersion == "" || accountVersion(parent.Asset) != parentVersion {
@@ -388,6 +395,9 @@ func (s *Store) updateCredentials(asset Asset, replacement *sshclient.Credential
 	previous, ok := s.assets[asset.ID]
 	if !ok {
 		return Asset{}, ErrNotFound
+	}
+	if err := s.remoteAccountCopyAllowedLocked(asset); err != nil {
+		return Asset{}, err
 	}
 	if previous.ParentAssetID != asset.ParentAssetID || version != "" && accountVersion(previous.Asset) != version {
 		return Asset{}, ErrCredentialChanged
@@ -874,7 +884,7 @@ func (s *Store) persistLocked() error {
 		records = append(records, persistedAsset(record))
 	}
 	sort.Slice(records, func(i, j int) bool { return records[i].ID < records[j].ID })
-	data, err := json.MarshalIndent(records, "", "  ")
+	data, err := encodeRemoteAssetRecords(records, true)
 	if err != nil {
 		return fmt.Errorf("encode asset store: %w", err)
 	}
@@ -911,7 +921,7 @@ func (s *Store) persistDocumentLocked() error {
 		records = append(records, persistedAsset(record))
 	}
 	sort.Slice(records, func(i, j int) bool { return records[i].ID < records[j].ID })
-	data, err := json.Marshal(records)
+	data, err := encodeRemoteAssetRecords(records, false)
 	if err != nil {
 		return fmt.Errorf("encode asset document: %w", err)
 	}

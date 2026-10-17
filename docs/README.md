@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+远端 Linux 普通账号的原生创建、停用、恢复、保留目录删除及显式恢复见 [远端账号生命周期](./REMOTE-ACCOUNTS.md)。
+
 独立加密的具名 SSH 凭据、发现记录关联、授权和七天轮换见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。
 
 原生 Linux 账号收集、审批、确认状态、元数据保护与 CLI 见 [账号收集](./ACCOUNT-DISCOVERY.md)。

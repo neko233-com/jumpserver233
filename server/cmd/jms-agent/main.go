@@ -18,6 +18,41 @@ import (
 )
 
 func run(args []string) int {
+	if len(args) == 1 && args[0] == "account-admin-install" {
+		raw, e := hostagent.AccountAdminInstallJSON()
+		if e != nil {
+			_ = json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "remote_account_unavailable"})
+			return 1
+		}
+		fmt.Fprintln(os.Stdout, string(raw))
+		return 0
+	}
+	if len(args) == 1 && args[0] == "account-admin" {
+		raw, e := io.ReadAll(io.LimitReader(os.Stdin, hostagent.MaxAccountAdminBytes+1))
+		if e != nil {
+			return 2
+		}
+		req, e := hostagent.DecodeAccountAdminRequest(raw)
+		if e != nil {
+			return 2
+		}
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		defer cancel()
+		ctx, timeout := context.WithTimeout(ctx, 90*time.Second)
+		defer timeout()
+		result, e := hostagent.RunAccountAdmin(ctx, req)
+		if result.Format == "" {
+			_ = json.NewEncoder(os.Stdout).Encode(map[string]string{"error": "remote_account_unavailable"})
+			return 1
+		}
+		if json.NewEncoder(os.Stdout).Encode(result) != nil {
+			return 1
+		}
+		if e != nil {
+			return 1
+		}
+		return 0
+	}
 	if len(args) > 0 && args[0] == "accounts" {
 		flags := flag.NewFlagSet("accounts", flag.ContinueOnError)
 		flags.SetOutput(io.Discard)

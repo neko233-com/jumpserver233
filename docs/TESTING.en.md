@@ -2,6 +2,20 @@
 
 > [中文](./TESTING.md) | English
 
+## Remote Linux account lifecycle (2026-10-18)
+
+The full Playwright suite passed 66/66 in 15.0 minutes, with no failures or skips and exit code 0. It includes remote provisioning, all existing protocols, native protection/recovery, ordinary/root systemd services and a real VM reboot. Final task-state display and terminal resize coalescing changes were separately rechecked against production images: 2/2 in 21.6 seconds.
+
+- Final uncached serial Go/Testify run passed 57 packages and 854 tests; 35 tests skipped because their external fixtures were unavailable. Real OpenSSH, PostgreSQL state storage and xrdp were supplied. Missing integrations are not counted as passes.
+- Final Linux Docker race run passed 8 related packages and 340 tests, with 7 fixture skips. This includes root directory inode/symlink proofs, cancellation fences and PostgreSQL takeover.
+- Production images and actual OpenSSH verified Web provisioning, generated-key CLI and Web SSH login, default seven-day key rotation state, disabling, restoring and deleting with homes retained as root:0700. Deliberately denied SSH access left the staged credential unavailable; after allowing the fixture user, a second inspect attempt recovered with the original key.
+- All six successful task receipts and attempt numbers remained readable after restarting the API. The in-app browser checked both languages and saved actual screenshots. PostgreSQL tests retain staged keys, tasks and unavailable credentials across takeover without automatically replaying writes; explicit inspection precedes credential activation.
+- Testify covers independent action permissions, ongoing revocation, original-source checks at command approval, per-attempt login approval and old-permit expiration, idempotency, encrypted reservation, persistence rollback, cross-organization credential references, old-program rejection and authenticated format downgrade rejection. Actual OpenSSH separately verifies root bootstrap and delegation through an existing exact sudo rule.
+- Full regression exposed an existing synchronous terminal ResizeObserver feedback warning. Resize updates now coalesce per frame and are cancelled on close. Production collaboration tests additionally observe window errors in both browsers and pass mobile/bilingual interactions without suppressing the error.
+- vet, production/stripped Go builds, frontend lint/types/build, E2E types, 10 Docker lifecycle Node tests and bilingual content checks passed. Final fresh Docker dual-instance browser verification took 18.01 seconds (build 3.01, startup 12.04, smoke 2.96), followed by automatic disposal. Debug environments are retained separately.
+
+See [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md) for scope and format upgrade boundaries. Coverage is local regular Linux accounts; Windows/directory users, bulk governance, active/active and complete Enterprise parity remain open. Screenshots were captured on 2026-10-17; verification finished on 2026-10-18.
+
 ## Scheduled account discovery (2026-10-17)
 
 Complete Playwright suite passed 65/65 in 14.6 minutes, with zero failures/skips and exit code 0. It covers scheduled discovery and all existing protocols, native protection/recovery, ordinary/root systemd services and real VM reboot. Disposable fixtures exited through the ownership-checked lifecycle. Final authority/pause boundary changes were separately rechecked with Go/Testify, Linux race and the focused production-image case.

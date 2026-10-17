@@ -2,6 +2,12 @@
 
 > 中文 | [English](./README.en.md)
 
+Linux 普通账号现支持原生创建、停用、恢复、保留目录删除和显式恢复，Web/CLI 共用持续授权及审批。详见 [远端账号生命周期](./docs/REMOTE-ACCOUNTS.md)。
+
+2026-10-17，独立 Docker 与真实 OpenSSH 的内置浏览器截图：
+
+![远端账号任务](./docs/images/remote-accounts.zh-CN.png)
+
 SSH 主机支持独立多账号凭据托管、发现记录关联、账号级授权与七天轮换；Web SSH、SFTP、工作台和平台 CLI 共用所选身份。见 [SSH 多账号托管](./docs/MANAGED-ACCOUNTS.md)。
 
 Linux 账号收集支持原生 Go 组件、后台作业、审批、人工确认与加密记录，并提供间隔计划、逐轮审批隔离、暂停取消与运行归档。固定 SSH 网关、Web/CLI 和 PostgreSQL 单活状态存储均支持，见[计划账号收集](./docs/SCHEDULED-ACCOUNT-DISCOVERY.md)。

@@ -54,4 +54,4 @@ On 2026-10-17, a real OpenSSH case against production Docker passed in 20.9 seco
 
 ![Scheduled account discovery in English](./images/scheduled-account-discovery.en.png)
 
-Remote system account creation/deletion, bulk import, Windows/directory/database discovery, weak-password inspection, cron/calendar plans and archive retention remain open. Overall Enterprise parity is still in progress.
+See [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md) for Linux system account changes. Bulk import, Windows/directory/database discovery, weak-password inspection, cron/calendar plans and archive retention remain open. Overall Enterprise parity is still in progress.

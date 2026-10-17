@@ -18,6 +18,11 @@ test("named read-only and writable invitations preserve SSH, CLI, identity, bili
   const api = await request.newContext({ baseURL: base });
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  const watchResizeErrors = () => window.addEventListener("error", (e) => {
+    if (e.message.includes("ResizeObserver")) console.error("terminal-resize-error: " + e.message);
+  });
+  await page.context().addInitScript(watchResizeErrors);
+  page.on("console", (message) => { if(message.type()==="error" && message.text().includes("terminal-resize-error:")) errors.push(message.text()); });
   const admin = {
     username: process.env.JMS_SHARE_QA_USERNAME || "e2e.admin",
     password: process.env.JMS_SHARE_QA_PASSWORD || "synthetic-e2e-admin-password-2468",
@@ -25,8 +30,10 @@ test("named read-only and writable invitations preserve SSH, CLI, identity, bili
   const guestName = `share.guest.${Date.now()}`,
     guestPassword = "synthetic-share-browser-password-233";
   const guestContext = await browser.newContext({ locale: "en-US" });
+  await guestContext.addInitScript(watchResizeErrors);
   const guest = await guestContext.newPage();
   guest.on("pageerror", (e) => errors.push(e.message));
+  guest.on("console", (message) => { if(message.type()==="error" && message.text().includes("terminal-resize-error:")) errors.push(message.text()); });
   let original: Record<string, unknown> | null = null,
     sessionID = "";
   let cli: ReturnType<typeof spawn> | null = null;

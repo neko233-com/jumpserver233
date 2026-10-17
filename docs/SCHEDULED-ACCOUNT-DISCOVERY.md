@@ -54,4 +54,4 @@ PostgreSQL 单活共享加密计划、作业、快照和归档；组织命名空
 
 ![中文计划账号收集](./images/scheduled-account-discovery.zh-CN.png)
 
-远端系统账号创建/删除、批量导入、Windows/目录/数据库发现、弱口令检测、cron/日历计划及归档保留策略仍待完成，不代表企业版全部功能已齐。
+Linux 系统账号变更见[远端账号生命周期](./REMOTE-ACCOUNTS.md)。批量导入、Windows/目录/数据库发现、弱口令检测、cron/日历计划及归档保留策略仍待完成，不代表企业版全部功能已齐。

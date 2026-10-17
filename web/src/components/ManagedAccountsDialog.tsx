@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePermissions } from "../auth/usePermissions";
 import { toggleLang } from "../i18n";
 import type { ManagedAccount } from "./managedAccounts";
 import "./managed-accounts.css";
+const RemoteAccountsPanel = lazy(() => import("./RemoteAccountsPanel"));
 
 type AccountPage = { results: ManagedAccount[]; total: number; version: string };
 type Activity = {
@@ -92,6 +93,7 @@ export default function ManagedAccountsDialog({
     [loadedKey, setLoadedKey] = useState(""),
     [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [remoteOpen, setRemoteOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false),
     [editing, setEditing] = useState<ManagedAccount | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -282,6 +284,27 @@ export default function ManagedAccountsDialog({
           </div>
         </header>
         <p className="settings-help">{t("managedAccounts.hint")}</p>
+        <button
+          type="button"
+          className="button-secondary"
+          aria-expanded={remoteOpen}
+          onClick={() => setRemoteOpen((v) => !v)}
+        >
+          {t("remoteAccounts.title")}
+        </button>
+        {remoteOpen && (
+          <Suspense fallback={<p role="status">{t("managedAccounts.loading")}</p>}>
+            <RemoteAccountsPanel
+              assetId={assetId}
+              collectorId={selectedId}
+              accessToken={accessToken}
+              onChanged={() => {
+                setReload((v) => v + 1);
+                onChanged();
+              }}
+            />
+          </Suspense>
+        )}
         {discovered && (
           <p className="settings-help">
             {t("managedAccounts.discoveryHint", { username: discovered.username })}
@@ -370,6 +393,9 @@ export default function ManagedAccountsDialog({
                   </td>
                   <td>
                     {t(a.active ? "managedAccounts.enabled" : "managedAccounts.disabled")}
+                    {a.remote_account && (
+                      <small>{t(`remoteAccounts.accountStates.${a.remote_account.state}`)}</small>
+                    )}
                     <small>
                       {t(
                         a.credential_type === "ssh_key"

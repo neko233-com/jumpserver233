@@ -166,6 +166,7 @@ func validateDatabaseSettings(protocol string, p sqlclient.Settings) error {
 	return sqlclient.ValidateSettings(p)
 }
 func cloneAsset(a Asset) Asset {
+	a.RemoteAccount = cloneRemoteAccountState(a.RemoteAccount)
 	if a.RDP != nil {
 		copy := *a.RDP
 		a.RDP = &copy

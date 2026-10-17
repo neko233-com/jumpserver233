@@ -77,7 +77,7 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 		return fmt.Errorf("SSH job API request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusAccepted {
+	if resp.StatusCode == http.StatusAccepted && !strings.Contains(target.Path, "/remote-account-tasks") {
 		var pending struct {
 			ReviewID string `json:"review_id"`
 		}
@@ -89,8 +89,15 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var problem struct {
 			Detail string `json:"detail"`
+			Code   string `json:"error_code"`
 		}
 		_ = json.NewDecoder(io.LimitReader(resp.Body, 65536)).Decode(&problem)
+		if problem.Detail == "" && strings.Contains(target.Path, "/remote-account-tasks") {
+			switch problem.Code {
+			case "invalid", "not_found", "pending", "referenced", "conflict", "capacity", "denied", "unavailable":
+				problem.Detail = problem.Code
+			}
+		}
 		if problem.Detail == "" {
 			problem.Detail = resp.Status
 		}

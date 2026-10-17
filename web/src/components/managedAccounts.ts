@@ -32,6 +32,7 @@ export type AccountChoice = {
 };
 
 export type ManagedAccount = AccountChoice & {
+  remote_account?: { operation_id: string; state: "pending" | "ready" | "disabled"; uid?: number };
   asset_id: string;
   remark: string;
   discovery_id?: string;

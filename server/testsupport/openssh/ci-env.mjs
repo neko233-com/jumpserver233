@@ -28,4 +28,5 @@ if (process.argv.includes('--cleanup')) {
   if (!metadata?.ready || !/^jms233-keyhost-[a-f0-9-]{36}$/.test(metadata.container_name) || !metadata.fingerprint?.startsWith('SHA256:')) throw new Error('Disposable CI OpenSSH fixture did not become ready')
   appendFileSync(process.env.GITHUB_ENV, `JMS_TEST_KEY_HOST_ADDR=${metadata.address}\nJMS_TEST_KEY_HOST_FINGERPRINT=${metadata.fingerprint}\nJMS_TEST_KEY_HOST_NAME=${metadata.container_name}\n`)
   if (metadata.protection) appendFileSync(process.env.GITHUB_ENV, 'JMS_TEST_KEY_HOST_PROTECTION=true\n')
+  if (metadata.account_admin) appendFileSync(process.env.GITHUB_ENV, 'JMS_TEST_KEY_HOST_ACCOUNT_ADMIN=true\n')
 }

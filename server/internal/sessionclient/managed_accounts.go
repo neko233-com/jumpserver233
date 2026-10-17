@@ -21,6 +21,7 @@ type ManagedAccount struct {
 	Username                string                   `json:"username"`
 	Remark                  string                   `json:"remark"`
 	DiscoveryID             string                   `json:"discovery_id,omitempty"`
+	RemoteAccount           *RemoteAccountState      `json:"remote_account,omitempty"`
 	Default                 bool                     `json:"default"`
 	Active                  bool                     `json:"active"`
 	CredentialType          string                   `json:"credential_type"`

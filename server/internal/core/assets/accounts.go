@@ -33,6 +33,7 @@ type AccountAudit struct {
 	After     string       `json:"after,omitempty"`
 }
 type ManagedAccount struct {
+	RemoteAccount           *RemoteAccountState     `json:"remote_account,omitempty"`
 	ID                      string                  `json:"id"`
 	AssetID                 string                  `json:"asset_id"`
 	Name                    string                  `json:"name"`
@@ -157,7 +158,7 @@ func newAccountAudit(action string, actor AccountActor, a Asset, before, after s
 // Only account-owned fields are serialized for additional credential endpoints.
 // Host/port, node, gateway and access-review configuration have one parent source.
 func accountFields(a Asset) Asset {
-	return Asset{ID: a.ID, ParentAssetID: a.ParentAssetID, AccountName: a.AccountName, AccountRemark: a.AccountRemark, AccountDiscoveryID: a.AccountDiscoveryID,
+	return Asset{RemoteAccount: cloneRemoteAccountState(a.RemoteAccount), ID: a.ID, ParentAssetID: a.ParentAssetID, AccountName: a.AccountName, AccountRemark: a.AccountRemark, AccountDiscoveryID: a.AccountDiscoveryID,
 		Username: a.Username, AccountDisabled: a.AccountDisabled, PasswordRotationDisabled: a.PasswordRotationDisabled,
 		CredentialType: a.CredentialType, CredentialRevision: a.CredentialRevision, KeyFingerprint: a.KeyFingerprint,
 		KeyRotationEnabled: a.KeyRotationEnabled, KeyRotatedAt: a.KeyRotatedAt,
@@ -169,6 +170,7 @@ func inheritAccount(parent, account Asset) Asset {
 	a.ID, a.ParentAssetID = v.ID, parent.ID
 	a.AccountName, a.AccountRemark = v.AccountName, v.AccountRemark
 	a.AccountDiscoveryID = v.AccountDiscoveryID
+	a.RemoteAccount = cloneRemoteAccountState(v.RemoteAccount)
 	a.Username, a.AccountDisabled, a.PasswordRotationDisabled = v.Username, v.AccountDisabled, v.PasswordRotationDisabled
 	a.CredentialType, a.CredentialRevision, a.KeyFingerprint = v.CredentialType, v.CredentialRevision, v.KeyFingerprint
 	a.KeyRotationEnabled, a.KeyRotatedAt = v.KeyRotationEnabled, v.KeyRotatedAt
@@ -225,6 +227,9 @@ func (s *Service) accountChildrenBlocked(parentID string) error {
 		if a.ParentAssetID != parentID {
 			continue
 		}
+		if remoteAccountPending(a) {
+			return ErrRemoteAccountPending
+		}
 		if s.rotationRunning[a.ID] {
 			return ErrRotationInProgress
 		}
@@ -243,8 +248,9 @@ func accountView(a Asset) ManagedAccount {
 		name = a.Username
 	}
 	return ManagedAccount{ID: a.ID, AssetID: ResourceID(a), Name: name, Username: a.Username, Remark: a.AccountRemark,
-		DiscoveryID: a.AccountDiscoveryID,
-		Default:     a.ParentAssetID == "", Active: !a.AccountDisabled, Version: accountVersion(a),
+		RemoteAccount: cloneRemoteAccountState(a.RemoteAccount),
+		DiscoveryID:   a.AccountDiscoveryID,
+		Default:       a.ParentAssetID == "", Active: !a.AccountDisabled, Version: accountVersion(a),
 		CredentialType: credentialType(a.CredentialType), CredentialRevision: a.CredentialRevision, KeyFingerprint: a.KeyFingerprint,
 		PasswordRotationEnabled: !a.PasswordRotationDisabled, KeyRotationEnabled: a.KeyRotationEnabled,
 		Permissions: []string{}, CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
@@ -366,6 +372,9 @@ func (s *Service) UpdateManagedAccount(parentID, id string, in AccountInput, act
 	if !ok || ResourceID(current) != parentID {
 		return ManagedAccount{}, ErrNotFound
 	}
+	if remoteAccountPending(current) || current.RemoteAccount != nil && current.RemoteAccount.State == "disabled" && in.Active != nil && *in.Active {
+		return ManagedAccount{}, ErrRemoteAccountPending
+	}
 	if !IsSSH(current) || in.Username != "" && in.Username != current.Username {
 		return ManagedAccount{}, ErrInvalidInput
 	}
@@ -431,6 +440,9 @@ func (s *Service) DeleteManagedAccount(parentID, id, version string, actor Accou
 	parent, parentOK := s.store.assets[parentID]
 	if !ok || !parentOK || r.ParentAssetID != parentID || parent.ParentAssetID != "" {
 		return ErrNotFound
+	}
+	if remoteAccountPending(r.Asset) {
+		return ErrRemoteAccountPending
 	}
 	if version == "" || accountVersion(r.Asset) != version {
 		return ErrCredentialChanged

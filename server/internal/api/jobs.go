@@ -67,7 +67,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		if !ok {
 			return jobs.ErrAccessDenied
 		}
-		if !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) || !discoveryJobAllowed(d, owner, job.AssetID, job.Discovery, job.AccessOrigin) {
+		if !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) || !discoveryJobAllowed(d, owner, job.AssetID, job.Discovery, job.AccessOrigin) || !remoteAccountJobAllowed(d, owner, job.AssetID, job.RemoteAccount, job.AccessOrigin) {
 			return jobs.ErrAccessDenied
 		}
 		_, account, decision, status := authorize(owner, job.AssetID, job.Command, job.AccessOrigin)
@@ -85,7 +85,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		}
 		accessMu.RLock()
 		defer accessMu.RUnlock()
-		if !pluginJobAllowed(d, user, input.AssetID, input.Plugin) || !discoveryJobAllowed(d, user, input.AssetID, input.Discovery, input.Origin) {
+		if !pluginJobAllowed(d, user, input.AssetID, input.Plugin) || !discoveryJobAllowed(d, user, input.AssetID, input.Discovery, input.Origin) || !remoteAccountJobAllowed(d, user, input.AssetID, input.RemoteAccount, input.Origin) {
 			return operations.Submission{}, operations.ErrDenied
 		}
 		assetName, account, decision, status := authorize(user, input.AssetID, input.Command, input.Origin)
@@ -97,6 +97,10 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		if input.Discovery != nil && input.Discovery.PlanID != "" {
 			reviewAction = accessreviews.ActionAccountDiscovery
 			reviewScope = input.Discovery.PlanID + ":" + strconv.FormatUint(input.Discovery.Sequence, 10)
+		}
+		if input.RemoteAccount != nil {
+			reviewAction = accessreviews.ActionRemoteAccount
+			reviewScope = input.RemoteAccount.Task.ID + ":" + strconv.FormatUint(input.RemoteAccount.Attempt, 10)
 		}
 		pendingID := ""
 		gate := func() error {
@@ -144,6 +148,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 	}
 	if d.HostPlugins != nil {
 		registerAccountDiscoveryRoutes(mux, d, submitUser, accessMu, jobGuard, jobGuardLocked)
+		registerRemoteAccountRoutes(mux, d, submitUser, accessMu, jobGuard, jobGuardLocked)
 		d.Jobs.SetPluginExecutor(func(ctx context.Context, j jobs.Job) (sshclient.ExecResult, error) {
 			if (j.Plugin.Action == "events" || j.Plugin.Action == "events_collect") && d.AgentEvents != nil {
 				src := agentevents.Source{AssetID: j.AssetID, AssetName: j.AssetName, Account: j.Account}
@@ -298,17 +303,13 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		accessMu.RLock()
 		defer accessMu.RUnlock()
 		if *input.Approve {
-			owner, ok := d.Auth.UserByID(job.OperatorID)
-			if !ok && ((job.OperatorID == "admin-token" && d.AdminToken != "") || (job.OperatorID == "loopback-admin" && d.AdminToken == "" && d.Auth.BootstrapRequired())) {
-				owner = coreauth.User{ID: job.OperatorID, Username: job.Operator, Role: coreauth.RoleAdmin}
-				ok = true
-			}
+			owner, ok := jobOwner(d, job.OperatorID)
 			if !ok {
 				writeJSON(w, http.StatusConflict, map[string]string{"detail": "job owner is no longer available"})
 				return
 			}
 			_, account, decision, status := authorize(owner, job.AssetID, job.Command, job.AccessOrigin)
-			if status != http.StatusOK || account != job.Account || decision.Action == commandfilters.ActionDeny || !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) || !discoveryJobAllowed(d, owner, job.AssetID, job.Discovery, job.AccessOrigin) {
+			if status != http.StatusOK || account != job.Account || decision.Action == commandfilters.ActionDeny || !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) || !discoveryJobAllowed(d, owner, job.AssetID, job.Discovery, job.AccessOrigin) || !remoteAccountJobAllowed(d, owner, job.AssetID, job.RemoteAccount, job.AccessOrigin) {
 				writeJSON(w, http.StatusForbidden, map[string]string{"detail": "job authorization or command policy changed"})
 				return
 			}

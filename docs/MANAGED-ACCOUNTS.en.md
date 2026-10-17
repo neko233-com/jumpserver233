@@ -2,6 +2,8 @@
 
 > English | [中文](./MANAGED-ACCOUNTS.md)
 
+Native creation, disabling, restoration, retained home deletion and explicit recovery for regular Linux users are covered in [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md).
+
 One SSH asset can hold several named accounts, with independently encrypted passwords or keys, enabled state, credential history and seven-day rotation policies. Host address, fingerprint, node, gateway and login review settings have one physical source. Inventory still shows one host. The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); the overall objective remains in [PLAN](./PLAN.en.md).
 
 ## Web workflow
@@ -51,4 +53,4 @@ Singular `account` manages credentials; plural `accounts` collects or queries re
 
 See [Testing](./TESTING.en.md) for the 2026-10-17 Testify, real OpenSSH, pinned gateway, Web SSH, SFTP, CLI, rotation and live-disable checks. Production Docker QA has separate data and dedicated loopback ports.
 
-Named multi-account support currently applies to SSH. Other protocols keep their original single-account model. Discovery interval plans support the selected named identity; see [Scheduled account discovery](./SCHEDULED-ACCOUNT-DISCOVERY.en.md). Remote account creation/deletion, bulk credential import, automatic credential reconciliation, multi-protocol account management, active/active clustering and full Enterprise parity remain open. A linked finding ID records provenance at save time; remote deletion, UID or target changes require a fresh collection and human check. It does not prove that a credential works or that remote login is allowed.
+Named multi-account support currently applies to SSH. Other protocols keep their original single-account model. Discovery interval plans support the selected named identity; see [Scheduled account discovery](./SCHEDULED-ACCOUNT-DISCOVERY.en.md). Linux system account lifecycle is covered in the linked guide above. Bulk credential import, automatic credential reconciliation, multi-protocol account management, active/active clustering and full Enterprise parity remain open. A linked finding ID records provenance at save time; remote deletion, UID or target changes require a fresh collection and human check. It does not prove that a credential works or that remote login is allowed.

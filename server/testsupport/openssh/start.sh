@@ -20,9 +20,13 @@ done
 # independently of the platform API. Docker restart retains the managed home.
 rm -f /run/crond.reboot /run/crond.pid
 /usr/sbin/cron
-if [ "${JMS_QA_PROTECTION:-false}" = true ]; then
+if [ "${JMS_QA_PROTECTION:-false}" = true ] || [ "${JMS_QA_ACCOUNT_ADMIN:-false}" = true ]; then
     # Optional, isolated network-namespace firewall QA; never a host mount.
-    printf '%s\n' 'root:synthetic-protection-root-password-233' | chpasswd
+    if [ "${JMS_QA_PROTECTION:-false}" = true ]; then
+        printf '%s\n' 'root:synthetic-protection-root-password-233' | chpasswd
+    else
+        printf '%s\n' 'root:synthetic-account-admin-root-password-233' | chpasswd
+    fi
     touch /var/log/auth.log
     cp /etc/ssh/sshd_config_fixture /run/sshd_config_protection
     sed -i 's/^PermitRootLogin no$/PermitRootLogin yes/; s/^AllowUsers /AllowUsers root /' /run/sshd_config_protection

@@ -43,6 +43,8 @@ try {
   await buildQAImage(execute, ['build', '--tag', 'jms233-openssh-qa:local', directory])
   const argumentsList = ['run', '--detach', '--name', name, '--label', `com.jumpserver233.qa.owner=${owner}`, '--publish', `127.0.0.1:${sshPort}:22`]
   const protection = process.env.JMS_QA_KEYHOST_PROTECTION === 'true'
+  const accountAdmin = process.env.JMS_QA_KEYHOST_ACCOUNT_ADMIN === 'true'
+  if (accountAdmin) argumentsList.push('--env','JMS_QA_ACCOUNT_ADMIN=true')
   if (protection) argumentsList.push('--cap-add','NET_ADMIN','--env','JMS_QA_PROTECTION=true')
   const network = process.env.JMS_QA_KEYHOST_NETWORK
   if (network) { if (!/^[A-Za-z0-9_.-]+$/.test(network)) throw new Error('Invalid QA network'); argumentsList.push('--network', network) }
@@ -58,7 +60,7 @@ try {
     if (request.method !== 'GET' || request.url !== '/health') { response.writeHead(404).end(); return }
     const ready = await reachable()
     response.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' })
-    response.end(JSON.stringify({ ready, protection, address: `127.0.0.1:${sshPort}`, network_address: `${name}:22`, username: 'keyqa', fingerprint, container_name: name, owner }))
+    response.end(JSON.stringify({ ready, protection, account_admin: accountAdmin, address: `127.0.0.1:${sshPort}`, network_address: `${name}:22`, username: 'keyqa', fingerprint, container_name: name, owner }))
   })
   server.on('error', async () => { await cleanup(); process.exit(1) })
   server.listen(httpPort, '127.0.0.1', () => { process.stdout.write(`OpenSSH QA ready on 127.0.0.1:${sshPort}; health ${httpPort}\n`) })

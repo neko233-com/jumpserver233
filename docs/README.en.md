@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Native creation, disabling, restoration, retained home deletion and explicit recovery for regular Linux users are covered in [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md).
+
 See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md) for independently encrypted named credentials, discovery association, grants and seven-day rotation.
 
 See [Account discovery](./ACCOUNT-DISCOVERY.en.md) for native Linux collection, approvals, human review, metadata protection and CLI.

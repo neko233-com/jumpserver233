@@ -101,6 +101,19 @@ func (h *guardedTransport) Run(ctx context.Context, command string) (sshclient.E
 	}
 	return h.Transport.Run(ctx, command)
 }
+
+func (h *guardedTransport) RunInput(ctx context.Context, command string, input []byte) (sshclient.ExecResult, error) {
+	if e := h.guard(); e != nil {
+		return sshclient.ExecResult{ExitCode: -1}, e
+	}
+	runner, ok := h.Transport.(interface {
+		RunInput(context.Context, string, []byte) (sshclient.ExecResult, error)
+	})
+	if !ok {
+		return sshclient.ExecResult{ExitCode: -1}, ErrUnsupported
+	}
+	return runner.RunInput(ctx, command, input)
+}
 func (h *guardedTransport) Upload(ctx context.Context, path string, data io.Reader) error {
 	if e := h.guard(); e != nil {
 		return e

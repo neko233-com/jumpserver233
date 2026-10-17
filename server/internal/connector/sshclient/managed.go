@@ -1,6 +1,7 @@
 package sshclient
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -46,7 +47,16 @@ func OpenManagedHost(ctx context.Context, target Target, credentials Credentials
 }
 func (h *ManagedHost) Close() error { h.stop(); return h.Files.Close() }
 func (h *ManagedHost) Run(ctx context.Context, command string) (ExecResult, error) {
+	return h.RunInput(ctx, command, nil)
+}
+
+// RunInput sends bounded input over the encrypted SSH channel. Input never
+// becomes command text, process arguments or captured output.
+func (h *ManagedHost) RunInput(ctx context.Context, command string, input []byte) (ExecResult, error) {
 	r := ExecResult{ExitCode: -1}
+	if len(input) > 16<<10 {
+		return r, errors.New("SSH input exceeds operation limit")
+	}
 	if e := ctx.Err(); e != nil {
 		return r, e
 	}
@@ -60,6 +70,7 @@ func (h *ManagedHost) Run(ctx context.Context, command string) (ExecResult, erro
 	b := &outputBudget{remaining: MaxExecOutput}
 	out, stderr := &limitedOutput{budget: b}, &limitedOutput{budget: b}
 	s.Stdout, s.Stderr = out, stderr
+	s.Stdin = bytes.NewReader(input)
 	e = s.Run(command)
 	r.Stdout, r.Stderr, r.Truncated = string(out.data), string(stderr.data), b.truncated
 	if ctx.Err() != nil {

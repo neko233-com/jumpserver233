@@ -223,8 +223,12 @@ func (c *PasswordCoordinator) participants(identity string) []passwordParticipan
 
 // The caller holds c.mu until its inventory mutation has persisted.
 func (c *PasswordCoordinator) validateMutation(scope string, a Asset, replacement *sshclient.Credentials) error {
-	if !IsSSH(a) {
-		return nil
+	for storeScope, store := range c.stores {
+		for _, other := range store.List() {
+			if remoteAccountPending(other) && other.HostKeyFingerprint == a.HostKeyFingerprint && other.Username == a.Username && !(storeScope == scope && other.ID == a.ID) {
+				return ErrRemoteAccountPending
+			}
+		}
 	}
 	if !IsSSH(a) {
 		return nil
