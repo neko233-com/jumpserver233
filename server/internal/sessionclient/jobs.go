@@ -98,9 +98,9 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 				problem.Detail = problem.Code
 			}
 		}
-		if problem.Detail == "" && strings.HasPrefix(target.Path, "/api/v1/accounts/imports") {
+		if problem.Detail == "" && (strings.HasPrefix(target.Path, "/api/v1/accounts/imports") || strings.HasPrefix(target.Path, "/api/v1/accounts/risks")) {
 			switch problem.Code {
-			case "invalid", "denied", "not_found", "conflict", "expired", "capacity", "unavailable":
+			case "invalid", "denied", "not_found", "conflict", "expired", "capacity", "unavailable", "busy":
 				problem.Detail = problem.Code
 			}
 		}
@@ -110,7 +110,11 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 		return &APIError{StatusCode: resp.StatusCode, Detail: problem.Detail}
 	}
 	if output != nil {
-		return json.NewDecoder(io.LimitReader(resp.Body, 1024*1024)).Decode(output)
+		limit := int64(1024 * 1024)
+		if strings.HasPrefix(target.Path, "/api/v1/accounts/risks") {
+			limit = 8 << 20
+		}
+		return json.NewDecoder(io.LimitReader(resp.Body, limit)).Decode(output)
 	}
 	return nil
 }

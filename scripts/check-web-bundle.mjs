@@ -29,5 +29,7 @@ for (const key of initial) {
 }
 const login = "src/pages/LoginPage.tsx";
 if (!manifest[login]?.isDynamicEntry || initial.has(login)) throw new Error("Login code must remain a lazy route");
+const risks = "src/pages/AccountRisksPage.tsx";
+if (!manifest[risks]?.isDynamicEntry || initial.has(risks)) throw new Error("Account risk UI and feature locales must remain a lazy route");
 if (largest > 500_000 || initialBytes > 500_000 || total > 1_500_000) throw new Error("Production JavaScript exceeds the recorded size budget");
 console.log(JSON.stringify({ initialJavaScriptBytes: initialBytes, initialGzipBytes: initialGzip, totalJavaScriptBytes: total, largestChunkBytes: largest, lazyLogin: true }));

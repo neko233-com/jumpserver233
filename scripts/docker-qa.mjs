@@ -103,10 +103,29 @@ async function browserSmoke() {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Assets", exact: true })).toBeVisible();
     assert.ok(!loaded.some(url => /\/LoginPage-/.test(url)), "Authenticated console loaded login-only animation code");
+    assert.ok(!loaded.some(url => /\/AccountRisksPage-/.test(url)), "Asset inventory loaded risk-only code");
     await page.screenshot({ path: resolve(output, "production.en.png") });
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(page.getByRole("heading", { name: "资产", exact: true })).toBeVisible();
     await page.screenshot({ path: resolve(output, "production.zh-CN.png") });
+    await page.getByRole("link", { name: "账号风险", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "账号风险", exact: true })).toBeVisible();
+    if (command === "verify") {
+      // Only disposable clean volumes get a scan. Retained debug instances may
+      // already have an owner-controlled periodic scan running.
+      const posted = page.waitForResponse(r => r.url().endsWith("/api/v1/accounts/risks/scans") && r.request().method() === "POST");
+      await page.getByRole("button", { name: "立即检测", exact: true }).click();
+      const response = await posted;
+      assert.equal(response.status(), 201);
+      const receipt = await response.json();
+      assert.equal(receipt.state, "succeeded");
+      assert.equal(receipt.accounts, 0);
+      await expect(page.getByRole("status").filter({ hasText: "检测完成" })).toBeVisible();
+    }
+    await page.screenshot({ path: resolve(output, "risks.zh-CN.png") });
+    await page.getByRole("button", { name: "EN", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Account risks", exact: true })).toBeVisible();
+    await page.screenshot({ path: resolve(output, "risks.en.png") });
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }
 }

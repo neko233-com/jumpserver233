@@ -1,0 +1,160 @@
+.account-risks-page {
+  padding: 24px;
+  max-width: 1400px;
+  box-sizing: border-box;
+}
+.account-risks-page > header,
+.risk-dialog > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.account-risks-page h1,
+.risk-dialog h2 {
+  margin-top: 0;
+}
+.risk-actions,
+.risk-pages {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+}
+.risk-filters,
+.risk-policy-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-block: 16px;
+}
+.account-risks-page label,
+.risk-dialog label {
+  display: grid;
+  gap: 6px;
+}
+.account-risks-page input,
+.account-risks-page select,
+.risk-dialog textarea {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.risk-table {
+  max-width: 100%;
+  overflow: auto;
+}
+.risk-table table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  text-align: start;
+}
+.risk-table th,
+.risk-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #ffffff1f;
+  vertical-align: top;
+}
+.risk-table strong,
+.risk-table small {
+  display: block;
+  overflow-wrap: anywhere;
+  max-width: 300px;
+}
+.risk-table small {
+  opacity: 0.75;
+}
+.risk-level {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+}
+.risk-level-high {
+  color: #ffb3ab;
+}
+.risk-level-medium {
+  color: #f5d487;
+}
+.risk-level-low {
+  color: #9ad5ff;
+}
+.risk-policy,
+.risk-history {
+  padding-block: 16px;
+  border-top: 1px solid #ffffff1f;
+}
+.account-risks-page summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.account-risks-page fieldset,
+.risk-dialog fieldset {
+  border: 1px solid #ffffff1f;
+  margin-block: 12px;
+  padding: 12px;
+  min-width: 0;
+}
+.risk-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.account-risks-page .risk-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block: 8px;
+}
+.risk-check input {
+  width: auto;
+}
+.risk-dialog {
+  box-sizing: border-box;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #ffffff2b;
+  border-radius: 14px;
+  background: #151b23;
+  color: #dbe7f5;
+}
+.risk-dialog::backdrop {
+  background: #050a12b8;
+}
+.risk-dialog textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+.risk-dialog dl > div {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  margin-block: 8px;
+}
+.risk-dialog dd {
+  margin: 0;
+}
+.risk-dialog code,
+.risk-history code {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .account-risks-page {
+    padding: 16px;
+  }
+  .account-risks-page > header {
+    flex-direction: column;
+  }
+  .risk-dialog {
+    padding: 16px;
+  }
+  .risk-dialog dl > div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+}

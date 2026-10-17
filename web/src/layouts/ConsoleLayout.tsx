@@ -18,6 +18,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/workbench", label: t("nav.workbench"), end: false },
   ];
   const consoleNav = [
+    ...(allows("accounts.risks.view")
+      ? [{ to: "/console/account-risks", label: t("nav.accountRisks"), end: false }]
+      : []),
     ...(allows("audit.agents.view_all")
       ? [{ to: "/console/agent-audit", label: t("agentEvents.title"), end: false }]
       : []),

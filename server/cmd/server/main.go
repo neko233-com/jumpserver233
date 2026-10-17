@@ -20,6 +20,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	coreaccessreviews "github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountrisks"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -208,6 +209,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 	discoveredAccounts.BindOwner(ctx)
 	defer discoveredAccounts.Close()
+	accountRisks, err := accountrisks.Open(filepath.Join(cfg.DataDir, "account-risks.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	defer accountRisks.Close()
 	databaseService, err := databasequery.Open(filepath.Join(cfg.DataDir, "database-queries.json"), vaultKey, documents, assetService.QueryDatabase)
 	if err != nil {
 		return err
@@ -267,6 +273,8 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
 	root.AccountDiscovery = discoveredAccounts
+	root.AccountRisks = accountRisks
+	root.GlobalAccessMu = root.AccessMu
 	root.SessionPolicy = sessionSettings
 	root.DatabaseQueries = databaseService
 	root.GlobalRBAC = roleStore
@@ -295,6 +303,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global.Operations = nil
 	global.AgentEvents = nil
 	global.AccountDiscovery = nil
+	global.AccountRisks = nil
 	handler := api.NewOrganizationRouter(cfg.Version, global, runtimes.handler)
 	identityService.SetPrivilegedCheck(runtimes.isPrivileged)
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
@@ -304,6 +313,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 
 	nodeCtx, cancelNode := context.WithCancel(ctx)
+	accountRisks.Start(nodeCtx)
 	monitorDone := make(chan struct{})
 	go func() {
 		defer close(monitorDone)

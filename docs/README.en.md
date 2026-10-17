@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Weak/reused SSH credentials, age/usage risks, human review and periodic scanning: [Account risks](./ACCOUNT-RISKS.en.md).
+
 Multi-host CSV/XLSX create/update, atomic commits, idempotent receipts and Web/CLI are covered in [Account credential import](./ACCOUNT-IMPORT.en.md).
 
 Native creation, disabling, restoration, retained home deletion and explicit recovery for regular Linux users are covered in [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md).

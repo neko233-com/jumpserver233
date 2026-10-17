@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const AgentAuditPage = lazy(() => import("./pages/AgentAuditPage"));
+const AccountRisksPage = lazy(() => import("./pages/AccountRisksPage"));
 const DatabaseAuditPage = lazy(() => import("./pages/DatabaseAuditPage"));
 const AuditPage = lazy(() => import("./pages/AuditPage"));
 const ConsolePage = lazy(() => import("./pages/ConsolePage"));
@@ -59,6 +60,7 @@ export default function App() {
           >
             <Route index element={<ConsolePage />} />
             <Route path="agent-audit" element={<AgentAuditPage />} />
+            <Route path="account-risks" element={<AccountRisksPage />} />
             <Route path="database-audit" element={<DatabaseAuditPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="roles" element={<RolesPage />} />

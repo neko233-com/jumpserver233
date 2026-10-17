@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+SSH 弱密码、凭据复用、超期与使用风险、处置和周期检测见[账号风险](./ACCOUNT-RISKS.md)。
+
 CSV/XLSX 多主机新增/更新、原子提交、幂等回执与 Web/CLI 见[账号凭据导入](./ACCOUNT-IMPORT.md)。
 
 远端 Linux 普通账号的原生创建、停用、恢复、保留目录删除及显式恢复见 [远端账号生命周期](./REMOTE-ACCOUNTS.md)。

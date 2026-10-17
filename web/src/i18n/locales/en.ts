@@ -1333,6 +1333,10 @@ const en = {
       accounts_remote_enable: "Restore remote Linux login",
       accounts_remote_delete: "Delete remote Linux accounts",
       accounts_import: "Import account credentials in reviewed batches",
+      accounts_risks_view: "View account risks",
+      accounts_risks_scan: "Scan account risks",
+      accounts_risks_manage: "Manage risk policies and review findings",
+      accounts_risks_export: "Export account risk metadata",
       accounts_schedule: "Schedule account discovery on authorized SSH identities",
       sessions_share: "Create invitations to own live terminal sessions",
       audit_sessions_terminate_all: "Terminate any active session",
@@ -1477,6 +1481,7 @@ const en = {
     name: "JumpServer233",
   },
   nav: {
+    accountRisks: "Account risks",
     console: "Console",
     audit: "Audit",
     workbench: "Workbench",

@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 7 adds [SSH account risks](./ACCOUNT-RISKS.en.md): seven local checks, human review, metadata CSV, periodic policies and Web/CLI/SDK, with organization encryption, live permissions and PostgreSQL single-active takeover. Usage uses retained platform audit. Remote OS expiry/login history, automatic bulk remediation and complete Enterprise acceptance remain open.
+
 Native creation, disabling, restoration, retained home deletion and explicit recovery for regular Linux users are covered in [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md).
 
 Phase 7 adds managed SSH accounts: independent encrypted credentials, account grants/enablement/rotation, discovery association, named gateways, Web SSH/SFTP/workbench and platform CLI, with standalone and PostgreSQL active/standby takeover. CSV/XLSX bulk credential import now supports multi-host create/update, preview, atomic commits and idempotent receipts; see [Account import](./ACCOUNT-IMPORT.en.md). Other protocol account management remains open. See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Overall Enterprise parity remains in progress.

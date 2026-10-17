@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+SSH account risks provide seven checks, human review, periodic policies, CSV and CLI. Credentials stay server-side and results follow account visibility; see [Account risks](./docs/ACCOUNT-RISKS.en.md).
+
 Multi-host CSV/XLSX credential creation and updates are available through Web and CLI, with organization authority, explicit preview and atomic receipts. See [Account credential import](./docs/ACCOUNT-IMPORT.en.md).
 
 Regular Linux accounts support native creation, disabling, restoration, retained home deletion and explicit recovery through Web/CLI with continuous authorization and approvals. See [Remote account lifecycle](./docs/REMOTE-ACCOUNTS.en.md).

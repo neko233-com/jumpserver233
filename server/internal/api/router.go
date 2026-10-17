@@ -7,6 +7,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	coreaccessreviews "github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountrisks"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -33,6 +34,7 @@ import (
 )
 
 type Dependencies struct {
+	AccountRisks         *accountrisks.Service
 	AccountDiscovery     *accountdiscovery.Store
 	SessionPolicy        *sessionpolicy.Store
 	AgentEvents          *agentevents.Store
@@ -40,6 +42,7 @@ type Dependencies struct {
 	Desktops             *desktop.Broker
 	DatabaseQueries      *databasequery.Service
 	AccessMu             *sync.RWMutex
+	GlobalAccessMu       *sync.RWMutex
 	PlatformOnlyPolicies bool
 	Tenant               bool
 	OrganizationID       string
@@ -94,6 +97,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	}
 
 	mux.HandleFunc("GET /api/health", HealthHandler(version))
+	if len(dependencies) > 0 && dependencies[0].AccountRisks != nil {
+		registerAccountRiskRoutes(mux, dependencies[0], accessMu)
+	}
 	if len(dependencies) > 0 && dependencies[0].SessionPolicy != nil {
 		registerSessionPolicyRoutes(mux, dependencies[0])
 	}

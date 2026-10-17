@@ -18,9 +18,17 @@ function flatten(value, prefix = "", result = new Map()) {
 }
 
 const locales = await Promise.all(
-  ["en", "zh-CN"].map(async (name) =>
-    flatten((await import(pathToFileURL(resolve(root, `web/src/i18n/locales/${name}.ts`)))).default),
-  ),
+  ["en", "zh-CN"].map(async (name) => {
+    const result=flatten((await import(pathToFileURL(resolve(root, `web/src/i18n/locales/${name}.ts`)))).default);
+    const featureRoot=resolve(root,"web/src/i18n/locales/features");
+    if(existsSync(featureRoot))for(const feature of readdirSync(featureRoot)){
+      const path=resolve(featureRoot,feature,`${name}.ts`);
+      if(!existsSync(path)){errors.push(`Missing feature locale: ${feature}/${name}`);continue}
+      const values=flatten((await import(pathToFileURL(path))).default);
+      for(const [key,value] of values){if(result.has(key))errors.push(`Duplicate translation key: ${key}`);result.set(key,value)}
+    }
+    return result;
+  }),
 );
 const keys = [...locales[0].keys()].sort();
 if (JSON.stringify(keys) !== JSON.stringify([...locales[1].keys()].sort()))

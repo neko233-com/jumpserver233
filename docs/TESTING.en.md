@@ -2,6 +2,21 @@
 
 > [中文](./TESTING.md) | English
 
+## SSH account risks (2026-10-18)
+
+Final full Playwright passed 68/68 in 15.8 minutes, with no failures or skips and exit code 0. It includes every existing protocol, real VM recovery, bulk credential import and account risks with the complete mixed audit history. Go, race and production-image checks below also completed.
+
+The first full browser run passed 67/68. Monitor and session events share an index, but valid monitor events omit `asset_id`. The new reader incorrectly treated them as corrupt and returned 503. Validation now requires an asset ID only for session start/end events, and monitoring does not count as account use. A mixed-journal unit case and actual monitor open/close before scanning cover this regression.
+
+- Uncached serial Go/Testify with frozen final source passed 58 packages with tests and 901 tests, with 35 missing-fixture skips. Real OpenSSH, PostgreSQL state storage and xrdp were supplied; missing integrations are not counted as passes.
+- Final Linux Docker race passed 9 packages and 355 tests, with 8 missing-fixture skips. The new risk core package has 78.0% statement coverage; encrypted PostgreSQL takeover passed 50 consecutive runs. An earlier three-character encryption-test marker coincidentally matched random ciphertext; a longer marker and the full rerun passed.
+- The final production-image real SSH scenario passed 1/1 in 44.8 seconds (45.3 including runner overhead): weak/reused passwords across identities, confirm/ignore/reopen, stale source rejection, actual CLI/Web SSH and terminal monitoring, actual remote rotation clearing findings, SDK/CLI listing, scoped users unable to see other accounts/scan/export, credential-free CSV, an actual periodic run and bilingual 390px UI, with zero pageerrors. Scheduled-receipt assertions bind the current policy revision to avoid accepting an older run.
+- Testify covers alias exclusion, SSH key reuse, visible peer filtering and constructed-ID probing rejection, credential changes reopening findings, optimistic review versions, source locks, corrupt/incomplete audit rejection, actually executed jobs, atomic failure, cancellation/deadline, owner revocation pausing schedules, retention, encrypted reload, interrupted PostgreSQL takeover, signed/organization SDK requests and exclusive CLI export files.
+- The in-app browser separately scanned under the current policy: two active accounts, one remaining weak-password finding. Both language policies, seven checks, disabled periodic scheduling and the result after actual rotation were inspected. Real screenshots: [Account risks](./ACCOUNT-RISKS.en.md).
+- Frontend lint/types/production build, E2E types, backend vet/build and stripped server/CLI builds passed. Clean-volume dual-instance Docker browser checks took 17.68 seconds, including bilingual risk pages and a successful empty-account scan, then disposed the temporary project. Retained debugging uses independent Web/API ports. Six Docker lifecycle and six frontend-tool Node tests passed. Existing main/initial JS budgets remain enforced.
+
+This slice checks managed SSH identities within an organization. Remote OS password expiry/login history, automatic bulk remediation and full Enterprise acceptance remain open. See [Account risks](./ACCOUNT-RISKS.en.md) and [Performance](./PERFORMANCE.en.md) for commands and definitions.
+
 ## CSV/XLSX account credential import (2026-10-18)
 
 Final full Playwright passed 67/67 in 15.1 minutes, with no failures or skips and exit code 0, covering native protection, a real VM reboot, every existing protocol and the new import scenario. The first run exposed incorrect test cleanup ordering: deleting a parent with managed accounts correctly failed. Account-first cleanup passed against the production image without retention in 11.0 seconds. A scheduled-job assertion was separately interrupted by a language-resource hot update; its trace showed Vite reconnecting and the panel resetting. The full run with frozen source passed every case.

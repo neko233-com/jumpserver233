@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { usePermissions } from "../auth/usePermissions";
 import { useAuth } from "../auth/AuthContext";
 import type {
@@ -276,13 +277,14 @@ function closeDetails(target: HTMLElement) {
 }
 
 export default function AssetInventoryPage() {
+  const [params] = useSearchParams();
   const { t, i18n } = useTranslation();
   const { accessToken, setAccessToken } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [nodes, setNodes] = useState<AssetNode[]>([]);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedNode, setSelectedNode] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => params.get("asset_id") || "");
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [tokenRequired, setTokenRequired] = useState(false);
@@ -308,7 +310,11 @@ export default function AssetInventoryPage() {
   const [managedFinding, setManagedFinding] = useState<
     { id: string; username: string } | undefined
   >();
-  const [selectedAccounts, setSelectedAccounts] = useState<Record<string, string>>({});
+  const [selectedAccounts, setSelectedAccounts] = useState<Record<string, string>>(() => {
+    const asset = params.get("asset_id"),
+      account = params.get("account_id");
+    return asset && account ? { [asset]: account } : {};
+  });
   const [rdpAsset, setRDPAsset] = useState<Asset | null>(null);
   const [kubernetesAsset, setKubernetesAsset] = useState<Asset | null>(null);
   const [terminalAsset, setTerminalAsset] = useState<Asset | null>(null);
@@ -394,7 +400,9 @@ export default function AssetInventoryPage() {
       )
         return false;
       if (!query) return true;
-      return `${asset.name} ${asset.host} ${asset.remark}`.toLocaleLowerCase().includes(query);
+      return `${asset.id} ${asset.name} ${asset.host} ${asset.remark}`
+        .toLocaleLowerCase()
+        .includes(query);
     });
   }, [assets, nodes, search, selectedGroup, selectedNode]);
 

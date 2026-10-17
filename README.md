@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+SSH 账号风险支持七类检测、人工处置、周期计划、CSV 和 CLI；凭据留在服务端，结果按账号权限过滤，见[账号风险](./docs/ACCOUNT-RISKS.md)。
+
 多主机 CSV/XLSX 凭据批量新增和更新已接入 Web、CLI 与组织权限，先预览再整批提交，保留幂等回执；见[账号凭据导入](./docs/ACCOUNT-IMPORT.md)。
 
 Linux 普通账号现支持原生创建、停用、恢复、保留目录删除和显式恢复，Web/CLI 共用持续授权及审批。详见 [远端账号生命周期](./docs/REMOTE-ACCOUNTS.md)。

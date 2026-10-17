@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+Phase 7 新增 [SSH 账号风险检测](./ACCOUNT-RISKS.md)：七类本地检查、人工处置、元数据 CSV、周期计划和 Web/CLI/SDK，支持组织加密、当前权限与 PostgreSQL 单活接管。平台保留审计用于使用风险，远端 OS 密码有效期、登录历史、自动批量修复和完整企业版验收仍待完成。
+
 远端 Linux 普通账号的原生创建、停用、恢复、保留目录删除及显式恢复见 [远端账号生命周期](./REMOTE-ACCOUNTS.md)。
 
 Phase 7 新增 SSH 多账号托管：独立加密凭据、账号级授权/启停/轮换、发现身份关联、具名网关、Web SSH/SFTP/工作台和平台 CLI，支持单机与 PostgreSQL 单活接管。CSV/XLSX 批量凭据导入已支持多主机新增/更新、预览、原子提交与幂等回执，见[账号导入](./ACCOUNT-IMPORT.md)。其他协议账号管理仍待完成，见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。企业版总体目标保持进行中。

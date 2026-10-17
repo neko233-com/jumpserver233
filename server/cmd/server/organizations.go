@@ -15,6 +15,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountrisks"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -133,6 +134,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 	}
 	d := api.Dependencies{SessionPolicy: r.root.SessionPolicy, Tenant: true, OrganizationID: id, Organizations: r.store, Auth: r.root.Auth, AdminToken: r.root.AdminToken, PublicURL: r.root.PublicURL, TrustedProxies: r.root.TrustedProxies, GlobalRBAC: r.root.RBAC, GlobalGroups: r.root.Groups, GlobalPolicies: r.root.AccessPolicies}
 	d.OrganizationAllowed = func(u coreauth.User) bool { return r.allowed(id, u) }
+	d.GlobalAccessMu = r.root.AccessMu
 	orgKey := r.key
 	if id != organizations.DefaultID {
 		mac := hmac.New(sha256.New, r.key)
@@ -315,6 +317,19 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return nil, e
 		}
 	}
+	if id != organizations.DefaultID {
+		d.AccountRisks, e = accountrisks.Open(filepath.Join(orgPath, "account-risks.json"), orgKey, docs)
+		if e != nil {
+			d.Operations.Close()
+			d.Jobs.Close()
+			d.DatabaseQueries.Close()
+			d.Sessions.CloseAll()
+			d.AgentEvents.Close()
+			d.AccountDiscovery.Close()
+			d.Desktops.CloseAll()
+			return nil, e
+		}
+	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID {
 		ctx, cancel := context.WithCancel(r.ctx)
@@ -323,6 +338,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		d.DatabaseQueries.BindOwner(ctx)
 		d.AgentEvents.BindOwner(ctx)
 		d.AccountDiscovery.BindOwner(ctx)
+		d.AccountRisks.Start(ctx)
 		go func() { defer close(runtime.done); d.Assets.Run(ctx, r.cfg.MonitorInterval) }()
 	}
 	r.items[id] = runtime
@@ -362,6 +378,9 @@ func (r *organizationRuntimes) changed(id string) {
 	}
 }
 func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) {
+	if current.d.AccountRisks != nil {
+		current.d.AccountRisks.Close()
+	}
 	if current.d.AccountDiscovery != nil {
 		current.d.AccountDiscovery.Close()
 	}

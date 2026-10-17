@@ -20,6 +20,8 @@ With existing `web` dependencies and Playwright Chromium, add real browser check
 node scripts/docker-qa.mjs verify --browser
 ```
 
+Browser checks cover English/Chinese inventory and account-risk pages, lazy scripts and page errors. Only the random clean volume runs an empty-account scan and verifies its successful receipt. Retained `up` environments only read risk pages, avoiding interference with existing periodic policies. Real SSH rotation and periodic risk checks run in the full `pnpm test:e2e` suite.
+
 The browser checks production login, Chinese/English switching, page exceptions and that an authenticated console does not load login animation code. Local warm-cache measurements on 2026-10-16: build 3.14 seconds, isolated startup 12.05 seconds, HTTP/parallel-browser checks 3.42 seconds, approximately 18.6 seconds total. Initial image/dependency downloads take additional time. Full SSH/database/real-systemd regression is recorded in [verification records](./TESTING.en.md).
 
 ## Retained debug environments

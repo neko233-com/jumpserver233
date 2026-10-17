@@ -1233,6 +1233,10 @@ const zhCN = {
       accounts_remote_enable: "恢复远端 Linux 登录",
       accounts_remote_delete: "删除远端 Linux 账号",
       accounts_import: "预览并批量导入账号凭据",
+      accounts_risks_view: "查看账号风险",
+      accounts_risks_scan: "检测账号风险",
+      accounts_risks_manage: "管理风险策略及处置记录",
+      accounts_risks_export: "导出账号风险元数据",
       accounts_schedule: "为已授权的 SSH 身份配置计划账号收集",
       sessions_share: "为自己的在线终端创建分享邀请",
       audit_sessions_terminate_all: "中断任意活动会话",
@@ -1372,6 +1376,7 @@ const zhCN = {
     name: "JumpServer233",
   },
   nav: {
+    accountRisks: "账号风险",
     console: "控制台",
     audit: "审计台",
     workbench: "工作台",
