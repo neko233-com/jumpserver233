@@ -340,6 +340,28 @@ func (s *Store) Findings(src Source, offset, limit int) (Page, error) {
 	}
 	return page, nil
 }
+
+// Finding resolves only the current physical-target binding, including UID.
+func (s *Store) Finding(src Source, id string) (Finding, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !validSource(src) {
+		return Finding{}, ErrInvalid
+	}
+	v, e := s.load(src.AssetID)
+	if e != nil {
+		return Finding{}, e
+	}
+	if v.Source.Binding != src.Binding {
+		return Finding{}, ErrConflict
+	}
+	for _, f := range v.Findings {
+		if f.ID == id && f.Binding == src.Binding && f.Present {
+			return f, nil
+		}
+	}
+	return Finding{}, ErrInvalid
+}
 func (s *Store) Review(src Source, actor Actor, id, status, note string, revision int) (Finding, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

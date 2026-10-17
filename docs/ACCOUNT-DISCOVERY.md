@@ -59,4 +59,4 @@ go run ./cmd/jms accounts cancel <job-id>
 
 ![中文账号收集](./images/account-discovery.zh-CN.png)
 
-当前交付 Linux 本地元数据收集与人工记录。账号同步绑定、独立多账号凭据托管、远端账号增删、计划采集、Windows/目录/数据库账号发现、弱口令/密文检测仍待实现；这些继续属于企业版目标。已有纳管登录账号的七天改密与加密凭据历史见 [密码轮换](./PASSWORD-ROTATION.md)。
+当前交付 Linux 本地元数据收集与人工记录，已支持把当前发现身份关联到独立托管凭据，见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。远端账号增删、计划采集、Windows/目录/数据库账号发现、弱口令/密文检测仍待实现；这些继续属于企业版目标。七天改密与加密凭据历史见 [密码轮换](./PASSWORD-ROTATION.md)。

@@ -45,7 +45,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		if d.Nodes != nil {
 			nodeIDs = d.Nodes.AncestorIDs(asset.NodeID)
 		}
-		if !effectivePermissions(user, d.RBAC, d.Groups).Allows("assets.connect_all") && (d.Grants == nil || !d.Grants.AllowsForScopes(user.ID, groupIDs, asset.ID, nodeIDs, asset.Username, "connect", time.Now().UTC())) {
+		if !effectivePermissions(user, d.RBAC, d.Groups).Allows("assets.connect_all") && (d.Grants == nil || !d.Grants.AllowsForScopes(user.ID, groupIDs, assets.ResourceID(asset), nodeIDs, asset.Username, "connect", time.Now().UTC())) {
 			return "", "", commandfilters.Decision{}, http.StatusForbidden
 		}
 		decision := commandfilters.Decision{Allowed: true, Action: commandfilters.ActionAllow}
@@ -57,7 +57,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 			return "", "", commandfilters.Decision{}, http.StatusForbidden
 		}
 		if d.CommandFilters != nil {
-			decision = d.CommandFilters.Decide(commandfilters.Scope{UserID: user.ID, GroupIDs: groupIDs, AssetID: asset.ID, NodeIDs: nodeIDs, Account: asset.Username}, command, !strings.ContainsAny(command, ";&|`$<>\\()"), time.Now().UTC())
+			decision = d.CommandFilters.Decide(commandfilters.Scope{UserID: user.ID, GroupIDs: groupIDs, AssetID: assets.ResourceID(asset), NodeIDs: nodeIDs, Account: asset.Username}, command, !strings.ContainsAny(command, ";&|`$<>\\()"), time.Now().UTC())
 		}
 		return asset.Name, asset.Username, decision, http.StatusOK
 	}

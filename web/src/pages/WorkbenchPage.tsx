@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import OperationsPanel from "../components/OperationsPanel";
 import { usePermissions } from "../auth/usePermissions";
+import type { AccountChoice } from "../components/managedAccounts";
 
 type Asset = {
   protocol?: string;
@@ -10,6 +11,7 @@ type Asset = {
   name: string;
   username: string;
   permissions: string[];
+  accounts?: AccountChoice[];
 };
 type Job = {
   id: string;
@@ -68,9 +70,23 @@ export default function WorkbenchPage() {
         )) as [Asset[], { results: Job[]; total: number }];
         if (signal?.aborted) return;
         setAssets(
-          inventory.filter(
-            (asset) => (asset.protocol ?? "ssh") === "ssh" && asset.permissions.includes("connect"),
-          ),
+          inventory
+            .flatMap((asset) =>
+              asset.accounts?.length
+                ? asset.accounts
+                    .filter((a) => a.active && a.permissions.includes("connect"))
+                    .map((a) => ({
+                      ...asset,
+                      id: a.id,
+                      username: a.username,
+                      permissions: a.permissions,
+                    }))
+                : [asset],
+            )
+            .filter(
+              (asset) =>
+                (asset.protocol ?? "ssh") === "ssh" && asset.permissions.includes("connect"),
+            ),
         );
         setJobs(page.results);
         setTotal(page.total);

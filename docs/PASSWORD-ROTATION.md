@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PASSWORD-ROTATION.en.md)
 
+同一主机的默认和具名 SSH 账号可分别启停、配置七天轮换与托管独立凭据；共享密码仍同步到停用副本，见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。
+
 SSH 密钥安装、验证后轮换、显式启用的七天计划及持久化阶段恢复见 [SSH 密钥轮换](./SSH-KEY-ROTATION.md)。
 
 目标资产与网关现支持导入 SSH 私钥：输入只写、保管库加密、公钥指纹及验证后恢复历史版本。密码轮换仍按密码凭据调度，详见 [SSH 私钥](./SSHKEYS.md)。

@@ -59,7 +59,7 @@ func authorizeDatabase(d Dependencies, u coreauth.User, id, sql string, origin a
 	if d.Nodes != nil {
 		nodes = d.Nodes.AncestorIDs(a.NodeID)
 	}
-	if !effectivePermissions(u, d.RBAC, d.Groups).Allows("assets.connect_all") && (d.Grants == nil || !d.Grants.AllowsForScopes(u.ID, groups, a.ID, nodes, a.Username, "connect", time.Now().UTC())) {
+	if !effectivePermissions(u, d.RBAC, d.Groups).Allows("assets.connect_all") && (d.Grants == nil || !d.Grants.AllowsForScopes(u.ID, groups, assets.ResourceID(a), nodes, a.Username, "connect", time.Now().UTC())) {
 		return a, commandfilters.Decision{}, databasequery.ErrDenied
 	}
 	decision, e := checkAccessPolicies(d, u, a, origin, audit)
@@ -82,7 +82,7 @@ func authorizeDatabase(d Dependencies, u coreauth.User, id, sql string, origin a
 	}
 	filter := commandfilters.Decision{Allowed: true, Action: commandfilters.ActionAllow}
 	if sql != "" && d.CommandFilters != nil {
-		filter = d.CommandFilters.Decide(commandfilters.Scope{UserID: u.ID, GroupIDs: groups, AssetID: a.ID, NodeIDs: nodes, Account: a.Username}, sql, true, time.Now().UTC())
+		filter = d.CommandFilters.Decide(commandfilters.Scope{UserID: u.ID, GroupIDs: groups, AssetID: assets.ResourceID(a), NodeIDs: nodes, Account: a.Username}, sql, true, time.Now().UTC())
 		if filter.Action == commandfilters.ActionDeny {
 			return a, filter, databasequery.ErrDenied
 		}

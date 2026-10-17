@@ -13,7 +13,15 @@ type UserGroup = {
   user_ids: string[];
   created_at: string;
 };
-type Asset = { id: string; name: string; username: string; node_id?: string };
+type Asset = {
+  id: string;
+  name: string;
+  username: string;
+  node_id?: string;
+  accounts?: { username: string; active: boolean }[];
+};
+const assetAccounts = (asset: Asset | undefined) =>
+  asset?.accounts?.map((a) => a.username) || (asset ? [asset.username] : []);
 type AssetNode = { id: string; name: string; parent_id?: string };
 type GrantAction = "view" | "connect" | "sftp";
 type Grant = {
@@ -373,13 +381,20 @@ export default function SettingsPage() {
   const usersByID = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
   const groupsByID = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
   const assetsByID = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
+  const grantAssetAccounts = assetAccounts(assetsByID.get(grantAssetID));
+  const selectedGrantAccount =
+    grantScope === "asset"
+      ? grantAssetAccounts.includes(grantAccount)
+        ? grantAccount
+        : grantAssetAccounts[0] || ""
+      : grantAccount.trim();
   const nodesByID = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const grantNodeAssets = useMemo(() => {
     const inScope = nodeDescendants(nodes, grantNodeID);
     return assets.filter((asset) => asset.node_id && inScope.has(asset.node_id));
   }, [assets, grantNodeID, nodes]);
   const grantNodeAccounts = useMemo(
-    () => [...new Set(grantNodeAssets.map((asset) => asset.username))].sort(),
+    () => [...new Set(grantNodeAssets.flatMap(assetAccounts))].sort(),
     [grantNodeAssets],
   );
 
@@ -551,8 +566,9 @@ export default function SettingsPage() {
     event.preventDefault();
     const subjectID = grantTarget === "group" ? grantGroupID : grantUserID;
     const scopeID = grantScope === "node" ? grantNodeID : grantAssetID;
-    const account =
-      grantScope === "asset" ? assetsByID.get(grantAssetID)?.username : grantAccount.trim();
+    const account = selectedGrantAccount;
+    if (grantScope === "asset" && !assetAccounts(assetsByID.get(grantAssetID)).includes(account))
+      return;
     if (!subjectID || !scopeID || !account || grantActions.length === 0) return;
     setBusy(true);
     setFailed(false);
@@ -1258,21 +1274,42 @@ export default function SettingsPage() {
                     </select>
                   </label>
                   {grantScope === "asset" ? (
-                    <label>
-                      <span>{t("settings.asset")}</span>
-                      <select
-                        required
-                        value={grantAssetID}
-                        onChange={(event) => setGrantAssetID(event.target.value)}
-                      >
-                        <option value="">{t("settings.selectAsset")}</option>
-                        {assets.map((asset) => (
-                          <option key={asset.id} value={asset.id}>
-                            {asset.name} · {asset.username}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <>
+                      <label>
+                        <span>{t("settings.asset")}</span>
+                        <select
+                          required
+                          value={grantAssetID}
+                          onChange={(event) => {
+                            setGrantAssetID(event.target.value);
+                            setGrantAccount(
+                              assetAccounts(assetsByID.get(event.target.value))[0] || "",
+                            );
+                          }}
+                        >
+                          <option value="">{t("settings.selectAsset")}</option>
+                          {assets.map((asset) => (
+                            <option key={asset.id} value={asset.id}>
+                              {asset.name} · {asset.username}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span>{t("settings.sshAccount")}</span>
+                        <select
+                          required
+                          value={selectedGrantAccount}
+                          onChange={(event) => setGrantAccount(event.target.value)}
+                        >
+                          {assetAccounts(assetsByID.get(grantAssetID)).map((account) => (
+                            <option key={account} value={account}>
+                              {account}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
                   ) : (
                     <>
                       <label>
@@ -1361,7 +1398,7 @@ export default function SettingsPage() {
                       ? users.every((user) => user.role !== "operator")
                       : groups.length === 0) ||
                     (grantScope === "asset"
-                      ? !grantAssetID
+                      ? !grantAssetID || !selectedGrantAccount
                       : !grantNodeID || !grantAccount.trim()) ||
                     grantActions.length === 0
                   }
@@ -1587,10 +1624,24 @@ export default function SettingsPage() {
                       required
                       maxLength={128}
                       value={filterDraft.account}
+                      list="command-filter-accounts"
                       onChange={(event) =>
                         setFilterDraft((current) => ({ ...current, account: event.target.value }))
                       }
                     />
+                    <datalist id="command-filter-accounts">
+                      {[
+                        ...new Set(
+                          assets
+                            .filter(
+                              (a) => filterDraft.scope !== "asset" || a.id === filterDraft.assetID,
+                            )
+                            .flatMap(assetAccounts),
+                        ),
+                      ].map((account) => (
+                        <option key={account} value={account} />
+                      ))}
+                    </datalist>
                   </label>
                   <label>
                     <span>{t("settings.filterMatch")}</span>

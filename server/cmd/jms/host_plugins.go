@@ -19,12 +19,12 @@ import (
 	"time"
 )
 
-func runPlugins(args []string) error {
+func runPlugins(args []string, selected ...string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
 	if endpoint == "" {
 		endpoint = "http://127.0.0.1:8080"
 	}
-	client, e := clientFromEnvironment(endpoint)
+	client, e := clientFromEnvironment(endpoint, selected...)
 	if e != nil {
 		return e
 	}

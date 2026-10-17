@@ -2,10 +2,16 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEve
 import { useTranslation } from "react-i18next";
 import { usePermissions } from "../auth/usePermissions";
 import { useAuth } from "../auth/AuthContext";
+import type {
+  AccountChoice,
+  PasswordRotation,
+  SSHKeyRotation,
+} from "../components/managedAccounts";
 
 import RDPSettingsFields, { defaultRDP, type RDPSettings } from "../components/RDPSettingsFields";
 const HostPluginsDialog = lazy(() => import("../components/HostPluginsDialog"));
 const AccountDiscoveryDialog = lazy(() => import("../components/AccountDiscoveryDialog"));
+const ManagedAccountsDialog = lazy(() => import("../components/ManagedAccountsDialog"));
 const RDPDesktopDialog = lazy(() => import("../components/RDPDesktopDialog"));
 const DatabaseConsoleDialog = lazy(() => import("../components/DatabaseConsoleDialog"));
 const KubernetesTerminalDialog = lazy(() => import("../components/KubernetesTerminalDialog"));
@@ -65,28 +71,7 @@ type Monitor = {
   network_sent_bytes_per_second: number;
 };
 
-type PasswordRotation = {
-  shared?: boolean;
-  state: "scheduled" | "due" | "rotating" | "failed" | "recovery_required";
-  last_rotated_at: string;
-  next_rotation_at: string;
-  error_code?: string;
-};
-
 type AssetNode = { id: string; name: string; parent_id?: string };
-
-type SSHKeyRotation = {
-  shared?: boolean;
-  state: string;
-  enabled: boolean;
-  pending: boolean;
-  can_cancel: boolean;
-  request_id?: string;
-  operation_id?: string;
-  expected_revision?: number;
-  next_rotation_at?: string;
-  error_code?: string;
-};
 const isDatabaseProtocol = (protocol?: string) =>
   ["postgresql", "mysql", "mariadb", "sqlserver", "clickhouse", "redis", "mongodb"].includes(
     protocol ?? "",
@@ -124,6 +109,10 @@ const defaultPostgreSQL: PostgreSQLSettings = {
 };
 
 type Asset = {
+  parent_asset_id?: string;
+  account_disabled?: boolean;
+  accounts?: AccountChoice[];
+  selected_account_id?: string;
   rdp?: RDPSettings;
   telnet?: TelnetSettings;
   kubernetes?: KubernetesSettings;
@@ -154,6 +143,27 @@ type Asset = {
   permissions: string[];
   password_rotation?: PasswordRotation;
 };
+
+function operationalAsset(asset: Asset, chosen?: string): Asset {
+  if (!isSSHProtocol(asset.protocol) || !asset.accounts?.length) return asset;
+  const selected =
+    asset.accounts.find((a) => a.id === chosen) ||
+    asset.accounts.find((a) => a.id === asset.selected_account_id) ||
+    asset.accounts[0];
+  return {
+    ...asset,
+    id: selected.id,
+    parent_asset_id: selected.default ? undefined : asset.id,
+    username: selected.username,
+    credential_type: selected.credential_type,
+    key_fingerprint: selected.key_fingerprint,
+    credential_revision: selected.credential_revision,
+    account_disabled: !selected.active,
+    permissions: selected.permissions,
+    password_rotation: selected.password_rotation,
+    ssh_key_rotation: selected.ssh_key_rotation,
+  };
+}
 
 type AssetForm = {
   rdp_settings: RDPSettings;
@@ -292,6 +302,11 @@ export default function AssetInventoryPage() {
   const [credentialBackupsAsset, setCredentialBackupsAsset] = useState<Asset | null>(null);
   const [pluginAsset, setPluginAsset] = useState<Asset | null>(null);
   const [discoveryAsset, setDiscoveryAsset] = useState<Asset | null>(null);
+  const [managedAccountsAsset, setManagedAccountsAsset] = useState<Asset | null>(null);
+  const [managedFinding, setManagedFinding] = useState<
+    { id: string; username: string } | undefined
+  >();
+  const [selectedAccounts, setSelectedAccounts] = useState<Record<string, string>>({});
   const [rdpAsset, setRDPAsset] = useState<Asset | null>(null);
   const [kubernetesAsset, setKubernetesAsset] = useState<Asset | null>(null);
   const [terminalAsset, setTerminalAsset] = useState<Asset | null>(null);
@@ -764,7 +779,8 @@ export default function AssetInventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {visibleAssets.map((asset) => {
+              {visibleAssets.map((physicalAsset) => {
+                const asset = operationalAsset(physicalAsset, selectedAccounts[physicalAsset.id]);
                 const metrics = asset.monitor.metrics;
                 const stateLabel = t(`assets.${asset.monitor.state}`);
                 const nodePath = asset.node_id
@@ -773,7 +789,7 @@ export default function AssetInventoryPage() {
                       .join(" / ")
                   : "";
                 return (
-                  <tr key={asset.id}>
+                  <tr key={physicalAsset.id}>
                     <td>
                       <span className="system-badge">Linux</span>
                     </td>
@@ -789,6 +805,14 @@ export default function AssetInventoryPage() {
                       <div className="asset-name">{asset.name}</div>
                       <div className="asset-subline">
                         {asset.username} · {stateLabel}
+                        {(physicalAsset.accounts?.length || 0) > 1 && (
+                          <>
+                            {" "}
+                            ·{" "}
+                            {t("managedAccounts.count", { count: physicalAsset.accounts!.length })}
+                          </>
+                        )}
+                        {asset.account_disabled && <> · {t("managedAccounts.disabled")}</>}
                         {nodePath ? ` · ${nodePath}` : ""}
                         {canManage && asset.login_review_required
                           ? ` · ${t("assets.loginReviewRequiredShort")}`
@@ -1002,7 +1026,7 @@ export default function AssetInventoryPage() {
                             disabled={
                               Boolean(asset.ssh_key_rotation?.pending) || keyBusyId === asset.id
                             }
-                            onClick={() => openEdit(asset)}
+                            onClick={() => openEdit(physicalAsset)}
                           >
                             {t("assets.edit")}
                           </button>
@@ -1011,13 +1035,28 @@ export default function AssetInventoryPage() {
                           allows("assets.probe") ||
                           allows("assets.rotate") ||
                           allows("assets.backups") ||
-                          (isSSHProtocol(asset.protocol) && allows("accounts.view"))) && (
+                          (isSSHProtocol(asset.protocol) &&
+                            (allows("accounts.view") ||
+                              Boolean(physicalAsset.accounts?.length)))) && (
                           <>
                             <details className="asset-more">
                               <summary className="button-text asset-more-trigger">
                                 {t("assets.more")}
                               </summary>
                               <div className="asset-more-menu">
+                                {isSSHProtocol(asset.protocol) &&
+                                  Boolean(physicalAsset.accounts?.length) && (
+                                    <button
+                                      type="button"
+                                      className="button-text"
+                                      onClick={(event) => {
+                                        closeDetails(event.currentTarget);
+                                        setManagedAccountsAsset(physicalAsset);
+                                      }}
+                                    >
+                                      {t("managedAccounts.open")}
+                                    </button>
+                                  )}
                                 {isSSHProtocol(asset.protocol) && allows("accounts.view") && (
                                   <button
                                     type="button"
@@ -1124,7 +1163,7 @@ export default function AssetInventoryPage() {
                                     className="button-text danger"
                                     onClick={(event) => {
                                       closeDetails(event.currentTarget);
-                                      void deleteAsset(asset);
+                                      void deleteAsset(physicalAsset);
                                     }}
                                   >
                                     {t("assets.delete")}
@@ -1721,11 +1760,16 @@ export default function AssetInventoryPage() {
                     .filter(
                       (asset) => isSSHProtocol(asset.protocol) && asset.id !== editingAsset?.id,
                     )
-                    .map((asset) => (
-                      <option key={asset.id} value={asset.id}>
-                        {asset.name} ({asset.username}@{asset.host})
-                      </option>
-                    ))}
+                    .flatMap((asset) =>
+                      (asset.accounts?.length
+                        ? asset.accounts
+                        : [{ id: asset.id, username: asset.username, active: true }]
+                      ).map((account) => (
+                        <option key={account.id} value={account.id} disabled={!account.active}>
+                          {asset.name} ({account.username}@{asset.host})
+                        </option>
+                      )),
+                    )}
                 </select>
                 <small>{t("assets.gatewayHint")}</small>
               </label>
@@ -1808,6 +1852,30 @@ export default function AssetInventoryPage() {
           </form>
         </div>
       )}
+      {managedAccountsAsset && (
+        <Suspense fallback={null}>
+          <ManagedAccountsDialog
+            assetId={managedAccountsAsset.id}
+            assetName={managedAccountsAsset.name}
+            selectedId={
+              selectedAccounts[managedAccountsAsset.id] ||
+              managedAccountsAsset.selected_account_id ||
+              managedAccountsAsset.id
+            }
+            accessToken={accessToken}
+            discovered={managedFinding}
+            onChanged={() => void loadAssets()}
+            onSelect={async (account) => {
+              await loadAssets();
+              setSelectedAccounts((v) => ({ ...v, [managedAccountsAsset.id]: account.id }));
+            }}
+            onClose={() => {
+              setManagedAccountsAsset(null);
+              setManagedFinding(undefined);
+            }}
+          />
+        </Suspense>
+      )}
       {discoveryAsset && (
         <Suspense fallback={null}>
           <AccountDiscoveryDialog
@@ -1815,6 +1883,15 @@ export default function AssetInventoryPage() {
             assetName={discoveryAsset.name}
             accessToken={accessToken}
             canConnect={Boolean(discoveryAsset.permissions?.includes("connect"))}
+            onManage={(finding) => {
+              const parent = assets.find(
+                (a) => a.id === (discoveryAsset.parent_asset_id || discoveryAsset.id),
+              );
+              if (!parent) return;
+              setManagedFinding(finding);
+              setManagedAccountsAsset(parent);
+              setDiscoveryAsset(null);
+            }}
             onClose={() => setDiscoveryAsset(null)}
           />
         </Suspense>

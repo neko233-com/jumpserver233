@@ -23,6 +23,25 @@ func discoveryFixture(t *testing.T) (*Store, Source, Actor, []hostagent.Account)
 	return s, Source{AssetID: "asset-qa", Binding: strings.Repeat("a", 64), Account: "ops"}, Actor{ID: "u", Name: "Collector"}, []hostagent.Account{{Username: "ops", UID: 1000, GID: 1000, Home: "/home/ops", Shell: "/bin/bash"}, {Username: "root", UID: 0, GID: 0, Home: "/root", Shell: "/bin/bash"}}
 }
 func jobID(n int) string { return fmt.Sprintf("job-%032x", n) }
+func TestDiscoveryFindingRejectsMissingReusedUIDAndChangedHost(t *testing.T) {
+	s, src, actor, rows := discoveryFixture(t)
+	_, e := s.Import(src, actor, jobID(1), hostagent.AccountDigest(rows), rows)
+	require.NoError(t, e)
+	id := findingID(src.Binding, rows[0])
+	f, e := s.Finding(src, id)
+	require.NoError(t, e)
+	assert.Equal(t, rows[0], f.Account)
+	rows[0].UID++
+	_, e = s.Import(src, actor, jobID(2), hostagent.AccountDigest(rows), rows)
+	require.NoError(t, e)
+	_, e = s.Finding(src, id)
+	assert.ErrorIs(t, e, ErrInvalid)
+	_, e = s.Finding(src, findingID(src.Binding, rows[0]))
+	require.NoError(t, e)
+	src.Binding = strings.Repeat("b", 64)
+	_, e = s.Finding(src, id)
+	assert.ErrorIs(t, e, ErrConflict)
+}
 func TestDiscoveryPersistsReviewsMissingAccountsAndStableIdentity(t *testing.T) {
 	s, src, actor, rows := discoveryFixture(t)
 	summary, e := s.Import(src, actor, jobID(1), hostagent.AccountDigest(rows), rows)

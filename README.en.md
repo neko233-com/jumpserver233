@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+SSH hosts support independently managed credentials, discovery association, account grants and seven-day rotation. Web SSH, SFTP, workbench and platform CLI use the selected identity. See [Managed SSH accounts](./docs/MANAGED-ACCOUNTS.en.md).
+
 Linux account discovery adds a native Go collector, jobs, approvals, human review and encrypted history, with pinned SSH gateways, Web/CLI and PostgreSQL active/standby state storage. See [Account discovery](./docs/ACCOUNT-DISCOVERY.en.md) for remaining account-management scope.
 
 Live RDP desktops support independently authorized read-only monitoring, viewer audit and CLI captures. Closing a viewer preserves the source. See [Live RDP monitoring](./docs/RDP-LIVE-MONITOR.en.md) for permissions, bounds and real screenshots.

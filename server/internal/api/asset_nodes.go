@@ -30,10 +30,21 @@ func registerAssetNodeRoutes(mux *http.ServeMux, nodes *corenodes.Store, assets 
 				groupIDs = groups.GroupIDsForUser(principal.ID)
 			}
 			if grants != nil {
+				accounts := assets.AccountChoices()
 				for _, item := range assets.List() {
 					ancestors := nodes.AncestorIDs(item.NodeID)
-					permissions := grants.ActionsForScopes(principal.ID, groupIDs, item.ID, ancestors, item.Username, time.Now().UTC())
-					if !hasAction(permissions, "view") {
+					usernames := []string{item.Username}
+					for _, a := range accounts[item.ID] {
+						if a.Username != item.Username {
+							usernames = append(usernames, a.Username)
+						}
+					}
+					visible := false
+					for _, username := range usernames {
+						permissions := grants.ActionsForScopes(principal.ID, groupIDs, item.ID, ancestors, username, time.Now().UTC())
+						visible = visible || hasAction(permissions, "view")
+					}
+					if !visible {
 						continue
 					}
 					for _, nodeID := range ancestors {

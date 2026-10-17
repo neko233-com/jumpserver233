@@ -37,36 +37,42 @@ const maxCredentialBackups = 10
 // Asset contains non-secret inventory fields. Credential material is encrypted
 // separately and never appears in API representations.
 type Asset struct {
-	RDP                 *rdpclient.Settings    `json:"rdp,omitempty"`
-	Telnet              *telnetclient.Settings `json:"telnet,omitempty"`
-	Kubernetes          *kubeclient.Settings   `json:"kubernetes,omitempty"`
-	Protocol            string                 `json:"protocol,omitempty"`
-	PostgreSQL          *sqlclient.Settings    `json:"postgresql,omitempty"`
-	MySQL               *sqlclient.Settings    `json:"mysql,omitempty"`
-	SQLServer           *sqlclient.Settings    `json:"sqlserver,omitempty"`
-	ClickHouse          *sqlclient.Settings    `json:"clickhouse,omitempty"`
-	Redis               *sqlclient.Settings    `json:"redis,omitempty"`
-	MongoDB             *sqlclient.Settings    `json:"mongodb,omitempty"`
-	CredentialRevision  uint64                 `json:"credential_revision"`
-	KeyRotationEnabled  bool                   `json:"key_rotation_enabled,omitempty"`
-	KeyRotatedAt        time.Time              `json:"key_rotated_at,omitempty"`
-	GatewayID           string                 `json:"gateway_id,omitempty"`
-	GatewayIDs          []string               `json:"-"`
-	CredentialType      string                 `json:"credential_type,omitempty"`
-	KeyFingerprint      string                 `json:"key_fingerprint,omitempty"`
-	ID                  string                 `json:"id"`
-	Name                string                 `json:"name"`
-	Host                string                 `json:"host"`
-	Group               string                 `json:"group"`
-	NodeID              string                 `json:"node_id,omitempty"`
-	Username            string                 `json:"username"`
-	HostKeyFingerprint  string                 `json:"host_key_fingerprint"`
-	Port                int                    `json:"port"`
-	Remark              string                 `json:"remark"`
-	LoginReviewRequired bool                   `json:"login_review_required,omitempty"`
-	CreatedAt           time.Time              `json:"created_at"`
-	UpdatedAt           time.Time              `json:"updated_at"`
-	PasswordRotatedAt   time.Time              `json:"-"`
+	ParentAssetID            string                 `json:"parent_asset_id,omitempty"`
+	AccountName              string                 `json:"account_name,omitempty"`
+	AccountRemark            string                 `json:"account_remark,omitempty"`
+	AccountDiscoveryID       string                 `json:"account_discovery_id,omitempty"`
+	AccountDisabled          bool                   `json:"account_disabled,omitempty"`
+	PasswordRotationDisabled bool                   `json:"password_rotation_disabled,omitempty"`
+	RDP                      *rdpclient.Settings    `json:"rdp,omitempty"`
+	Telnet                   *telnetclient.Settings `json:"telnet,omitempty"`
+	Kubernetes               *kubeclient.Settings   `json:"kubernetes,omitempty"`
+	Protocol                 string                 `json:"protocol,omitempty"`
+	PostgreSQL               *sqlclient.Settings    `json:"postgresql,omitempty"`
+	MySQL                    *sqlclient.Settings    `json:"mysql,omitempty"`
+	SQLServer                *sqlclient.Settings    `json:"sqlserver,omitempty"`
+	ClickHouse               *sqlclient.Settings    `json:"clickhouse,omitempty"`
+	Redis                    *sqlclient.Settings    `json:"redis,omitempty"`
+	MongoDB                  *sqlclient.Settings    `json:"mongodb,omitempty"`
+	CredentialRevision       uint64                 `json:"credential_revision"`
+	KeyRotationEnabled       bool                   `json:"key_rotation_enabled,omitempty"`
+	KeyRotatedAt             time.Time              `json:"key_rotated_at,omitempty"`
+	GatewayID                string                 `json:"gateway_id,omitempty"`
+	GatewayIDs               []string               `json:"-"`
+	CredentialType           string                 `json:"credential_type,omitempty"`
+	KeyFingerprint           string                 `json:"key_fingerprint,omitempty"`
+	ID                       string                 `json:"id"`
+	Name                     string                 `json:"name"`
+	Host                     string                 `json:"host"`
+	Group                    string                 `json:"group"`
+	NodeID                   string                 `json:"node_id,omitempty"`
+	Username                 string                 `json:"username"`
+	HostKeyFingerprint       string                 `json:"host_key_fingerprint"`
+	Port                     int                    `json:"port"`
+	Remark                   string                 `json:"remark"`
+	LoginReviewRequired      bool                   `json:"login_review_required,omitempty"`
+	CreatedAt                time.Time              `json:"created_at"`
+	UpdatedAt                time.Time              `json:"updated_at"`
+	PasswordRotatedAt        time.Time              `json:"-"`
 }
 
 // Input is the create/update payload. Password is write-only.
@@ -104,6 +110,7 @@ type encryptedSecret struct {
 }
 
 type storedAsset struct {
+	AccountAudit           []AccountAudit    `json:"account_audit,omitempty"`
 	PendingKeyChange       *pendingKeyChange `json:"pending_key_change,omitempty"`
 	KeyLastAttemptAt       time.Time         `json:"key_last_attempt_at,omitempty"`
 	KeyLastError           string            `json:"key_last_error,omitempty"`
@@ -267,7 +274,13 @@ func openStore(path string, key []byte, documents *storage.Documents) (*Store, e
 			}
 		}
 		record.Asset.PasswordRotatedAt = record.PasswordRotatedAt
+		if _, duplicate := store.assets[record.ID]; duplicate {
+			return nil, fmt.Errorf("duplicate asset or account ID")
+		}
 		store.assets[record.ID] = record
+	}
+	if err := store.materializeAccountsLocked(); err != nil {
+		return nil, err
 	}
 	if err := store.validateGatewaysLocked(); err != nil {
 		return nil, err
@@ -300,6 +313,9 @@ func (s *Store) Create(asset Asset, password string) (Asset, error) {
 	return s.CreateCredentials(asset, sshclient.Credentials{Password: password})
 }
 func (s *Store) CreateCredentials(asset Asset, c sshclient.Credentials) (Asset, error) {
+	return s.createCredentials(asset, c, "", nil)
+}
+func (s *Store) createCredentials(asset Asset, c sshclient.Credentials, parentVersion string, actor *AccountActor) (Asset, error) {
 	asset = cloneAsset(asset)
 	if e := validateProtocolAsset(asset); e != nil {
 		return Asset{}, e
@@ -308,6 +324,12 @@ func (s *Store) CreateCredentials(asset Asset, c sshclient.Credentials) (Asset, 
 	defer s.mu.Unlock()
 	if _, ok := s.assets[asset.ID]; ok {
 		return Asset{}, fmt.Errorf("asset ID already exists")
+	}
+	if asset.ParentAssetID != "" {
+		parent, ok := s.assets[asset.ParentAssetID]
+		if !ok || parentVersion == "" || accountVersion(parent.Asset) != parentVersion {
+			return Asset{}, ErrCredentialChanged
+		}
 	}
 	asset.CredentialRevision = 1
 	secret, e := s.sealCredentials(&asset, c)
@@ -324,6 +346,15 @@ func (s *Store) CreateCredentials(asset Asset, c sshclient.Credentials) (Asset, 
 		asset.KeyRotatedAt = asset.PasswordRotatedAt
 	}
 	s.assets[asset.ID] = storedAsset{Asset: asset, Credential: secret, PasswordRotatedAt: asset.PasswordRotatedAt}
+	if actor != nil {
+		r := s.assets[asset.ID]
+		r.AccountAudit = []AccountAudit{newAccountAudit("created", *actor, asset, "", accountVersion(asset))}
+		s.assets[asset.ID] = r
+	}
+	if e = s.materializeAccountsLocked(); e != nil {
+		delete(s.assets, asset.ID)
+		return Asset{}, e
+	}
 	if e = s.validateGatewaysLocked(); e != nil {
 		delete(s.assets, asset.ID)
 		return Asset{}, e
@@ -345,6 +376,9 @@ func (s *Store) Update(asset Asset, password string) (Asset, error) {
 	return s.UpdateCredentials(asset, replacement)
 }
 func (s *Store) UpdateCredentials(asset Asset, replacement *sshclient.Credentials) (Asset, error) {
+	return s.updateCredentials(asset, replacement, "", nil)
+}
+func (s *Store) updateCredentials(asset Asset, replacement *sshclient.Credentials, version string, actor *AccountActor) (Asset, error) {
 	asset = cloneAsset(asset)
 	if e := validateProtocolAsset(asset); e != nil {
 		return Asset{}, e
@@ -354,6 +388,12 @@ func (s *Store) UpdateCredentials(asset Asset, replacement *sshclient.Credential
 	previous, ok := s.assets[asset.ID]
 	if !ok {
 		return Asset{}, ErrNotFound
+	}
+	if previous.ParentAssetID != asset.ParentAssetID || version != "" && accountVersion(previous.Asset) != version {
+		return Asset{}, ErrCredentialChanged
+	}
+	if actor != nil && len(previous.AccountAudit) >= maxAccountAudit {
+		return Asset{}, ErrAccountCapacity
 	}
 	if Protocol(asset) != Protocol(previous.Asset) {
 		return Asset{}, ErrUnsupportedProtocol
@@ -399,13 +439,23 @@ func (s *Store) UpdateCredentials(asset Asset, replacement *sshclient.Credential
 		asset.KeyRotatedAt = previous.KeyRotatedAt
 	}
 	record.Asset = asset
+	if actor != nil {
+		record.AccountAudit = append(append([]AccountAudit(nil), previous.AccountAudit...), newAccountAudit("updated", *actor, asset, accountVersion(previous.Asset), accountVersion(asset)))
+	}
 	s.assets[asset.ID] = record
+	if e := s.materializeAccountsLocked(); e != nil {
+		s.assets[asset.ID] = previous
+		_ = s.materializeAccountsLocked()
+		return Asset{}, e
+	}
 	if e := s.validateGatewaysLocked(); e != nil {
 		s.assets[asset.ID] = previous
+		_ = s.materializeAccountsLocked()
 		return Asset{}, e
 	}
 	if e := s.persistLocked(); e != nil {
 		s.assets[asset.ID] = previous
+		_ = s.materializeAccountsLocked()
 		return Asset{}, e
 	}
 	return cloneAsset(asset), nil
@@ -425,6 +475,9 @@ func (s *Store) Delete(id string) error {
 		return ErrRotationPending
 	}
 	for _, r := range s.assets {
+		if r.ParentAssetID == id {
+			return ErrAccountInUse
+		}
 		if r.GatewayID == id {
 			return ErrGatewayInUse
 		}
@@ -818,7 +871,7 @@ func (s *Store) persistLocked() error {
 	}
 	records := make([]storedAsset, 0, len(s.assets))
 	for _, record := range s.assets {
-		records = append(records, record)
+		records = append(records, persistedAsset(record))
 	}
 	sort.Slice(records, func(i, j int) bool { return records[i].ID < records[j].ID })
 	data, err := json.MarshalIndent(records, "", "  ")
@@ -855,7 +908,7 @@ func (s *Store) persistLocked() error {
 func (s *Store) persistDocumentLocked() error {
 	records := make([]storedAsset, 0, len(s.assets))
 	for _, record := range s.assets {
-		records = append(records, record)
+		records = append(records, persistedAsset(record))
 	}
 	sort.Slice(records, func(i, j int) bool { return records[i].ID < records[j].ID })
 	data, err := json.Marshal(records)

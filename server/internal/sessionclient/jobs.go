@@ -12,8 +12,25 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 )
 
+type APIError struct {
+	StatusCode int
+	Detail     string
+}
+
+func (e *APIError) Error() string { return "SSH job API: " + e.Detail }
+
 func (c *Client) SubmitJob(ctx context.Context, input jobs.Input) (jobs.Job, error) {
 	var result jobs.Job
+	if c.managedAccount != "" {
+		if _, e := jobs.Validate(input); e != nil {
+			return result, e
+		}
+		id, e := c.selectedAsset(ctx, input.AssetID)
+		if e != nil {
+			return result, e
+		}
+		input.AssetID = id
+	}
 	err := c.jobRequest(ctx, http.MethodPost, "/api/v1/ops/jobs", input, &result)
 	return result, err
 }
@@ -26,6 +43,10 @@ func (c *Client) CancelJob(ctx context.Context, id string) error {
 	return c.jobRequest(ctx, http.MethodDelete, "/api/v1/ops/jobs/"+url.PathEscape(id), nil, nil)
 }
 func (c *Client) jobRequest(ctx context.Context, method, path string, input, output any) error {
+	path, selectionErr := c.selectedAccountPath(ctx, path)
+	if selectionErr != nil {
+		return selectionErr
+	}
 	endpoint := *c.serverURL
 	target, err := url.Parse(path)
 	if err != nil || target.IsAbs() || target.Host != "" {
@@ -73,7 +94,7 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 		if problem.Detail == "" {
 			problem.Detail = resp.Status
 		}
-		return fmt.Errorf("SSH job API: %s", problem.Detail)
+		return &APIError{StatusCode: resp.StatusCode, Detail: problem.Detail}
 	}
 	if output != nil {
 		return json.NewDecoder(io.LimitReader(resp.Body, 1024*1024)).Decode(output)

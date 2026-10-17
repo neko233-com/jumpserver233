@@ -19,12 +19,12 @@ import (
 
 const accountsUsage = "usage: jms accounts list|audit ASSET [--offset N] [--limit 50] | jms accounts discover ASSET [--request-id ID] [--review-id ID] [--timeout 180] [--no-wait] | jms accounts review ASSET FINDING --state acknowledged|ignored|unreviewed --revision N [--note TEXT] | jms accounts job|cancel JOB"
 
-func runAccounts(args []string) error {
+func runAccounts(args []string, selected ...string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
 	if endpoint == "" {
 		endpoint = "http://127.0.0.1:8080"
 	}
-	c, e := clientFromEnvironment(endpoint)
+	c, e := clientFromEnvironment(endpoint, selected...)
 	if e != nil {
 		return e
 	}

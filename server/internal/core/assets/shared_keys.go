@@ -466,16 +466,20 @@ func (s *Service) promoteKeyChange(ctx context.Context, id, operationID string, 
 				return e
 			}
 		}
-		_, target, _, e := st.connection(m.AssetID)
-		if e != nil {
-			return e
-		}
-		verify := s.verifyPassword
-		if service := c.services[m.Scope]; service != nil {
-			verify = service.verifyPassword
-		}
-		if e = verify(ctx, target, data.New, 8*time.Second); e != nil {
-			return e
+		// The initiating active route is verified before promotion. Disabled copies
+		// retain the shared credential but must never open a remote connection.
+		if !a.AccountDisabled {
+			_, target, _, e := st.connection(m.AssetID)
+			if e != nil {
+				return e
+			}
+			verify := s.verifyPassword
+			if service := c.services[m.Scope]; service != nil {
+				verify = service.verifyPassword
+			}
+			if e = verify(ctx, target, data.New, 8*time.Second); e != nil {
+				return e
+			}
 		}
 		if e = st.CommitSSHKeyChange(m.AssetID, o.ID); e != nil {
 			return e

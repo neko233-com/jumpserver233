@@ -35,7 +35,7 @@ func authorizeTerminalAsset(d Dependencies, u coreauth.User, id, protocol string
 	if d.Nodes != nil {
 		nodes = d.Nodes.AncestorIDs(a.NodeID)
 	}
-	if !effectivePermissions(u, d.RBAC, d.Groups).Allows("assets.connect_all") && (d.Grants == nil || !d.Grants.AllowsForScopes(u.ID, groups, a.ID, nodes, a.Username, "connect", time.Now().UTC())) {
+	if !effectivePermissions(u, d.RBAC, d.Groups).Allows("assets.connect_all") && (d.Grants == nil || !d.Grants.AllowsForScopes(u.ID, groups, assets.ResourceID(a), nodes, a.Username, "connect", time.Now().UTC())) {
 		return a, accesspolicies.ErrDenied
 	}
 	for current, hops := a, 0; ; hops++ {
@@ -178,7 +178,7 @@ func registerKubernetesRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync
 				if d.Nodes != nil {
 					nodes = d.Nodes.AncestorIDs(current.NodeID)
 				}
-				decision := d.CommandFilters.Decide(commandfilters.Scope{UserID: u.ID, GroupIDs: groups, AssetID: a.ID, NodeIDs: nodes, Account: a.Username}, command, supported, at)
+				decision := d.CommandFilters.Decide(commandfilters.Scope{UserID: u.ID, GroupIDs: groups, AssetID: assets.ResourceID(a), NodeIDs: nodes, Account: a.Username}, command, supported, at)
 				return gateway.CommandPolicyDecision{Allowed: decision.Allowed, RequireReview: decision.Action == commandfilters.ActionReview, RuleName: decision.RuleName}
 			}
 		}

@@ -42,7 +42,7 @@ func registerFileRoutes(mux *http.ServeMux, service *corefiles.Service, assets *
 				if nodes != nil {
 					nodeIDs = nodes.AncestorIDs(asset.NodeID)
 				}
-				allowed := grants != nil && grants.AllowsForScopes(principal.ID, groupIDs, asset.ID, nodeIDs, asset.Username, "sftp", time.Now().UTC())
+				allowed := grants != nil && grants.AllowsForScopes(principal.ID, groupIDs, coreassets.ResourceID(asset), nodeIDs, asset.Username, "sftp", time.Now().UTC())
 				accessMu.RUnlock()
 				if !allowed {
 					writeJSON(w, http.StatusForbidden, map[string]string{"detail": "sftp access is not granted"})

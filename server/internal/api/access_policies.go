@@ -95,14 +95,14 @@ func policyScope(d Dependencies, user coreauth.User, asset coreassets.Asset, kin
 		scope.GroupIDs = d.Groups.GroupIDsForUser(user.ID)
 	}
 	if kind == accesspolicies.Asset {
-		scope.AssetID = asset.ID
+		scope.AssetID = coreassets.ResourceID(asset)
 		scope.Account = asset.Username
 		if d.Nodes != nil {
 			scope.NodeIDs = d.Nodes.AncestorIDs(asset.NodeID)
 		}
 	}
 	if kind == accesspolicies.Method {
-		scope.AssetID = asset.ID
+		scope.AssetID = coreassets.ResourceID(asset)
 		scope.Account = asset.Username
 	}
 	return scope

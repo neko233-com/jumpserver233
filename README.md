@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+SSH 主机支持独立多账号凭据托管、发现记录关联、账号级授权与七天轮换；Web SSH、SFTP、工作台和平台 CLI 共用所选身份。见 [SSH 多账号托管](./docs/MANAGED-ACCOUNTS.md)。
+
 Linux 账号收集已接入原生 Go 组件、后台作业、审批、人工确认与加密记录，支持固定 SSH 网关、Web/CLI 和 PostgreSQL 单活状态存储。见 [账号收集](./docs/ACCOUNT-DISCOVERY.md)及其剩余账号托管范围。
 
 RDP 活动桌面支持独立权限的只读实时监看、观看者审计与 CLI 截图，关闭监看保留原连接。权限、资源限制和真实截图见 [RDP 实时监看](./docs/RDP-LIVE-MONITOR.md)。

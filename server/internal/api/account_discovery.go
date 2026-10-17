@@ -74,12 +74,12 @@ func discoverySource(d Dependencies, r *http.Request) (accountdiscovery.Source, 
 		if d.Nodes != nil {
 			nodes = d.Nodes.AncestorIDs(a.NodeID)
 		}
-		visible = d.Grants != nil && d.Grants.AllowsForScopes(u.ID, groups, a.ID, nodes, a.Username, "view", time.Now().UTC())
+		visible = d.Grants != nil && d.Grants.AllowsForScopes(u.ID, groups, assets.ResourceID(a), nodes, a.Username, "view", time.Now().UTC())
 	}
 	if !visible || !discoveryPoliciesAllowed(d, u, a, accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(r.Context()), Method: "exec"}) {
 		return accountdiscovery.Source{}, false
 	}
-	return accountdiscovery.Source{AssetID: a.ID, Binding: discoveryIdentity(a), Account: a.Username}, true
+	return accountdiscovery.Source{AssetID: assets.ResourceID(a), Binding: discoveryIdentity(a), Account: a.Username}, true
 }
 func writeDiscoveryError(w http.ResponseWriter, e error) {
 	status := 503
@@ -132,7 +132,11 @@ func registerAccountDiscoveryRoutes(mux *http.ServeMux, d Dependencies, submit f
 		if e = guardLocked(j); e != nil {
 			return discoveryFailure(e)
 		}
-		summary, e := d.AccountDiscovery.Import(accountdiscovery.Source{AssetID: j.AssetID, Binding: j.Discovery.Target, Account: j.Account}, accountdiscovery.Actor{ID: j.OperatorID, Name: j.Operator}, j.ID, digest, rows)
+		a, e := d.Assets.Get(j.AssetID)
+		if e != nil {
+			return discoveryFailure(e)
+		}
+		summary, e := d.AccountDiscovery.Import(accountdiscovery.Source{AssetID: assets.ResourceID(a), Binding: j.Discovery.Target, Account: j.Account}, accountdiscovery.Actor{ID: j.OperatorID, Name: j.Operator}, j.ID, digest, rows)
 		if e != nil {
 			return discoveryFailure(e)
 		}

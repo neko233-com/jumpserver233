@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+独立加密的具名 SSH 凭据、发现记录关联、授权和七天轮换见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。
+
 原生 Linux 账号收集、审批、确认状态、元数据保护与 CLI 见 [账号收集](./ACCOUNT-DISCOVERY.md)。
 
 独立 RDP 实时只读监看、观看者审计、CLI 截图和权限边界见 [RDP 实时监看](./RDP-LIVE-MONITOR.md)。

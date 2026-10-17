@@ -2,6 +2,8 @@
 
 > [中文](./PASSWORD-ROTATION.md) | English
 
+Primary and named SSH accounts on one host have independent enablement, seven-day policies and encrypted credentials. Shared passwords still synchronize to disabled copies: [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md).
+
 SSH key installation, verified rotation, opt-in seven-day scheduling and persistent staged recovery are described in [SSH key rotation](./SSH-KEY-ROTATION.en.md).
 
 Targets and gateways support imported SSH private keys with write-only input, vault encryption, public fingerprints and verified history restore. Password rotation remains password-specific. See [SSH private keys](./SSHKEYS.en.md).

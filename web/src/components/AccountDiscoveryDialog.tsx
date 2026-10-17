@@ -40,12 +40,14 @@ export default function AccountDiscoveryDialog({
   accessToken,
   canConnect,
   onClose,
+  onManage,
 }: {
   assetId: string;
   assetName: string;
   accessToken: string;
   canConnect: boolean;
   onClose: () => void;
+  onManage?: (finding: { id: string; username: string }) => void;
 }) {
   const { t, i18n } = useTranslation();
   const { allows } = usePermissions();
@@ -316,6 +318,11 @@ export default function AccountDiscoveryDialog({
                   </td>
                   <td>{t(`accountDiscovery.states.${row.review}`)}</td>
                   <td>
+                    {row.present && allows("accounts.manage") && onManage && (
+                      <button type="button" className="button-text" onClick={() => onManage(row)}>
+                        {t("managedAccounts.manageDiscovered")}
+                      </button>
+                    )}
                     {allows("accounts.review") && (
                       <button
                         type="button"

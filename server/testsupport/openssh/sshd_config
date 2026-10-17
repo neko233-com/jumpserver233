@@ -11,7 +11,7 @@ UsePAM no
 UseDNS no
 StrictModes yes
 AuthorizedKeysFile .ssh/authorized_keys
-AllowUsers keyqa keyha rotationqa rotationha sharedkeyqa sharedkeyha pluginqa
+AllowUsers keyqa keyha rotationqa rotationha sharedkeyqa sharedkeyha pluginqa managedqa_*
 AllowTcpForwarding yes
 PrintMotd no
 LogLevel ERROR

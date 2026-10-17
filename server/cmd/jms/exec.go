@@ -24,12 +24,12 @@ type remoteExitError struct{ Code int }
 func (e *remoteExitError) Error() string {
 	return fmt.Sprintf("remote command exited with status %d", e.Code)
 }
-func runExec(args []string) error {
+func runExec(args []string, selected ...string) error {
 	serverURL := os.Getenv("JMS_SERVER_URL")
 	if serverURL == "" {
 		serverURL = "http://127.0.0.1:8080"
 	}
-	client, err := clientFromEnvironment(serverURL)
+	client, err := clientFromEnvironment(serverURL, selected...)
 	if err != nil {
 		return err
 	}

@@ -45,6 +45,9 @@ func (s *Service) sshKeyRotationStatus(asset Asset) *SSHKeyRotationStatus {
 		return nil
 	}
 	status := SSHKeyRotationStatus{State: "disabled", Enabled: asset.KeyRotationEnabled, ErrorCode: record.KeyLastError}
+	if asset.AccountDisabled && record.PendingKeyChange == nil {
+		return &status
+	}
 	if !asset.KeyRotatedAt.IsZero() {
 		last := asset.KeyRotatedAt
 		status.LastRotatedAt = &last
@@ -113,6 +116,8 @@ func (s *Service) claimKeyChange(id string) error {
 	}
 	if a, ok := s.find(id); !ok {
 		return ErrNotFound
+	} else if a.AccountDisabled {
+		return ErrAccountDisabled
 	} else if !IsSSH(a) {
 		return ErrUnsupportedProtocol
 	}
@@ -456,7 +461,7 @@ func (s *Service) RotateDueSSHKeys(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		if asset.CredentialType != CredentialSSHKey || !asset.KeyRotationEnabled || s.store.HasPendingSSHKeyChange(asset.ID) || time.Now().UTC().Before(asset.KeyRotatedAt.Add(SSHKeyRotationInterval)) || s.keyChangeCoolingDown(asset.ID, time.Now().UTC()) {
+		if asset.AccountDisabled || asset.CredentialType != CredentialSSHKey || !asset.KeyRotationEnabled || s.store.HasPendingSSHKeyChange(asset.ID) || time.Now().UTC().Before(asset.KeyRotatedAt.Add(SSHKeyRotationInterval)) || s.keyChangeCoolingDown(asset.ID, time.Now().UTC()) {
 			continue
 		}
 		var token [16]byte

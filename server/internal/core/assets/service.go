@@ -39,10 +39,12 @@ type MonitorStatus struct {
 // ListItem combines an asset's public inventory fields with its current status.
 type ListItem struct {
 	Asset
-	Monitor          MonitorStatus           `json:"monitor"`
-	Permissions      []string                `json:"permissions"`
-	PasswordRotation *PasswordRotationStatus `json:"password_rotation,omitempty"`
-	SSHKeyRotation   *SSHKeyRotationStatus   `json:"ssh_key_rotation,omitempty"`
+	Accounts          []AccountChoice         `json:"accounts,omitempty"`
+	SelectedAccountID string                  `json:"selected_account_id,omitempty"`
+	Monitor           MonitorStatus           `json:"monitor"`
+	Permissions       []string                `json:"permissions"`
+	PasswordRotation  *PasswordRotationStatus `json:"password_rotation,omitempty"`
+	SSHKeyRotation    *SSHKeyRotationStatus   `json:"ssh_key_rotation,omitempty"`
 }
 
 type ProbeFunc func(context.Context, sshclient.Target, sshclient.Credentials, time.Duration) (sshclient.Metrics, error)
@@ -80,6 +82,9 @@ func (s *Service) List() []ListItem {
 	s.mu.RLock()
 	items := make([]ListItem, 0, len(assets))
 	for _, asset := range assets {
+		if asset.ParentAssetID != "" {
+			continue
+		}
 		status, exists := s.status[asset.ID]
 		if !exists {
 			status.State = "unknown"
@@ -142,6 +147,12 @@ func (s *Service) Update(id string, input Input) (Asset, error) {
 	if !exists {
 		return Asset{}, ErrNotFound
 	}
+	if current.ParentAssetID != "" {
+		return Asset{}, ErrInvalidInput
+	}
+	if e := s.accountChildrenBlocked(id); e != nil {
+		return Asset{}, e
+	}
 	if input.Protocol == "" {
 		input.Protocol = current.Protocol
 	}
@@ -193,6 +204,12 @@ func (s *Service) Update(id string, input Input) (Asset, error) {
 	}
 	asset.CredentialType = kind
 	asset.KeyFingerprint = pin
+	asset.AccountName, asset.AccountRemark = current.AccountName, current.AccountRemark
+	asset.AccountDiscoveryID = current.AccountDiscoveryID
+	if asset.Username != current.Username || asset.Host != current.Host || asset.Port != current.Port || asset.HostKeyFingerprint != current.HostKeyFingerprint {
+		asset.AccountDiscoveryID = ""
+	}
+	asset.AccountDisabled, asset.PasswordRotationDisabled = current.AccountDisabled, current.PasswordRotationDisabled
 	if e := applyKeyRotationPolicy(&asset, input, &current); e != nil {
 		return Asset{}, e
 	}
@@ -217,6 +234,9 @@ func (s *Service) Update(id string, input Input) (Asset, error) {
 }
 
 func (s *Service) Delete(id string) error {
+	if a, ok := s.find(id); ok && a.ParentAssetID != "" {
+		return ErrInvalidInput
+	}
 	if s.passwordCoordinator != nil {
 		s.passwordCoordinator.mu.Lock()
 		defer s.passwordCoordinator.mu.Unlock()
@@ -243,6 +263,9 @@ func (s *Service) Get(id string) (Asset, error) {
 	asset, exists := s.find(id)
 	if !exists {
 		return Asset{}, ErrNotFound
+	}
+	if asset.AccountDisabled {
+		return Asset{}, ErrAccountDisabled
 	}
 	return asset, nil
 }
@@ -385,6 +408,9 @@ func (s *Service) RefreshAll(ctx context.Context) {
 	limit := make(chan struct{}, 8)
 	var workers sync.WaitGroup
 	for _, asset := range assets {
+		if asset.ParentAssetID != "" || asset.AccountDisabled {
+			continue
+		}
 		select {
 		case <-ctx.Done():
 			workers.Wait()
@@ -426,12 +452,7 @@ func (s *Service) Run(ctx context.Context, interval time.Duration) {
 }
 
 func (s *Service) find(id string) (Asset, bool) {
-	for _, asset := range s.store.List() {
-		if asset.ID == id {
-			return asset, true
-		}
-	}
-	return Asset{}, false
+	return s.store.lookup(id)
 }
 
 func (s *Service) recordMetrics(id string, metrics sshclient.Metrics, at time.Time) MonitorStatus {

@@ -45,6 +45,9 @@ func (s *Store) connectionForProtocol(id string, requireSSH bool) (Asset, sshcli
 	if !ok {
 		return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrNotFound
 	}
+	if record.AccountDisabled {
+		return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrAccountDisabled
+	}
 	if requireSSH && !IsSSH(record.Asset) {
 		return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrUnsupportedProtocol
 	}
@@ -68,6 +71,9 @@ func (s *Store) connectionForProtocol(id string, requireSSH bool) (Asset, sshcli
 		}
 		if !IsSSH(gateway.Asset) {
 			return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrUnsupportedProtocol
+		}
+		if gateway.AccountDisabled {
+			return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrAccountDisabled
 		}
 		if gateway.PendingRotation != nil || gateway.PendingKeyChange != nil {
 			return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrRotationPending

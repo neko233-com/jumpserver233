@@ -18,12 +18,13 @@ import (
 )
 
 type Client struct {
-	serverURL    *url.URL
-	organization string
-	token        string
-	keyID        string
-	secret       string
-	http         *http.Client
+	managedAccount string
+	serverURL      *url.URL
+	organization   string
+	token          string
+	keyID          string
+	secret         string
+	http           *http.Client
 }
 
 type AccessReviewPendingError struct {
@@ -66,16 +67,25 @@ func newClient(serverURL, token, keyID, secret string) (*Client, error) {
 	}
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
-	return &Client{serverURL: parsed, token: token, keyID: keyID, secret: secret, http: http.DefaultClient}, nil
+	transport := &http.Client{Transport: http.DefaultTransport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return &Client{serverURL: parsed, token: token, keyID: keyID, secret: secret, http: transport}, nil
 }
 
 func (c *Client) CreateSession(ctx context.Context, request gateway.CreateRequest) (gateway.CreatedSession, error) {
 	endpoint := *c.serverURL
 	endpoint.Path = strings.TrimRight(endpoint.Path, "/") + "/api/v1/sessions"
-	var payload any = request
 	if request.Protocol != "" && request.Protocol != "ssh" && request.Protocol != "telnet" {
 		return gateway.CreatedSession{}, errors.New("unsupported terminal protocol")
 	}
+	if c.managedAccount != "" && (request.Protocol != "" && request.Protocol != "ssh" || request.Kubernetes != nil) {
+		return gateway.CreatedSession{}, errors.New("managed account selection currently requires SSH")
+	}
+	selected, selectionErr := c.selectedAsset(ctx, request.AssetID)
+	if selectionErr != nil {
+		return gateway.CreatedSession{}, selectionErr
+	}
+	request.AssetID = selected
+	var payload any = request
 	if request.Protocol == "telnet" {
 		if request.Kubernetes != nil {
 			return gateway.CreatedSession{}, errors.New("conflicting terminal protocols")

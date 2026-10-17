@@ -1,4 +1,67 @@
 const en = {
+  managedAccounts: {
+    manageDiscovered: "Manage account",
+    discoveryHint:
+      "Collected identity: {{username}}. Add a credential, or edit the existing account to associate this exact discovery record. No remote account is created.",
+    discoveryMatched: "Current discovery linked",
+    discoveryLinked: "Discovery record linked",
+    open: "Managed accounts",
+    title: "Managed accounts · {{name}}",
+    count: "{{count}} accounts",
+    hint: "Manage login identities on this host. Disabling an identity blocks platform access while retaining its remote account and stored history.",
+    search: "Search managed accounts",
+    add: "Add account",
+    edit: "Edit managed account",
+    loading: "Loading managed accounts…",
+    username: "Account username",
+    name: "Display name",
+    note: "Account note",
+    credentialType: "Credential type",
+    status: "Status",
+    primary: "Primary account",
+    enabled: "Active",
+    disabled: "Inactive",
+    active: "Allow platform connections",
+    password: "Password",
+    newPassword: "New password",
+    key: "SSH private key",
+    passphrase: "Key passphrase",
+    rotationOn: "Rotate password every 7 days",
+    keyRotationOn: "Rotate SSH key every 7 days",
+    rotationOff: "Automatic rotation off",
+    secretHelp:
+      "Leave credential fields empty to retain the current credential. Saved passwords and private keys are never displayed.",
+    secretNew:
+      "Enter the credential of an existing remote account. This creates its platform binding.",
+    selected: "Selected",
+    use: "Use account",
+    activity: "Account activity",
+    remove: "Remove credential",
+    removeConfirm:
+      "Remove the stored credential for {{username}}? Platform connections will stop. The remote account and platform activity remain.",
+    empty: "No matching managed accounts.",
+    previous: "Previous",
+    next: "Next",
+    showing: "Showing {{from}}–{{to}} of {{total}}",
+    events: {
+      created: "Credential binding created",
+      updated: "Credential binding updated",
+      deleted: "Credential binding removed",
+    },
+    errors: {
+      failed:
+        "The request did not complete. Refresh and check current permissions and field values before retrying.",
+      conflict: "The account or host changed. Refresh and reopen the account before saving again.",
+      duplicate:
+        "This username is already managed on the host. Refresh and edit the existing entry.",
+      full: "Account activity is full. Existing credentials and history have been retained.",
+      pending:
+        "A credential operation is running or needs recovery. Complete it before changing this binding.",
+      sharedConflict:
+        "This credential conflicts with another managed binding of the same remote account.",
+      notFound: "The account is unavailable or current access is insufficient.",
+    },
+  },
   accountDiscovery: {
     open: "Collected accounts",
     title: "Account discovery · {{name}}",
@@ -1097,6 +1160,7 @@ const en = {
       accounts_discover: "Collect local SSH host account metadata",
       accounts_view: "Read collected host accounts and activity",
       accounts_review: "Acknowledge or ignore collected accounts",
+      accounts_manage: "Manage credentials and access state of visible host accounts",
       sessions_share: "Create invitations to own live terminal sessions",
       audit_sessions_terminate_all: "Terminate any active session",
       audit_replays_view_all: "Read every session recording",
@@ -1490,6 +1554,7 @@ const en = {
     rotationDueAt: "Due: {{date}}",
     rotationRecoveryHint: "Automatic recovery retries hourly",
     rotation: {
+      disabled: "Automatic rotation off",
       scheduled: "Rotation scheduled",
       due: "Rotation due",
       rotating: "Rotating",

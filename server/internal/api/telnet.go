@@ -107,7 +107,7 @@ func registerTelnetRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWM
 				if d.Nodes != nil {
 					nodes = d.Nodes.AncestorIDs(current.NodeID)
 				}
-				decision := d.CommandFilters.Decide(commandfilters.Scope{UserID: u.ID, GroupIDs: groups, AssetID: a.ID, NodeIDs: nodes, Account: a.Username}, command, supported, at)
+				decision := d.CommandFilters.Decide(commandfilters.Scope{UserID: u.ID, GroupIDs: groups, AssetID: assets.ResourceID(a), NodeIDs: nodes, Account: a.Username}, command, supported, at)
 				return gateway.CommandPolicyDecision{Allowed: decision.Allowed, RequireReview: decision.Action == commandfilters.ActionReview, RuleName: decision.RuleName}
 			}
 		}

@@ -2,7 +2,9 @@
 
 > 中文 | [English](./PLAN.en.md)
 
-Phase 7 新增 Linux 本地账号收集：原生 Go 组件、固定网关、两类审批、持续授权、完整分页后提交、加密发现/缺失记录、人工确认和 Web/CLI。状态支持单机与 PostgreSQL 单活；账号同步绑定、多账号凭据托管、计划采集和其他平台仍待完成，见 [账号收集](./ACCOUNT-DISCOVERY.md)。企业版总体目标保持进行中。
+Phase 7 新增 SSH 多账号托管：独立加密凭据、账号级授权/启停/轮换、发现身份关联、具名网关、Web SSH/SFTP/工作台和平台 CLI，支持单机与 PostgreSQL 单活接管。远程系统账号增删、批量导入及其他协议账号管理仍待完成，见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。企业版总体目标保持进行中。
+
+Linux 本地账号收集支持原生 Go 组件、固定网关、两类审批、持续授权、完整分页后提交、加密发现/缺失记录、人工确认和 Web/CLI；计划采集及其他平台仍待完成，见 [账号收集](./ACCOUNT-DISCOVERY.md)。
 
 Phase 6/7 新增 RDP 实时只读监看：独立 `audit.desktops.monitor_all`、观看者持久审计、来源/组织/当前权限复查、Web/CLI 截图与有界帧解码。历史回放权限不能读取他人活动画面；单机优先，在线状态不迁移，见 [RDP 实时监看](./RDP-LIVE-MONITOR.md)。各阶段总体状态仍为进行中。
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"sort"
 	"sync"
 	"time"
 
@@ -25,6 +24,7 @@ func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminT
 		accessMu.RLock()
 		defer accessMu.RUnlock()
 		items := service.List()
+		accountChoices := service.AccountChoices()
 		visible := items[:0]
 		permissionsSnapshot := permissionsForRequest(r, principal)
 		var groupIDs []string
@@ -32,29 +32,42 @@ func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminT
 			groupIDs = groups.GroupIDsForUser(principal.ID)
 		}
 		for _, item := range items {
-			var permissions []string
-			if grants != nil {
-				var nodeIDs []string
-				if nodes != nil {
-					nodeIDs = nodes.AncestorIDs(item.NodeID)
-				}
-				permissions = grants.ActionsForScopes(principal.ID, groupIDs, item.ID, nodeIDs, item.Username, time.Now().UTC())
+			var nodeIDs []string
+			if nodes != nil {
+				nodeIDs = nodes.AncestorIDs(item.NodeID)
 			}
-			for action, permission := range map[string]string{"view": "assets.view_all", "manage": "assets.manage", "connect": "assets.connect_all", "sftp": "assets.sftp_all", "probe": "assets.probe", "rotate": "assets.rotate", "backups": "assets.backups"} {
-				if permissionsSnapshot.Allows(permission) {
-					if !hasAction(permissions, action) {
-						permissions = append(permissions, action)
-					}
-					if (action == "manage" || action == "connect" || action == "sftp") && !hasAction(permissions, "view") {
-						permissions = append(permissions, "view")
+			permissions := scopedAssetActions(principal.ID, item.Asset, permissionsSnapshot, grants, groupIDs, nodeIDs)
+			if coreassets.IsSSH(item.Asset) {
+				rows := visibleAccountChoices(principal.ID, item.ID, accountChoices[item.ID], permissionsSnapshot, grants, groupIDs, nodeIDs)
+				if len(rows) == 0 {
+					continue
+				}
+				if permissionsSnapshot.Allows("assets.manage") || permissionsSnapshot.Allows("assets.rotate") || permissionsSnapshot.Allows("assets.backups") {
+					for i := range rows {
+						if rows[i].ID == item.ID {
+							rows[i].PasswordRotation, rows[i].SSHKeyRotation = item.PasswordRotation, item.SSHKeyRotation
+						} else if detail, e := service.ManagedAccount(item.ID, rows[i].ID); e == nil {
+							rows[i].PasswordRotation, rows[i].SSHKeyRotation = detail.PasswordRotation, detail.SSHKeyRotation
+						}
 					}
 				}
+				selected := rows[0]
+				for _, a := range rows {
+					if a.Active {
+						selected = a
+						break
+					}
+				}
+				item.Accounts, item.SelectedAccountID = rows, selected.ID
+				if !hasAction(permissions, "view") {
+					item.Username, item.CredentialType, item.KeyFingerprint, item.CredentialRevision = selected.Username, selected.CredentialType, selected.KeyFingerprint, selected.CredentialRevision
+				}
+				permissions = selected.Permissions
 			}
 			if !hasAction(permissions, "view") {
 				continue
 			}
 			item.Permissions = permissions
-			sort.Strings(item.Permissions)
 			if !permissionsSnapshot.Allows("assets.manage") && !permissionsSnapshot.Allows("assets.rotate") && !permissionsSnapshot.Allows("assets.backups") {
 				item.PasswordRotation = nil
 				item.SSHKeyRotation = nil
@@ -282,7 +295,7 @@ func writeAssetError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusConflict, map[string]string{"detail": "ssh_key_change_conflict"})
 	case errors.Is(err, coreassets.ErrSSHKeyRotationFailed):
 		writeJSON(w, http.StatusBadGateway, map[string]string{"detail": "ssh_key_rotation_failed"})
-	case errors.Is(err, coreassets.ErrNotFound):
+	case errors.Is(err, coreassets.ErrNotFound), errors.Is(err, coreassets.ErrAccountDisabled):
 		writeJSON(w, http.StatusNotFound, map[string]string{"detail": "asset not found"})
 	case errors.Is(err, coreassets.ErrCredentialBackupNotFound):
 		writeJSON(w, http.StatusNotFound, map[string]string{"detail": "credential_backup_not_found"})
@@ -294,6 +307,12 @@ func writeAssetError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"detail": err.Error()})
 	case errors.Is(err, coreassets.ErrGatewayInUse):
 		writeJSON(w, http.StatusConflict, map[string]string{"detail": "ssh_gateway_in_use"})
+	case errors.Is(err, coreassets.ErrAccountInUse):
+		writeJSON(w, http.StatusConflict, map[string]string{"detail": "managed_accounts_exist"})
+	case errors.Is(err, coreassets.ErrAccountDuplicate):
+		writeJSON(w, http.StatusConflict, map[string]string{"detail": "account_username_exists"})
+	case errors.Is(err, coreassets.ErrAccountCapacity):
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{"detail": "account_activity_full"})
 	case errors.Is(err, coreassets.ErrRotationPending), errors.Is(err, coreassets.ErrRotationInProgress):
 		writeJSON(w, http.StatusConflict, map[string]string{"detail": "password_rotation_in_progress"})
 	case errors.Is(err, coreassets.ErrCredentialBackupLimit):

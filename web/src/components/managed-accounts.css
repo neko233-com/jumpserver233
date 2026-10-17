@@ -1,0 +1,104 @@
+.managed-accounts-dialog {
+  width: min(1040px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+.managed-accounts-dialog header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.managed-accounts-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.managed-accounts-actions > input {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.managed-accounts-table {
+  overflow-x: auto;
+  margin: 16px 0;
+}
+.managed-accounts-table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+.managed-accounts-table th,
+.managed-accounts-table td {
+  border-bottom: 1px solid var(--border, #ffffff1f);
+  padding: 12px 8px;
+  vertical-align: top;
+}
+.managed-accounts-table small,
+.managed-accounts-table code {
+  display: block;
+  opacity: 0.72;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.managed-accounts-table td:first-child {
+  min-width: 130px;
+}
+.managed-accounts-table td:last-child {
+  min-width: 160px;
+}
+.managed-accounts-form,
+.managed-accounts-activity,
+.managed-accounts-confirm {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #ffffff1f);
+}
+.managed-accounts-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.managed-accounts-fields label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.managed-accounts-fields input,
+.managed-accounts-fields textarea,
+.managed-accounts-fields select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.managed-accounts-wide {
+  grid-column: 1 / -1;
+}
+.managed-accounts-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 16px 0;
+}
+.managed-accounts-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.managed-accounts-options input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.managed-accounts-activity ul {
+  padding-inline-start: 18px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .managed-accounts-dialog header {
+    flex-direction: column;
+  }
+  .managed-accounts-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -2,7 +2,9 @@
 
 > [中文](./PLAN.md) | English
 
-Phase 7 adds local Linux account discovery: native Go collection, pinned gateways, both approvals, ongoing authorization, complete-page publication, encrypted present/missing findings, human review and Web/CLI. State supports standalone and PostgreSQL active/standby. Account synchronization, multiple-account credentials, schedules and other platforms remain open; see [Account discovery](./ACCOUNT-DISCOVERY.en.md). Overall Enterprise parity remains in progress.
+Phase 7 adds managed SSH accounts: independent encrypted credentials, account grants/enablement/rotation, discovery association, named gateways, Web SSH/SFTP/workbench and platform CLI, with standalone and PostgreSQL active/standby takeover. Remote system account creation/deletion, bulk import and other protocol account management remain open. See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Overall Enterprise parity remains in progress.
+
+Local Linux discovery supports native Go collection, pinned gateways, both approvals, ongoing authorization, complete-page publication, encrypted present/missing findings, human review and Web/CLI. Scheduled collection and other platforms remain open; see [Account discovery](./ACCOUNT-DISCOVERY.en.md).
 
 Phase 6/7 adds read-only live RDP monitoring: independent `audit.desktops.monitor_all`, durable viewer audit, source/membership/current-permission checks, Web/CLI capture and bounded frame decoding. Historical replay permission cannot read another user's active screen. Standalone comes first; live state does not migrate. See [Live RDP monitoring](./RDP-LIVE-MONITOR.en.md). Overall phases remain in progress.
 

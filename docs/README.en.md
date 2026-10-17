@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md) for independently encrypted named credentials, discovery association, grants and seven-day rotation.
+
 See [Account discovery](./ACCOUNT-DISCOVERY.en.md) for native Linux collection, approvals, human review, metadata protection and CLI.
 
 See [Live RDP monitoring](./RDP-LIVE-MONITOR.en.md) for independently authorized read-only viewing, viewer audit, CLI capture and permission boundaries.

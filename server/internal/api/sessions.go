@@ -72,7 +72,7 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 						if nodes != nil {
 							currentNodes = nodes.AncestorIDs(current.NodeID)
 						}
-						scope := corecommandfilters.Scope{UserID: principal.ID, GroupIDs: currentGroups, AssetID: current.ID, NodeIDs: currentNodes, Account: current.Username}
+						scope := corecommandfilters.Scope{UserID: principal.ID, GroupIDs: currentGroups, AssetID: coreassets.ResourceID(current), NodeIDs: currentNodes, Account: current.Username}
 						decision := commandFilters.Decide(scope, command, supported, at)
 						return gateway.CommandPolicyDecision{Allowed: decision.Allowed, RequireReview: decision.Action == corecommandfilters.ActionReview, RuleName: decision.RuleName}
 					}
@@ -83,7 +83,7 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 						writeJSON(w, http.StatusForbidden, map[string]string{"detail": "asset access is not granted"})
 						return
 					}
-					allowed := grants.AllowsForScopes(principal.ID, groupIDs, asset.ID, nodeIDs, asset.Username, "connect", time.Now().UTC())
+					allowed := grants.AllowsForScopes(principal.ID, groupIDs, coreassets.ResourceID(asset), nodeIDs, asset.Username, "connect", time.Now().UTC())
 					if !allowed {
 						accessMu.RUnlock()
 						writeJSON(w, http.StatusForbidden, map[string]string{"detail": "asset access is not granted"})

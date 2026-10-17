@@ -44,15 +44,30 @@ func main() {
 }
 
 func run(args []string) error {
-	if len(args)>0&&args[0]=="accounts"{return runAccounts(args[1:])}
+	selector := ""
+	if len(args) > 0 && args[0] == "--account" {
+		if len(args) < 4 || strings.TrimSpace(args[1]) == "" {
+			return errors.New("usage: jms --account USERNAME_OR_ID ssh|exec|plugin|accounts ASSET ...")
+		}
+		selector, args = args[1], args[2:]
+	}
+	if selector != "" && args[0] != "ssh" && args[0] != "exec" && args[0] != "plugin" && args[0] != "accounts" && args[0] != "agent-events" {
+		return errors.New("managed account selection currently requires an SSH operation")
+	}
+	if len(args) > 0 && args[0] == "account" {
+		return runManagedAccounts(args[1:])
+	}
+	if len(args) > 0 && args[0] == "accounts" {
+		return runAccounts(args[1:], selector)
+	}
 	if len(args) > 0 && args[0] == "share" {
 		return runShare(args[1:])
 	}
 	if len(args) > 0 && args[0] == "agent-events" {
-		return runAgentEvents(args[1:])
+		return runAgentEvents(args[1:], selector)
 	}
 	if len(args) > 0 && args[0] == "plugin" {
-		return runPlugins(args[1:])
+		return runPlugins(args[1:], selector)
 	}
 	if len(args) > 0 && args[0] == "rdp" {
 		return runDesktop(args[1:])
@@ -84,7 +99,7 @@ func run(args []string) error {
 		return runDatabase(args[1:])
 	}
 	if len(args) > 0 && args[0] == "exec" {
-		return runExec(args[1:])
+		return runExec(args[1:], selector)
 	}
 	if len(args) != 2 || args[0] != "ssh" || strings.TrimSpace(args[1]) == "" {
 		return errors.New("usage: jms ssh <asset-id> | jms telnet <asset-id> | jms k8s <asset-id> --namespace NS --pod POD [--container NAME] | jms exec <asset-id> [--timeout 60] [--json] -- <command> | jms db <asset-id> < query.sql")
@@ -101,7 +116,7 @@ func run(args []string) error {
 	if serverURL == "" {
 		serverURL = "http://127.0.0.1:8080"
 	}
-	client, err := clientFromEnvironment(serverURL)
+	client, err := clientFromEnvironment(serverURL, selector)
 	if err != nil {
 		return err
 	}
@@ -306,7 +321,7 @@ func run(args []string) error {
 	}
 }
 
-func clientFromEnvironment(serverURL string) (*sessionclient.Client, error) {
+func clientFromEnvironment(serverURL string, selected ...string) (*sessionclient.Client, error) {
 	token := os.Getenv("JMS_TOKEN")
 	keyID := os.Getenv("JMS_ACCESS_KEY_ID")
 	secret := os.Getenv("JMS_ACCESS_KEY_SECRET")
@@ -321,13 +336,25 @@ func clientFromEnvironment(serverURL string) (*sessionclient.Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		return client.WithOrganization(os.Getenv("JMS_ORG_ID"))
+		return selectedClient(client, selected)
 	}
 	client, err := sessionclient.New(serverURL, token)
 	if err != nil {
 		return nil, err
 	}
-	return client.WithOrganization(os.Getenv("JMS_ORG_ID"))
+	return selectedClient(client, selected)
+}
+
+func selectedClient(client *sessionclient.Client, selected []string) (*sessionclient.Client, error) {
+	client, e := client.WithOrganization(os.Getenv("JMS_ORG_ID"))
+	if e != nil {
+		return nil, e
+	}
+	selector := os.Getenv("JMS_ACCOUNT")
+	if len(selected) > 0 && selected[0] != "" {
+		selector = selected[0]
+	}
+	return client.WithManagedAccount(selector)
 }
 
 func commandBlockedNotice(ruleName string) string {

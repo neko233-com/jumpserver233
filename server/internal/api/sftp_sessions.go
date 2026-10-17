@@ -109,6 +109,6 @@ func resolveSFTPAccess(r *http.Request, assetID string, assets *coreassets.Servi
 	if nodes != nil {
 		nodeIDs = nodes.AncestorIDs(asset.NodeID)
 	}
-	allowed := grants != nil && grants.AllowsForScopes(principal.ID, groupIDs, asset.ID, nodeIDs, asset.Username, "sftp", time.Now().UTC())
+	allowed := grants != nil && grants.AllowsForScopes(principal.ID, groupIDs, coreassets.ResourceID(asset), nodeIDs, asset.Username, "sftp", time.Now().UTC())
 	return asset, allowed, nil
 }

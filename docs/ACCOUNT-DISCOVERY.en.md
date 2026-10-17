@@ -59,4 +59,4 @@ Local acceptance on 2026-10-17 used real Linux OpenSSH, a pinned SSH gateway and
 
 ![English account discovery](./images/account-discovery.en.png)
 
-This delivery covers local Linux metadata and human review. Account synchronization, independent multiple-account credential management, remote account creation/deletion, scheduled collection, Windows/directory/database discovery and weak-password/secret inspection remain part of the Enterprise objective. Existing managed-login seven-day rotation and encrypted credential history are described in [Password rotation](./PASSWORD-ROTATION.en.md).
+This delivery covers local Linux metadata and human review, with current findings associated to independent managed credentials: [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Remote account creation/deletion, scheduled collection, Windows/directory/database discovery and weak-password/secret inspection remain part of the Enterprise objective. Seven-day rotation and encrypted credential history are described in [Password rotation](./PASSWORD-ROTATION.en.md).

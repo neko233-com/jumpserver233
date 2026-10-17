@@ -52,14 +52,29 @@ func registerCommandFilterRoutes(mux *http.ServeMux, filters *corecommandfilters
 		}
 		if input.AssetID != "" {
 			asset, err := assets.Get(input.AssetID)
+			if errors.Is(err, coreassets.ErrAccountDisabled) {
+				asset, err = assets.AccountAsset(input.AssetID, input.AssetID)
+			}
 			if err != nil {
 				writeAssetError(w, err)
 				return
 			}
-			if input.Account != "*" && input.Account != asset.Username {
+			match := input.Account == "*" || input.Account == asset.Username
+			if coreassets.IsSSH(asset) && asset.ParentAssetID == "" {
+				accounts, e := assets.ManagedAccounts(asset.ID)
+				if e != nil {
+					writeAssetError(w, e)
+					return
+				}
+				for _, a := range accounts {
+					match = match || input.Account == a.Username
+				}
+			}
+			if !match {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"detail": "filter account must match the configured SSH asset account"})
 				return
 			}
+			input.AssetID = coreassets.ResourceID(asset)
 		}
 		if input.NodeID != "" {
 			if nodes == nil {

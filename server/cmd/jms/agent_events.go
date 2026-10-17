@@ -12,12 +12,12 @@ import (
 	"os"
 )
 
-func runAgentEvents(args []string) error {
+func runAgentEvents(args []string, selected ...string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
 	if endpoint == "" {
 		endpoint = "http://127.0.0.1:8080"
 	}
-	c, e := clientFromEnvironment(endpoint)
+	c, e := clientFromEnvironment(endpoint, selected...)
 	if e != nil {
 		return e
 	}

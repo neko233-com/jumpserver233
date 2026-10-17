@@ -2,6 +2,22 @@
 
 > [中文](./TESTING.md) | English
 
+## Managed SSH accounts (2026-10-17)
+
+Complete Playwright passed 64/64 in 14.5 minutes, with zero failures/skips and exit code 0. It includes managed accounts, all existing protocols, native protection/recovery, ordinary/root systemd services and a real VM reboot. Owned disposable resources were removed by the exit workflow. The final grant-account fallback was also checked separately against production Docker.
+
+- Final uncached, serial Go/Testify passed: 57 packages, 814 tests; 35 skipped for missing external fixtures. Real OpenSSH, PostgreSQL state storage and xrdp were provided. Missing integrations are not counted as success.
+- Linux Docker race passed 223 tests across five related packages, with seven missing-fixture skips. Final discovery association, node visibility, CLI metadata/activity and account selection checks passed 30 tests across five packages without skips.
+- The production Docker end-to-end case passed 1/1 in 34.6 seconds: browser account creation and username grants, no primary-account connect access, independent CLI identity and SFTP files, password/key rotation, seven-day policy, named gateway, workbench execution, native discovery/association, disabled gateway primary account, real Web SSH output and idle live revocation within the approximately ten-second check period. Both languages, 390px layout, write-only key fields and zero pageerrors were checked.
+- Testify additionally covers inherited parent settings without duplicated persisted host fields, independent ciphertext/history, parent ownership rebinding rejection, duplicate identities, stale versions, failed-write rollback, pending-rotation target guards, deletion activity archive, separate management/rotation authority, changed discovery UID, organization isolation, PostgreSQL takeover, disabled shared-copy synchronization without connection, preserved signatures/organization, redirect credential protection and unknown response-field removal.
+- Vet, stripped server/CLI, frontend lint/build, E2E types, 1,590 bilingual keys and 98 bilingual documents passed. The new dialog is lazy, adds no dependencies and passes existing size budgets. Ignore rules cover generated helpers, caches, runtime data and test reports.
+- Fresh Docker volumes passed authentication, static gzip, dedicated loopback exposure and browser checks with a second instance: build 3.01 seconds, startup 12.00, smoke 2.47; total 17.48. Disposable resources were removed. Retained debug ports are `127.0.0.13:15185` / API `127.0.0.13:18092`, separate from the original development instance. Retained-volume timings are not presented as fresh-volume results.
+- The in-app browser also checked the final image's account list, provenance, rotation state and language switching. Actual screenshots and limits: [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Named credentials currently apply to SSH; remote OS account creation/deletion, other protocol account models, active/active and full Enterprise parity remain open.
+
+Logs are in the system temporary directory: `jms233-managed-accounts-go-delivery.jsonl`, `jms233-managed-accounts-race.jsonl`, `jms233-managed-accounts-race-complete.jsonl`, `jms233-managed-accounts-browser-reviewed-final.log`, `jms233-managed-accounts-e2e-full.log` and `jms233-managed-accounts-docker-final.log`. Initial focused failures were preserved while fixing the dynamic QA account SSH allowlist, relative SFTP listing assertion, selectors and wait for the ten-second live authorization interval. Management write responses were also completed with rotation status; business assertions were retained.
+
+Previous account-discovery commit `108141e` has a fully successful [remote CI run](https://github.com/neko233-com/jumpserver233/actions/runs/39032638755): complete Linux backend race/vet/build, frontend and Docker. That result covers the previous commit only.
+
 ## Linux local account collection (2026-10-17)
 
 Final complete Playwright passed 63/63 in 13.1 minutes, with no failures or skips and exit code 0. This includes account collection, all existing protocols, native protection/recovery, ordinary/root systemd services and a real VM reboot. The ownership-checked exit workflow cleaned this batch's disposable fixtures.

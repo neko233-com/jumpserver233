@@ -84,6 +84,10 @@ func (s *Service) passwordRotationStatus(asset Asset) *PasswordRotationStatus {
 	if credentialType(asset.CredentialType) == CredentialSSHKey && !s.store.HasPendingPasswordRotation(asset.ID) {
 		return nil
 	}
+	if (asset.AccountDisabled || asset.PasswordRotationDisabled) && !s.store.HasPendingPasswordRotation(asset.ID) {
+		status := baseRotationStatus(asset, time.Now().UTC())
+		return &status
+	}
 	s.mu.RLock()
 	status, exists := s.rotationStatus[asset.ID]
 	s.mu.RUnlock()
@@ -635,6 +639,9 @@ func classifyRotationError(err error) string {
 }
 
 func baseRotationStatus(asset Asset, at time.Time) PasswordRotationStatus {
+	if asset.AccountDisabled || asset.PasswordRotationDisabled {
+		return PasswordRotationStatus{State: "disabled", LastRotatedAt: asset.PasswordRotatedAt}
+	}
 	if !IsSSH(asset) {
 		return PasswordRotationStatus{State: "not_applicable"}
 	}

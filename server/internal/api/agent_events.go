@@ -71,7 +71,7 @@ func agentSourceAllowed(d Dependencies, u coreauth.User, src agentevents.Source)
 	if d.Nodes != nil {
 		nodes = d.Nodes.AncestorIDs(a.NodeID)
 	}
-	return d.Grants != nil && d.Grants.AllowsForScopes(u.ID, groups, a.ID, nodes, a.Username, "connect", time.Now().UTC())
+	return d.Grants != nil && d.Grants.AllowsForScopes(u.ID, groups, assets.ResourceID(a), nodes, a.Username, "connect", time.Now().UTC())
 }
 func registerAgentEventRoutes(mux *http.ServeMux, d Dependencies, authorize func(coreauth.User, string, string, accesspolicies.Origin) (string, string, commandfilters.Decision, int), mu *sync.RWMutex) {
 	if d.AgentEvents == nil {

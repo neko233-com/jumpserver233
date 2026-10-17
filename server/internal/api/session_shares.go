@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionshares"
@@ -235,7 +236,7 @@ func registerSessionShareRoutes(mux *http.ServeMux, b *gateway.Broker, adminToke
 				if d.Nodes != nil {
 					nodes = d.Nodes.AncestorIDs(asset.NodeID)
 				}
-				v := d.CommandFilters.Decide(commandfilters.Scope{UserID: principal.ID, GroupIDs: groups, AssetID: asset.ID, NodeIDs: nodes, Account: asset.Username}, command, supported, at)
+				v := d.CommandFilters.Decide(commandfilters.Scope{UserID: principal.ID, GroupIDs: groups, AssetID: assets.ResourceID(asset), NodeIDs: nodes, Account: asset.Username}, command, supported, at)
 				return gateway.CommandPolicyDecision{Allowed: v.Allowed, RequireReview: v.Action == commandfilters.ActionReview, RuleName: v.RuleName}
 			}
 		}
