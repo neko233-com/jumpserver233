@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -74,30 +73,34 @@ type Created struct {
 	Expires time.Time `json:"expires_at"`
 }
 type active struct {
-	lastInput time.Time
-	frameMu   sync.Mutex
-	cached    rdpclient.Frame
-	mu        sync.Mutex
-	record    Record
-	display   Display
-	recording *recorder.Desktop
-	guard     func(context.Context, string) error
-	ctx       context.Context
-	token     [32]byte
-	expiry    time.Time
-	consumed  bool
-	closed    bool
-	socket    *websocket.Conn
+	lastInput    time.Time
+	frameMu      sync.Mutex
+	cached       rdpclient.Frame
+	wireSequence uint64
+	wirePacket   []byte
+	mu           sync.Mutex
+	record       Record
+	display      Display
+	recording    *recorder.Desktop
+	guard        func(context.Context, string) error
+	ctx          context.Context
+	token        [32]byte
+	expiry       time.Time
+	consumed     bool
+	closed       bool
+	socket       *websocket.Conn
 }
 type Broker struct {
-	policy  func() sessionpolicy.Settings
-	mu      sync.Mutex
-	indexMu sync.Mutex // Windows readers must close before atomic index replacement.
-	root    string
-	key     []byte
-	live    map[string]*active
-	closed  bool
-	pending int
+	monitorMu sync.Mutex
+	monitors  map[[32]byte]*monitor
+	policy    func() sessionpolicy.Settings
+	mu        sync.Mutex
+	indexMu   sync.Mutex // Windows readers must close before atomic index replacement.
+	root      string
+	key       []byte
+	live      map[string]*active
+	closed    bool
+	pending   int
 }
 
 func New(root string, key []byte) (*Broker, error) {
@@ -108,7 +111,7 @@ func New(root string, key []byte) (*Broker, error) {
 	if e := os.MkdirAll(root, 0700); e != nil {
 		return nil, e
 	}
-	return &Broker{root: root, key: append([]byte(nil), key...), live: map[string]*active{}}, nil
+	return &Broker{root: root, key: append([]byte(nil), key...), live: map[string]*active{}, monitors: map[[32]byte]*monitor{}}, nil
 }
 func token() (string, error) {
 	v := make([]byte, 16)
@@ -298,6 +301,11 @@ func (b *Broker) end(a *active, reason string) {
 		socket.CloseNow()
 	}
 	b.mu.Lock()
+	for _, viewer := range b.monitors {
+		if viewer.session == a {
+			b.stopMonitorLocked(viewer)
+		}
+	}
 	delete(b.live, a.record.ID)
 	b.mu.Unlock()
 }
@@ -387,7 +395,8 @@ func (b *Broker) Stop(id, owner string, all bool) error {
 }
 func (b *Broker) Frame(id, owner string, all bool, index int) ([]byte, error) {
 	r, e := b.Get(id, owner, all)
-	if e != nil || index < 0 || index >= len(r.Frames) {
+	// Historic replay authority must not become an unaudited live screen feed.
+	if e != nil || r.Status == "active" && r.OperatorID != owner || index < 0 || index >= len(r.Frames) {
 		return nil, ErrNotFound
 	}
 	d, e := recorder.NewDesktop(filepath.Join(b.root, id), id, b.key)
@@ -547,18 +556,15 @@ func (b *Broker) ServeWS(w http.ResponseWriter, r *http.Request) {
 			if a.guard(ctx, "rdp") != nil {
 				return
 			}
-			f, e := a.snapshot()
+			next, packet, e := a.wireFrame()
 			if e != nil {
 				return
 			}
-			if f.Sequence != sequence {
-				packet := make([]byte, 8+len(f.PNG))
-				binary.BigEndian.PutUint64(packet, f.Sequence)
-				copy(packet[8:], f.PNG)
+			if next != sequence {
 				if write(websocket.MessageBinary, packet) != nil {
 					return
 				}
-				sequence = f.Sequence
+				sequence = next
 			}
 			clipboard := a.display.ClipboardSnapshot()
 			if clipboard.Revision > clipboardRevision {

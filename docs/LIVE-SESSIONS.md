@@ -37,4 +37,4 @@ SSH 在拨号前后、WebSocket 连接时、每次输入前和每 10 秒空闲�
 - `GET /ws/api/v1/sessions/{id}/monitor`：单次票据连接。二进制帧为输出，文本帧为 `resize` 元数据。
 - 单机优先；PostgreSQL 单活 HA 的监看权限沿用共享角色/组织配置，票据、队列及在线会话保留在当前活动进程。接管需重新建立 SSH 和监看连接，不支持多活路由或会话迁移。
 
-终端与 RDP 的创建时水印及录像行为见 [交互会话安全](./SESSION-SECURITY.md)。指定用户分享及控制权接管见 [终端会话协作](./SESSION-SHARING.md)，与此处独立审计权限的只读监看使用不同票据和入口。完整企业版目标仍按 [PLAN](./PLAN.md) 推进；RDP 分享与实时监看仍待实现。
+终端与 RDP 的创建时水印及录像行为见 [交互会话安全](./SESSION-SECURITY.md)。指定用户分享及控制权接管见 [终端会话协作](./SESSION-SHARING.md)，与此处独立审计权限的只读监看使用不同票据和入口。[RDP 实时监看](./RDP-LIVE-MONITOR.md)使用独立图形票据和权限。完整企业版目标仍按 [PLAN](./PLAN.md) 推进；RDP 分享与协同控制仍待实现。

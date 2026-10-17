@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Live RDP desktops support independently authorized read-only monitoring, viewer audit and CLI captures. Closing a viewer preserves the source. See [Live RDP monitoring](./docs/RDP-LIVE-MONITOR.en.md) for permissions, bounds and real screenshots.
+
 Active terminals support named-user read-only sharing, input control, member removal and collaboration audit. Web and CLI share continuous authorization; explicit enablement is required. See [Terminal collaboration](./docs/SESSION-SHARING.en.md).
 
 See [isolated Docker environments](./docs/DOCKER-QA.en.md) for fast verification and parallel ports, and [performance baseline](./docs/PERFORMANCE.en.md) for sizes, incremental builds and enforced budgets.

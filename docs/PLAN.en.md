@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 6/7 adds read-only live RDP monitoring: independent `audit.desktops.monitor_all`, durable viewer audit, source/membership/current-permission checks, Web/CLI capture and bounded frame decoding. Historical replay permission cannot read another user's active screen. Standalone comes first; live state does not migrate. See [Live RDP monitoring](./RDP-LIVE-MONITOR.en.md). Overall phases remain in progress.
+
 Phase 4/7 adds terminal collaboration: named platform users, expiring codes, read-only/single-writer control, removal/revocation, continuous authorization, dual-identity command review and collaboration audit, with Web/CLI and bilingual UI. It defaults off with independent `sessions.share` permission. Live state does not migrate; RDP sharing remains open. See [Session collaboration](./SESSION-SHARING.en.md). Overall phases remain in progress.
 
 Agent lifecycle supports account-scoped boot startup, one-minute crash recovery, disabling supervision and data-preserving uninstall, with pinned upgrade/rollback, interrupted checkpoints and separately authorized SSH protection policies. A native Go companion now passes isolated Linux checks for actual cron, container reboot and ban restoration after table loss. It uses existing cron without automatic privilege elevation. Centralized repair events and scheduled collection are covered in [AGENT-EVENTS.en.md](./AGENT-EVENTS.en.md). See [host tools and agents](./HOST-PLUGINS.en.md) for builds and other remaining scope.
@@ -50,7 +52,7 @@ Align all JumpServer Enterprise software features on Go + React, with Community 
 
 Interactive session security adds configurable global idle limits, maximum duration and creation-time identity watermarks for Web / CLI terminals and RDP. RDP markers are rendered server-side; terminal recordings preserve compatible metadata. See [interactive session security](./SESSION-SECURITY.en.md).
 
-New slice: active SSH / Telnet / Kubernetes terminals support read-only live monitoring, separate monitoring permission and viewer audit. SSH continuously rechecks current authorization and connection revisions. See [live terminal monitoring](./LIVE-SESSIONS.en.md). Session sharing, collaborative input, RDP monitoring and full Enterprise parity remain in progress.
+Active SSH / Telnet / Kubernetes terminals support read-only live monitoring, separate monitoring permission and viewer audit. SSH continuously rechecks current authorization and connection revisions. See [live terminal monitoring](./LIVE-SESSIONS.en.md). Terminal collaboration and read-only RDP monitoring are delivered separately; RDP sharing, collaborative control and full Enterprise parity remain in progress.
 
 ### 1.1 Target and competitor
 

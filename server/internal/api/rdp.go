@@ -14,6 +14,7 @@ import (
 )
 
 func registerRDPRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWMutex) {
+	registerDesktopMonitorRoutes(mux, d)
 	protect := func(h http.HandlerFunc) http.Handler { return protectAuthenticatedAPI(h, d.AdminToken, d.Auth) }
 	fail := func(w http.ResponseWriter, e error) {
 		code := 502
@@ -116,7 +117,7 @@ func registerRDPRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWMutex) {
 	mux.Handle("GET /api/v1/desktop-sessions", protect(func(w http.ResponseWriter, r *http.Request) {
 		setNoStore(w)
 		u, _ := PrincipalFromContext(r.Context())
-		rows, e := d.Desktops.List(u.ID, hasPermission(r, "audit.sessions.view_all"))
+		rows, e := d.Desktops.List(u.ID, hasPermission(r, "audit.sessions.view_all") || hasPermission(r, "audit.desktops.monitor_all"))
 		if e != nil {
 			fail(w, e)
 			return

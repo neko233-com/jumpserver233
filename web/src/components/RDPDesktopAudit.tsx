@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import "./rdp.css";
+const DesktopMonitorDialog = lazy(() => import("./DesktopMonitorDialog"));
+const DesktopMonitorActivityDialog = lazy(() => import("./DesktopMonitorActivityDialog"));
 type Frame = { index: number; at_ms: number; width: number; height: number };
 type Record = {
   session_id: string;
@@ -25,6 +27,8 @@ export default function RDPDesktopAudit() {
     [failed, setFailed] = useState(false),
     [source, setSource] = useState("");
   const [playing, setPlaying] = useState(false);
+  const [monitor, setMonitor] = useState<Record | null>(null),
+    [activity, setActivity] = useState<Record | null>(null);
   const generation = useRef(0);
   const request = useCallback(
     (path: string, init?: RequestInit) => {
@@ -145,12 +149,32 @@ export default function RDPDesktopAudit() {
                   )}
                 </td>
                 <td>
-                  <button
-                    className="button-secondary button-small"
-                    onClick={() => void replay(row.session_id)}
-                  >
-                    {t("audit.replay")}
-                  </button>
+                  {row.status === "active" &&
+                    (row.operator_id === userID || allows("audit.desktops.monitor_all")) && (
+                      <button
+                        className="button-secondary button-small"
+                        onClick={() => setMonitor(row)}
+                      >
+                        {t("audit.monitor")}
+                      </button>
+                    )}
+                  {(row.operator_id === userID || allows("audit.sessions.view_all")) && (
+                    <button
+                      className="button-secondary button-small"
+                      onClick={() => setActivity(row)}
+                    >
+                      {t("desktopMonitor.events")}
+                    </button>
+                  )}
+                  {(row.operator_id === userID ||
+                    (row.status !== "active" && allows("audit.replays.view_all"))) && (
+                    <button
+                      className="button-secondary button-small"
+                      onClick={() => void replay(row.session_id)}
+                    >
+                      {t("audit.replay")}
+                    </button>
+                  )}
                   {row.status === "active" &&
                     (row.operator_id === userID || allows("audit.sessions.terminate_all")) && (
                       <button
@@ -173,6 +197,24 @@ export default function RDPDesktopAudit() {
         </table>
         {rows.length === 0 && <p>{t("rdp.noSessions")}</p>}
       </div>
+      <Suspense fallback={null}>
+        {monitor && (
+          <DesktopMonitorDialog
+            sessionID={monitor.session_id}
+            assetName={monitor.asset_name}
+            accessToken={accessToken}
+            onClose={() => setMonitor(null)}
+          />
+        )}
+        {activity && (
+          <DesktopMonitorActivityDialog
+            sessionID={activity.session_id}
+            assetName={activity.asset_name}
+            accessToken={accessToken}
+            onClose={() => setActivity(null)}
+          />
+        )}
+      </Suspense>
       {selected && (
         <div className="ssh-terminal-backdrop" role="presentation">
           <section

@@ -37,7 +37,7 @@ Desktops use `jms233-desktop-v1` with a 30-second single-use ticket carried in a
 
 Recordings live in `<data-dir>/desktop-sessions/<id>/`. Frames use a session-derived key and AES-GCM, authenticating index, time and dimensions. The index retains operator identity and input counts, without storing typed text, key contents or clipboard contents as input logs. Screen images may themselves contain sensitive information. Recording failure or limits close the connection. Sessions retain limits of 14400 frames and 256 MiB, with 16 live desktops per process. Idle time, maximum duration and server-rendered watermarks follow [interactive session security](./SESSION-SECURITY.en.md).
 
-The audit page has a separate RDP section. Operators see only their own sessions and replays. Existing global session audit, replay audit and termination permissions remain distinct. Foreign IDs return 404. Recordings remain accessible to their owner after an asset grant is revoked, while the platform identity must remain valid.
+The audit page has a separate RDP section. Operators see only their own sessions and replays. Global session metadata, historical replay and termination permissions remain distinct. Another user's active screen requires independent `audit.desktops.monitor_all` through [live RDP monitoring](./RDP-LIVE-MONITOR.en.md); historical replay authority cannot read that active screen. Unauthorized IDs return 404. Ended recordings remain accessible to their owner after an asset grant is revoked, while platform identity must remain valid.
 
 ## Standalone and cluster boundaries
 

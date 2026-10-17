@@ -1,4 +1,15 @@
 const en = {
+  desktopMonitor: {
+    title: "Live desktop monitor · {{name}}",
+    hint: "Read-only live desktop. Closing this view keeps the operator connected. Clipboard sync is disabled.",
+    screen: "Live RDP monitor image",
+    close: "Close monitor",
+    events: "Desktop viewing activity",
+    empty: "No desktop viewing activity yet.",
+    auditFailed: "Could not read desktop viewing activity.",
+    started: "Viewing started",
+    ended: "Viewing ended",
+  },
   sharing: {
     reviewBusy: "Input control can move after the pending command review finishes.",
     refresh: "Refresh activity",
@@ -1044,6 +1055,7 @@ const en = {
       login_review_bypass: "Bypass SSH/SFTP login review",
       audit_sessions_view_all: "View every session audit",
       audit_sessions_monitor_all: "Monitor any live terminal (read only)",
+      audit_desktops_monitor_all: "Monitor any live RDP desktop (read only)",
       sessions_share: "Create invitations to own live terminal sessions",
       audit_sessions_terminate_all: "Terminate any active session",
       audit_replays_view_all: "Read every session recording",

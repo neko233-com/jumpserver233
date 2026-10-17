@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const desktopUsage = "usage: jms rdp <asset-id> --capture <new.png> [--input <events.json>] [--wait 2]"
+const desktopUsage = "usage: jms rdp <asset-id> --capture <new.png> [--input <events.json>] [--wait 2]; jms rdp monitor <session-id> --capture <new.png> [--wait 2]"
 
 func runDesktop(args []string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
@@ -29,6 +29,10 @@ func runDesktop(args []string) error {
 	return executeDesktop(ctx, client, args, os.Stdout)
 }
 func executeDesktop(ctx context.Context, client *sessionclient.Client, args []string, stdout io.Writer) error {
+	monitoring := len(args) > 0 && args[0] == "monitor"
+	if monitoring {
+		args = args[1:]
+	}
 	if len(args) < 1 || args[0] == "" {
 		return errors.New(desktopUsage)
 	}
@@ -39,6 +43,9 @@ func executeDesktop(ctx context.Context, client *sessionclient.Client, args []st
 	wait := flags.Int("wait", 2, "")
 	if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || *path == "" || *wait < 1 || *wait > 15 {
 		return errors.New(desktopUsage)
+	}
+	if monitoring && *input != "" {
+		return errors.New("desktop monitoring does not accept input")
 	}
 	var events []rdpclient.Input
 	if *input != "" {
@@ -64,16 +71,23 @@ func executeDesktop(ctx context.Context, client *sessionclient.Client, args []st
 			_ = os.Remove(*path)
 		}
 	}()
-	created, e := client.CreateDesktop(ctx, args[0])
+	create, dial := client.CreateDesktop, client.DialDesktop
+	if monitoring {
+		create, dial = client.CreateDesktopMonitor, client.DialDesktopMonitor
+	}
+	created, e := create(ctx, args[0])
 	if e != nil {
 		return e
 	}
 	defer func() {
+		if monitoring {
+			return
+		}
 		closeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		_ = client.CloseDesktop(closeCtx, created.ID)
 	}()
-	conn, e := client.DialDesktop(ctx, created)
+	conn, e := dial(ctx, created)
 	if e != nil {
 		return e
 	}
@@ -158,5 +172,9 @@ func executeDesktop(ctx context.Context, client *sessionclient.Client, args []st
 		return e
 	}
 	success = true
-	return json.NewEncoder(stdout).Encode(map[string]any{"session_id": created.ID, "capture": *path, "bytes": len(png)})
+	result := map[string]any{"session_id": created.ID, "capture": *path, "bytes": len(png)}
+	if monitoring {
+		result["monitor"] = true
+	}
+	return json.NewEncoder(stdout).Encode(result)
 }

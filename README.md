@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+RDP 活动桌面支持独立权限的只读实时监看、观看者审计与 CLI 截图，关闭监看保留原连接。权限、资源限制和真实截图见 [RDP 实时监看](./docs/RDP-LIVE-MONITOR.md)。
+
 活动终端支持指定平台用户的只读分享、输入接管、成员移除与协作审计，Web 和 CLI 共用持续授权；默认需显式启用，见 [终端会话协作](./docs/SESSION-SHARING.md)。
 
 快速验证与独立端口调试见 [Docker 隔离环境](./docs/DOCKER-QA.md)；产物体积、增量构建与自动预算见 [性能基线](./docs/PERFORMANCE.md)。

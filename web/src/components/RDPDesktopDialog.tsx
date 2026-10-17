@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { createDesktopFrameRenderer } from "./desktopFrameRenderer";
 import "./rdp.css";
 
 type Props = { assetId: string; assetName: string; accessToken: string; onClose: () => void };
@@ -112,8 +113,19 @@ export default function RDPDesktopDialog({ assetId, assetName, accessToken, onCl
   useEffect(() => {
     let active = true,
       id = "",
-      ws: WebSocket | null = null,
-      sequence = 0;
+      ws: WebSocket | null = null;
+    const renderer = createDesktopFrameRenderer(
+      () => canvas.current,
+      () => {
+        if (active) setState("connected");
+      },
+      () => {
+        if (active) {
+          setState("failed");
+          ws?.close();
+        }
+      },
+    );
     const controller = new AbortController();
     const headers = new Headers();
     if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
@@ -199,30 +211,7 @@ export default function RDPDesktopDialog({ assetId, assetName, accessToken, onCl
             }
             return;
           }
-          const data = event.data as ArrayBuffer;
-          if (data.byteLength < 16 || data.byteLength > 40 * 1024 * 1024 + 8) {
-            ws?.close();
-            return;
-          }
-          const next = Number(new DataView(data).getBigUint64(0));
-          void createImageBitmap(new Blob([data.slice(8)], { type: "image/png" }))
-            .then((bitmap) => {
-              if (active && next > sequence && canvas.current) {
-                sequence = next;
-                const host = canvas.current;
-                host.width = bitmap.width;
-                host.height = bitmap.height;
-                host.getContext("2d")?.drawImage(bitmap, 0, 0);
-                setState("connected");
-              }
-              bitmap.close();
-            })
-            .catch(() => {
-              if (active) {
-                setState("failed");
-                ws?.close();
-              }
-            });
+          renderer.push(event.data as ArrayBuffer);
         };
         ws.onclose = () => {
           if (active) {
@@ -239,6 +228,7 @@ export default function RDPDesktopDialog({ assetId, assetName, accessToken, onCl
     }, 0);
     return () => {
       active = false;
+      renderer.dispose();
       clearTimeout(timer);
       controller.abort();
       ws?.close();

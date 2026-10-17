@@ -1,4 +1,15 @@
 const zhCN = {
+  desktopMonitor: {
+    title: "桌面实时监看 · {{name}}",
+    hint: "只读观看远端桌面。关闭监看会保留操作员连接，剪贴板不同步。",
+    screen: "RDP 实时监看画面",
+    close: "关闭监看",
+    events: "桌面观看活动",
+    empty: "暂无桌面观看活动。",
+    auditFailed: "无法读取桌面观看活动。",
+    started: "开始观看",
+    ended: "结束观看",
+  },
   sharing: {
     reviewBusy: "当前命令复核结束后，可交接输入控制。",
     refresh: "刷新活动",
@@ -965,6 +976,7 @@ const zhCN = {
       login_review_bypass: "跳过 SSH/SFTP 登录复核",
       audit_sessions_view_all: "查看全部会话审计",
       audit_sessions_monitor_all: "只读监看任意在线终端",
+      audit_desktops_monitor_all: "只读监看任意在线 RDP 桌面",
       sessions_share: "为自己的在线终端创建分享邀请",
       audit_sessions_terminate_all: "中断任意活动会话",
       audit_replays_view_all: "读取全部会话录像",

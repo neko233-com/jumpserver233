@@ -2,6 +2,8 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+RDP monitoring slice, 2026-10-17: viewer dialog approximately 2.89 kB, viewing activity 2.32 kB and shared renderer 0.85 kB, all loaded on demand. Main entry is 449,777 bytes; initial scripts including static shared dependencies total 467,121 bytes, or 151,089 gzip bytes. All JavaScript totals 1,226,612 bytes and passes existing budgets. Stripped Windows server is 39,245,824 bytes; CLI is 12,233,728 bytes. The server's same-sequence wire-packet test allocates nothing extra. Separate Node tests cover one decode plus latest-frame replacement, preventing an unbounded queue for slow consumers. Zero-allocation evidence excludes PNG re-encoding, network and the remote connector.
+
 Terminal collaboration slice, 2026-10-17: invitation panel approximately 4.83 kB, participant page 5.13 kB and activity list 2.11 kB, all loaded on demand. Main entry is 448,885 bytes; initial scripts including shared static dependencies total 466,229 bytes, or 150,880 gzip bytes. All JavaScript totals 1,218,401 bytes and passes existing budgets. Stripped Windows server is 39,199,744 bytes; CLI is 12,229,120 bytes. Each active terminal retains at most 64 KiB of output tail with bounded participant queues and no copy of the complete recording.
 
 Session security slice, 2026-10-17: settings load on demand in approximately 3.16 kB; the 444.38 kB main entry passes existing budgets. The stripped Windows program is 38,993,408 bytes, approximately 0.36% above the previous baseline. The local production API image is 23,501,151 bytes.

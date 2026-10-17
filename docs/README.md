@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+独立 RDP 实时只读监看、观看者审计、CLI 截图和权限边界见 [RDP 实时监看](./RDP-LIVE-MONITOR.md)。
+
 指定平台用户的只读分享、输入接管、踢出和协作审计见 [终端会话协作](./SESSION-SHARING.md)。
 
 终端与 RDP 的统一空闲/最大时长、水印、权限及持久化见 [交互会话安全](./SESSION-SECURITY.md)。
