@@ -39,6 +39,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
@@ -178,11 +179,17 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		}, shell, nil
 	})
 	defer sessionBroker.CloseAll()
+	sessionSettings, err := sessionpolicy.Open(filepath.Join(cfg.DataDir, "session-security.json"), documents)
+	if err != nil {
+		return err
+	}
+	sessionBroker.SetSessionPolicy(sessionSettings.Snapshot)
 	desktopBroker, err := desktop.New(cfg.DataDir, vaultKey)
 	if err != nil {
 		return err
 	}
 	defer desktopBroker.CloseAll()
+	desktopBroker.SetSessionPolicy(sessionSettings.Snapshot)
 	jobService, err := corejobs.Open(filepath.Join(cfg.DataDir, "ssh-jobs.json"), vaultKey, documents, assetService.Exec)
 	if err != nil {
 		return err
@@ -252,6 +259,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}, pluginCache)
 	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
+	root.SessionPolicy = sessionSettings
 	root.DatabaseQueries = databaseService
 	root.GlobalRBAC = roleStore
 	root.GlobalGroups = groupStore

@@ -14,6 +14,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/rdpclient"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/recorder"
 	"io"
 	"net/http"
@@ -42,6 +43,7 @@ type Display interface {
 	ClipboardSnapshot() rdpclient.ClipboardState
 }
 type Record struct {
+	Watermark  string                  `json:"watermark,omitempty"`
 	ID         string                  `json:"session_id"`
 	AssetID    string                  `json:"asset_id"`
 	AssetName  string                  `json:"asset_name"`
@@ -72,6 +74,9 @@ type Created struct {
 	Expires time.Time `json:"expires_at"`
 }
 type active struct {
+	lastInput time.Time
+	frameMu   sync.Mutex
+	cached    rdpclient.Frame
 	mu        sync.Mutex
 	record    Record
 	display   Display
@@ -85,6 +90,7 @@ type active struct {
 	socket    *websocket.Conn
 }
 type Broker struct {
+	policy  func() sessionpolicy.Settings
 	mu      sync.Mutex
 	indexMu sync.Mutex // Windows readers must close before atomic index replacement.
 	root    string
@@ -185,9 +191,12 @@ func (b *Broker) Create(ctx context.Context, req Request) (Created, error) {
 	}
 	req.Record.ID = id
 	req.Record.StartedAt = time.Now().UTC()
+	if b.securitySettings().Watermark {
+		req.Record.Watermark = sessionpolicy.Label(req.Record.OperatorID, id, req.Record.StartedAt)
+	}
 	req.Record.Status = "active"
 	req.Record.Frames = []recorder.DesktopFrame{}
-	a := &active{record: req.Record, display: display, recording: rec, guard: req.Guard, ctx: context.WithoutCancel(ctx), token: sha256.Sum256([]byte(ticket)), expiry: time.Now().Add(30 * time.Second)}
+	a := &active{lastInput: req.Record.StartedAt, record: req.Record, display: display, recording: rec, guard: req.Guard, ctx: context.WithoutCancel(ctx), token: sha256.Sum256([]byte(ticket)), expiry: time.Now().Add(30 * time.Second)}
 	display.SetClipboardGuard(func(method string) error { return req.Guard(a.ctx, method) })
 	a.mu.Lock()
 	e = b.capture(a)
@@ -207,7 +216,7 @@ func (b *Broker) Create(ctx context.Context, req Request) (Created, error) {
 	return Created{ID: id, URL: "/ws/desktop/" + id, Ticket: ticket, Expires: a.expiry}, nil
 }
 func (b *Broker) capture(a *active) error {
-	f, e := a.display.Snapshot()
+	f, e := a.snapshot()
 	if e != nil {
 		return e
 	}
@@ -231,10 +240,11 @@ func (b *Broker) watch(a *active) {
 			b.end(a, "remote_closed")
 			return
 		case <-ticker.C:
+			settings := b.securitySettings()
 			a.mu.Lock()
 			closed := a.closed
 			expired := !a.consumed && time.Now().After(a.expiry)
-			elapsed := time.Since(a.record.StartedAt) > time.Hour
+			limitReason := settings.EndReason(a.record.StartedAt, a.lastInput, time.Now())
 			a.mu.Unlock()
 			if closed {
 				return
@@ -243,8 +253,8 @@ func (b *Broker) watch(a *active) {
 				b.end(a, "ticket_expired")
 				return
 			}
-			if elapsed {
-				b.end(a, "duration_limit")
+			if limitReason != "" {
+				b.end(a, limitReason)
 				return
 			}
 			if a.guard(a.ctx, "rdp") != nil {
@@ -478,6 +488,14 @@ func (b *Broker) ServeWS(w http.ResponseWriter, r *http.Request) {
 			if a.guard(ctx, "rdp") != nil || a.guard(ctx, method) != nil {
 				return
 			}
+			settings := b.securitySettings()
+			a.mu.Lock()
+			reason := settings.EndReason(a.record.StartedAt, a.lastInput, time.Now())
+			a.mu.Unlock()
+			if reason != "" {
+				b.end(a, reason)
+				return
+			}
 			if e = a.display.Input(input); e != nil {
 				if input.Type == "text" && errors.Is(e, rdpclient.ErrTextUnsupported) {
 					if write(websocket.MessageText, []byte(`{"type":"text_error"}`)) != nil {
@@ -500,6 +518,7 @@ func (b *Broker) ServeWS(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			a.mu.Lock()
+			a.lastInput = time.Now()
 			a.record.Inputs++
 			a.mu.Unlock()
 		}
@@ -528,7 +547,7 @@ func (b *Broker) ServeWS(w http.ResponseWriter, r *http.Request) {
 			if a.guard(ctx, "rdp") != nil {
 				return
 			}
-			f, e := a.display.Snapshot()
+			f, e := a.snapshot()
 			if e != nil {
 				return
 			}

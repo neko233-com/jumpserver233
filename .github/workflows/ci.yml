@@ -136,6 +136,14 @@ jobs:
       - name: Browser end-to-end tests
         working-directory: web
         run: pnpm test:e2e
+      - name: Retain failed browser evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure
+          path: web/test-results/
+          if-no-files-found: ignore
+          retention-days: 3
 
   docker-qa:
     runs-on: ubuntu-latest

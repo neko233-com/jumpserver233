@@ -45,6 +45,8 @@ type FileTransfer = {
 type FileTransferPage = { results: FileTransfer[]; total: number };
 
 const reasons: Record<string, string> = {
+  idle_timeout: "audit.idleTimeout",
+  duration_limit: "audit.durationLimit",
   closed_by_client: "audit.endReason.closedByClient",
   disconnected: "audit.endReason.disconnected",
   server_shutdown: "audit.endReason.serverShutdown",

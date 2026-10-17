@@ -46,6 +46,8 @@ Align all JumpServer Enterprise software features on Go + React, with Community 
 
 ## 1. Scope
 
+Interactive session security adds configurable global idle limits, maximum duration and creation-time identity watermarks for Web / CLI terminals and RDP. RDP markers are rendered server-side; terminal recordings preserve compatible metadata. See [interactive session security](./SESSION-SECURITY.en.md).
+
 New slice: active SSH / Telnet / Kubernetes terminals support read-only live monitoring, separate monitoring permission and viewer audit. SSH continuously rechecks current authorization and connection revisions. See [live terminal monitoring](./LIVE-SESSIONS.en.md). Session sharing, collaborative input, RDP monitoring and full Enterprise parity remain in progress.
 
 ### 1.1 Target and competitor

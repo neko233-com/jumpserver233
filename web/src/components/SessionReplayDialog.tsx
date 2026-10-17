@@ -22,7 +22,10 @@ const maxCompressedBytes = 64 * 1024 * 1024;
 const maxExpandedBytes = 128 * 1024 * 1024;
 const maxLines = 1_000_000;
 
-async function readReplay(response: Response, signal: AbortSignal): Promise<ReplayEvent[]> {
+async function readReplay(
+  response: Response,
+  signal: AbortSignal,
+): Promise<{ events: ReplayEvent[]; watermark: string }> {
   const compressed = await response.arrayBuffer();
   if (compressed.byteLength > maxCompressedBytes) throw new Error("recording too large");
   if (typeof DecompressionStream === "undefined")
@@ -38,6 +41,7 @@ async function readReplay(response: Response, signal: AbortSignal): Promise<Repl
   let expandedBytes = 0;
   let lineCount = 0;
   let headerSeen = false;
+  let watermark = "";
 
   function consumeLine(line: string) {
     if (!line) return;
@@ -48,6 +52,15 @@ async function readReplay(response: Response, signal: AbortSignal): Promise<Repl
       if (!value || typeof value !== "object" || !("version" in value) || value.version !== 2)
         throw new Error("unsupported recording");
       headerSeen = true;
+      if (
+        "env" in value &&
+        value.env &&
+        typeof value.env === "object" &&
+        "JMS_WATERMARK" in value.env &&
+        typeof value.env.JMS_WATERMARK === "string" &&
+        value.env.JMS_WATERMARK.length <= 512
+      )
+        watermark = value.env.JMS_WATERMARK;
       return;
     }
     if (
@@ -84,7 +97,7 @@ async function readReplay(response: Response, signal: AbortSignal): Promise<Repl
     await reader.cancel().catch(() => undefined);
   }
   if (!headerSeen) throw new Error("recording header is missing");
-  return events;
+  return { events, watermark };
 }
 
 function formatDuration(seconds: number) {
@@ -103,6 +116,7 @@ export default function SessionReplayDialog({ session, accessToken, onClose }: P
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [watermark, setWatermark] = useState("");
 
   useEffect(() => {
     const host = hostRef.current;
@@ -144,7 +158,8 @@ export default function SessionReplayDialog({ session, accessToken, onClose }: P
         if (!response.ok) throw new Error("could not load recording");
         const result = await readReplay(response, controller.signal);
         if (controller.signal.aborted) return;
-        setEvents(result);
+        setEvents(result.events);
+        setWatermark(result.watermark);
         setState("ready");
       } catch {
         if (!controller.signal.aborted) setState("failed");
@@ -229,6 +244,11 @@ export default function SessionReplayDialog({ session, accessToken, onClose }: P
           </p>
         )}
         <div className="ssh-terminal-host replay-terminal-host" ref={hostRef}>
+          {watermark && (
+            <div className="session-monitor-watermark" aria-label={t("sessionSecurity.watermark")}>
+              {watermark}
+            </div>
+          )}
           {state === "loading" && (
             <div className="replay-terminal-message">{t("audit.loadingReplay")}</div>
           )}

@@ -1,4 +1,20 @@
 const en = {
+  sessionSecurity: {
+    title: "Resource session security",
+    description: "Limits apply on the server to Web and CLI terminals and RDP desktops.",
+    idle: "Maximum idle time (minutes)",
+    maximum: "Maximum connection duration (hours)",
+    watermark: "Session watermark",
+    hint: "0 disables a limit. Limits update active connections. Watermark changes apply to new sessions; recorded identity stays with the recording.",
+    save: "Save session security",
+    saved: "Session security saved.",
+    error: "Could not load or save settings. Refresh to get the current revision and retry.",
+    history: "Recent changes",
+    empty: "No session security changes yet.",
+    change: "Idle {{idle}} min · duration {{max}} h · watermark {{watermark}}",
+    on: "on",
+    off: "off",
+  },
   agentEvents: {
     show: "Show",
     hostRecords: "Host events",
@@ -1450,10 +1466,14 @@ const en = {
     commandReviewTimedOut: "Command review timed out. Execution was cancelled.",
   },
   audit: {
+    idleTimeout: "Idle timeout",
+    durationLimit: "Maximum session duration",
     monitor: "Monitor live",
     monitorTitle: "Live monitor · {{name}}",
-    monitorHint: "Read only. Displays new output after connecting. Closing this view keeps the operator connected.",
-    monitorFailed: "Monitoring disconnected or unavailable. Check access and retry. The operator session is unaffected.",
+    monitorHint:
+      "Read only. Displays new output after connecting. Closing this view keeps the operator connected.",
+    monitorFailed:
+      "Monitoring disconnected or unavailable. Check access and retry. The operator session is unaffected.",
     monitorOutput: "Live terminal output",
     title: "Access audit",
     subtitle: "Review SSH, Telnet and Kubernetes terminal sessions and SFTP file transfers.",

@@ -21,6 +21,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/kubeclient"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/recorder"
 )
 
@@ -78,6 +79,7 @@ type CommandPolicyDecision struct {
 type CommandPolicy func(command string, supported bool, at time.Time) CommandPolicyDecision
 
 type CreatedSession struct {
+	Watermark    string    `json:"watermark,omitempty"`
 	SessionID    string    `json:"session_id"`
 	AssetName    string    `json:"asset_name"`
 	WebSocketURL string    `json:"websocket_url"`
@@ -95,6 +97,7 @@ type KubernetesSession struct {
 }
 
 type SessionRecord struct {
+	Watermark  string             `json:"watermark,omitempty"`
 	Protocol   string             `json:"protocol,omitempty"`
 	Kubernetes *KubernetesSession `json:"kubernetes,omitempty"`
 
@@ -125,6 +128,8 @@ type activeSession struct {
 	commands       *commandCapture
 	commandPolicy  CommandPolicy
 	startedAt      time.Time
+	lastInput      time.Time // guarded by Broker.mu; remote output is not user activity
+	watermark      string
 	ticketHash     [32]byte
 	ticketExpiry   time.Time
 	ticketTimer    *time.Timer
@@ -146,6 +151,7 @@ type Broker struct {
 	mu             sync.Mutex
 	sessions       map[string]*activeSession
 	monitors       map[[32]byte]*sessionMonitor
+	sessionPolicy  func() sessionpolicy.Settings
 	auditMu        sync.Mutex
 	auditPath      string
 	commandAuditMu sync.Mutex
@@ -200,7 +206,11 @@ func (b *Broker) Create(ctx context.Context, request CreateRequest) (CreatedSess
 		return CreatedSession{}, fmt.Errorf("create terminal ticket: %w", err)
 	}
 	recordingPath := filepath.Join(b.dataDir, "sessions", sessionID+".json.gz.enc")
-	sessionRecorder, err := recorder.NewAsciinema(recordingPath, sessionID, asset.ID, request.Cols, request.Rows, startedAt, b.vaultKey)
+	watermark := ""
+	if b.securitySettings().Watermark {
+		watermark = sessionpolicy.Label(request.OperatorID, sessionID, startedAt)
+	}
+	sessionRecorder, err := recorder.NewAsciinema(recordingPath, sessionID, asset.ID, request.Cols, request.Rows, startedAt, b.vaultKey, watermark)
 	if err != nil {
 		_ = terminal.Close()
 		return CreatedSession{}, err
@@ -217,6 +227,8 @@ func (b *Broker) Create(ctx context.Context, request CreateRequest) (CreatedSess
 		accessPolicy:  request.AccessPolicy,
 		accessContext: context.WithoutCancel(ctx),
 		startedAt:     startedAt,
+		lastInput:     startedAt,
+		watermark:     watermark,
 		ticketHash:    sha256.Sum256([]byte(ticket)),
 		ticketExpiry:  startedAt.Add(terminalTicketLifetime),
 		monitors:      make(map[*sessionMonitor]struct{}),
@@ -234,6 +246,7 @@ func (b *Broker) Create(ctx context.Context, request CreateRequest) (CreatedSess
 	session.ticketTimer = time.AfterFunc(terminalTicketLifetime, func() { b.closeExpiredSession(session) })
 	b.mu.Unlock()
 	return CreatedSession{
+		Watermark:    watermark,
 		SessionID:    sessionID,
 		AssetName:    asset.Name,
 		WebSocketURL: "/ws/api/v1/sessions/" + sessionID + "/terminal",
@@ -388,6 +401,7 @@ func (b *Broker) readSessionRecords() ([]SessionRecord, error) {
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		var event struct {
+			Watermark  string             `json:"watermark,omitempty"`
 			Protocol   string             `json:"protocol,omitempty"`
 			Kubernetes *KubernetesSession `json:"kubernetes,omitempty"`
 			SessionID  string             `json:"session_id"`
@@ -406,7 +420,7 @@ func (b *Broker) readSessionRecords() ([]SessionRecord, error) {
 		}
 		record := byID[event.SessionID]
 		if event.Event == "started" {
-			record = SessionRecord{Protocol: event.Protocol, Kubernetes: event.Kubernetes,
+			record = SessionRecord{Watermark: event.Watermark, Protocol: event.Protocol, Kubernetes: event.Kubernetes,
 				SessionID:  event.SessionID,
 				AssetID:    event.AssetID,
 				AssetName:  event.AssetName,
@@ -498,15 +512,21 @@ func (b *Broker) ServeTerminal(w http.ResponseWriter, r *http.Request) {
 	go func() { done <- b.writeTerminal(ctx, conn, session) }()
 	go func() { done <- b.readTerminal(ctx, conn, session) }()
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
+		checks := 0
 		for {
 			select {
 			case <-ctx.Done():
 				done <- ctx.Err()
 				return
 			case <-ticker.C:
-				if session.accessPolicy != nil && session.accessPolicy(ctx) != nil {
+				if err := b.sessionLimit(session); err != nil {
+					done <- err
+					return
+				}
+				checks++
+				if checks%10 == 0 && session.accessPolicy != nil && session.accessPolicy(ctx) != nil {
 					done <- errSessionPolicyDenied
 					return
 				}
@@ -525,6 +545,12 @@ var ErrSessionAccessDenied = errors.New("terminal access policy denied")
 var errSessionPolicyDenied = ErrSessionAccessDenied
 
 func terminalCloseReason(err error) string {
+	if errors.Is(err, errSessionIdle) {
+		return "idle_timeout"
+	}
+	if errors.Is(err, errSessionDuration) {
+		return "duration_limit"
+	}
 	if errors.Is(err, errSessionPolicyDenied) {
 		return "access_policy_denied"
 	}
@@ -569,6 +595,9 @@ func (b *Broker) readTerminal(ctx context.Context, conn *websocket.Conn, session
 		if session.accessPolicy != nil && session.accessPolicy(ctx) != nil {
 			return errSessionPolicyDenied
 		}
+		if err := b.sessionLimit(session); err != nil {
+			return err
+		}
 		switch messageType {
 		case websocket.MessageBinary:
 			if len(data) == 0 {
@@ -592,6 +621,7 @@ func (b *Broker) readTerminal(ctx context.Context, conn *websocket.Conn, session
 				session.inputMu.Unlock()
 				return err
 			}
+			b.touchSession(session)
 			session.inputMu.Unlock()
 		case websocket.MessageText:
 			var control struct {
@@ -726,7 +756,6 @@ func (b *Broker) consumeTicket(id, ticket string) (*activeSession, bool) {
 
 func (b *Broker) closeSession(session *activeSession, reason string) {
 	session.closeOnce.Do(func() {
-		session.inputMu.Lock()
 		b.mu.Lock()
 		session.closing = true
 		for monitor := range session.monitors {
@@ -744,6 +773,10 @@ func (b *Broker) closeSession(session *activeSession, reason string) {
 		}
 		session.ticketHash = [32]byte{}
 		b.mu.Unlock()
+		// A remote that stops reading can block PTY input. Closing the transport
+		// first releases that write so expiry/admin termination can join it.
+		_ = session.terminal.Close()
+		session.inputMu.Lock()
 		if pendingReview != nil {
 			submission := pendingReview.submission
 			submission.SubmittedAt = time.Now().UTC()
@@ -751,7 +784,6 @@ func (b *Broker) closeSession(session *activeSession, reason string) {
 			submission.ReviewedBy = "system"
 			_ = b.appendCommand(session.id, submission)
 		}
-		_ = session.terminal.Close()
 		session.inputMu.Unlock()
 		_ = session.recorder.Close()
 		session.commands.Close()
@@ -779,6 +811,7 @@ func (b *Broker) closeExpiredSession(session *activeSession) {
 
 func (b *Broker) appendAudit(session *activeSession, event, reason string) error {
 	record := struct {
+		Watermark  string             `json:"watermark,omitempty"`
 		Protocol   string             `json:"protocol,omitempty"`
 		Kubernetes *KubernetesSession `json:"kubernetes,omitempty"`
 		SessionID  string             `json:"session_id"`
@@ -792,7 +825,8 @@ func (b *Broker) appendAudit(session *activeSession, event, reason string) error
 		Reason     string             `json:"reason,omitempty"`
 		At         time.Time          `json:"at"`
 	}{
-		Protocol: session.asset.Protocol, Kubernetes: session.asset.Kubernetes,
+		Watermark: session.watermark,
+		Protocol:  session.asset.Protocol, Kubernetes: session.asset.Kubernetes,
 		SessionID:  session.id,
 		AssetID:    session.asset.ID,
 		AssetName:  session.asset.Name,

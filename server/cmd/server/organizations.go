@@ -130,7 +130,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 	if !organizations.ValidID(id) || !r.store.Enabled(id) {
 		return nil, organizations.ErrNotFound
 	}
-	d := api.Dependencies{Tenant: true, OrganizationID: id, Organizations: r.store, Auth: r.root.Auth, AdminToken: r.root.AdminToken, PublicURL: r.root.PublicURL, TrustedProxies: r.root.TrustedProxies, GlobalRBAC: r.root.RBAC, GlobalGroups: r.root.Groups, GlobalPolicies: r.root.AccessPolicies}
+	d := api.Dependencies{SessionPolicy: r.root.SessionPolicy, Tenant: true, OrganizationID: id, Organizations: r.store, Auth: r.root.Auth, AdminToken: r.root.AdminToken, PublicURL: r.root.PublicURL, TrustedProxies: r.root.TrustedProxies, GlobalRBAC: r.root.RBAC, GlobalGroups: r.root.Groups, GlobalPolicies: r.root.AccessPolicies}
 	d.OrganizationAllowed = func(u coreauth.User) bool { return r.allowed(id, u) }
 	orgKey := r.key
 	if id != organizations.DefaultID {
@@ -233,6 +233,10 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return gateway.AssetInfo{ID: asset.ID, GatewayIDs: asset.GatewayIDs, Name: asset.Name, Host: asset.Host, Port: asset.Port, Username: asset.Username}, shell, nil
 		})
 		d.Jobs, e = jobs.Open(filepath.Join(orgPath, "ssh-jobs.json"), orgKey, docs, d.Assets.Exec)
+		if d.SessionPolicy != nil {
+			d.Sessions.SetSessionPolicy(d.SessionPolicy.Snapshot)
+			d.Desktops.SetSessionPolicy(d.SessionPolicy.Snapshot)
+		}
 		if e != nil {
 			d.Sessions.CloseAll()
 			if d.Desktops != nil {

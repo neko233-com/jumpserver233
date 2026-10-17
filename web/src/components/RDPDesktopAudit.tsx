@@ -132,6 +132,17 @@ export default function RDPDesktopAudit() {
                   {t(
                     `audit.status.${["active", "ended", "interrupted"].includes(row.status) ? row.status : "interrupted"}`,
                   )}
+                  {row.end_reason && (
+                    <small className="settings-help">
+                      {t(
+                        row.end_reason === "idle_timeout"
+                          ? "audit.idleTimeout"
+                          : row.end_reason === "duration_limit"
+                            ? "audit.durationLimit"
+                            : "audit.endReason.other",
+                      )}
+                    </small>
+                  )}
                 </td>
                 <td>
                   <button

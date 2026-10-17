@@ -1,4 +1,20 @@
 const zhCN = {
+  sessionSecurity: {
+    title: "资源会话安全",
+    description: "服务端统一限制 Web 与 CLI 终端及 RDP 桌面。",
+    idle: "最大空闲时间（分钟）",
+    maximum: "最大连接时长（小时）",
+    watermark: "会话水印",
+    hint: "0 表示关闭对应限制。时长设置作用于已有连接；水印设置作用于新会话，录像保留创建时的身份标记。",
+    save: "保存会话安全",
+    saved: "会话安全已保存。",
+    error: "读取或保存设置失败，请刷新取得当前版本后重试。",
+    history: "最近变更",
+    empty: "暂无会话安全变更。",
+    change: "空闲 {{idle}} 分钟 · 时长 {{max}} 小时 · 水印{{watermark}}",
+    on: "开启",
+    off: "关闭",
+  },
   agentEvents: {
     show: "显示",
     hostRecords: "主机事件",
@@ -1345,6 +1361,8 @@ const zhCN = {
     commandReviewTimedOut: "命令复核超时，已取消执行。",
   },
   audit: {
+    idleTimeout: "空闲超时",
+    durationLimit: "达到最大连接时长",
     monitor: "实时监看",
     monitorTitle: "实时监看 · {{name}}",
     monitorHint: "只读显示连接后的新增输出。关闭此窗口后，操作员会话继续运行。",

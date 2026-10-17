@@ -42,9 +42,9 @@ type header struct {
 	Env       map[string]string `json:"env"`
 }
 
-// NewAsciinema creates an encrypted replay file. OpenReplay returns the
-// compatible gzip stream after the caller authorizes access to the recording.
-func NewAsciinema(path, sessionID, assetID string, cols, rows int, started time.Time, vaultKey []byte) (*Asciinema, error) {
+// NewAsciinema creates an encrypted replay file. OpenReplay returns decrypted
+// asciinema text; the authorized HTTP endpoint applies transport gzip.
+func NewAsciinema(path, sessionID, assetID string, cols, rows int, started time.Time, vaultKey []byte, watermark ...string) (*Asciinema, error) {
 	if cols < 2 || cols > 500 || rows < 2 || rows > 500 {
 		return nil, fmt.Errorf("recording terminal dimensions must be between 2 and 500")
 	}
@@ -76,6 +76,9 @@ func NewAsciinema(path, sessionID, assetID string, cols, rows int, started time.
 			"JMS_SESSION_ID": sessionID,
 			"JMS_ASSET_ID":   assetID,
 		},
+	}
+	if len(watermark) > 0 && watermark[0] != "" {
+		value.Env["JMS_WATERMARK"] = watermark[0]
 	}
 	data, err := json.Marshal(value)
 	if err == nil {

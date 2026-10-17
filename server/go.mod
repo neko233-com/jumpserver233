@@ -23,6 +23,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	go.mongodb.org/mongo-driver/v2 v2.9.2
 	golang.org/x/crypto v0.58.0
+	golang.org/x/image v0.47.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/term v0.47.0
 	k8s.io/client-go v0.37.1

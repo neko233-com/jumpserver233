@@ -26,11 +26,13 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 )
 
 type Dependencies struct {
+	SessionPolicy        *sessionpolicy.Store
 	AgentEvents          *agentevents.Store
 	HostPlugins          *hostplugins.Service
 	Desktops             *desktop.Broker
@@ -90,6 +92,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	}
 
 	mux.HandleFunc("GET /api/health", HealthHandler(version))
+	if len(dependencies) > 0 && dependencies[0].SessionPolicy != nil {
+		registerSessionPolicyRoutes(mux, dependencies[0])
+	}
 	if len(dependencies) > 0 && dependencies[0].Desktops != nil && dependencies[0].Assets != nil && dependencies[0].Auth != nil {
 		registerRDPRoutes(mux, dependencies[0], accessMu)
 	}

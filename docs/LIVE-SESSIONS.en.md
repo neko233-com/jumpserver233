@@ -37,4 +37,4 @@ Disabling an external identity source invalidates its SSH and monitoring identit
 - `GET /ws/api/v1/sessions/{id}/monitor`: single-use ticket attachment. Binary frames carry output; text frames carry resize metadata.
 - Single-node deployment remains the priority. PostgreSQL single-active HA shares role and organization configuration. Tickets, queues and online sessions remain in the active process. Takeover requires new SSH and monitoring connections. Multi-active routing and session migration are unsupported.
 
-The full Enterprise objective continues under [PLAN](./PLAN.en.md). Session sharing, collaborative input, RDP live monitoring and recording watermarks remain unimplemented.
+See [interactive session security](./SESSION-SECURITY.en.md) for terminal/RDP creation-time watermarks and recording behavior. The full Enterprise objective continues under [PLAN](./PLAN.en.md). Session sharing, collaborative input and RDP live monitoring remain unimplemented.

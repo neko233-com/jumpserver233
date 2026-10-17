@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
+const SessionSecuritySettings = lazy(() => import("../components/SessionSecuritySettings"));
 
 type User = { id: string; username: string; role: "admin" | "operator"; created_at: string };
 type MFAEnforcementMode = "disabled" | "admins" | "all";
@@ -813,6 +814,9 @@ export default function SettingsPage() {
 
           {tab === "security" && (
             <div className="settings-columns">
+              <Suspense fallback={null}>
+                <SessionSecuritySettings />
+              </Suspense>
               <form
                 className="settings-card settings-form"
                 onSubmit={(event) => void saveMFAEnforcement(event)}

@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+终端与 RDP 的统一空闲/最大时长、水印、权限及持久化见 [交互会话安全](./SESSION-SECURITY.md)。
+
 [Docker 纯净验证与并行调试](./DOCKER-QA.md) · [性能与打包基线](./PERFORMANCE.md)
 
 活动 SSH / Telnet / Kubernetes 终端的只读监看、独立权限、审计与持续授权见 [在线终端监看](./LIVE-SESSIONS.md)。

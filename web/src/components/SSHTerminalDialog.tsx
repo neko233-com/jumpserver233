@@ -13,6 +13,7 @@ type Props = {
 };
 
 type CreatedSession = {
+  watermark?: string;
   session_id: string;
   websocket_url: string;
   ticket: string;
@@ -36,6 +37,7 @@ export default function SSHTerminalDialog({
       : "terminal";
   const hostRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<ConnectionState>("connecting");
+  const [watermark, setWatermark] = useState("");
 
   useEffect(() => {
     const host = hostRef.current;
@@ -149,6 +151,7 @@ export default function SSHTerminalDialog({
         }
         if (!response.ok) throw new Error("session creation failed");
         const session = (await response.json()) as CreatedSession;
+        if (active) setWatermark(session.watermark || "");
         if (!session.session_id || !session.ticket || !session.websocket_url.startsWith("/ws/")) {
           throw new Error("incomplete session response");
         }
@@ -282,7 +285,14 @@ export default function SSHTerminalDialog({
             {t(`${terminalPrefix}.connectFailed`)}
           </p>
         )}
-        <div className="ssh-terminal-host" ref={hostRef} />
+        <div className="session-monitor-surface">
+          <div className="ssh-terminal-host" ref={hostRef} />
+          {watermark && (
+            <div className="session-monitor-watermark" aria-label={t("sessionSecurity.watermark")}>
+              {watermark}
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );

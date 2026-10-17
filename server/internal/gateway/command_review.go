@@ -60,7 +60,7 @@ func (b *Broker) createCommandReview(ctx context.Context, conn *websocket.Conn, 
 	}
 	pending := &pendingCommandReview{request: review, submission: submission}
 	b.mu.Lock()
-	if b.sessions[session.id] != session || session.pendingReview != nil {
+	if b.sessions[session.id] != session || session.closing || session.pendingReview != nil {
 		b.mu.Unlock()
 		submission.SubmittedAt = time.Now().UTC()
 		submission.Outcome = "cancelled"
@@ -157,13 +157,18 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 
 	session.inputMu.Lock()
 	b.mu.Lock()
-	active := b.sessions[session.id] == session && session.pendingReview == pending
+	active := b.sessions[session.id] == session && !session.closing && session.pendingReview == pending
 	conn := session.terminalSocket
 	policyContext := session.accessContext
 	b.mu.Unlock()
 	if !active || conn == nil {
 		session.inputMu.Unlock()
 		return ErrCommandReviewNotFound
+	}
+	if err := b.sessionLimit(session); err != nil {
+		session.inputMu.Unlock()
+		b.closeSession(session, terminalCloseReason(err))
+		return err
 	}
 	if session.accessPolicy != nil && session.accessPolicy(policyContext) != nil {
 		session.inputMu.Unlock()
@@ -212,6 +217,7 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 		b.closeSession(session, "command_review_write_failed")
 		return err
 	}
+	b.touchSession(session)
 	b.mu.Lock()
 	if session.pendingReview == pending {
 		session.pendingReview = nil

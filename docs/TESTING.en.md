@@ -2,6 +2,21 @@
 
 > [中文](./TESTING.md) | English
 
+## Interactive session security (2026-10-17)
+
+- The final uncached local Go/Testify run passed 55 packages / 694 cases, skipped 72 cases without external fixtures and had no failures. Vet, build, warning-free frontend lint/build, E2E types and bilingual content checks passed.
+- Final complete Playwright passed 60/60 in 13.4 minutes, with no failures or skips. Ordinary/root systemd accounts, a real guest reboot, native protection, all existing protocol UI/CLI flows and new session security ran in the same regression. Fixture lifecycle, public artifact cache and Docker argument checks passed 12/12.
+- Linux Docker race covers SessionPolicy, Gateway, Desktop, Recorder and API. The additional active-terminal policy update / viewer closure case passed normal and Linux race checks separately. A real PostgreSQL case separately verifies that takeover reloads both policy and audit.
+- New checks cover revision conflicts, concurrent writes, unchanged memory after failed writes, the 200-entry audit bound, time boundaries, permission denial, delegated access, compatible terminal I/O, retained recording identity, RDP sequence caching and the same burned frame in encrypted recordings. Termination cannot wait behind a blocked remote-input lock.
+- Focused Playwright passed 2/2 against isolated production images in approximately 10.1 seconds: real SSH output, read-only monitoring, recording playback, identity retained after disabling watermarks for future sessions and a real xrdp frame watermark. Both languages and 390×844 have no horizontal overflow; settings tabs and checkbox sizing were repaired. The in-app browser separately confirmed both languages and no console warnings/errors. See [session security](./SESSION-SECURITY.en.md) for screenshots.
+- Final fresh-volume Docker verification passed authentication, compressed static assets and browser logins to two isolated instances: build 3.11 seconds, startup 12.02 seconds and checks 2.74 seconds, approximately 17.9 seconds total. Only that disposable environment was removed. The retained debug instance uses `127.0.0.6:15176/18083`, isolated from existing previews.
+- The older remote frontend CI had 57 passed, one failed and one unrun case: the Chinese systemd status assertion did not wait for its asynchronous job, and fixed asset names caused duplicate matches on retry. Tests now await the submitted job ID and generate unique asset names per fixture, preserving the business assertions. Failed CI runs also retain browser screenshots and traces for three days so synthetic-fixture failures can be inspected.
+- The [remote CI](https://github.com/neko233-com/jumpserver233/actions/runs/39016555668) for previous commit b676efd has finished: complete Linux race passed 54 packages, vet/build and Docker succeeded, and the native RDP package passed this run. Frontend ended with the systemd failure above. This run excludes the new policy and does not print per-case skip counts; it is not complete CI evidence for the present changes.
+
+Full Enterprise parity, real Windows NLA and production HA drills remain in [PLAN](./PLAN.en.md). These results do not replace that acceptance.
+
+Local logs remain in the temporary directory: jms233-session-security-go-final.jsonl and jms233-session-security-e2e-full.log. Downloaded older CI output is jms233-backend-ci-final.log. Production Docker records remain under ignored .cache/docker-qa/.
+
 ## Live monitoring and continuous authorization (2026-10-17)
 
 - An uncached local Go run passed 54 packages / 681 cases and skipped 71 cases without external integration fixtures. This does not establish complete protocol integration. Vet, build, frontend lint/build and E2E type checks passed.

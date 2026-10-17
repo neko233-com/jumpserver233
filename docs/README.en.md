@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+See [interactive session security](./SESSION-SECURITY.en.md) for shared terminal/RDP idle limits, maximum duration, watermarks, permissions and persistence.
+
 [Clean Docker verification and parallel debugging](./DOCKER-QA.en.md) · [Performance and packaging](./PERFORMANCE.en.md)
 
 See [live terminal monitoring](./LIVE-SESSIONS.en.md) for read-only SSH / Telnet / Kubernetes views, separate permissions, audit and continuous authorization.

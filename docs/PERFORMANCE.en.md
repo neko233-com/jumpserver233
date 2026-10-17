@@ -2,6 +2,10 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+Session security slice, 2026-10-17: settings load on demand in approximately 3.16 kB; the 444.38 kB main entry passes existing budgets. The stripped Windows program is 38,993,408 bytes, approximately 0.36% above the previous baseline. The local production API image is 23,501,151 bytes.
+
+A synthetic 1280×720 static-frame watermark benchmark measured approximately 7.17 ms / 8.34 MB temporary allocations when rendering, versus 14.5 ns and zero allocations for a cached sequence. Network, remote desktop and connector costs are excluded; this is not end-to-end frame latency.
+
 Production Docker contexts exclude Go tests, protocol fixtures, Playwright cases and documentation. Test edits therefore do not invalidate the production source copy layer. CI tests use a complete checkout and remain unaffected by `.dockerignore`. Live monitoring loads on demand, while the main entry retains its existing size budgets.
 
 Local production build measurements on 2026-10-16:
