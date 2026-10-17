@@ -2,6 +2,20 @@
 
 > [中文](./TESTING.md) | English
 
+## SSH credential rotation plans (2026-10-18)
+
+- Final full Playwright: 69/69 pass in 15.9 minutes, zero failures/skips, exit code 0, including existing protocols, real VM reboots and the new rotation case. The first full run's shared-root fixture conflict was replaced with a unique privileged account, then the complete suite passed from a clean environment.
+- Final source, uncached serial Go/Testify: 59 packages, 929 passing tests and 35 skips for unavailable external fixtures. Real OpenSSH, PostgreSQL state and xrdp were supplied; absent fixtures are not counted as passes.
+- Linux Docker race: nine related packages, 372 passing tests and eight external-fixture skips, covering plans, Vault coordination, API/SDK/CLI, jobs, files, sessions and node lifecycle.
+- Plan core statement coverage: 75.4%. PostgreSQL organization isolation/takeover passed 50 repeats. Recovery/authority cases passed 20 repeats: denied recovery retains unresolved state; a 25 ms timeout exits a wait behind another host's credential mutation.
+- Final production-image real SSH browser case: 12.9 seconds (13.5 including runner). It covers a no-sudo user reset through a unique passwordless `chpasswd` privileged account, existing key rotation, alias deduplication, partial failure, real CLI login and request retry, metadata CSV, weekly due checks, independent privileged authority, access policies, both languages and 390px, with zero pageerrors. The earlier real-root collector case also passed. Fixture automatic rotation and retained schedules are disabled.
+- Final clean-volume Docker two-instance browser smoke: 18.77 seconds (cached build 3.78, startup 12.09, smoke 2.90), including bilingual rotation/risk pages. Disposable resources were cleaned by ownership. Retained project `jms233-rotation-plans-qa` exposes Web `http://127.0.0.23:15191` and API `http://127.0.0.23:18098` on loopback only.
+- `go vet`, `go build ./...`, stripped server/CLI, frontend lint/types/production build, E2E types and content checks pass. New tests cover concurrent idempotency, per-account cancellation, binding, revocation, result failure without replaying remote changes, explicit password/key recovery and format 4/import compatibility.
+- Ten Docker lifecycle Node tests and six frontend fixture/frame decoding Node tests pass. Content validation passes 1978 keys per locale, 108 bilingual documents and 948 relative links. The in-app browser reread actual run results and saved both languages with no console warnings/errors.
+- Previous stable commit `1e1b80d` has confirmed successful `verify`, `frontend` and `docker-qa` jobs in [CI 39058754322](https://github.com/neko233-com/jumpserver233/actions/runs/39058754322).
+
+Scope and remaining work: [Credential rotation plans](./ROTATION-PLANS.en.md). No CHANGELOG or release tag was created; full Enterprise and production HA acceptance remain in progress.
+
 ## SSH account risks (2026-10-18)
 
 Final full Playwright passed 68/68 in 15.8 minutes, with no failures or skips and exit code 0. It includes every existing protocol, real VM recovery, bulk credential import and account risks with the complete mixed audit history. Go, race and production-image checks below also completed.

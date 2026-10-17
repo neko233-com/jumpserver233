@@ -96,10 +96,17 @@ func decodeRemoteAssetRecords(raw []byte, out *[]storedAsset, imports ...*[]acco
 		}
 		d := json.NewDecoder(bytes.NewReader(raw))
 		d.DisallowUnknownFields()
-		if d.Decode(&box) != nil || d.Decode(new(any)) != io.EOF || box.Format != 2 && box.Format != 3 || box.Records == nil || box.Format == 2 && len(box.Imports) > 0 || box.Format == 3 && (len(imports) != 1 || len(box.Imports) == 0) || validateImportRecords(box.Imports) != nil {
+		if d.Decode(&box) != nil || d.Decode(new(any)) != io.EOF || box.Format != 2 && box.Format != 3 && box.Format != 4 || box.Records == nil || box.Format == 2 && len(box.Imports) > 0 || box.Format == 3 && (len(imports) != 1 || len(box.Imports) == 0) || len(box.Imports) > 0 && len(imports) != 1 || validateImportRecords(box.Imports) != nil {
 			return ErrInvalidInput
 		}
 		*out = box.Records
+		if box.Format != 4 {
+			for _, record := range box.Records {
+				if hasPlannedRotationMetadata(record) {
+					return ErrInvalidInput
+				}
+			}
+		}
 		if len(imports) == 1 {
 			*imports[0] = box.Imports
 		}
@@ -109,7 +116,7 @@ func decodeRemoteAssetRecords(raw []byte, out *[]storedAsset, imports ...*[]acco
 		return e
 	}
 	for _, v := range *out {
-		if v.RemoteAccount != nil || len(v.RemoteOperations) > 0 {
+		if v.RemoteAccount != nil || len(v.RemoteOperations) > 0 || hasPlannedRotationMetadata(v) {
 			return ErrInvalidInput
 		}
 	}
@@ -132,6 +139,20 @@ func encodeRemoteAssetRecords(records []storedAsset, indent bool, receipts ...[]
 			Records []storedAsset         `json:"records"`
 			Imports []accountImportRecord `json:"account_imports"`
 		}{3, records, receipts[0]}
+	}
+	for _, v := range records {
+		if hasPlannedRotationMetadata(v) {
+			var imports []accountImportRecord
+			if len(receipts) == 1 {
+				imports = receipts[0]
+			}
+			value = struct {
+				Format  int                   `json:"format"`
+				Records []storedAsset         `json:"records"`
+				Imports []accountImportRecord `json:"account_imports,omitempty"`
+			}{4, records, imports}
+			break
+		}
 	}
 	if indent {
 		return json.MarshalIndent(value, "", "  ")

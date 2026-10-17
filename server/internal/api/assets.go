@@ -161,6 +161,11 @@ func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminT
 	}))
 	mux.Handle("POST /api/v1/assets/{assetID}/password-rotation", protect(func(w http.ResponseWriter, r *http.Request) {
 		setNoStore(w)
+		release, ok := credentialMutationPolicy(w, r, service, accessMu)
+		if !ok {
+			return
+		}
+		defer release()
 		item, err := service.RotatePassword(r.Context(), r.PathValue("assetID"))
 		if err != nil {
 			writeAssetError(w, err)
@@ -170,6 +175,11 @@ func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminT
 	}))
 	mux.Handle("POST /api/v1/assets/{assetID}/ssh-key-rotation", protect(func(w http.ResponseWriter, r *http.Request) {
 		setNoStore(w)
+		release, ok := credentialMutationPolicy(w, r, service, accessMu)
+		if !ok {
+			return
+		}
+		defer release()
 		var input struct {
 			RequestID        string `json:"request_id"`
 			ExpectedRevision uint64 `json:"expected_revision"`
@@ -241,6 +251,11 @@ func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminT
 	}))
 	mux.Handle("POST /api/v1/assets/{assetID}/credential-backups/{backupID}/restore", protect(func(w http.ResponseWriter, r *http.Request) {
 		setNoStore(w)
+		release, ok := credentialMutationPolicy(w, r, service, accessMu)
+		if !ok {
+			return
+		}
+		defer release()
 		principal, _ := PrincipalFromContext(r.Context())
 		item, err := service.RestoreCredentialBackup(r.Context(), r.PathValue("assetID"), r.PathValue("backupID"), principal.Username)
 		if err != nil {

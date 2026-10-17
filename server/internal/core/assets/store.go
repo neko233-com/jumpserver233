@@ -110,14 +110,15 @@ type encryptedSecret struct {
 }
 
 type storedAsset struct {
-	RemoteOperations       []RemoteAccountTask `json:"remote_operations,omitempty"`
-	AccountAudit           []AccountAudit      `json:"account_audit,omitempty"`
-	PendingKeyChange       *pendingKeyChange   `json:"pending_key_change,omitempty"`
-	KeyLastAttemptAt       time.Time           `json:"key_last_attempt_at,omitempty"`
-	KeyLastError           string              `json:"key_last_error,omitempty"`
-	LastKeyRequestID       string              `json:"last_key_request_id,omitempty"`
-	LastKeyRequestRevision uint64              `json:"last_key_request_revision,omitempty"`
-	LastKeyResult          string              `json:"last_key_result,omitempty"`
+	PlannedPasswordReceipt *plannedPasswordReceipt `json:"planned_password_receipt,omitempty"`
+	RemoteOperations       []RemoteAccountTask     `json:"remote_operations,omitempty"`
+	AccountAudit           []AccountAudit          `json:"account_audit,omitempty"`
+	PendingKeyChange       *pendingKeyChange       `json:"pending_key_change,omitempty"`
+	KeyLastAttemptAt       time.Time               `json:"key_last_attempt_at,omitempty"`
+	KeyLastError           string                  `json:"key_last_error,omitempty"`
+	LastKeyRequestID       string                  `json:"last_key_request_id,omitempty"`
+	LastKeyRequestRevision uint64                  `json:"last_key_request_revision,omitempty"`
+	LastKeyResult          string                  `json:"last_key_result,omitempty"`
 	Asset
 	Credential            encryptedSecret    `json:"credential"`
 	CredentialBackups     []credentialBackup `json:"credential_backups,omitempty"`
@@ -145,11 +146,12 @@ type CredentialBackup struct {
 }
 
 type pendingRotation struct {
-	Credential encryptedSecret `json:"credential"`
-	StartedAt  time.Time       `json:"started_at"`
-	Trigger    string          `json:"trigger,omitempty"`
-	Actor      string          `json:"actor,omitempty"`
-	BackupID   string          `json:"backup_id,omitempty"`
+	Planned    *plannedPasswordIntent `json:"planned,omitempty"`
+	Credential encryptedSecret        `json:"credential"`
+	StartedAt  time.Time              `json:"started_at"`
+	Trigger    string                 `json:"trigger,omitempty"`
+	Actor      string                 `json:"actor,omitempty"`
+	BackupID   string                 `json:"backup_id,omitempty"`
 }
 
 // Store persists assets and AES-GCM-encrypted credentials in a single-user
@@ -209,6 +211,9 @@ func openStore(path string, key []byte, documents *storage.Documents) (*Store, e
 	}
 	migrated := false
 	for _, record := range records {
+		if e := validatePlannedRotationRecord(record); e != nil {
+			return nil, e
+		}
 		if err := validateRemoteAssetRecord(record); err != nil {
 			return nil, err
 		}
@@ -234,7 +239,11 @@ func openStore(path string, key []byte, documents *storage.Documents) (*Store, e
 			if err != nil || len(plaintext) == 0 {
 				return nil, fmt.Errorf("asset store contains an invalid pending credential")
 			}
-			if pending.Trigger == "credential_restore" {
+			if pending.Planned != nil {
+				if pending.Trigger != "planned" || pending.Actor != pending.Planned.Actor.ID || pending.BackupID != "" {
+					return nil, ErrInvalidInput
+				}
+			} else if pending.Trigger == "credential_restore" {
 				if pending.Actor == "" || len(pending.Actor) > 128 || !validCredentialBackupID(pending.BackupID) {
 					return nil, fmt.Errorf("asset store contains incomplete credential restore metadata")
 				}
@@ -622,7 +631,7 @@ func (s *Store) BeginCredentialRestore(id, newPassword string, startedAt time.Ti
 	return s.beginPasswordRotation(id, newPassword, startedAt, "credential_restore", actor, backupID)
 }
 
-func (s *Store) beginPasswordRotation(id, newPassword string, startedAt time.Time, trigger, actor, backupID string) error {
+func (s *Store) beginPasswordRotation(id, newPassword string, startedAt time.Time, trigger, actor, backupID string, planned ...*plannedPasswordIntent) error {
 	if newPassword == "" || startedAt.IsZero() {
 		return fmt.Errorf("password and rotation time are required")
 	}
@@ -638,6 +647,17 @@ func (s *Store) beginPasswordRotation(id, newPassword string, startedAt time.Tim
 	if record.PendingRotation != nil {
 		return ErrRotationPending
 	}
+	var intent *plannedPasswordIntent
+	if len(planned) > 0 {
+		intent = planned[0]
+		if !validPlannedPassword(intent) || backupID != "" || credentialType(record.CredentialType) != CredentialPassword {
+			return ErrInvalidInput
+		}
+		if record.CredentialRevision != intent.Revision || accountVersion(record.Asset) != intent.Version || record.AccountDisabled {
+			return ErrCredentialChanged
+		}
+		trigger, actor = "planned", intent.Actor.ID
+	}
 	if trigger == "" && credentialType(record.CredentialType) != CredentialPassword {
 		return ErrCredentialType
 	}
@@ -645,7 +665,7 @@ func (s *Store) beginPasswordRotation(id, newPassword string, startedAt time.Tim
 	if err != nil {
 		return err
 	}
-	record.PendingRotation = &pendingRotation{Credential: credential, StartedAt: startedAt.UTC(), Trigger: trigger, Actor: actor, BackupID: backupID}
+	record.PendingRotation = &pendingRotation{Credential: credential, StartedAt: startedAt.UTC(), Trigger: trigger, Actor: actor, BackupID: backupID, Planned: intent}
 	s.assets[id] = record
 	if err := s.persistLocked(); err != nil {
 		record.PendingRotation = nil
@@ -765,6 +785,9 @@ func (s *Store) CommitPasswordRotation(id string, rotatedAt time.Time) error {
 	record.Credential = record.PendingRotation.Credential
 	record.CredentialType = CredentialPassword
 	record.KeyFingerprint = ""
+	if p := record.PendingRotation.Planned; p != nil {
+		record.PlannedPasswordReceipt = &plannedPasswordReceipt{plannedPasswordIntent: *p, State: "succeeded", AfterRevision: record.CredentialRevision, At: rotatedAt.UTC()}
+	}
 	record.PendingRotation = nil
 	record.PasswordRotatedAt = rotatedAt.UTC()
 	record.Asset.PasswordRotatedAt = record.PasswordRotatedAt
@@ -789,6 +812,9 @@ func (s *Store) AbortPasswordRotation(id string) error {
 		return ErrNoPendingRotation
 	}
 	previous := record
+	if p := record.PendingRotation.Planned; p != nil {
+		record.PlannedPasswordReceipt = &plannedPasswordReceipt{plannedPasswordIntent: *p, State: "failed", AfterRevision: record.CredentialRevision, At: time.Now().UTC()}
+	}
 	record.PendingRotation = nil
 	s.assets[id] = record
 	if err := s.persistLocked(); err != nil {

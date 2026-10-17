@@ -42,7 +42,19 @@ func RestorePassword(ctx context.Context, target Target, credentials Credentials
 }
 
 func restorePassword(ctx context.Context, target Target, credentials Credentials, newPassword string, timeout time.Duration) error {
-	if !rotationAccountPattern.MatchString(target.Username) {
+	return restorePasswordFor(ctx, target, credentials, target.Username, newPassword, timeout)
+}
+
+// ChangePasswordFor authenticates a selected privileged collector and sends the
+// target account/password only over encrypted stdin, never in command arguments.
+func ChangePasswordFor(ctx context.Context, collector Target, credentials Credentials, username, password string, timeout time.Duration) error {
+	if !rotationPasswordPattern.MatchString(password) {
+		return ErrInvalidGeneratedPassword
+	}
+	return restorePasswordFor(ctx, collector, credentials, username, password, timeout)
+}
+func restorePasswordFor(ctx context.Context, target Target, credentials Credentials, username, newPassword string, timeout time.Duration) error {
+	if !rotationAccountPattern.MatchString(target.Username) || !rotationAccountPattern.MatchString(username) {
 		return ErrInvalidRotationAccount
 	}
 	if timeout <= 0 {
@@ -85,7 +97,7 @@ func restorePassword(ctx context.Context, target Target, credentials Credentials
 
 	result := make(chan error, 1)
 	go func() {
-		_, writeErr := io.WriteString(stdin, target.Username+":"+newPassword+"\n")
+		_, writeErr := io.WriteString(stdin, username+":"+newPassword+"\n")
 		closeErr := stdin.Close()
 		waitErr := session.Wait()
 		if writeErr != nil {

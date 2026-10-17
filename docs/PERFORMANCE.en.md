@@ -2,6 +2,12 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+2026-10-18 credential rotation: page code and both locales load on demand at approximately 31.09 kB JS / 2.96 kB CSS. Main entry: 475,956 bytes; initial JS: 493,300 bytes (159,378 gzip); total JS: 1,363,715 bytes. Existing 500 kB / 1.5 MB budgets pass. Windows stripped server: 41,263,616 bytes; CLI: 12,449,792 bytes. Local Linux production API image: 24,412,653 bytes uncompressed. No dependencies were added.
+
+Targets page in groups of 25, plans/runs/audit in groups of 20. Only an open unfinished run polls serially; leaving cancels requests. Plan/run lists page before materializing metadata. Credential inspection uses atomic snapshots, and waiting behind another host's rotation respects cancellation/timeouts. Each organization executes accounts sequentially; limits and persistence boundaries are in [Credential rotation plans](./ROTATION-PLANS.en.md).
+
+Final cached clean-volume Docker two-instance smoke: 18.77 seconds, including both rotation/risk languages. Final production-image real SSH rotation: 12.9 seconds, 13.5 including runner. Existing ignore rules exclude builds, caches, test output and local tools; no generated binaries were added.
+
 2026-10-18 account risks: page code and both translations load on demand at approximately 25.48 kB JS. Main entry: 474,835 bytes; initial scripts/static dependencies: 492,179 bytes (159,092 gzip); total JS: 1,331,476 bytes. Existing 500 kB / 1.5 MB budgets pass. Windows stripped server: 40,992,256 bytes; CLI: 12,410,880 bytes. Local Linux production API image: 24,305,254 bytes uncompressed. No dependencies were added. Existing ignore rules exclude builds, caches, test output and local tools.
 
 Three local Go samples for listing 10,000 reuse findings took 6.96–7.30 ms/op, approximately 0.99 MB/op and 61 allocations. Before optimization, the same fixture used approximately 23.69 MB/op and 10,054 allocations. Lightweight IDs are sorted first, only the requested 50 rows are materialized, and visible groups/identity counts are cached within one query. The benchmark includes in-memory filtering/sorting and metadata output; it excludes encryption, persistence, HTTP, disk, audit streaming and browsers. Each scan decrypts current passwords once, streams audit snapshots and publishes atomically. Details cap related records at 20. Web pages contain 50 findings or 10 receipts/audit records, and scans have a 60-second deadline.

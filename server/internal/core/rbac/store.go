@@ -40,6 +40,7 @@ var catalog = []string{
 	"accounts.remote.create", "accounts.remote.disable", "accounts.remote.enable", "accounts.remote.delete",
 	"accounts.import",
 	"accounts.risks.view", "accounts.risks.scan", "accounts.risks.manage", "accounts.risks.export",
+	"accounts.rotation.view", "accounts.rotation.manage", "accounts.rotation.execute", "accounts.rotation.manage_all", "accounts.rotation.privileged",
 	"database.audit.view_all", "database.cancel_all",
 	"plugins.inspect", "plugins.manage", "plugins.protect",
 }

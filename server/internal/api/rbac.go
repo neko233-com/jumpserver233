@@ -53,6 +53,14 @@ func adminAPIAllowed(r *http.Request, user coreauth.User) bool {
 	}
 	path := r.URL.Path
 	switch {
+	case strings.HasPrefix(path, "/api/v1/accounts/rotation-"):
+		if (strings.HasSuffix(path, "/runs") || strings.HasSuffix(path, "/recover")) && r.Method == "POST" {
+			return allowed("accounts.rotation.execute")
+		}
+		if r.Method == "POST" || r.Method == "PUT" || r.Method == "DELETE" {
+			return allowed("accounts.rotation.manage")
+		}
+		return allowed("accounts.rotation.view")
 	case strings.HasPrefix(path, "/api/v1/accounts/risks"):
 		if r.Method == "PUT" || strings.HasSuffix(path, "/review") {
 			return allowed("accounts.risks.manage")

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
@@ -168,6 +169,31 @@ func enforceAssetPolicy(w http.ResponseWriter, r *http.Request, user coreauth.Us
 		return false
 	}
 	return true
+}
+func credentialMutationPolicy(w http.ResponseWriter, r *http.Request, service *coreassets.Service, mu *sync.RWMutex) (func(), bool) {
+	d := policyDependencies(r)
+	if d.GlobalAccessMu != nil && d.GlobalAccessMu != mu {
+		d.GlobalAccessMu.RLock()
+	}
+	mu.RLock()
+	release := func() {
+		mu.RUnlock()
+		if d.GlobalAccessMu != nil && d.GlobalAccessMu != mu {
+			d.GlobalAccessMu.RUnlock()
+		}
+	}
+	a, e := service.Get(r.PathValue("assetID"))
+	if e != nil {
+		release()
+		writeAssetError(w, e)
+		return func() {}, false
+	}
+	u, _ := PrincipalFromContext(r.Context())
+	if !enforceAssetPolicy(w, r, u, a, "credential_rotation") {
+		release()
+		return func() {}, false
+	}
+	return release, true
 }
 func registerAccessPolicyRoutes(mux *http.ServeMux, d Dependencies) {
 	platformAllowed := func(r *http.Request) bool {

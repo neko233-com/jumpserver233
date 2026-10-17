@@ -49,6 +49,7 @@ const channels = [
   "sftp",
   "exec",
   "scheduled_exec",
+  "credential_rotation",
   "upload",
   "download",
   "delete",

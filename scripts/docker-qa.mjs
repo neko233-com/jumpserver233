@@ -126,6 +126,12 @@ async function browserSmoke() {
     await page.getByRole("button", { name: "EN", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Account risks", exact: true })).toBeVisible();
     await page.screenshot({ path: resolve(output, "risks.en.png") });
+    await page.goto(webURL+"/console/rotation-plans");
+    await expect(page.getByRole("heading",{name:"Credential rotation plans",exact:true})).toBeVisible();
+    await page.screenshot({path:resolve(output,"rotation.en.png")});
+    await page.getByRole("button",{name:"中文",exact:true}).click();
+    await expect(page.getByRole("heading",{name:"账号改密计划",exact:true})).toBeVisible();
+    await page.screenshot({path:resolve(output,"rotation.zh-CN.png")});
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }
 }

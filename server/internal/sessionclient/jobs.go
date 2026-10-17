@@ -77,7 +77,7 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 		return fmt.Errorf("SSH job API request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusAccepted && !strings.Contains(target.Path, "/remote-account-tasks") {
+	if resp.StatusCode == http.StatusAccepted && !strings.Contains(target.Path, "/remote-account-tasks") && !strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-") {
 		var pending struct {
 			ReviewID string `json:"review_id"`
 		}
@@ -98,7 +98,7 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 				problem.Detail = problem.Code
 			}
 		}
-		if problem.Detail == "" && (strings.HasPrefix(target.Path, "/api/v1/accounts/imports") || strings.HasPrefix(target.Path, "/api/v1/accounts/risks")) {
+		if problem.Detail == "" && (strings.HasPrefix(target.Path, "/api/v1/accounts/imports") || strings.HasPrefix(target.Path, "/api/v1/accounts/risks") || strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-")) {
 			switch problem.Code {
 			case "invalid", "denied", "not_found", "conflict", "expired", "capacity", "unavailable", "busy":
 				problem.Detail = problem.Code
@@ -111,7 +111,7 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 	}
 	if output != nil {
 		limit := int64(1024 * 1024)
-		if strings.HasPrefix(target.Path, "/api/v1/accounts/risks") {
+		if strings.HasPrefix(target.Path, "/api/v1/accounts/risks") || strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-") {
 			limit = 8 << 20
 		}
 		return json.NewDecoder(io.LimitReader(resp.Body, limit)).Decode(output)

@@ -2,6 +2,12 @@
 
 > [中文](./README.md) | English
 
+Multi-host SSH rotation plans support passwords/keys, privileged resets, weekly schedules, per-account results and recovery. Web/CLI share organization permissions and encrypted receipts; see [Credential rotation plans](./docs/ROTATION-PLANS.en.md).
+
+2026-10-18: real OpenSSH rotation results in isolated Docker:
+
+![Credential rotation results](./docs/images/rotation-plans.en.png)
+
 SSH account risks provide seven checks, human review, periodic policies, CSV and CLI. Credentials stay server-side and results follow account visibility; see [Account risks](./docs/ACCOUNT-RISKS.en.md).
 
 Multi-host CSV/XLSX credential creation and updates are available through Web and CLI, with organization authority, explicit preview and atomic receipts. See [Account credential import](./docs/ACCOUNT-IMPORT.en.md).

@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Multi-host SSH password/key rotation, weekly scheduling, privileged accounts, per-account results and recovery: [Credential rotation plans](./ROTATION-PLANS.en.md).
+
 Weak/reused SSH credentials, age/usage risks, human review and periodic scanning: [Account risks](./ACCOUNT-RISKS.en.md).
 
 Multi-host CSV/XLSX create/update, atomic commits, idempotent receipts and Web/CLI are covered in [Account credential import](./ACCOUNT-IMPORT.en.md).

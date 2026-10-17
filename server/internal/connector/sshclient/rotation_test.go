@@ -79,6 +79,7 @@ type rotationTestServer struct {
 	password    string
 	commands    []string
 	stdin       string
+	resetUser   string
 }
 
 func startRotationServer(t *testing.T, uid, initialPassword string) (*rotationTestServer, Target) {
@@ -180,12 +181,17 @@ func (s *rotationTestServer) serveSession(channel xssh.Channel, requests <-chan 
 			return
 		}
 		parts := strings.SplitN(strings.TrimSuffix(string(input), "\n"), ":", 2)
-		if len(parts) != 2 || parts[0] != "rotation" {
+		s.mu.Lock()
+		resetUser := s.resetUser
+		s.mu.Unlock()
+		if len(parts) != 2 || parts[0] != "rotation" && parts[0] != resetUser {
 			s.sendExitStatus(channel, 1)
 			return
 		}
 		s.mu.Lock()
-		s.password = parts[1]
+		if parts[0] == "rotation" {
+			s.password = parts[1]
+		}
 		s.stdin = string(input)
 		s.mu.Unlock()
 		s.sendExitStatus(channel, 0)

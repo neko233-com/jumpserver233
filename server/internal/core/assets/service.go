@@ -64,6 +64,7 @@ type Service struct {
 	store               *Store
 	probe               ProbeFunc
 	changePassword      PasswordChangeFunc
+	changePasswordFor   func(context.Context, sshclient.Target, sshclient.Credentials, string, string, time.Duration) error
 	verifyPassword      PasswordVerifyFunc
 	mu                  sync.RWMutex
 	status              map[string]MonitorStatus

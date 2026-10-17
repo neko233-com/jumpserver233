@@ -384,13 +384,17 @@ func (s *Service) rotatePasswordToLocal(ctx context.Context, id, trigger, actor,
 	if backupID != "" {
 		err = s.store.BeginCredentialRestore(id, newPassword, now, actor, backupID)
 	} else {
-		err = s.store.BeginPasswordRotation(id, newPassword, now)
+		if p := plannedPassword(ctx); p != nil {
+			err = s.store.beginPasswordRotation(id, newPassword, now, "", "", "", p)
+		} else {
+			err = s.store.BeginPasswordRotation(id, newPassword, now)
+		}
 	}
 	if err != nil {
 		return s.failRotationDetails(asset, trigger, "credential_store_failed", now, actor, backupID)
 	}
 	current := currentCredentials
-	if err := s.changePassword(ctx, target, current, newPassword, 15*time.Second); err != nil {
+	if err := s.changeManagedPassword(ctx, asset, target, current, newPassword); err != nil {
 		return s.reconcileAfterRotationError(ctx, asset, trigger, now, err, actor, backupID)
 	}
 	if err := s.verifyPassword(ctx, target, sshclient.Credentials{Password: newPassword}, 8*time.Second); err != nil {

@@ -228,8 +228,15 @@ func (c *PasswordCoordinator) sharedKeyMutation(a Asset) bool {
 // withKeyChange holds the same mutation boundary as password rotation and asset
 // edits. Remote work is cancelled when the active node loses ownership.
 func (c *PasswordCoordinator) withKeyChange(ctx context.Context, s *Service, id string, cancelOperation bool, run func(context.Context) (ListItem, error)) (ListItem, error) {
-	c.mu.Lock()
+	if e := c.lockCredentialContext(ctx); e != nil {
+		return ListItem{}, e
+	}
 	defer c.mu.Unlock()
+	if !cancelOperation {
+		if e := s.guardManagedRotation(ctx, id); e != nil {
+			return ListItem{}, e
+		}
+	}
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	if c.ownerContext != nil {

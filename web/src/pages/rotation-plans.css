@@ -1,0 +1,185 @@
+.rotation-page {
+  padding: 24px;
+  max-width: 1440px;
+  box-sizing: border-box;
+}
+.rotation-page > header {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: start;
+  flex-wrap: wrap;
+}
+.rotation-page h1,
+.rotation-dialog h2 {
+  margin-top: 0;
+}
+.rotation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block: 12px;
+}
+.rotation-actions [aria-current="page"] {
+  outline: 2px solid var(--accent, #69bfff);
+  outline-offset: 2px;
+}
+.rotation-table {
+  overflow: auto;
+  max-width: 100%;
+}
+.rotation-table table {
+  width: 100%;
+  min-width: 640px;
+  text-align: start;
+  border-collapse: collapse;
+}
+.rotation-table td,
+.rotation-table th {
+  padding: 10px 8px;
+  border-bottom: 1px solid #ffffff24;
+  vertical-align: top;
+}
+.rotation-table td {
+  overflow-wrap: anywhere;
+  max-width: 300px;
+}
+.rotation-page small,
+.rotation-dialog small {
+  display: block;
+  opacity: 0.8;
+  overflow-wrap: anywhere;
+}
+.rotation-dialog {
+  color: var(--text, #e7eaf0);
+  background: var(--panel, #151b25);
+  border: 1px solid #ffffff30;
+  border-radius: 12px;
+  width: min(980px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: 90dvh;
+  overflow: auto;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.rotation-dialog::backdrop {
+  background: #050811ba;
+}
+.rotation-dialog label {
+  display: grid;
+  gap: 6px;
+}
+.rotation-dialog input,
+.rotation-dialog select {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+.rotation-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.rotation-dialog .rotation-check {
+  display: flex;
+  gap: 8px;
+  align-items: start;
+}
+.rotation-check input {
+  flex-shrink: 0;
+  width: auto;
+  margin-top: 4px;
+}
+.rotation-selected,
+.rotation-candidates {
+  list-style: none;
+  padding: 0;
+  max-height: 280px;
+  overflow: auto;
+}
+.rotation-selected li {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid #ffffff20;
+  padding: 8px 0;
+}
+.rotation-selected li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rotation-candidates li {
+  padding: 6px 0;
+}
+.rotation-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  overflow-wrap: anywhere;
+}
+.rotation-meta dd {
+  margin: 0;
+  min-width: 0;
+}
+.rotation-page button,
+.rotation-dialog button {
+  color: inherit;
+  background: #202a3b;
+  border: 1px solid #ffffff30;
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-height: 32px;
+  cursor: pointer;
+  font: inherit;
+}
+.rotation-page button:disabled,
+.rotation-dialog button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.rotation-page .button-primary,
+.rotation-dialog .button-primary {
+  background: #176bb0;
+  color: #fff;
+}
+.rotation-dialog input:not([type="checkbox"]),
+.rotation-dialog select {
+  color: inherit;
+  background: #0d1420;
+  border: 1px solid #ffffff40;
+  border-radius: 6px;
+  padding: 7px 9px;
+  width: 100%;
+  font: inherit;
+}
+.rotation-page button:focus-visible,
+.rotation-dialog :is(button, input, select):focus-visible {
+  outline: 2px solid #69bfff;
+  outline-offset: 2px;
+}
+.rotation-dialog fieldset {
+  min-width: 0;
+  border: 1px solid #ffffff30;
+  border-radius: 6px;
+  padding: 12px;
+}
+@media (max-width: 640px) {
+  .rotation-page,
+  .rotation-dialog {
+    padding: 16px;
+  }
+  .rotation-dialog {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+  }
+  .rotation-meta {
+    display: block;
+  }
+  .rotation-meta dd {
+    margin-bottom: 12px;
+  }
+}

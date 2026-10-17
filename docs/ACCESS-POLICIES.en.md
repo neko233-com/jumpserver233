@@ -2,6 +2,8 @@
 
 > English | [中文](./ACCESS-POLICIES.md)
 
+The `credential_rotation` method covers credential plan steps, explicit recovery, single-account password/key rotation and historical password restore. Selected privileged accounts also follow current policies. See [Credential rotation plans](./ROTATION-PLANS.en.md).
+
 Organizations isolate resources, roles and operational audit through `X-JMS-ORG`, browser switching and Agent CLI selection. Standalone storage and PostgreSQL single-active HA are supported. See [Organizations](./ORGANIZATIONS.en.md). Full Enterprise parity remains in progress.
 
 The console provides user sign-in, asset access and connection-channel rules. The competitor also controls source addresses, weekly hours and connection methods; see [JumpServer documentation](https://docs.fit2cloud.com/jumpserver/manual/admin/console/access_control/acls/). Policies add restrictions to identity, asset grants and approvals. An allow rule never grants asset access. Standalone mode uses a local file; PostgreSQL single-active HA shares policy configuration, changes and denied decisions.

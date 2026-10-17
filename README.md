@@ -2,6 +2,12 @@
 
 > 中文 | [English](./README.en.md)
 
+SSH 多主机改密计划支持密码/密钥、特权账号重置、每周周期、逐项结果及故障恢复，Web/CLI 共用组织权限与加密回执；见[账号改密计划](./docs/ROTATION-PLANS.md)。
+
+2026-10-18，隔离 Docker 中真实 OpenSSH 改密结果：
+
+![账号改密结果](./docs/images/rotation-plans.zh-CN.png)
+
 SSH 账号风险支持七类检测、人工处置、周期计划、CSV 和 CLI；凭据留在服务端，结果按账号权限过滤，见[账号风险](./docs/ACCOUNT-RISKS.md)。
 
 多主机 CSV/XLSX 凭据批量新增和更新已接入 Web、CLI 与组织权限，先预览再整批提交，保留幂等回执；见[账号凭据导入](./docs/ACCOUNT-IMPORT.md)。

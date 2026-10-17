@@ -40,6 +40,7 @@ type PasswordCoordinator struct {
 	ops          map[string]*sharedPasswordOperation
 	lastRecovery map[string]time.Time
 	shared       atomic.Pointer[map[passwordParticipant]bool]
+	pendingView  atomic.Pointer[map[passwordParticipant]bool]
 	running      sync.Map
 	ownerContext context.Context
 	keys         sharedKeyState
@@ -49,18 +50,19 @@ type passwordParticipant struct {
 	AssetID string `json:"asset_id"`
 }
 type sharedPasswordOperation struct {
-	ID           string                `json:"id"`
-	Identity     string                `json:"identity"`
-	Phase        string                `json:"phase"`
-	Participants []passwordParticipant `json:"participants"`
-	Old          encryptedSecret       `json:"old"`
-	Next         encryptedSecret       `json:"next"`
-	StartedAt    time.Time             `json:"started_at"`
-	CommittedAt  time.Time             `json:"committed_at,omitempty"`
-	Actor        string                `json:"actor,omitempty"`
-	Trigger      string                `json:"trigger"`
-	Source       passwordParticipant   `json:"source"`
-	BackupID     string                `json:"backup_id,omitempty"`
+	Planned      *plannedPasswordIntent `json:"planned,omitempty"`
+	ID           string                 `json:"id"`
+	Identity     string                 `json:"identity"`
+	Phase        string                 `json:"phase"`
+	Participants []passwordParticipant  `json:"participants"`
+	Old          encryptedSecret        `json:"old"`
+	Next         encryptedSecret        `json:"next"`
+	StartedAt    time.Time              `json:"started_at"`
+	CommittedAt  time.Time              `json:"committed_at,omitempty"`
+	Actor        string                 `json:"actor,omitempty"`
+	Trigger      string                 `json:"trigger"`
+	Source       passwordParticipant    `json:"source"`
+	BackupID     string                 `json:"backup_id,omitempty"`
 }
 
 func OpenPasswordCoordinator(path string, key []byte, documents *storage.Documents) (*PasswordCoordinator, error) {
@@ -107,7 +109,7 @@ func OpenPasswordCoordinator(path string, key []byte, documents *storage.Documen
 				}
 				seen[p] = true
 			}
-			if !seen[o.Source] || (o.Trigger != "automatic" && o.Trigger != "manual" && o.Trigger != "restore") || (o.BackupID != "" && !validCredentialBackupID(o.BackupID)) {
+			if !seen[o.Source] || (o.Trigger != "automatic" && o.Trigger != "manual" && o.Trigger != "restore" && o.Trigger != "planned") || (o.BackupID != "" && !validCredentialBackupID(o.BackupID)) || o.Planned != nil && (!validPlannedPassword(o.Planned) || o.Trigger != "planned" || o.Actor != o.Planned.Actor.ID) || o.Trigger == "planned" && o.Planned == nil {
 				return nil, errors.New("invalid shared password source")
 			}
 			if _, e = c.secret(o.Old, "old"); e != nil {
@@ -122,7 +124,52 @@ func OpenPasswordCoordinator(path string, key []byte, documents *storage.Documen
 	if e = c.openSharedKeys(); e != nil {
 		return nil, e
 	}
+	c.refreshPendingView()
 	return c, nil
+}
+func (c *PasswordCoordinator) refreshPendingView() {
+	view := map[passwordParticipant]bool{}
+	for _, op := range c.ops {
+		for _, p := range op.Participants {
+			view[p] = true
+		}
+	}
+	c.pendingView.Store(&view)
+}
+func (c *PasswordCoordinator) hasPendingCredential(scope, id string) bool {
+	p := passwordParticipant{scope, id}
+	if view := c.pendingView.Load(); view != nil && (*view)[p] {
+		return true
+	}
+	if view := c.keys.view.Load(); view != nil {
+		if _, ok := (*view)[p]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// Credential requests must be able to stop waiting behind another host's SSH
+// operation. In particular, a timed-out plan step must release its access locks.
+func (c *PasswordCoordinator) lockCredentialContext(ctx context.Context) error {
+	if e := ctx.Err(); e != nil {
+		return e
+	}
+	if c.mu.TryLock() {
+		return nil
+	}
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if c.mu.TryLock() {
+				return nil
+			}
+		}
+	}
 }
 func validSharedPhase(p string) bool {
 	return p == "prepare" || p == "verify" || p == "commit" || p == "abort"
@@ -298,7 +345,12 @@ func (c *PasswordCoordinator) secret(v encryptedSecret, label string) (string, e
 	}
 	return string(p), nil
 }
-func (c *PasswordCoordinator) persist() error {
+func (c *PasswordCoordinator) persist() (err error) {
+	defer func() {
+		if err == nil {
+			c.refreshPendingView()
+		}
+	}()
 	raw, e := json.Marshal(c.ops)
 	if e != nil {
 		return e
@@ -353,7 +405,9 @@ func (c *PasswordCoordinator) clear() error {
 }
 
 func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigger, actor, backupID string) error {
-	c.mu.Lock()
+	if e := c.lockCredentialContext(ctx); e != nil {
+		return e
+	}
 	defer c.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
@@ -369,6 +423,9 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 	}
 	a, e := s.Get(id)
 	if e != nil {
+		return e
+	}
+	if e = s.guardManagedRotation(ctx, id); e != nil {
 		return e
 	}
 	if !IsSSH(a) {
@@ -434,7 +491,7 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 	if _, e = rand.Read(opID); e != nil {
 		return e
 	}
-	c.op = &sharedPasswordOperation{ID: hex.EncodeToString(opID), Identity: passwordIdentity(a), Phase: "prepare", Participants: ps, StartedAt: now, Trigger: trigger, Actor: actor, Source: passwordParticipant{s.passwordScope, id}, BackupID: backupID}
+	c.op = &sharedPasswordOperation{ID: hex.EncodeToString(opID), Identity: passwordIdentity(a), Phase: "prepare", Participants: ps, StartedAt: now, Trigger: trigger, Actor: actor, Source: passwordParticipant{s.passwordScope, id}, BackupID: backupID, Planned: plannedPassword(ctx)}
 	c.op.Old, e = c.seal(old, "old")
 	if e == nil {
 		c.op.Next, e = c.seal(next, "next")
@@ -456,7 +513,11 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 			e = c.audit(p, pa, "shared_started", "", "")
 		}
 		if e == nil {
-			e = st.BeginPasswordRotation(p.AssetID, next, now)
+			if p == c.op.Source && c.op.Planned != nil {
+				e = st.beginPasswordRotation(p.AssetID, next, now, "", "", "", c.op.Planned)
+			} else {
+				e = st.BeginPasswordRotation(p.AssetID, next, now)
+			}
 		}
 		if e != nil {
 			_ = c.finish("abort")
@@ -469,7 +530,7 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 	}
 	_, target, current, e := s.store.connection(id)
 	if e == nil {
-		e = s.changePassword(ctx, target, current, next, 15*time.Second)
+		e = s.changeManagedPassword(ctx, a, target, current, next)
 	}
 	// Even a successful remote command must authenticate the new credential.
 	// An ambiguous command result follows the same durable recovery path.
