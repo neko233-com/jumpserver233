@@ -2,6 +2,20 @@
 
 > 中文 | [English](./TESTING.en.md)
 
+## 计划账号收集（2026-10-17）
+
+完整 Playwright 65/65 通过，14.6 分钟，零失败、零跳过，退出码 0。覆盖本批计划收集及既有所有协议、原生防护/恢复、systemd 普通/root 服务和真实虚拟机重启；一次性环境由归属检查后的退出流程清理。最后的权限/暂停边界调整另以 Go/Testify、Linux race 和生产镜像定向用例复核。
+
+- 最终源码无缓存 Go/Testify 全量串行通过：57 包、838 项测试，35 项缺少对应外部夹具跳过；提供了真实 OpenSSH、PostgreSQL 状态库和 xrdp。缺少的集成不计为成功。
+- Linux Docker race 的 8 个相关包、242 项测试通过，11 项缺少对应夹具跳过；包含 PostgreSQL 接管。完整协议实测另由浏览器套件覆盖。
+- 生产 Docker 真实 OpenSSH 定向用例最终 1/1 通过，20.9 秒：Web 创建间隔计划、独立权限、登录与命令审批、暂停作废旧轮次、恢复后新审批、原生采集、CLI、凭据修订、归档、撤权后禁止恢复、中英文和 390px 布局，零 pageerror。内置浏览器另外检查三轮真实回执并保存中英文截图。
+- Testify 覆盖物理主机/采集身份固定、凭据绑定刷新、单主机跨凭据互斥、幂等与过期版本、暂停运行/派发中任务、晚返回审批的取消归档、逐轮许可隔离、运行中撤权自动暂停、命令审批拒绝、1000 条热记录归档失败/恢复、独立归档命名空间、PostgreSQL 接管/组织隔离和版本 2 降级拒绝。SDK/CLI 检查组织与签名保留、安全 DTO、显式版本及已停用凭据只能用于计划管理。
+- `go vet`、`go build ./...`、stripped 服务端/CLI 构建、前端 lint/类型/生产构建、E2E 类型检查、10 项 Docker 生命周期 Node 测试均通过。双语内容检查通过：每语言 1610 个 key、100 份中英文文档、849 个相对链接。
+- 新卷 Docker 双实例浏览器检查 17.28 秒通过（构建 2.71、启动 12.01、检查 2.56 秒），一次性实例按归属检查后的流程退出。保留调试实例为 `jms233-discovery-schedule-qa`，Web `http://127.0.0.16:15186`、API `http://127.0.0.16:18093`，均只绑定回环地址。
+- 上一批 `198cd35` 的 [CI 39038326332](https://github.com/neko233-com/jumpserver233/actions/runs/39038326332) 已确认 `verify`、`frontend`、`docker-qa` 全部成功。
+
+功能和升级边界见[计划账号收集](./SCHEDULED-ACCOUNT-DISCOVERY.md)。未修改发布日志或创建版本标签。
+
 ## SSH 多账号托管（2026-10-17）
 
 完整 Playwright 64/64 通过，14.5 分钟，零失败、零跳过，退出码 0。包含本批多账号及既有全部协议、原生防护/恢复、systemd 普通/root 服务和真实虚拟机重启；一次性环境由归属检查后的退出流程清理。最终授权页账号回退另在生产 Docker 定向检查通过。
@@ -41,7 +55,7 @@
 - 内置浏览器在生产 Docker 上确认真实 xrdp 点击同步、监看中切换中英文、关闭监看保留原连接、结束后观看审计和零控制台警告/错误。真实截图见 [RDP 实时监看](./RDP-LIVE-MONITOR.md)。
 - 全新 Docker 数据卷、鉴权、压缩静态资源和双实例浏览器通过：热缓存构建 5.03 秒、启动 12.03 秒、检查 2.48 秒，共约 19.5 秒，一次性环境已清理。保留 `127.0.0.9:15183` / API `127.0.0.9:18090`，与既有预览独立；确认只绑定回环。其保留卷构建为 7.09 秒、启动 12.84 秒、检查 1.21 秒，不与全新卷混用计时。
 
-提交 `97231eb` 的[远端 CI](https://github.com/neko233-com/jumpserver233/actions/runs/39028845375) 全部成功：完整 Linux 后端 race、vet/build、浏览器 62/62（19.6 分钟）和 Docker。远端 Docker 为 HTTP 检查，`browser:false`，构建 80.52 秒、启动 11.44 秒、检查 0.15 秒；不作为远端浏览器验证结果。
+提交 `97231eb` 的[远端 CI](https://github.com/neko233-com/jumpserver233/actions/runs/39028849375) 全部成功：完整 Linux 后端 race、vet/build、浏览器 62/62（19.6 分钟）和 Docker。远端 Docker 为 HTTP 检查，`browser:false`，构建 80.52 秒、启动 11.44 秒、检查 0.15 秒；不作为远端浏览器验证结果。
 
 本批日志为系统临时目录中的 `jms233-desktop-monitor-go-final.jsonl`、`jms233-desktop-monitor-race-final.jsonl` 和 `jms233-desktop-monitor-e2e-final.log`；生产 Docker 日志在忽略的 `.cache/docker-qa/`。原有忽略规则已覆盖生成物、截图报告、缓存和运行数据，无需把这些文件加入 Git。实际 Windows NLA、RDP 分享/协同控制、多活与生产故障演练及完整企业版仍待完成。
 

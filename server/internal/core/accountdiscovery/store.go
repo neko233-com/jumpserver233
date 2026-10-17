@@ -22,6 +22,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	"github.com/neko233-com/jumpserver233/server/internal/hostagent"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 )
@@ -88,13 +89,14 @@ type Page struct {
 	Total    int       `json:"total"`
 }
 type Store struct {
-	mu       sync.Mutex
-	dir      string
-	docs     *storage.Documents
-	aead     cipher.AEAD
-	ctx      context.Context
-	closed   bool
-	saveHook func([]byte) error
+	collections *agentevents.Store
+	mu          sync.Mutex
+	dir         string
+	docs        *storage.Documents
+	aead        cipher.AEAD
+	ctx         context.Context
+	closed      bool
+	saveHook    func([]byte) error
 }
 type envelope struct {
 	Version int    `json:"version"`
@@ -114,10 +116,19 @@ func Open(dir string, key []byte, docs *storage.Documents) (*Store, error) {
 	if e != nil {
 		return nil, e
 	}
-	return &Store{dir: dir, docs: docs, aead: a, ctx: context.Background()}, nil
+	collections, e := agentevents.OpenNamespace(filepath.Join(dir, "collections"), key, docs, "account-collections")
+	if e != nil {
+		return nil, e
+	}
+	return &Store{collections: collections, dir: dir, docs: docs, aead: a, ctx: context.Background()}, nil
 }
-func (s *Store) BindOwner(ctx context.Context) { s.mu.Lock(); defer s.mu.Unlock(); s.ctx = ctx }
-func (s *Store) Close()                        { s.mu.Lock(); s.closed = true; s.mu.Unlock() }
+func (s *Store) BindOwner(ctx context.Context) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ctx = ctx
+	s.collections.BindOwner(ctx)
+}
+func (s *Store) Close() { s.mu.Lock(); s.closed = true; s.mu.Unlock(); s.collections.Close() }
 func (s *Store) active() error {
 	if s.closed || s.ctx.Err() != nil {
 		return ErrClosed
@@ -238,6 +249,15 @@ func (s *Store) save(v State) error {
 	return os.Rename(f.Name(), filepath.Join(s.dir, v.Source.AssetID+".json"))
 }
 func (s *Store) Import(src Source, actor Actor, job, digest string, rows []hostagent.Account) (Summary, error) {
+	return s.importAccounts(src, actor, job, digest, rows, false)
+}
+
+// Scheduled jobs have durable segmented receipts. They do not consume the
+// bounded human-review activity history on every polling interval.
+func (s *Store) ImportScheduled(src Source, actor Actor, job, digest string, rows []hostagent.Account) (Summary, error) {
+	return s.importAccounts(src, actor, job, digest, rows, true)
+}
+func (s *Store) importAccounts(src Source, actor Actor, job, digest string, rows []hostagent.Account, scheduled bool) (Summary, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !validSource(src) || !validActor(actor) || len(job) != 36 || !strings.HasPrefix(job, "job-") || len(rows) == 0 || len(rows) > hostagent.MaxAccounts || hostagent.AccountDigest(rows) != digest {
@@ -255,6 +275,12 @@ func (s *Store) Import(src Source, actor Actor, job, digest string, rows []hosta
 	if e != nil {
 		return Summary{}, e
 	}
+	if v.Last != nil && v.Last.JobID == job {
+		if v.Last.Binding != src.Binding || v.Last.Digest != digest {
+			return Summary{}, ErrConflict
+		}
+		return *v.Last, nil
+	}
 	for _, a := range v.Audit {
 		if a.Summary != nil && a.Summary.JobID == job {
 			if a.Summary.Digest != digest || a.Summary.Binding != src.Binding {
@@ -263,7 +289,7 @@ func (s *Store) Import(src Source, actor Actor, job, digest string, rows []hosta
 			return *a.Summary, nil
 		}
 	}
-	if len(v.Audit) >= maxAudit {
+	if !scheduled && len(v.Audit) >= maxAudit {
 		return Summary{}, ErrCapacity
 	}
 	at := time.Now().UTC()
@@ -300,7 +326,9 @@ func (s *Store) Import(src Source, actor Actor, job, digest string, rows []hosta
 	v.Source = src
 	v.Revision++
 	v.Last = &summary
-	v.Audit = append(v.Audit, Audit{At: at, Actor: actor, Action: "collected", Summary: &summary})
+	if !scheduled {
+		v.Audit = append(v.Audit, Audit{At: at, Actor: actor, Action: "collected", Summary: &summary})
+	}
 	if e = s.save(v); e != nil {
 		return Summary{}, e
 	}

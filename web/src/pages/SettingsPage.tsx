@@ -70,7 +70,7 @@ type CommandReview = {
 type CommandReviewPage = { results: CommandReview[]; total: number };
 type LoginAccessReview = {
   id: string;
-  action: "ssh" | "sftp" | "database" | "kubernetes" | "telnet";
+  action: "ssh" | "sftp" | "database" | "kubernetes" | "telnet" | "account_discovery";
   operator: string;
   asset_id: string;
   asset_name: string;
@@ -724,7 +724,9 @@ export default function SettingsPage() {
                   ? "database.reviewAction"
                   : review.action === "sftp"
                     ? "settings.sftpReviewAction"
-                    : "settings.sshReviewAction",
+                    : review.action === "account_discovery"
+                      ? "accountSchedule.approval"
+                      : "settings.sshReviewAction",
           ),
         }),
       )
@@ -1958,7 +1960,9 @@ export default function SettingsPage() {
                                 ? "database.reviewAction"
                                 : review.action === "sftp"
                                   ? "settings.sftpReviewAction"
-                                  : "settings.sshReviewAction",
+                                  : review.action === "account_discovery"
+                                    ? "accountSchedule.approval"
+                                    : "settings.sshReviewAction",
                         ),
                       })}
                     </p>

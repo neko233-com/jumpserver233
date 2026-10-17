@@ -6,6 +6,8 @@
 
 原生 Linux 账号收集、审批、确认状态、元数据保护与 CLI 见 [账号收集](./ACCOUNT-DISCOVERY.md)。
 
+间隔计划、逐轮审批隔离、暂停取消、凭据轮换兼容及加密运行归档见[计划账号收集](./SCHEDULED-ACCOUNT-DISCOVERY.md)。
+
 独立 RDP 实时只读监看、观看者审计、CLI 截图和权限边界见 [RDP 实时监看](./RDP-LIVE-MONITOR.md)。
 
 指定平台用户的只读分享、输入接管、踢出和协作审计见 [终端会话协作](./SESSION-SHARING.md)。

@@ -17,7 +17,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
 )
 
-const accountsUsage = "usage: jms accounts list|audit ASSET [--offset N] [--limit 50] | jms accounts discover ASSET [--request-id ID] [--review-id ID] [--timeout 180] [--no-wait] | jms accounts review ASSET FINDING --state acknowledged|ignored|unreviewed --revision N [--note TEXT] | jms accounts job|cancel JOB"
+const accountsUsage = "usage: jms accounts list|audit ASSET [--offset N] [--limit 50] | jms accounts discover ASSET [--request-id ID] [--review-id ID] [--timeout 180] [--no-wait] | jms accounts review ASSET FINDING --state acknowledged|ignored|unreviewed --revision N [--note TEXT] | jms accounts job|cancel JOB | " + accountCollectionUsage
 
 func runAccounts(args []string, selected ...string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
@@ -39,6 +39,8 @@ func executeAccounts(ctx context.Context, c *sessionclient.Client, args []string
 	f := flag.NewFlagSet("accounts", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	switch args[0] {
+	case "plans", "schedule", "plan", "collections":
+		return executeAccountCollection(ctx, c, args, out)
 	case "job", "cancel":
 		if len(args) != 2 {
 			return errors.New(accountsUsage)

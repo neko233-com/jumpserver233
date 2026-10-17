@@ -79,17 +79,27 @@ type envelope struct {
 	Data    []byte `json:"data"`
 }
 type Store struct {
-	mu       sync.Mutex
-	dir      string
-	docs     *storage.Documents
-	aead     cipher.AEAD
-	data     index
-	ctx      context.Context
-	closed   bool
-	saveHook func(string, []byte) error
+	namespace string
+	mu        sync.Mutex
+	dir       string
+	docs      *storage.Documents
+	aead      cipher.AEAD
+	data      index
+	ctx       context.Context
+	closed    bool
+	saveHook  func(string, []byte) error
 }
 
 func Open(dir string, key []byte, docs *storage.Documents) (*Store, error) {
+	return OpenNamespace(dir, key, docs, "agent-events")
+}
+
+// OpenNamespace keeps collection receipts in an independently authenticated
+// document namespace while preserving the original event-store format.
+func OpenNamespace(dir string, key []byte, docs *storage.Documents, namespace string) (*Store, error) {
+	if namespace != "agent-events" && namespace != "account-collections" {
+		return nil, ErrInvalid
+	}
 	block, e := aes.NewCipher(key)
 	if e != nil {
 		return nil, e
@@ -98,7 +108,7 @@ func Open(dir string, key []byte, docs *storage.Documents) (*Store, error) {
 	if e != nil {
 		return nil, e
 	}
-	s := &Store{dir: dir, docs: docs, aead: a, ctx: context.Background(), data: index{Sources: map[string]SourceState{}, Collectors: map[string]Record{}}}
+	s := &Store{namespace: namespace, dir: dir, docs: docs, aead: a, ctx: context.Background(), data: index{Sources: map[string]SourceState{}, Collectors: map[string]Record{}}}
 	e = s.load("index", &s.data)
 	if errors.Is(e, os.ErrNotExist) || errors.Is(e, storage.ErrDocumentNotFound) {
 		e = nil
@@ -157,7 +167,7 @@ func (s *Store) load(key string, v any) error {
 	var raw []byte
 	var e error
 	if s.docs != nil {
-		raw, e = s.docs.LoadOrImport("agent-events-"+key, filepath.Join(s.dir, key+".json"))
+		raw, e = s.docs.LoadOrImport(s.namespace+"-"+key, filepath.Join(s.dir, key+".json"))
 	} else {
 		raw, e = os.ReadFile(filepath.Join(s.dir, key+".json"))
 	}
@@ -174,7 +184,7 @@ func (s *Store) load(key string, v any) error {
 	if json.Unmarshal(raw, &box) != nil || box.Version != 1 || len(box.Nonce) != s.aead.NonceSize() {
 		return ErrInvalid
 	}
-	plain, e := s.aead.Open(nil, box.Nonce, box.Data, []byte("jms233/agent-events/v1/"+key))
+	plain, e := s.aead.Open(nil, box.Nonce, box.Data, []byte("jms233/"+s.namespace+"/v1/"+key))
 	if e != nil {
 		return ErrInvalid
 	}
@@ -195,7 +205,7 @@ func (s *Store) save(key string, v any) error {
 	if _, e = rand.Read(nonce); e != nil {
 		return e
 	}
-	raw, e := json.Marshal(envelope{1, nonce, s.aead.Seal(nil, nonce, plain, []byte("jms233/agent-events/v1/"+key))})
+	raw, e := json.Marshal(envelope{1, nonce, s.aead.Seal(nil, nonce, plain, []byte("jms233/"+s.namespace+"/v1/"+key))})
 	if e != nil {
 		return e
 	}
@@ -205,7 +215,7 @@ func (s *Store) save(key string, v any) error {
 		}
 	}
 	if s.docs != nil {
-		return s.docs.Save("agent-events-"+key, raw)
+		return s.docs.Save(s.namespace+"-"+key, raw)
 	}
 	if e = os.MkdirAll(s.dir, 0700); e != nil {
 		return e

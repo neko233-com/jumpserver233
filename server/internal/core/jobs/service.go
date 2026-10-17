@@ -115,11 +115,11 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 	}
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version != 1 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version != 1 && e.Version != 2 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid encrypted job store")
 		}
-		plain, err := aead.Open(nil, e.Nonce, e.Ciphertext, []byte("jms233/ssh-jobs/v1"))
+		plain, err := aead.Open(nil, e.Nonce, e.Ciphertext, []byte(fmt.Sprintf("jms233/ssh-jobs/v%d", e.Version)))
 		if err != nil {
 			cancel()
 			return nil, fmt.Errorf("decrypt job store: %w", err)
@@ -130,6 +130,10 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 			return nil, fmt.Errorf("invalid job records")
 		}
 		for _, j := range records {
+			if j.Discovery != nil && (j.Discovery.Validate() != nil || j.Discovery.PlanID != "" && (e.Version != 2 || j.Discovery.Sequence == 0)) {
+				cancel()
+				return nil, ErrInvalid
+			}
 			if j.ID == "" || j.OperatorID == "" || j.AssetID == "" || !validState(j.State) {
 				cancel()
 				return nil, fmt.Errorf("invalid job record")
@@ -168,7 +172,7 @@ func validState(v string) bool {
 }
 func Validate(in Input) (Input, error) {
 	if in.Discovery != nil {
-		if in.Plugin != nil || in.Discovery.Validate() != nil || in.Command != in.Discovery.Command() {
+		if in.Plugin != nil || in.Discovery.Validate() != nil || in.Discovery.PlanID != "" && in.Discovery.Sequence == 0 || in.Command != in.Discovery.Command() {
 			return in, ErrInvalid
 		}
 		o := in.Discovery.Clone()
@@ -573,7 +577,14 @@ func (s *Service) persistLocked() error {
 	if _, err = rand.Read(nonce); err != nil {
 		return err
 	}
-	data, err := json.Marshal(envelope{Version: 1, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte("jms233/ssh-jobs/v1"))})
+	version := 1
+	for _, j := range records {
+		if j.Discovery != nil && j.Discovery.PlanID != "" {
+			version = 2
+			break
+		}
+	}
+	data, err := json.Marshal(envelope{Version: version, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte(fmt.Sprintf("jms233/ssh-jobs/v%d", version)))})
 	if err != nil {
 		return err
 	}
@@ -616,7 +627,8 @@ func (s *Service) PruneCollector(id string) error {
 	if !ok {
 		return nil
 	}
-	if j.Plugin == nil || j.Plugin.Plugin != "banhack233" || j.Plugin.Action != "events_collect" || !strings.HasPrefix(j.RequestID, "operation-") || j.State == "running" || j.State == "pending_review" {
+	collector := j.Plugin != nil && j.Plugin.Plugin == "banhack233" && j.Plugin.Action == "events_collect" || j.Discovery != nil && j.Discovery.PlanID != "" && j.Discovery.Sequence > 0
+	if !collector || !strings.HasPrefix(j.RequestID, "operation-") || j.State == "running" || j.State == "pending_review" {
 		return ErrConflict
 	}
 	if _, active := s.running[id]; active {

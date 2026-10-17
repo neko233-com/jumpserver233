@@ -53,6 +53,11 @@ func discoveryJobAllowed(d Dependencies, u coreauth.User, id string, o *accountd
 		return false
 	}
 	a, e := d.Assets.Get(id)
+	if e == nil && o.PlanID != "" {
+		if !effectivePermissions(u, d.RBAC, d.Groups).Allows("accounts.schedule") || a.Username != o.Account || assets.ResourceID(a) != o.ParentAssetID || d.Operations == nil || !d.Operations.DiscoveryAllowed(u.ID, id, o) {
+			return false
+		}
+	}
 	return e == nil && assets.IsSSH(a) && o.Binding == databaseRouteBinding(d, a) && o.Target == discoveryIdentity(a) && discoveryPoliciesAllowed(d, u, a, origin)
 }
 func discoverySource(d Dependencies, r *http.Request) (accountdiscovery.Source, bool) {
@@ -115,12 +120,16 @@ func registerAccountDiscoveryRoutes(mux *http.ServeMux, d Dependencies, submit f
 		return
 	}
 	d.Jobs.SetDiscoveryExecutor(func(ctx context.Context, j jobs.Job) (sshclient.ExecResult, error) {
+		a, e := d.Assets.Get(j.AssetID)
+		if e != nil {
+			return discoveryFailure(e)
+		}
 		rows, digest, e := d.HostPlugins.DiscoverAccounts(ctx, j.AssetID, j.ID, func() error {
 			if e := ctx.Err(); e != nil {
 				return e
 			}
 			return guard(j)
-		})
+		}, assets.ResourceID(a))
 		if e != nil {
 			return discoveryFailure(e)
 		}
@@ -132,11 +141,15 @@ func registerAccountDiscoveryRoutes(mux *http.ServeMux, d Dependencies, submit f
 		if e = guardLocked(j); e != nil {
 			return discoveryFailure(e)
 		}
-		a, e := d.Assets.Get(j.AssetID)
+		a, e = d.Assets.Get(j.AssetID)
 		if e != nil {
 			return discoveryFailure(e)
 		}
-		summary, e := d.AccountDiscovery.Import(accountdiscovery.Source{AssetID: assets.ResourceID(a), Binding: j.Discovery.Target, Account: j.Account}, accountdiscovery.Actor{ID: j.OperatorID, Name: j.Operator}, j.ID, digest, rows)
+		importAccounts := d.AccountDiscovery.Import
+		if j.Discovery.PlanID != "" {
+			importAccounts = d.AccountDiscovery.ImportScheduled
+		}
+		summary, e := importAccounts(accountdiscovery.Source{AssetID: assets.ResourceID(a), Binding: j.Discovery.Target, Account: j.Account}, accountdiscovery.Actor{ID: j.OperatorID, Name: j.Operator}, j.ID, digest, rows)
 		if e != nil {
 			return discoveryFailure(e)
 		}
@@ -144,6 +157,7 @@ func registerAccountDiscoveryRoutes(mux *http.ServeMux, d Dependencies, submit f
 		return sshclient.ExecResult{ExitCode: 0, Stdout: string(raw)}, nil
 	})
 	protect := func(h http.HandlerFunc) http.Handler { return protectAuthenticatedAPI(h, d.AdminToken, d.Auth) }
+	registerAccountDiscoveryPlans(mux, d, mu)
 	mux.Handle("POST /api/v1/assets/{assetID}/account-discovery/jobs", protect(func(w http.ResponseWriter, r *http.Request) {
 		setNoStore(w)
 		var in struct {

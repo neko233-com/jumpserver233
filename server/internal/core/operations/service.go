@@ -20,6 +20,7 @@ import (
 	"unicode"
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
@@ -59,14 +60,16 @@ type PlanInput struct {
 	RequestID       string                `json:"request_id"`
 }
 type Plan struct {
-	HostPlugin          *hostplugins.Operation `json:"host_plugin,omitempty"`
-	CollectionSequence  uint64                 `json:"collection_sequence,omitempty"`
-	CollectionAccount   string                 `json:"collection_account,omitempty"`
-	CollectionAssetName string                 `json:"collection_asset_name,omitempty"`
-	AccessOrigin        accesspolicies.Origin  `json:"access_origin,omitempty"`
-	ID                  string                 `json:"id"`
-	OwnerID             string                 `json:"owner_id"`
-	Owner               string                 `json:"owner"`
+	Discovery           *accountdiscovery.Operation `json:"account_discovery,omitempty"`
+	ConfigRevision      int                         `json:"config_revision,omitempty"`
+	HostPlugin          *hostplugins.Operation      `json:"host_plugin,omitempty"`
+	CollectionSequence  uint64                      `json:"collection_sequence,omitempty"`
+	CollectionAccount   string                      `json:"collection_account,omitempty"`
+	CollectionAssetName string                      `json:"collection_asset_name,omitempty"`
+	AccessOrigin        accesspolicies.Origin       `json:"access_origin,omitempty"`
+	ID                  string                      `json:"id"`
+	OwnerID             string                      `json:"owner_id"`
+	Owner               string                      `json:"owner"`
 	PlanInput
 	TemplateRevision int       `json:"template_revision,omitempty"`
 	Enabled          bool      `json:"enabled"`
@@ -84,21 +87,23 @@ type Item struct {
 	RetryAt   time.Time `json:"retry_at,omitzero"`
 }
 type Run struct {
-	HostPlugin          *hostplugins.Operation `json:"host_plugin,omitempty"`
-	CollectionSequence  uint64                 `json:"collection_sequence,omitempty"`
-	CollectionAccount   string                 `json:"collection_account,omitempty"`
-	CollectionAssetName string                 `json:"collection_asset_name,omitempty"`
-	AccessOrigin        accesspolicies.Origin  `json:"access_origin,omitempty"`
-	ID                  string                 `json:"id"`
-	PlanID              string                 `json:"plan_id"`
-	OwnerID             string                 `json:"owner_id"`
-	Name                string                 `json:"name"`
-	Command             string                 `json:"command"`
-	TimeoutSeconds      int                    `json:"timeout_seconds"`
-	CreatedAt           time.Time              `json:"created_at"`
-	Cancelled           bool                   `json:"cancelled"`
-	Items               []Item                 `json:"items"`
-	State               string                 `json:"state"`
+	Owner               string                      `json:"owner,omitempty"`
+	Discovery           *accountdiscovery.Operation `json:"account_discovery,omitempty"`
+	HostPlugin          *hostplugins.Operation      `json:"host_plugin,omitempty"`
+	CollectionSequence  uint64                      `json:"collection_sequence,omitempty"`
+	CollectionAccount   string                      `json:"collection_account,omitempty"`
+	CollectionAssetName string                      `json:"collection_asset_name,omitempty"`
+	AccessOrigin        accesspolicies.Origin       `json:"access_origin,omitempty"`
+	ID                  string                      `json:"id"`
+	PlanID              string                      `json:"plan_id"`
+	OwnerID             string                      `json:"owner_id"`
+	Name                string                      `json:"name"`
+	Command             string                      `json:"command"`
+	TimeoutSeconds      int                         `json:"timeout_seconds"`
+	CreatedAt           time.Time                   `json:"created_at"`
+	Cancelled           bool                        `json:"cancelled"`
+	Items               []Item                      `json:"items"`
+	State               string                      `json:"state"`
 }
 type Submission struct {
 	Job      jobs.Job
@@ -161,13 +166,15 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 		cancel()
 		return nil, err
 	}
+	formatVersion := 1
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version != 1 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version != 1 && e.Version != 2 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid operations store")
 		}
-		plain, err := aead.Open(nil, e.Nonce, e.Ciphertext, []byte("jms233/operations/v1"))
+		formatVersion = e.Version
+		plain, err := aead.Open(nil, e.Nonce, e.Ciphertext, []byte(fmt.Sprintf("jms233/operations/v%d", e.Version)))
 		if err != nil {
 			cancel()
 			return nil, err
@@ -178,6 +185,14 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 		}
 	}
 	for _, p := range s.data.Plans {
+		if p.Discovery != nil && formatVersion != 2 {
+			cancel()
+			return nil, ErrInvalid
+		}
+		if p.Discovery != nil && (p.HostPlugin != nil || p.Discovery.Validate() != nil || p.Discovery.PlanID != p.ID || p.Discovery.Sequence != 0 || p.Discovery.Account != p.CollectionAccount || p.ConfigRevision < 1 || len(p.AssetIDs) != 1 || p.Kind != "interval" || p.Command != p.Discovery.Command()) {
+			cancel()
+			return nil, ErrInvalid
+		}
 		if p.HostPlugin != nil && (!collectorOperation(p.HostPlugin) || p.Command != p.HostPlugin.Command() || len(p.AssetIDs) != 1 || p.Kind != "interval") {
 			cancel()
 			return nil, ErrInvalid
@@ -187,6 +202,14 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 	// idempotent job, otherwise mark interrupted; never submit the claim again.
 	changed := false
 	for id, run := range s.data.Runs {
+		if run.Discovery != nil && formatVersion != 2 {
+			cancel()
+			return nil, ErrInvalid
+		}
+		if run.Discovery != nil && (run.HostPlugin != nil || run.Discovery.Validate() != nil || run.Discovery.PlanID != run.PlanID || run.Discovery.Sequence == 0 || run.Discovery.Sequence != run.CollectionSequence || run.Discovery.Account != run.CollectionAccount || len(run.Items) != 1 || run.Command != run.Discovery.Command()) {
+			cancel()
+			return nil, ErrInvalid
+		}
 		if run.ID != id || run.OwnerID == "" || len(run.Items) > 50 || run.HostPlugin != nil && (!collectorOperation(run.HostPlugin) || run.CollectionSequence == 0 || len(run.Items) != 1) {
 			cancel()
 			return nil, fmt.Errorf("invalid operation run")
@@ -237,11 +260,13 @@ func clone(in state) state {
 	for id, p := range in.Plans {
 		p.AssetIDs = append([]string(nil), p.AssetIDs...)
 		p.HostPlugin = clonePlugin(p.HostPlugin)
+		p.Discovery = cloneDiscovery(p.Discovery)
 		out.Plans[id] = p
 	}
 	for id, r := range in.Runs {
 		r.Items = append([]Item(nil), r.Items...)
 		r.HostPlugin = clonePlugin(r.HostPlugin)
+		r.Discovery = cloneDiscovery(r.Discovery)
 		out.Runs[id] = r
 	}
 	return out
@@ -392,16 +417,22 @@ func (s *Service) Prepare(owner string, in PlanInput) (PlanInput, int, error) {
 // CreatePlan accepts only a prepared snapshot; templates are resolved by the
 // caller before authorization so template edits cannot alter approved payloads.
 func (s *Service) CreatePlan(ownerID, owner string, in PlanInput, revision int) (Plan, error) {
-	return s.createPlan(ownerID, owner, in, revision, nil, "", "")
+	return s.createPlan(ownerID, owner, in, revision, nil, nil, "", "", "")
 }
-func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, plugin *hostplugins.Operation, account, assetName string) (Plan, error) {
+func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, plugin *hostplugins.Operation, discovery *accountdiscovery.Operation, parent, account, assetName string) (Plan, error) {
 	var result Plan
 	err := s.mutate(func(next *state) error {
 		for _, p := range next.Plans {
 			if p.OwnerID == ownerID && p.RequestID == in.RequestID {
 				previous := p.PlanInput
 				previous.Origin = p.AccessOrigin
-				if !reflect.DeepEqual(previous, in) || !reflect.DeepEqual(p.HostPlugin, plugin) {
+				expected := cloneDiscovery(discovery)
+				if expected != nil {
+					expected.PlanID = p.ID
+					expected.ParentAssetID = parent
+					expected.Account = account
+				}
+				if !reflect.DeepEqual(previous, in) || !reflect.DeepEqual(p.HostPlugin, plugin) || !reflect.DeepEqual(p.Discovery, expected) {
 					return ErrConflict
 				}
 				result = p
@@ -411,6 +442,13 @@ func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, 
 		if plugin != nil {
 			for _, p := range next.Plans {
 				if p.HostPlugin != nil && p.Enabled && p.OwnerID == ownerID && p.AssetIDs[0] == in.AssetIDs[0] {
+					return ErrConflict
+				}
+			}
+		}
+		if discovery != nil {
+			for _, p := range next.Plans {
+				if p.Discovery != nil && p.Enabled && p.OwnerID == ownerID && p.Discovery.ParentAssetID == parent {
 					return ErrConflict
 				}
 			}
@@ -426,16 +464,24 @@ func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, 
 		due := in.RunAt
 		if due.IsZero() {
 			due = now
-			if in.Kind == "interval" {
+			if in.Kind == "interval" && discovery == nil {
 				due = now.Add(time.Duration(in.IntervalSeconds) * time.Second)
 			}
 		}
 		result = Plan{HostPlugin: clonePlugin(plugin), CollectionAccount: account, CollectionAssetName: assetName, AccessOrigin: in.Origin, ID: id, OwnerID: ownerID, Owner: owner, PlanInput: in, TemplateRevision: revision, Enabled: true, NextRun: due, CreatedAt: now}
+		if discovery != nil {
+			result.Discovery = cloneDiscovery(discovery)
+			result.Discovery.PlanID = id
+			result.Discovery.ParentAssetID = parent
+			result.Discovery.Account = account
+			result.ConfigRevision = 1
+		}
 		result.AssetIDs = append([]string(nil), in.AssetIDs...)
 		next.Plans[id] = result
 		return nil
 	})
 	result.HostPlugin = clonePlugin(result.HostPlugin)
+	result.Discovery = cloneDiscovery(result.Discovery)
 	result.AssetIDs = append([]string(nil), result.AssetIDs...)
 	return result, err
 }
@@ -447,6 +493,7 @@ func (s *Service) Plans(owner string) []Plan {
 		if owner == "" || p.OwnerID == owner {
 			p.AssetIDs = append([]string(nil), p.AssetIDs...)
 			p.HostPlugin = clonePlugin(p.HostPlugin)
+			p.Discovery = cloneDiscovery(p.Discovery)
 			items = append(items, p)
 		}
 	}
@@ -462,6 +509,7 @@ func (s *Service) Plan(id string) (Plan, error) {
 	}
 	p.AssetIDs = append([]string(nil), p.AssetIDs...)
 	p.HostPlugin = clonePlugin(p.HostPlugin)
+	p.Discovery = cloneDiscovery(p.Discovery)
 	return p, nil
 }
 func (s *Service) SetEnabled(id string, enabled bool) error {
@@ -471,6 +519,9 @@ func (s *Service) SetEnabled(id string, enabled bool) error {
 			return ErrNotFound
 		}
 		if p.Kind == "batch" || p.Kind == "once" && p.LastRunID != "" {
+			return ErrConflict
+		}
+		if p.Discovery != nil {
 			return ErrConflict
 		}
 		p.Enabled = enabled
@@ -493,6 +544,7 @@ func (s *Service) Runs(owner string, offset, limit int) ([]Run, int) {
 		if owner == "" || r.OwnerID == owner {
 			r.Items = append([]Item(nil), r.Items...)
 			r.HostPlugin = clonePlugin(r.HostPlugin)
+			r.Discovery = cloneDiscovery(r.Discovery)
 			items = append(items, r)
 		}
 	}
@@ -510,6 +562,7 @@ func (s *Service) Run(id string) (Run, error) {
 	}
 	r.Items = append([]Item(nil), r.Items...)
 	r.HostPlugin = clonePlugin(r.HostPlugin)
+	r.Discovery = cloneDiscovery(r.Discovery)
 	return r, nil
 }
 func (s *Service) CancelRun(id string) error {
@@ -598,7 +651,10 @@ func (s *Service) Tick() {
 				}
 			}
 			if len(next.Runs) >= 1000 {
-				p.Enabled = false
+				// Collectors retry after their receipt outbox recovers and frees hot runs.
+				if p.HostPlugin == nil && p.Discovery == nil {
+					p.Enabled = false
+				}
 				p.ErrorCode = "history_full"
 				next.Plans[id] = p
 				changed = true
@@ -613,10 +669,22 @@ func (s *Service) Tick() {
 			if p.Kind == "batch" {
 				origin.Method = "exec"
 			}
-			if p.HostPlugin != nil {
+			if p.HostPlugin != nil || p.Discovery != nil {
+				if p.CollectionSequence >= 1<<53-1 {
+					p.Enabled = false
+					p.ErrorCode = "history_full"
+					next.Plans[id] = p
+					changed = true
+					continue
+				}
 				p.CollectionSequence++
 			}
 			r := Run{HostPlugin: clonePlugin(p.HostPlugin), CollectionSequence: p.CollectionSequence, CollectionAccount: p.CollectionAccount, CollectionAssetName: p.CollectionAssetName, AccessOrigin: origin, ID: runID, PlanID: p.ID, OwnerID: p.OwnerID, Name: p.Name, Command: p.Command, TimeoutSeconds: p.TimeoutSeconds, CreatedAt: now, State: "running", Items: []Item{}}
+			r.Owner = p.Owner
+			r.Discovery = cloneDiscovery(p.Discovery)
+			if r.Discovery != nil {
+				r.Discovery.Sequence = r.CollectionSequence
+			}
 			for _, assetID := range p.AssetIDs {
 				r.Items = append(r.Items, Item{AssetID: assetID, State: "pending"})
 			}
@@ -648,6 +716,9 @@ func (s *Service) Tick() {
 				job, err := s.jobs.Get(item.JobID)
 				if err == nil && job.State != item.State {
 					_ = s.updateItem(run.ID, index, func(current *Item) { current.State = job.State; current.ErrorCode = job.ErrorCode })
+					if run.Discovery != nil && (job.ErrorCode == "access_policy_denied" || job.State == "denied" || job.ErrorCode == "review_expired") {
+						s.pauseDeniedDiscovery(run.PlanID)
+					}
 				}
 				continue
 			}
@@ -657,13 +728,17 @@ func (s *Service) Tick() {
 			if s.submit == nil {
 				continue
 			}
-			if run.HostPlugin != nil && resolve != nil {
+			if (run.HostPlugin != nil || run.Discovery != nil) && resolve != nil {
 				input, e := resolve(jobInput(run, item.AssetID))
 				if e != nil {
 					_ = s.updateItem(run.ID, index, func(x *Item) { x.State = "denied"; x.ErrorCode = "access_denied" })
+					if run.Discovery != nil {
+						s.pauseDeniedDiscovery(run.PlanID)
+					}
 					continue
 				}
 				run.HostPlugin = clonePlugin(input.Plugin)
+				run.Discovery = cloneDiscovery(input.Discovery)
 				run.Command = input.Command
 			}
 			claimed := false
@@ -674,6 +749,7 @@ func (s *Service) Tick() {
 				}
 				r.Items[index].State = "dispatching"
 				r.HostPlugin = clonePlugin(run.HostPlugin)
+				r.Discovery = cloneDiscovery(run.Discovery)
 				r.Command = run.Command
 				next.Runs[run.ID] = r
 				claimed = true
@@ -690,6 +766,7 @@ func (s *Service) Tick() {
 				if r.Cancelled {
 					target.State = "cancelled"
 					target.JobID = result.Job.ID
+					target.ReviewID = result.ReviewID
 					cancelJob = result.Job.ID != ""
 				} else {
 					switch {
@@ -725,6 +802,9 @@ func (s *Service) Tick() {
 			if cancelJob {
 				_ = s.jobs.Cancel(result.Job.ID)
 			}
+			if run.Discovery != nil && (errors.Is(err, ErrDenied) || result.Job.State == "denied") {
+				s.pauseDeniedDiscovery(run.PlanID)
+			}
 		}
 	}
 }
@@ -742,7 +822,7 @@ func (s *Service) updateItem(id string, index int, fn func(*Item)) error {
 }
 func jobInput(r Run, assetID string) jobs.Input {
 	digest := sha256.Sum256([]byte(r.ID + ":" + assetID))
-	return jobs.Input{Plugin: clonePlugin(r.HostPlugin), Origin: r.AccessOrigin, AssetID: assetID, Command: r.Command, TimeoutSeconds: r.TimeoutSeconds, RequestID: "operation-" + hex.EncodeToString(digest[:])}
+	return jobs.Input{Discovery: cloneDiscovery(r.Discovery), Plugin: clonePlugin(r.HostPlugin), Origin: r.AccessOrigin, AssetID: assetID, Command: r.Command, TimeoutSeconds: r.TimeoutSeconds, RequestID: "operation-" + hex.EncodeToString(digest[:])}
 }
 func runState(r Run) string {
 	if r.Cancelled {
@@ -787,7 +867,20 @@ func (s *Service) persist(next state) error {
 	if _, err = rand.Read(nonce); err != nil {
 		return err
 	}
-	data, err := json.Marshal(envelope{Version: 1, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte("jms233/operations/v1"))})
+	version := 1
+	for _, p := range next.Plans {
+		if p.Discovery != nil {
+			version = 2
+			break
+		}
+	}
+	for _, r := range next.Runs {
+		if r.Discovery != nil {
+			version = 2
+			break
+		}
+	}
+	data, err := json.Marshal(envelope{Version: version, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte(fmt.Sprintf("jms233/operations/v%d", version)))})
 	if err != nil {
 		return err
 	}
@@ -838,7 +931,7 @@ func (s *Service) CreateCollector(ownerID, owner string, in PlanInput, op hostpl
 	if e != nil {
 		return Plan{}, e
 	}
-	return s.createPlan(ownerID, owner, prepared, revision, &op, account, assetName)
+	return s.createPlan(ownerID, owner, prepared, revision, &op, nil, "", account, assetName)
 }
 func (s *Service) SetCollectorHooks(resolve func(jobs.Input) (jobs.Input, error), archive func(Run, *jobs.Job) error) {
 	s.mu.Lock()
@@ -865,7 +958,7 @@ func (s *Service) archiveCollectors() {
 		if blocked[r.PlanID] {
 			continue
 		}
-		if !collectorOperation(r.HostPlugin) || len(r.Items) != 1 || r.State == "running" || r.State == "waiting_review" {
+		if (!collectorOperation(r.HostPlugin) && r.Discovery == nil) || len(r.Items) != 1 || r.State == "running" || r.State == "waiting_review" {
 			continue
 		}
 		var job *jobs.Job

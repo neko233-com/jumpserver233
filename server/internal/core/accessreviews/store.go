@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,17 +18,18 @@ import (
 )
 
 const (
-	ActionSSH        = "ssh"
-	ActionSFTP       = "sftp"
-	ActionDatabase   = "database"
-	ActionKubernetes = "kubernetes"
-	ActionTelnet     = "telnet"
-	ActionRDP        = "rdp"
-	StatePending     = "pending"
-	StateApproved    = "approved"
-	StateDenied      = "denied"
-	StateExpired     = "expired"
-	StateConsumed    = "consumed"
+	ActionSSH              = "ssh"
+	ActionSFTP             = "sftp"
+	ActionDatabase         = "database"
+	ActionKubernetes       = "kubernetes"
+	ActionTelnet           = "telnet"
+	ActionRDP              = "rdp"
+	ActionAccountDiscovery = "account_discovery"
+	StatePending           = "pending"
+	StateApproved          = "approved"
+	StateDenied            = "denied"
+	StateExpired           = "expired"
+	StateConsumed          = "consumed"
 
 	requestLifetime = 5 * time.Minute
 	permitLifetime  = time.Minute
@@ -45,18 +47,19 @@ var (
 // Review is safe to return to clients. It contains the request and decision
 // history but no session ticket, credential, or approval permit.
 type Review struct {
-	ID          string     `json:"id"`
-	UserID      string     `json:"user_id"`
-	Operator    string     `json:"operator"`
-	AssetID     string     `json:"asset_id"`
-	AssetName   string     `json:"asset_name"`
-	Account     string     `json:"account"`
-	Action      string     `json:"action,omitempty"`
-	State       string     `json:"state"`
-	RequestedAt time.Time  `json:"requested_at"`
-	ExpiresAt   time.Time  `json:"expires_at"`
-	ReviewedAt  *time.Time `json:"reviewed_at,omitempty"`
-	ReviewedBy  string     `json:"reviewed_by,omitempty"`
+	ID           string     `json:"id"`
+	UserID       string     `json:"user_id"`
+	Operator     string     `json:"operator"`
+	AssetID      string     `json:"asset_id"`
+	AssetName    string     `json:"asset_name"`
+	Account      string     `json:"account"`
+	Action       string     `json:"action,omitempty"`
+	RequestScope string     `json:"request_scope,omitempty"`
+	State        string     `json:"state"`
+	RequestedAt  time.Time  `json:"requested_at"`
+	ExpiresAt    time.Time  `json:"expires_at"`
+	ReviewedAt   *time.Time `json:"reviewed_at,omitempty"`
+	ReviewedBy   string     `json:"reviewed_by,omitempty"`
 }
 
 type record struct {
@@ -129,6 +132,12 @@ func (s *Store) Request(userID, operator, assetID, assetName, account string) (R
 // RequestAction creates or reuses a pending request for one access method.
 // SSH and SFTP approvals are deliberately independent even for the same asset account.
 func (s *Store) RequestAction(userID, operator, assetID, assetName, account, action string) (Review, error) {
+	return s.RequestScopedAction(userID, operator, assetID, assetName, account, action, "")
+}
+func (s *Store) RequestScopedAction(userID, operator, assetID, assetName, account, action, scope string) (Review, error) {
+	if !validScope(action, scope) {
+		return Review{}, ErrInvalid
+	}
 	userID = strings.TrimSpace(userID)
 	operator = strings.TrimSpace(operator)
 	assetID = strings.TrimSpace(assetID)
@@ -145,7 +154,7 @@ func (s *Store) RequestAction(userID, operator, assetID, assetName, account, act
 	candidate := cloneRecords(s.records)
 	changed := expireAndPrune(candidate, now)
 	for _, item := range candidate {
-		if item.UserID == userID && item.AssetID == assetID && item.Account == account && item.Action == action && item.State == StatePending {
+		if item.UserID == userID && item.AssetID == assetID && item.Account == account && item.Action == action && item.RequestScope == scope && item.State == StatePending {
 			if changed {
 				if err := s.persistLocked(candidate); err != nil {
 					return Review{}, err
@@ -164,7 +173,7 @@ func (s *Store) RequestAction(userID, operator, assetID, assetName, account, act
 	}
 	review := Review{
 		ID: id, UserID: userID, Operator: operator, AssetID: assetID,
-		AssetName: assetName, Account: account, Action: action, State: StatePending,
+		AssetName: assetName, Account: account, Action: action, RequestScope: scope, State: StatePending,
 		RequestedAt: now, ExpiresAt: now.Add(requestLifetime),
 	}
 	candidate[id] = record{Review: review}
@@ -274,6 +283,12 @@ func (s *Store) ConsumeApproved(userID, assetID, account string) (bool, error) {
 // ConsumeApprovedAction consumes a single permit for the exact user, asset,
 // account, and access method tuple.
 func (s *Store) ConsumeApprovedAction(userID, assetID, account, action string) (bool, error) {
+	return s.ConsumeApprovedScopedAction(userID, assetID, account, action, "")
+}
+func (s *Store) ConsumeApprovedScopedAction(userID, assetID, account, action, scope string) (bool, error) {
+	if !validScope(action, scope) {
+		return false, ErrInvalid
+	}
 	if strings.TrimSpace(userID) == "" || strings.TrimSpace(assetID) == "" || strings.TrimSpace(account) == "" || !validAction(action) {
 		return false, ErrInvalid
 	}
@@ -284,7 +299,7 @@ func (s *Store) ConsumeApprovedAction(userID, assetID, account, action string) (
 	changed := expireAndPrune(candidate, now)
 	var selected *record
 	for _, item := range candidate {
-		if item.UserID != userID || item.AssetID != assetID || item.Account != account || item.Action != action || item.State != StateApproved || item.PermitExpiresAt == nil || !now.Before(*item.PermitExpiresAt) {
+		if item.UserID != userID || item.AssetID != assetID || item.Account != account || item.Action != action || item.RequestScope != scope || item.State != StateApproved || item.PermitExpiresAt == nil || !now.Before(*item.PermitExpiresAt) {
 			continue
 		}
 		copy := item
@@ -388,7 +403,7 @@ func validate(review Review) error {
 	if review.ID == "" || review.UserID == "" || review.Operator == "" || review.AssetID == "" || review.AssetName == "" || review.Account == "" || review.RequestedAt.IsZero() || review.ExpiresAt.IsZero() || !review.ExpiresAt.After(review.RequestedAt) {
 		return ErrInvalid
 	}
-	if !validAction(review.Action) {
+	if !validAction(review.Action) || !validScope(review.Action, review.RequestScope) {
 		return ErrInvalid
 	}
 	switch review.State {
@@ -403,7 +418,55 @@ func validate(review Review) error {
 }
 
 func validAction(action string) bool {
-	return action == ActionSSH || action == ActionSFTP || action == ActionDatabase || action == ActionKubernetes || action == ActionTelnet || action == ActionRDP
+	return action == ActionSSH || action == ActionSFTP || action == ActionDatabase || action == ActionKubernetes || action == ActionTelnet || action == ActionRDP || action == ActionAccountDiscovery
+}
+
+func validScope(action, scope string) bool {
+	if action != ActionAccountDiscovery {
+		return scope == ""
+	}
+	if len(scope) > 100 || !strings.HasPrefix(scope, "plan-") {
+		return false
+	}
+	parts := strings.Split(scope, ":")
+	if len(parts) != 2 || len(parts[0]) != 37 {
+		return false
+	}
+	if _, e := hex.DecodeString(parts[0][5:]); e != nil {
+		return false
+	}
+	n, e := strconv.ParseUint(parts[1], 10, 53)
+	return e == nil && n > 0 && strconv.FormatUint(n, 10) == parts[1]
+}
+
+// CancelOwned expires only this operator's pending request or unused permit.
+// It is idempotent, including requests already expired or pruned.
+func (s *Store) CancelOwned(id, userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item, ok := s.records[id]
+	if !ok {
+		return nil
+	}
+	if item.UserID != userID {
+		return ErrNotFound
+	}
+	if item.State != StatePending && item.State != StateApproved {
+		return nil
+	}
+	candidate := cloneRecords(s.records)
+	item.State = StateExpired
+	item.PermitExpiresAt = nil
+	item.ExpiresAt = time.Now().UTC()
+	if !item.ExpiresAt.After(item.RequestedAt) {
+		item.ExpiresAt = item.RequestedAt.Add(time.Nanosecond)
+	}
+	candidate[id] = item
+	if e := s.persistLocked(candidate); e != nil {
+		return e
+	}
+	s.records = candidate
+	return nil
 }
 
 func cloneRecords(records map[string]record) map[string]record {

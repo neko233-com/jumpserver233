@@ -13,7 +13,17 @@ import (
 
 // DiscoverAccounts uses the embedded, hash-verified native helper. It never
 // retrieves passwd/shadow text, changes a target account or executes its shell.
-func (s *Service) DiscoverAccounts(ctx context.Context, assetID, jobID string, guard func() error) ([]hostagent.Account, string, error) {
+func (s *Service) DiscoverAccounts(ctx context.Context, assetID, jobID string, guard func() error, physicalAsset ...string) ([]hostagent.Account, string, error) {
+	lockID := assetID
+	if len(physicalAsset) > 1 {
+		return nil, "", ErrInvalid
+	}
+	if len(physicalAsset) == 1 {
+		if physicalAsset[0] == "" {
+			return nil, "", ErrInvalid
+		}
+		lockID = physicalAsset[0]
+	}
 	if guard == nil || len(jobID) != 36 || !strings.HasPrefix(jobID, "job-") {
 		return nil, "", ErrInvalid
 	}
@@ -27,13 +37,13 @@ func (s *Service) DiscoverAccounts(ctx context.Context, assetID, jobID string, g
 	if s.discoveryActive == nil {
 		s.discoveryActive = map[string]bool{}
 	}
-	if s.discoveryActive[assetID] || len(s.discoveryActive) >= 4 {
+	if s.discoveryActive[lockID] || len(s.discoveryActive) >= 4 {
 		s.discoveryMu.Unlock()
 		return nil, "", ErrConflict
 	}
-	s.discoveryActive[assetID] = true
+	s.discoveryActive[lockID] = true
 	s.discoveryMu.Unlock()
-	defer func() { s.discoveryMu.Lock(); delete(s.discoveryActive, assetID); s.discoveryMu.Unlock() }()
+	defer func() { s.discoveryMu.Lock(); delete(s.discoveryActive, lockID); s.discoveryMu.Unlock() }()
 	h, e := s.open(ctx, assetID)
 	if e != nil {
 		return nil, "", e

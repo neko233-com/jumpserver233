@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toggleLang } from "../i18n";
 import { usePermissions } from "../auth/usePermissions";
 import "./account-discovery.css";
+import AccountDiscoverySchedule from "./AccountDiscoverySchedule";
 
 type Finding = {
   id: string;
@@ -60,10 +61,12 @@ export default function AccountDiscoveryDialog({
   const [editing, setEditing] = useState<Finding | null>(null),
     [review, setReview] = useState("unreviewed"),
     [note, setNote] = useState("");
+  const [reviewRevision, setReviewRevision] = useState(0);
   const [auditOpen, setAuditOpen] = useState(false),
     [audit, setAudit] = useState<{ results: Audit[]; total: number }>({ results: [], total: 0 }),
     [auditOffset, setAuditOffset] = useState(0);
   const [reload, setReload] = useState(0);
+  const collected = useCallback(() => setReload((v) => v + 1), []);
   const requestID = useRef("");
   const request = useCallback(
     (path: string, init?: RequestInit) => {
@@ -197,7 +200,7 @@ export default function AccountDiscoveryDialog({
       const r = await request(`${base}/discovered-accounts/${editing.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ review, note, revision: page.revision }),
+        body: JSON.stringify({ review, note, revision: reviewRevision }),
       });
       if (!r.ok) throw Error();
       setEditing(null);
@@ -229,6 +232,12 @@ export default function AccountDiscoveryDialog({
           </div>
         </header>
         <p className="settings-help">{t("accountDiscovery.hint")}</p>
+        <AccountDiscoverySchedule
+          assetId={assetId}
+          accessToken={accessToken}
+          canConnect={canConnect}
+          onCollected={collected}
+        />
         <div className="account-discovery-actions">
           {allows("accounts.discover") && canConnect && (
             <button
@@ -329,6 +338,7 @@ export default function AccountDiscoveryDialog({
                         className="button-text"
                         onClick={() => {
                           setEditing(row);
+                          setReviewRevision(page.revision);
                           setReview(row.review);
                           setNote(row.note);
                         }}

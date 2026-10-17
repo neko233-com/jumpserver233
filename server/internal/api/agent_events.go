@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -17,13 +18,27 @@ import (
 )
 
 func configureAgentCollection(d Dependencies, mu *sync.RWMutex) {
-	if d.AgentEvents == nil || d.Operations == nil {
+	if d.Operations == nil {
 		return
 	}
 	d.Operations.SetCollectorHooks(func(in jobs.Input) (jobs.Input, error) {
 		mu.RLock()
 		defer mu.RUnlock()
-		if in.Plugin == nil || in.Plugin.Action != "events_collect" {
+		if in.Discovery != nil {
+			if d.AccountDiscovery == nil || in.Plugin != nil || in.Discovery.PlanID == "" {
+				return in, jobs.ErrInvalid
+			}
+			a, e := d.Assets.Get(in.AssetID)
+			if e != nil || a.Username != in.Discovery.Account || assets.ResourceID(a) != in.Discovery.ParentAssetID || discoveryIdentity(a) != in.Discovery.Target {
+				return in, operations.ErrDenied
+			}
+			o := in.Discovery.Clone()
+			o.Binding = databaseRouteBinding(d, a)
+			in.Discovery = &o
+			in.Command = o.Command()
+			return in, nil
+		}
+		if d.AgentEvents == nil || in.Plugin == nil || in.Plugin.Action != "events_collect" {
 			return in, jobs.ErrInvalid
 		}
 		a, e := d.Assets.Get(in.AssetID)
@@ -36,6 +51,28 @@ func configureAgentCollection(d Dependencies, mu *sync.RWMutex) {
 		in.Command = op.Command()
 		return in, nil
 	}, func(r operations.Run, j *jobs.Job) error {
+		if r.Discovery != nil {
+			if d.AccountDiscovery == nil || len(r.Items) != 1 {
+				return jobs.ErrInvalid
+			}
+			actor := accountdiscovery.Actor{ID: r.OwnerID, Name: r.Owner}
+			if r.Cancelled && r.Items[0].ReviewID != "" && d.AccessReviews != nil {
+				if e := d.AccessReviews.CancelOwned(r.Items[0].ReviewID, r.OwnerID); e != nil {
+					return e
+				}
+			}
+			var jobJSON []byte
+			if j != nil {
+				actor.Name = j.Operator
+				jobJSON, _ = json.Marshal(j)
+			}
+			runJSON, _ := json.Marshal(r)
+			op := r.Discovery
+			return d.AccountDiscovery.ArchiveCollection(accountdiscovery.Source{AssetID: op.ParentAssetID, Binding: op.Target, Account: op.Account}, r.CollectionAssetName, actor, agentevents.Receipt{PlanID: r.PlanID, Sequence: r.CollectionSequence, RunID: r.ID, JobID: r.Items[0].JobID, OwnerID: r.OwnerID, State: r.State, Run: runJSON, Job: jobJSON})
+		}
+		if d.AgentEvents == nil {
+			return jobs.ErrInvalid
+		}
 		src := agentevents.Source{AssetID: r.Items[0].AssetID, AssetName: r.CollectionAssetName, Account: r.CollectionAccount}
 		col := agentevents.Collector{ID: r.OwnerID}
 		var jobJSON []byte

@@ -54,3 +54,28 @@ func TestAccountDiscoveryBoundsConcurrentConnectionsAndReleasesOnCancellation(t 
 	_, _, e = s.DiscoverAccounts(context.Background(), "asset-next", "job-"+strings.Repeat("d", 32), func() error { return denied })
 	assert.ErrorIs(t, e, denied)
 }
+
+func TestAccountDiscoverySerializesDifferentCredentialsOnTheSamePhysicalHost(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	s := hostplugins.New(func(ctx context.Context, _ string) (hostplugins.Transport, error) {
+		entered <- struct{}{}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, _, e := s.DiscoverAccounts(ctx, "account-one", "job-"+strings.Repeat("a", 32), func() error { return nil }, "asset-physical")
+		done <- e
+	}()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("collector did not start")
+	}
+	_, _, e := s.DiscoverAccounts(ctx, "account-two", "job-"+strings.Repeat("b", 32), func() error { return nil }, "asset-physical")
+	assert.ErrorIs(t, e, hostplugins.ErrConflict)
+	cancel()
+	assert.ErrorIs(t, <-done, context.Canceled)
+}

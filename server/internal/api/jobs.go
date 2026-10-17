@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
@@ -92,6 +93,11 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 			return operations.Submission{}, operations.ErrDenied
 		}
 		asset, _ := d.Assets.Get(input.AssetID)
+		reviewAction, reviewScope := accessreviews.ActionSSH, ""
+		if input.Discovery != nil && input.Discovery.PlanID != "" {
+			reviewAction = accessreviews.ActionAccountDiscovery
+			reviewScope = input.Discovery.PlanID + ":" + strconv.FormatUint(input.Discovery.Sequence, 10)
+		}
 		pendingID := ""
 		gate := func() error {
 			if decision.Action == commandfilters.ActionDeny || effectivePermissions(user, d.RBAC, d.Groups).Allows("login_review.bypass") || !asset.LoginReviewRequired {
@@ -105,7 +111,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 				if err != nil {
 					return operations.ErrDenied
 				}
-				if prior.UserID != user.ID || prior.AssetID != asset.ID || prior.Account != account || prior.Action != "ssh" {
+				if prior.UserID != user.ID || prior.AssetID != asset.ID || prior.Account != account || prior.Action != reviewAction || prior.RequestScope != reviewScope {
 					return operations.ErrDenied
 				}
 				switch prior.State {
@@ -116,14 +122,14 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 					return errJobLoginPending
 				}
 			}
-			approved, err := d.AccessReviews.ConsumeApproved(user.ID, asset.ID, account)
+			approved, err := d.AccessReviews.ConsumeApprovedScopedAction(user.ID, asset.ID, account, reviewAction, reviewScope)
 			if err != nil {
 				return err
 			}
 			if approved {
 				return nil
 			}
-			review, err := d.AccessReviews.Request(user.ID, user.Username, asset.ID, asset.Name, account)
+			review, err := d.AccessReviews.RequestScopedAction(user.ID, user.Username, asset.ID, asset.Name, account, reviewAction, reviewScope)
 			if err != nil {
 				return err
 			}
@@ -238,6 +244,11 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		j, err := d.Jobs.Get(r.PathValue("jobID"))
 		if err != nil && r.Method == http.MethodGet && d.AgentEvents != nil {
 			if receipt, ok := d.AgentEvents.LatestReceipt(r.PathValue("jobID")); ok && len(receipt.Job) > 0 {
+				err = json.Unmarshal(receipt.Job, &j)
+			}
+		}
+		if err != nil && r.Method == http.MethodGet && d.AccountDiscovery != nil {
+			if receipt, ok := d.AccountDiscovery.LatestCollection(r.PathValue("jobID")); ok && len(receipt.Job) > 0 {
 				err = json.Unmarshal(receipt.Job, &j)
 			}
 		}

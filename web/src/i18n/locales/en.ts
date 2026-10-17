@@ -1,4 +1,31 @@
 const en = {
+  accountSchedule: {
+    paused: "Paused",
+    latest: "Latest run",
+    commandReview: "Command approval required: {{id}}",
+    approval: "Scheduled account discovery SSH login",
+    title: "Scheduled account discovery",
+    hint: "Create or resume to collect immediately, then repeat at the configured interval. The physical target and SSH identity are pinned; password/key rotation is supported. Every run rechecks current permissions and approvals. Pausing cancels waiting and active runs.",
+    create: "Create collection plan",
+    edit: "Change interval",
+    account: "Collector account",
+    interval: "Interval (minutes)",
+    empty: "No collection plans for this host.",
+    noHistory: "No archived collection runs.",
+    history: "Collection run history",
+    changes: "Account changes",
+    run: "Run sequence",
+    autoPaused:
+      "Paused after access or target validation failed. Recheck grants and the pinned identity before resuming.",
+    errors: {
+      failed:
+        "The request did not complete. Refresh and check current plan status before retrying.",
+      conflict:
+        "The plan changed, or this owner already has an enabled plan on the host. Refresh before editing; pause the previous plan to change accounts.",
+      denied:
+        "Current scheduling, discovery or target access is insufficient. Pausing an owned plan remains available.",
+    },
+  },
   managedAccounts: {
     manageDiscovered: "Manage account",
     discoveryHint:
@@ -1161,6 +1188,7 @@ const en = {
       accounts_view: "Read collected host accounts and activity",
       accounts_review: "Acknowledge or ignore collected accounts",
       accounts_manage: "Manage credentials and access state of visible host accounts",
+      accounts_schedule: "Schedule account discovery on authorized SSH identities",
       sessions_share: "Create invitations to own live terminal sessions",
       audit_sessions_terminate_all: "Terminate any active session",
       audit_replays_view_all: "Read every session recording",

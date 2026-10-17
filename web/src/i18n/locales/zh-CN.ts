@@ -1,4 +1,28 @@
 const zhCN = {
+  accountSchedule: {
+    paused: "已暂停",
+    latest: "最近运行",
+    commandReview: "需要命令审批：{{id}}",
+    approval: "计划账号收集 SSH 登录",
+    title: "计划账号收集",
+    hint: "创建或恢复后立即采集，随后按间隔执行。固定物理目标与 SSH 身份，支持密码和密钥轮换。每次执行复查当前权限与审批；暂停会取消待批及运行中的采集。",
+    create: "创建采集计划",
+    edit: "修改间隔",
+    account: "采集账号",
+    interval: "间隔（分钟）",
+    empty: "此主机暂无采集计划。",
+    noHistory: "暂无已归档的采集运行记录。",
+    history: "采集运行记录",
+    changes: "账号变化",
+    run: "运行序号",
+    autoPaused: "权限或目标校验失败后已暂停。请核对授权与固定身份后再恢复。",
+    errors: {
+      failed: "请求未完成，请刷新并核对计划当前状态后重试。",
+      conflict:
+        "计划已变更，或此用户在主机上已有启用计划。请刷新后编辑；切换采集账号前先暂停原计划。",
+      denied: "当前计划、采集或目标访问权限不足。仍可暂停自己已有的计划。",
+    },
+  },
   managedAccounts: {
     manageDiscovered: "托管账号",
     discoveryHint:
@@ -1068,6 +1092,7 @@ const zhCN = {
       accounts_view: "查看已收集账号与活动",
       accounts_review: "确认或忽略已收集账号",
       accounts_manage: "管理可见主机账号的凭据及启用状态",
+      accounts_schedule: "为已授权的 SSH 身份配置计划账号收集",
       sessions_share: "为自己的在线终端创建分享邀请",
       audit_sessions_terminate_all: "中断任意活动会话",
       audit_replays_view_all: "读取全部会话录像",

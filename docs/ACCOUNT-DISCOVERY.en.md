@@ -13,6 +13,7 @@ Asset inventory → SSH host “More” → “Collected accounts”:
 3. Mark records unreviewed, acknowledged or ignored and add notes. These states record human assessment without granting remote account access.
 4. Subsequent collections preserve decisions for the same identity and mark new/missing accounts. Reusing a username with a different UID creates a new record without inheriting ignore status.
 5. “Account collection activity” pages through platform collectors, job results and review changes. UI language is detected automatically; switching language preserves the current job.
+6. Expand “Scheduled account discovery” to create interval plans, pause/resume and page through run archives. See [Scheduled account discovery](./SCHEDULED-ACCOUNT-DISCOVERY.en.md).
 
 Platform CLI uses existing `JMS_SERVER_URL`, `JMS_TOKEN` / AccessKey and optional `JMS_ORG_ID`, without target passwords:
 
@@ -34,6 +35,7 @@ go run ./cmd/jms accounts cancel <job-id>
 |---|---|
 | `accounts.view` plus current asset visibility | Read findings/activity for the current target |
 | `accounts.discover` plus an asset `connect` grant | Collect accounts and initially install the verified collector |
+| `accounts.schedule` plus discovery/connection authority | Create/resume periodic collection; owners can still pause after losing authority |
 | `accounts.review` plus the preceding read authority | Save review state and notes |
 
 System administrators retain their built-in role. Ordinary view, terminal connection or plugin management does not acquire account-discovery authority; discovery does not grant independent connections. Jobs share login review, command rules/approval, cancellation, ownership, encrypted audit and idempotent requests.
@@ -49,7 +51,7 @@ The current SSH account installs the native program at `$HOME/.jumpserver233/acc
 - Pages contain 32 accounts and at most 60 KiB JSON through independent `jms233/linux-local-accounts/v1`. Every page must have the same metadata-only digest, total and contiguous order. Missing/truncated pages, duplicate fields or changing inventory never publish a partial snapshot.
 - Each organization permits four concurrent collections, one per asset. Busy collection fails promptly while retaining existing records. Incomplete pages cannot become false missing-account findings.
 - Findings, notes and activity use one AES-GCM document per asset with asset-bound authenticated data. Local files use mode 0600 and synced temporary-file replacement; PostgreSQL retains the same encrypted document. Failed writes publish no new revision.
-- Current limits per asset are 16384 historical identities, 2000 activities and 16 MiB plaintext state. Exhaustion refuses new data while retaining history, without silently trimming audit. APIs page 1–100 rows; browsers use 20. Automatic archival and retention management remain open.
+- Current limits per asset are 16384 historical identities, 2000 manual collection/review activities and 16 MiB plaintext state. Exhaustion refuses the corresponding new data while retaining history, without silently trimming audit. Periodic runs use separate segmented archives without consuming human activity entries. APIs page 1–100 rows; browser finding pages use 20. Retention management remains open.
 
 ## Standalone, HA and remaining scope
 
@@ -59,4 +61,4 @@ Local acceptance on 2026-10-17 used real Linux OpenSSH, a pinned SSH gateway and
 
 ![English account discovery](./images/account-discovery.en.png)
 
-This delivery covers local Linux metadata and human review, with current findings associated to independent managed credentials: [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Remote account creation/deletion, scheduled collection, Windows/directory/database discovery and weak-password/secret inspection remain part of the Enterprise objective. Seven-day rotation and encrypted credential history are described in [Password rotation](./PASSWORD-ROTATION.en.md).
+This delivery covers local Linux metadata, human review and [scheduled collection](./SCHEDULED-ACCOUNT-DISCOVERY.en.md), with current findings associated to independent managed credentials: [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Remote account creation/deletion, Windows/directory/database discovery and weak-password/secret inspection remain part of the Enterprise objective. Seven-day rotation and encrypted credential history are described in [Password rotation](./PASSWORD-ROTATION.en.md).

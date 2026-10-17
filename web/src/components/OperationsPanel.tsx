@@ -11,6 +11,8 @@ type Template = {
   revision: number;
 };
 type Plan = {
+  account_discovery?: object;
+  config_revision?: number;
   id: string;
   owner_id: string;
   name: string;
@@ -204,7 +206,10 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
     try {
       const response = await request(`/api/v1/ops/plans/${encodeURIComponent(plan.id)}`, {
         method: "PUT",
-        body: JSON.stringify({ enabled: !plan.enabled }),
+        body: JSON.stringify({
+          enabled: !plan.enabled,
+          ...(plan.account_discovery ? { revision: plan.config_revision } : {}),
+        }),
       });
       if (!response.ok) throw new Error("plan update failed");
       await load();
@@ -468,7 +473,13 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                 {plans.slice(planOffset, planOffset + 50).map((plan) => (
                   <tr key={plan.id}>
                     <td>{plan.name}</td>
-                    <td>{t(`operations.kinds.${plan.kind}`)}</td>
+                    <td>
+                      {t(
+                        plan.account_discovery
+                          ? "accountSchedule.title"
+                          : `operations.kinds.${plan.kind}`,
+                      )}
+                    </td>
                     <td>{time(plan.next_run)}</td>
                     <td>
                       {t(plan.enabled ? "operations.enabled" : "operations.paused")}
@@ -480,7 +491,14 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                         !(plan.kind === "once" && plan.last_run_id) && (
                           <button
                             type="button"
-                            disabled={busy}
+                            disabled={
+                              busy ||
+                              Boolean(
+                                plan.account_discovery &&
+                                !plan.enabled &&
+                                !allows("accounts.schedule"),
+                              )
+                            }
                             onClick={() => {
                               void toggle(plan);
                             }}

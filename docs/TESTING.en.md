@@ -2,6 +2,20 @@
 
 > [中文](./TESTING.md) | English
 
+## Scheduled account discovery (2026-10-17)
+
+Complete Playwright suite passed 65/65 in 14.6 minutes, with zero failures/skips and exit code 0. It covers scheduled discovery and all existing protocols, native protection/recovery, ordinary/root systemd services and real VM reboot. Disposable fixtures exited through the ownership-checked lifecycle. Final authority/pause boundary changes were separately rechecked with Go/Testify, Linux race and the focused production-image case.
+
+- Final-source uncached serial Go/Testify suite passed: 57 packages and 838 tests, with 35 skips for unavailable external fixtures. Real OpenSSH, PostgreSQL state storage and xrdp were provided. Missing integrations are not counted as successes.
+- Linux Docker race passed across 8 related packages and 242 tests, with 11 unavailable-fixture skips, including PostgreSQL takeover. Complete protocol execution is separately exercised by the browser suite.
+- The final production Docker case using real OpenSSH passed 1/1 in 20.9 seconds: Web interval creation, independent authority, login/command approvals, pause invalidation, fresh run approvals on resume, native collection, CLI, credential revisions, archives, refused resumption after revocation, both languages and 390px layout, with zero pageerrors. The in-app browser separately inspected three real receipts and saved bilingual screenshots.
+- Testify covers pinned physical targets/identities, refreshed credential bindings, cross-credential host exclusion, idempotency/stale revisions, cancellation during execution/dispatch, late-review cancellation outbox, per-run permit isolation, live-revocation auto-pause, command-review denial, recovery from a full 1000-run hot window and archive failures, independent archive namespaces, PostgreSQL takeover/organization isolation and format-2 downgrade refusal. SDK/CLI checks preserve organization/signatures, safe DTOs and explicit revisions, while disabled credentials permit plan management only.
+- `go vet`, `go build ./...`, stripped server/CLI builds, frontend lint/types/production build, E2E types and 10 Docker lifecycle Node tests passed. Content checks passed for 1610 keys per language, 100 bilingual documents and 849 relative links.
+- Fresh-volume Docker browser checks with a second instance passed in 17.28 seconds (build 2.71, startup 12.01, smoke 2.56). The disposable instance exited through its ownership-checked lifecycle. Retained debug stack `jms233-discovery-schedule-qa` exposes Web `http://127.0.0.16:15186` and API `http://127.0.0.16:18093`, on loopback only.
+- Previous `198cd35` [CI 39038326332](https://github.com/neko233-com/jumpserver233/actions/runs/39038326332) is confirmed successful for `verify`, `frontend` and `docker-qa`.
+
+See [Scheduled account discovery](./SCHEDULED-ACCOUNT-DISCOVERY.en.md) for scope and upgrade boundaries. No release changelog or version tag was created.
+
 ## Managed SSH accounts (2026-10-17)
 
 Complete Playwright passed 64/64 in 14.5 minutes, with zero failures/skips and exit code 0. It includes managed accounts, all existing protocols, native protection/recovery, ordinary/root systemd services and a real VM reboot. Owned disposable resources were removed by the exit workflow. The final grant-account fallback was also checked separately against production Docker.
@@ -41,7 +55,7 @@ Batch temporary logs are `jms233-accounts-go-delivery.jsonl`, `jms233-accounts-e
 - The in-app browser verified real xrdp click updates, uninterrupted language switches, source continuity after viewer close, viewing activity after source termination and no console warnings/errors in production Docker. See [Live RDP monitoring](./RDP-LIVE-MONITOR.en.md) for real screenshots.
 - A fresh Docker volume passed authentication, compressed static assets and parallel browser sessions: warm-cache build 5.03 seconds, startup 12.03 seconds and checks 2.48 seconds, approximately 19.5 seconds total. The disposable stack was removed. Retained `127.0.0.9:15183` / API `127.0.0.9:18090` remain separate from existing previews and bind only loopback. That retained-volume build took 7.09 seconds, startup 12.84 seconds and smoke 1.21 seconds; its timings are separate from fresh-volume evidence.
 
-Commit `97231eb` [remote CI](https://github.com/neko233-com/jumpserver233/actions/runs/39028845375) passed every job: complete Linux backend race, vet/build, browser 62/62 (19.6 minutes) and Docker. Remote Docker performed HTTP checks with `browser:false`: build 80.52 seconds, startup 11.44 seconds and smoke 0.15 seconds. This is not remote browser verification evidence.
+Commit `97231eb` [remote CI](https://github.com/neko233-com/jumpserver233/actions/runs/39028849375) passed every job: complete Linux backend race, vet/build, browser 62/62 (19.6 minutes) and Docker. Remote Docker performed HTTP checks with `browser:false`: build 80.52 seconds, startup 11.44 seconds and smoke 0.15 seconds. This is not remote browser verification evidence.
 
 Batch logs are temporary `jms233-desktop-monitor-go-final.jsonl`, `jms233-desktop-monitor-race-final.jsonl` and `jms233-desktop-monitor-e2e-final.log`; production Docker logs remain under ignored `.cache/docker-qa/`. Existing ignore rules cover generated assets, screenshot reports, caches and runtime data, so these do not enter Git. Real Windows NLA, RDP sharing/control, active/active routing, production failure exercises and full Enterprise parity remain open.
 

@@ -16,7 +16,7 @@ import (
 var errJobLoginPending = errors.New("job login review pending")
 
 func jobOwner(d Dependencies, id string) (coreauth.User, bool) {
-	user, ok := d.Auth.UserByID(id)
+	user, ok := d.Auth.ActiveUserByID(id)
 	if !ok && ((id == "admin-token" && d.AdminToken != "") || (id == "loopback-admin" && d.AdminToken == "" && d.Auth.BootstrapRequired())) {
 		return coreauth.User{ID: id, Username: "admin", Role: coreauth.RoleAdmin}, true
 	}
@@ -106,7 +106,8 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 	}))
 	mux.Handle("PUT /api/v1/ops/plans/{planID}", protect(func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
-			Enabled *bool `json:"enabled"`
+			Enabled  *bool `json:"enabled"`
+			Revision int   `json:"revision"`
 		}
 		if decodeRequestJSON(w, r, &in) != nil || in.Enabled == nil {
 			writeJobError(w, operations.ErrInvalid)
@@ -116,6 +117,27 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 		user, _ := PrincipalFromContext(r.Context())
 		if err != nil || !visible(r, user, p.OwnerID, "plans.manage_all") {
 			writeJobError(w, operations.ErrNotFound)
+			return
+		}
+		if p.Discovery != nil {
+			accessMu.Lock()
+			defer accessMu.Unlock()
+			if *in.Enabled && !canResumeDiscoveryPlan(d, r, p) {
+				writeJobError(w, operations.ErrDenied)
+				return
+			}
+			updated, e := d.Operations.UpdateDiscoveryCollector(p.ID, in.Revision, *in.Enabled, p.IntervalSeconds)
+			if e != nil {
+				writeJobError(w, e)
+				return
+			}
+			if !updated.Enabled {
+				if e := cancelDiscoveryApprovals(d, updated); e != nil {
+					writeJSON(w, 503, map[string]string{"detail": "access review cancellation unavailable"})
+					return
+				}
+			}
+			writeJSON(w, 200, updated)
 			return
 		}
 		if err := d.Operations.SetEnabled(p.ID, *in.Enabled); err != nil {
@@ -156,6 +178,11 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 		run, err := d.Operations.Run(r.PathValue("runID"))
 		if err != nil && r.Method == http.MethodGet && d.AgentEvents != nil {
 			if receipt, ok := d.AgentEvents.LatestReceipt(r.PathValue("runID")); ok {
+				err = json.Unmarshal(receipt.Run, &run)
+			}
+		}
+		if err != nil && r.Method == http.MethodGet && d.AccountDiscovery != nil {
+			if receipt, ok := d.AccountDiscovery.LatestCollection(r.PathValue("runID")); ok {
 				err = json.Unmarshal(receipt.Run, &run)
 			}
 		}

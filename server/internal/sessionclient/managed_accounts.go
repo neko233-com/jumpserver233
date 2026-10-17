@@ -180,6 +180,9 @@ func (c *Client) ResolveManagedAccount(ctx context.Context, asset, selector stri
 	return page.Results[0], nil
 }
 func (c *Client) selectedAsset(ctx context.Context, id string) (string, error) {
+	return c.selectedAssetState(ctx, id, false)
+}
+func (c *Client) selectedAssetState(ctx context.Context, id string, allowInactive bool) (string, error) {
 	if c.managedAccount == "" {
 		return id, nil
 	}
@@ -197,7 +200,7 @@ func (c *Client) selectedAsset(ctx context.Context, id string) (string, error) {
 	if e != nil {
 		return "", e
 	}
-	if !a.Active {
+	if !a.Active && !allowInactive {
 		return "", errors.New("managed account is disabled")
 	}
 	if parent != id && a.ID != id {
@@ -217,7 +220,8 @@ func (c *Client) selectedAccountPath(ctx context.Context, path string) (string, 
 	if len(parts) != 2 || parts[1] == "accounts" || strings.HasPrefix(parts[1], "accounts/") {
 		return path, nil
 	}
-	id, e := c.selectedAsset(ctx, parts[0])
+	management := parts[1] == "account-discovery/plans" || strings.HasPrefix(parts[1], "account-discovery/plans/")
+	id, e := c.selectedAssetState(ctx, parts[0], management)
 	if e != nil {
 		return "", e
 	}
