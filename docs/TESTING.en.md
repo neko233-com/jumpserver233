@@ -2,6 +2,20 @@
 
 > [中文](./TESTING.md) | English
 
+## Access request tickets (2026-10-18)
+
+- Final uncached serial Go/Testify after lifecycle concurrency repair: 60 packages, 951 passes, 35 absent-fixture/capability skips, no failures, exit 0. Final Linux Docker race: 7 packages, 322 passes, 8 such skips, no failures, exit 0. Skips are not counted as passes.
+- Final real-SSH production-image scenario: 20.4 seconds, 20.9 including the runner. Final clean-volume dual-instance Docker browser checks: 19.04 seconds (cached build 2.99, startup 12.03, checks 4.02), followed by disposable cleanup. Retained debug UI: `http://127.0.0.25:15192`; API: `http://127.0.0.25:18099`.
+- Final Windows stripped server: 41,591,296 bytes; CLI: 12,497,408. Local uncompressed Linux API image: 24,542,553 bytes. See [Performance](./PERFORMANCE.en.md) for initial-loading and bundle measurements.
+
+- Full Playwright: 70/70 passed in 16.0 minutes, zero failures/skips, exit 0. The new case covers two stages, UI amendment reset, actual CLI/Web SSH and revocation closing active sessions, alongside all existing protocols, native agents and real VM reboots. The first full run exposed accessible names containing existing form text; explicit labels fixed it and a fresh full run passed.
+- The final production Docker scenario also passes: distinct reviewers, denial before approval and after stage one, access after stage two, idempotent status reads, both languages and 390px, with zero pageerror. The in-app browser confirmed decision/revocation records and Escape closing with focus restored to the trigger.
+- Core ticket statement coverage: 75.7%. PostgreSQL organization isolation and receipt takeover passed 50 repetitions. Shutdown cancelling/draining API issuance, delayed amendments and takeover recovery passed 30 combined repetitions. Concurrent decisions, five stages, final-write faults, revocation and old-decision retries passed 20 repetitions.
+- No dependencies added. Go vet, frontend lint, strict types, production builds, 10 Docker lifecycle tests and 6 frontend cache/frame tests pass. Content checks cover 2,123 keys per language and 110 documents, including links and placeholders. Caches, generated helpers, builds, test outputs and local tooling remain ignored.
+- One earlier existing node_exporter upgrade test reported `integrity_failed`; its focused recheck passed. That run is not counted as a full pass. Ticket persistence/authority tests retain their checks. Final full-run results are listed below.
+
+Evidence covers standalone files, PostgreSQL state recovery, native grant gates and isolated SSH. It does not establish production multi-active, cross-region failover or email/SMS notification delivery. See [Access request tickets](./ACCESS-TICKETS.en.md) for behavior, API/CLI and retention.
+
 ## SSH credential rotation plans (2026-10-18)
 
 - Final full Playwright: 69/69 pass in 15.9 minutes, zero failures/skips, exit code 0, including existing protocols, real VM reboots and the new rotation case. The first full run's shared-root fixture conflict was replaced with a unique privileged account, then the complete suite passed from a clean environment.

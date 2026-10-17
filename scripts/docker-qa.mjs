@@ -104,6 +104,7 @@ async function browserSmoke() {
     await expect(page.getByRole("heading", { name: "Assets", exact: true })).toBeVisible();
     assert.ok(!loaded.some(url => /\/LoginPage-/.test(url)), "Authenticated console loaded login-only animation code");
     assert.ok(!loaded.some(url => /\/AccountRisksPage-/.test(url)), "Asset inventory loaded risk-only code");
+    assert.ok(!loaded.some(url => /\/AccessTicketsPage-/.test(url)), "Asset inventory loaded ticket-only code");
     await page.screenshot({ path: resolve(output, "production.en.png") });
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(page.getByRole("heading", { name: "资产", exact: true })).toBeVisible();
@@ -132,6 +133,13 @@ async function browserSmoke() {
     await page.getByRole("button",{name:"中文",exact:true}).click();
     await expect(page.getByRole("heading",{name:"账号改密计划",exact:true})).toBeVisible();
     await page.screenshot({path:resolve(output,"rotation.zh-CN.png")});
+    await page.goto(webURL+"/console/access-tickets");
+    await expect(page.getByRole("heading",{name:"访问授权工单",exact:true})).toBeVisible();
+    await expect(page.getByRole("button",{name:"创建审批规则",exact:true})).toBeVisible();
+    await page.screenshot({path:resolve(output,"tickets.zh-CN.png")});
+    await page.getByRole("button",{name:"EN",exact:true}).click();
+    await expect(page.getByRole("heading",{name:"Access requests",exact:true})).toBeVisible();
+    await page.screenshot({path:resolve(output,"tickets.en.png")});
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }
 }

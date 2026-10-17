@@ -30,11 +30,13 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
+	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 )
 
 type Dependencies struct {
+	Tickets              *tickets.Service
 	RotationPlans        *rotationplans.Service
 	AccountRisks         *accountrisks.Service
 	AccountDiscovery     *accountdiscovery.Store
@@ -99,6 +101,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	}
 
 	mux.HandleFunc("GET /api/health", HealthHandler(version))
+	if len(dependencies) > 0 {
+		registerTicketRoutes(mux, dependencies[0], accessMu)
+	}
 	if len(dependencies) > 0 && dependencies[0].RotationPlans != nil {
 		registerRotationPlanRoutes(mux, dependencies[0], accessMu)
 	}

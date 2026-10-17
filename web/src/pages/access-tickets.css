@@ -1,0 +1,50 @@
+.ticket-page {
+  min-width: 0;
+}
+.ticket-dialog textarea {
+  width: 100%;
+  min-height: 76px;
+  box-sizing: border-box;
+  font: inherit;
+}
+.ticket-dialog select[multiple] {
+  min-height: 120px;
+}
+.ticket-dialog fieldset {
+  margin-block: 12px;
+}
+.ticket-dialog li {
+  margin-block: 10px;
+  overflow-wrap: anywhere;
+}
+.ticket-dialog p,
+.ticket-dialog dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ticket-dialog :is(input, select, textarea):focus-visible {
+  outline: 2px solid #69bfff;
+  outline-offset: 2px;
+}
+.ticket-dialog label.ticket-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-block: 10px;
+}
+.ticket-catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 8px;
+}
+.ticket-catalog button {
+  text-align: start;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.ticket-dialog [role="alert"] {
+  padding: 12px;
+  border: 1px solid #ff8585;
+  border-radius: 6px;
+}

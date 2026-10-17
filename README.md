@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+访问授权工单支持发布资源范围、1–5 级不同审批人、抄送讨论、调整重审、限时授权及撤销，已贯通真实 CLI/Web SSH；见[访问授权工单](./docs/ACCESS-TICKETS.md)。
+
 SSH 多主机改密计划支持密码/密钥、特权账号重置、每周周期、逐项结果及故障恢复，Web/CLI 共用组织权限与加密回执；见[账号改密计划](./docs/ROTATION-PLANS.md)。
 
 2026-10-18，隔离 Docker 中真实 OpenSSH 改密结果：

@@ -105,13 +105,21 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 			}
 		}
 		if problem.Detail == "" {
+			if strings.HasPrefix(target.Path, "/api/v1/tickets/") {
+				switch problem.Code {
+				case "invalid", "denied", "not_found", "conflict", "source_changed", "reviewers_unavailable", "capacity", "unavailable":
+					problem.Detail = problem.Code
+				}
+			}
+		}
+		if problem.Detail == "" {
 			problem.Detail = resp.Status
 		}
 		return &APIError{StatusCode: resp.StatusCode, Detail: problem.Detail}
 	}
 	if output != nil {
 		limit := int64(1024 * 1024)
-		if strings.HasPrefix(target.Path, "/api/v1/accounts/risks") || strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-") {
+		if strings.HasPrefix(target.Path, "/api/v1/accounts/risks") || strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-") || strings.HasPrefix(target.Path, "/api/v1/tickets/") {
 			limit = 8 << 20
 		}
 		return json.NewDecoder(io.LimitReader(resp.Body, limit)).Decode(output)

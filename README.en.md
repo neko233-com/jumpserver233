@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Access request tickets provide published scopes, one to five distinct reviewers, copied discussion, amendment reset, temporary grants and revocation through real CLI/Web SSH. See [Access request tickets](./docs/ACCESS-TICKETS.en.md).
+
 Multi-host SSH rotation plans support passwords/keys, privileged resets, weekly schedules, per-account results and recovery. Web/CLI share organization permissions and encrypted receipts; see [Credential rotation plans](./docs/ROTATION-PLANS.en.md).
 
 2026-10-18: real OpenSSH rotation results in isolated Docker:

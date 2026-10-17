@@ -1240,6 +1240,10 @@ const zhCN = {
       accounts_rotation_execute: "执行与恢复账号改密",
       accounts_rotation_manage_all: "管理其他负责人的改密计划",
       accounts_rotation_privileged: "使用 SSH 特权账号改密",
+      tickets_manage: "发布访问审批规则",
+      tickets_review: "审批访问授权工单",
+      tickets_view_all: "查看全部访问授权工单",
+      tickets_revoke: "撤销访问工单授权",
       accounts_risks_scan: "检测账号风险",
       accounts_risks_manage: "管理风险策略及处置记录",
       accounts_risks_export: "导出账号风险元数据",
@@ -1384,6 +1388,7 @@ const zhCN = {
   nav: {
     accountRisks: "账号风险",
     rotationPlans: "账号改密",
+    accessTickets: "授权工单",
     console: "控制台",
     audit: "审计台",
     workbench: "工作台",

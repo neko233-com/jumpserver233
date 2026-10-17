@@ -2,6 +2,14 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Access request tickets (2026-10-18)
+
+The ticket page and both languages load lazily: about 33.89 kB JS / 0.81 kB CSS. Main entry: 476,681 bytes; initial JS and static dependencies: 494,025 bytes, gzip 159,552; all JS: 1,398,372 bytes. Existing 500 kB / 1.5 MB budgets pass with no added dependencies. See [TESTING](./TESTING.en.md) for build sizes and isolated verification timings.
+
+Three same-machine Go runs over 10,000 assets improved from 24.4–25.8 ms/op, about 43.1 MB/op and 349,000 allocations to 7.24–7.66 ms/op, about 9.95 MB/op and 315 allocations. The catalog snapshots minimal metadata, uses composite keys and action bitsets, and materializes only the requested page. These measurements exclude HTTP, encrypted persistence, disk, SSH and browsers. Catalog pages contain 25 entries; ticket/policy/audit pages contain 20. Hidden pages and editors pause polling; closing aborts requests.
+
+Existing `.gitignore` / `.dockerignore` rules exclude builds, tests, caches, generated native helpers and local tooling. This slice adds no binary. See [Access request tickets](./ACCESS-TICKETS.en.md) for behavior and retention boundaries.
+
 2026-10-18 credential rotation: page code and both locales load on demand at approximately 31.09 kB JS / 2.96 kB CSS. Main entry: 475,956 bytes; initial JS: 493,300 bytes (159,378 gzip); total JS: 1,363,715 bytes. Existing 500 kB / 1.5 MB budgets pass. Windows stripped server: 41,263,616 bytes; CLI: 12,449,792 bytes. Local Linux production API image: 24,412,653 bytes uncompressed. No dependencies were added.
 
 Targets page in groups of 25, plans/runs/audit in groups of 20. Only an open unfinished run polls serially; leaving cancels requests. Plan/run lists page before materializing metadata. Credential inspection uses atomic snapshots, and waiting behind another host's rotation respects cancellation/timeouts. Each organization executes accounts sequentially; limits and persistence boundaries are in [Credential rotation plans](./ROTATION-PLANS.en.md).

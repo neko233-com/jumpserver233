@@ -18,6 +18,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/workbench", label: t("nav.workbench"), end: false },
   ];
   const consoleNav = [
+    { to: "/console/access-tickets", label: t("nav.accessTickets"), end: false },
     ...(allows("accounts.rotation.view")
       ? [{ to: "/console/rotation-plans", label: t("nav.rotationPlans"), end: false }]
       : []),

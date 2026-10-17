@@ -31,6 +31,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
+	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
@@ -345,6 +346,21 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return nil, e
 		}
 	}
+	if id != organizations.DefaultID {
+		d.Tickets, e = tickets.Open(filepath.Join(orgPath, "access-tickets.json"), orgKey, docs)
+		if e != nil {
+			d.RotationPlans.Close()
+			d.AccountRisks.Close()
+			d.Operations.Close()
+			d.Jobs.Close()
+			d.DatabaseQueries.Close()
+			d.Sessions.CloseAll()
+			d.AgentEvents.Close()
+			d.AccountDiscovery.Close()
+			d.Desktops.CloseAll()
+			return nil, e
+		}
+	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID {
 		ctx, cancel := context.WithCancel(r.ctx)
@@ -355,6 +371,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		d.AccountDiscovery.BindOwner(ctx)
 		d.AccountRisks.Start(ctx)
 		d.RotationPlans.Start(ctx)
+		d.Tickets.Start(ctx)
 		go func() { defer close(runtime.done); d.Assets.Run(ctx, r.cfg.MonitorInterval) }()
 	}
 	r.items[id] = runtime
@@ -394,6 +411,9 @@ func (r *organizationRuntimes) changed(id string) {
 	}
 }
 func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) {
+	if current.d.Tickets != nil {
+		current.d.Tickets.Close()
+	}
 	if current.d.RotationPlans != nil {
 		current.d.RotationPlans.Close()
 	}

@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+发布申请范围、1–5 级审批、调整重审、限时授权、撤销和 Web/CLI 见[访问授权工单](./ACCESS-TICKETS.md)。
+
 多主机 SSH 密码/密钥轮换、每周计划、特权账号、逐项结果及恢复见[账号改密计划](./ROTATION-PLANS.md)。
 
 SSH 弱密码、凭据复用、超期与使用风险、处置和周期检测见[账号风险](./ACCOUNT-RISKS.md)。

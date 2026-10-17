@@ -1340,6 +1340,10 @@ const en = {
       accounts_rotation_execute: "Execute and recover credential rotation",
       accounts_rotation_manage_all: "Manage other owners' rotation plans",
       accounts_rotation_privileged: "Use privileged SSH accounts for rotation",
+      tickets_manage: "Publish access approval policies",
+      tickets_review: "Approve access requests",
+      tickets_view_all: "View all access requests",
+      tickets_revoke: "Revoke access request grants",
       accounts_risks_scan: "Scan account risks",
       accounts_risks_manage: "Manage risk policies and review findings",
       accounts_risks_export: "Export account risk metadata",
@@ -1489,6 +1493,7 @@ const en = {
   nav: {
     accountRisks: "Account risks",
     rotationPlans: "Credential rotation",
+    accessTickets: "Access requests",
     console: "Console",
     audit: "Audit",
     workbench: "Workbench",

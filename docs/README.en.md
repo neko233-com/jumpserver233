@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Published scopes, one to five approval stages, amendment reset, temporary grants, revocation and Web/CLI are covered in [Access request tickets](./ACCESS-TICKETS.en.md).
+
 Multi-host SSH password/key rotation, weekly scheduling, privileged accounts, per-account results and recovery: [Credential rotation plans](./ROTATION-PLANS.en.md).
 
 Weak/reused SSH credentials, age/usage risks, human review and periodic scanning: [Account risks](./ACCOUNT-RISKS.en.md).

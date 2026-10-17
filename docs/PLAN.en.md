@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 5/7 adds [access request tickets](./ACCESS-TICKETS.en.md): published asset/node and account scopes, one to five distinct reviewers, user/group/role selectors, copied discussion, amendment reset, time-limited native grants, revocation and recovery across Web/CLI/SDK with organization encryption. Production multi-active and external notification delivery remain open; the phase and full Enterprise goal stay in progress.
+
 Phase 7 adds [SSH credential rotation plans](./ROTATION-PLANS.en.md): multi-host passwords/keys, optional privileged accounts, manual/once/weekly scheduling, per-account results, cancellation/recovery and Web/CLI/SDK, with organization encryption and PostgreSQL single-active takeover. Windows/database rotation, automatic risk remediation and production HA acceptance remain open.
 
 Phase 7 adds [SSH account risks](./ACCOUNT-RISKS.en.md): seven local checks, human review, metadata CSV, periodic policies and Web/CLI/SDK, with organization encryption, live permissions and PostgreSQL single-active takeover. Usage uses retained platform audit. Remote OS expiry/login history, automatic bulk remediation and complete Enterprise acceptance remain open.

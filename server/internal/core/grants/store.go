@@ -3,7 +3,6 @@ package grants
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -27,17 +26,18 @@ var allowedActions = map[string]struct{}{
 }
 
 type Grant struct {
-	ID        string     `json:"id"`
-	UserID    string     `json:"user_id"`
-	GroupID   string     `json:"group_id,omitempty"`
-	AssetID   string     `json:"asset_id"`
-	NodeID    string     `json:"node_id,omitempty"`
-	Account   string     `json:"account"`
-	Actions   []string   `json:"actions"`
-	StartsAt  *time.Time `json:"starts_at,omitempty"`
-	EndsAt    *time.Time `json:"ends_at,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	CreatedBy string     `json:"created_by"`
+	SourceTicketID string     `json:"source_ticket_id,omitempty"`
+	ID             string     `json:"id"`
+	UserID         string     `json:"user_id"`
+	GroupID        string     `json:"group_id,omitempty"`
+	AssetID        string     `json:"asset_id"`
+	NodeID         string     `json:"node_id,omitempty"`
+	Account        string     `json:"account"`
+	Actions        []string   `json:"actions"`
+	StartsAt       *time.Time `json:"starts_at,omitempty"`
+	EndsAt         *time.Time `json:"ends_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	CreatedBy      string     `json:"created_by"`
 }
 
 type Input struct {
@@ -52,10 +52,12 @@ type Input struct {
 }
 
 type Store struct {
-	mu        sync.RWMutex
-	path      string
-	documents *storage.Documents
-	grants    map[string]Grant
+	mu          sync.RWMutex
+	path        string
+	documents   *storage.Documents
+	grants      map[string]Grant
+	tickets     map[string]ticketBatch
+	ticketGuard func(Grant, time.Time) bool
 }
 
 func OpenStore(path string) (*Store, error) {
@@ -70,7 +72,7 @@ func OpenStoreWithDocuments(path string, documents *storage.Documents) (*Store, 
 }
 
 func openStore(path string, documents *storage.Documents) (*Store, error) {
-	store := &Store{path: path, documents: documents, grants: make(map[string]Grant)}
+	store := &Store{path: path, documents: documents, grants: make(map[string]Grant), tickets: map[string]ticketBatch{}}
 	var data []byte
 	var err error
 	if documents != nil {
@@ -88,7 +90,7 @@ func openStore(path string, documents *storage.Documents) (*Store, error) {
 		return store, nil
 	}
 	var records []Grant
-	if err := json.Unmarshal(data, &records); err != nil {
+	if err := store.decodeRecords(data, &records); err != nil {
 		return nil, fmt.Errorf("decode grant store: %w", err)
 	}
 	for _, grant := range records {
@@ -99,6 +101,9 @@ func openStore(path string, documents *storage.Documents) (*Store, error) {
 			return nil, fmt.Errorf("grant store contains a duplicate ID")
 		}
 		store.grants[grant.ID] = cloneGrant(grant)
+	}
+	if err := store.validateTickets(); err != nil {
+		return nil, err
 	}
 	return store, nil
 }
@@ -203,6 +208,9 @@ func (s *Store) ActionsForScopes(userID string, groupIDs []string, assetID strin
 		if (grant.UserID != userID && !groupMatch) || !scopeMatch || grant.Account != account || !withinWindow(grant, at) {
 			continue
 		}
+		if grant.SourceTicketID != "" && (s.ticketGuard == nil || !s.ticketGuard(cloneGrant(grant), at)) {
+			continue
+		}
 		for _, action := range grant.Actions {
 			actions[action] = struct{}{}
 		}
@@ -275,7 +283,7 @@ func (s *Store) persistLocked() error {
 			grants = append(grants, cloneGrant(grant))
 		}
 		sort.Slice(grants, func(i, j int) bool { return grants[i].ID < grants[j].ID })
-		data, err := json.Marshal(grants)
+		data, err := s.encodeRecords(grants, false)
 		if err != nil {
 			return fmt.Errorf("encode grant document: %w", err)
 		}
@@ -292,7 +300,7 @@ func (s *Store) persistLocked() error {
 		grants = append(grants, cloneGrant(grant))
 	}
 	sort.Slice(grants, func(i, j int) bool { return grants[i].ID < grants[j].ID })
-	data, err := json.MarshalIndent(grants, "", "  ")
+	data, err := s.encodeRecords(grants, true)
 	if err != nil {
 		return fmt.Errorf("encode grant store: %w", err)
 	}
