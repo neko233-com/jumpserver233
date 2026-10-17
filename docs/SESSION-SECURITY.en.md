@@ -18,6 +18,8 @@ Actual interface from an isolated production Docker instance on 2026-10-17:
 
 ## Watermarks and recordings
 
+Session sharing defaults off independently of watermark and lifetime switches. Named-user sharing, control, revocation and capacity limits are documented in [Terminal collaboration](./SESSION-SHARING.en.md). Older configurations without `sharing` keep it disabled.
+
 Markers contain platform user ID, session ID and UTC creation time, without target credentials.
 
 Web terminals display the marker; asciinema v2 recordings preserve it in env.JMS_WATERMARK and the built-in replay renders that field. Terminal I/O stays unchanged, so Agent CLI receives no decoration characters. Other asciinema players may ignore the extension.
@@ -29,7 +31,7 @@ Watermarks support attribution. Cropping, covering or rerecording can remove the
 ## API and storage
 
 - GET /api/v1/settings/security/sessions reads settings.
-- PUT /api/v1/settings/security/sessions accepts idle_minutes, max_hours, watermark and the current revision. Success increments the revision; conflict returns 409.
+- PUT /api/v1/settings/security/sessions accepts idle_minutes, max_hours, watermark, sharing and the current revision. Success increments the revision; conflict returns 409.
 - GET /api/v1/settings/security/sessions/audit returns the latest 200 changes, including actor, time and before/after values, saved atomically with settings.
 - Standalone mode stores JMS_DATA_DIR/session-security.json with 0600 permissions and synced temporary-file replacement. Failed writes leave in-memory settings unchanged. Single-active HA uses the PostgreSQL session-security document, reloaded with audit at takeover.
 - Time-based termination records idle_timeout or duration_limit in session audit. Read-only viewers disconnect with their primary session.

@@ -20,6 +20,7 @@ type Settings struct {
 	IdleMinutes int  `json:"idle_minutes"`
 	MaxHours    int  `json:"max_hours"`
 	Watermark   bool `json:"watermark"`
+	Sharing     bool `json:"sharing"`
 	Revision    int  `json:"revision"`
 }
 

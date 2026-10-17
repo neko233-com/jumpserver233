@@ -22,6 +22,8 @@ const maxCommandRecordBytes = 64 * 1024
 // CommandRecord is a completed command line submitted at a recognized remote
 // terminal prompt. It does not claim that the remote shell executed it.
 type CommandRecord struct {
+	ActorID     string    `json:"actor_id,omitempty"`
+	Actor       string    `json:"actor,omitempty"`
 	ID          string    `json:"id"`
 	Command     string    `json:"command"`
 	SubmittedAt time.Time `json:"submitted_at"`
@@ -38,6 +40,8 @@ type commandRecordEnvelope struct {
 }
 
 type commandRecordPayload struct {
+	ActorID     string    `json:"actor_id,omitempty"`
+	Actor       string    `json:"actor,omitempty"`
 	ID          string    `json:"id"`
 	Command     string    `json:"command"`
 	SubmittedAt time.Time `json:"submitted_at"`
@@ -70,7 +74,7 @@ func (b *Broker) appendCommand(sessionID string, submission commandSubmission) e
 	if err != nil {
 		return fmt.Errorf("create command audit ID: %w", err)
 	}
-	payload, err := json.Marshal(commandRecordPayload{ID: id, Command: command, SubmittedAt: submission.SubmittedAt.UTC(), Outcome: submission.Outcome, RuleName: submission.RuleName, ReviewedBy: submission.ReviewedBy, ReviewID: submission.ReviewID})
+	payload, err := json.Marshal(commandRecordPayload{ActorID: submission.ActorID, Actor: submission.Actor, ID: id, Command: command, SubmittedAt: submission.SubmittedAt.UTC(), Outcome: submission.Outcome, RuleName: submission.RuleName, ReviewedBy: submission.ReviewedBy, ReviewID: submission.ReviewID})
 	if err != nil {
 		return fmt.Errorf("encode command audit record: %w", err)
 	}
@@ -190,7 +194,7 @@ func (b *Broker) readCommands(sessionID string, offset, limit int) ([]CommandRec
 		if !validSessionID(payload.ID) || (payload.Command == "" && payload.Outcome != "blocked") || len(payload.Command) > maxCommandInputBytes || payload.SubmittedAt.IsZero() || !validCommandOutcome(payload.Outcome) || len(payload.RuleName) > 80 || len(payload.ReviewedBy) > 128 || (payload.ReviewID != "" && !validSessionID(payload.ReviewID)) {
 			return nil, 0, fmt.Errorf("command audit payload is invalid")
 		}
-		commands = append(commands, CommandRecord{ID: payload.ID, Command: payload.Command, SubmittedAt: payload.SubmittedAt, Outcome: payload.Outcome, RuleName: payload.RuleName, ReviewedBy: payload.ReviewedBy, ReviewID: payload.ReviewID})
+		commands = append(commands, CommandRecord{ActorID: payload.ActorID, Actor: payload.Actor, ID: payload.ID, Command: payload.Command, SubmittedAt: payload.SubmittedAt, Outcome: payload.Outcome, RuleName: payload.RuleName, ReviewedBy: payload.ReviewedBy, ReviewID: payload.ReviewID})
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, 0, fmt.Errorf("read command audit index: %w", err)

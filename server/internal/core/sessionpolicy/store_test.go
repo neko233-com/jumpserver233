@@ -25,6 +25,7 @@ func TestPolicyPersistenceRevisionAuditAndFailedWrite(t *testing.T) {
 	assert.Equal(t, Defaults(), s.Snapshot())
 	in := s.Snapshot()
 	in.IdleMinutes = 15
+	in.Sharing = true
 	out, e := s.Save(in, "admin-id", "admin")
 	require.NoError(t, e)
 	assert.Equal(t, 2, out.Revision)
@@ -121,6 +122,7 @@ func TestPolicyPostgresTakeover(t *testing.T) {
 	require.NoError(t, e)
 	in := s.Snapshot()
 	in.MaxHours = 2
+	in.Sharing = true
 	_, e = s.Save(in, "actor", "admin")
 	require.NoError(t, e)
 	second, e := storage.OpenPostgres(context.Background(), url, namespace)

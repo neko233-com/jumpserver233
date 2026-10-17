@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+Phase 4/7 新增终端会话协作：指定平台用户、限时验证码、只读/单写入者接管、踢出/撤销、持续授权、双身份命令复核与协作事件审计，提供 Web/CLI 与中英界面。默认关闭、独立 `sessions.share` 权限；在线状态不迁移，RDP 分享仍待完成，见 [会话协作](./SESSION-SHARING.md)。各阶段总体状态仍为进行中。
+
 Agent 生命周期已支持账号级开机启动、每分钟崩溃恢复、停用守护和保留数据卸载，新增固定版本升级/回退、中断检查点及独立授权的 SSH 防护策略。配套原生 Go 组件已验证隔离 Linux 的实际 cron、容器重启及内核表丢失后的封禁恢复；使用已有 cron，不自动提权。集中恢复事件与计划采集见 [AGENT-EVENTS.md](./AGENT-EVENTS.md)；构建及其它剩余范围见 [远程工具与 Agent 运维](./HOST-PLUGINS.md)。
 
 SSH 远程工具与原生 Agent 运维已纳入本轮目标：检测、安装、状态和生命周期优先接入 banhack233 与 node_exporter，复用平台身份、组织、复核和任务审计。本批 Linux 安装、托管进程、API/CLI/UI 已通过 Go/race 和完整浏览器验收，见 [远程工具与 Agent 运维](./HOST-PLUGINS.md)。

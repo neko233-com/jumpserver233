@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useTranslation } from "react-i18next";
+import { toggleLang } from "../i18n";
 import "@xterm/xterm/css/xterm.css";
+const SessionSharePanel = lazy(() => import("./SessionSharePanel"));
 
 type Props = {
   protocol?: "ssh" | "telnet";
@@ -30,6 +32,10 @@ export default function SSHTerminalDialog({
   protocol,
 }: Props) {
   const { t } = useTranslation();
+  const translations = useRef(t);
+  useEffect(() => {
+    translations.current = t;
+  }, [t]);
   const terminalPrefix = kubernetesSelection
     ? "kubernetes"
     : protocol === "telnet"
@@ -38,6 +44,9 @@ export default function SSHTerminalDialog({
   const hostRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<ConnectionState>("connecting");
   const [watermark, setWatermark] = useState("");
+  const [currentID, setCurrentID] = useState("");
+  const [showSharing, setShowSharing] = useState(false);
+  const [controlBlocked, setControlBlocked] = useState(false);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -121,7 +130,7 @@ export default function SSHTerminalDialog({
           const pending = (await response.json()) as { review_id?: string };
           if (!pending.review_id) throw new Error("invalid access review response");
           setState("review");
-          terminal.write(`\r\n${t(`${terminalPrefix}.loginReviewPending`)}\r\n`);
+          terminal.write(`\r\n${translations.current(`${terminalPrefix}.loginReviewPending`)}\r\n`);
           while (active) {
             await new Promise((resolve) => window.setTimeout(resolve, 2_000));
             if (!active) return;
@@ -136,13 +145,15 @@ export default function SSHTerminalDialog({
             const review = (await statusResponse.json()) as { state?: string };
             if (review.state === "pending") continue;
             if (review.state === "approved") {
-              terminal.write(`\r\n${t(`${terminalPrefix}.loginReviewApproved`)}\r\n`);
+              terminal.write(
+                `\r\n${translations.current(`${terminalPrefix}.loginReviewApproved`)}\r\n`,
+              );
               setState("connecting");
               await startSession();
               return;
             }
             terminal.write(
-              `\r\n${review.state === "denied" ? t(`${terminalPrefix}.loginReviewDenied`) : t(`${terminalPrefix}.loginReviewExpired`)}\r\n`,
+              `\r\n${review.state === "denied" ? translations.current(`${terminalPrefix}.loginReviewDenied`) : translations.current(`${terminalPrefix}.loginReviewExpired`)}\r\n`,
             );
             setState("failed");
             return;
@@ -156,13 +167,18 @@ export default function SSHTerminalDialog({
           throw new Error("incomplete session response");
         }
         sessionId = session.session_id;
+        if (active) setCurrentID(session.session_id);
         if (!active) {
           void closeSession(sessionId);
           return;
         }
         const socketProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const endpoint = `${socketProtocol}//${window.location.host}${session.websocket_url}`;
-        socket = new WebSocket(endpoint, ["jms233-terminal-v1", `jms233-ticket.${session.ticket}`]);
+        socket = new WebSocket(endpoint, [
+          "jms233-terminal-v1",
+          `jms233-ticket.${session.ticket}`,
+          "jms233-share-control-v1",
+        ]);
         socket.binaryType = "arraybuffer";
         socket.onopen = () => {
           if (!active) return;
@@ -180,23 +196,35 @@ export default function SSHTerminalDialog({
             });
           else if (typeof event.data === "string") {
             try {
-              const notice = JSON.parse(event.data) as { type?: string; rule_name?: string };
+              const notice = JSON.parse(event.data) as {
+                type?: string;
+                rule_name?: string;
+                controller?: string;
+              };
+              if (notice.type === "share_control_required" || notice.type === "share_controller") {
+                const blocked = notice.type === "share_control_required" || !!notice.controller;
+                setControlBlocked(blocked);
+                terminal.options.disableStdin = blocked;
+                if (terminal.textarea) terminal.textarea.readOnly = blocked;
+              }
               if (notice.type === "command_blocked") {
                 const message = notice.rule_name
-                  ? t("terminal.commandBlockedRule", { rule: notice.rule_name })
-                  : t("terminal.commandBlocked");
+                  ? translations.current("terminal.commandBlockedRule", { rule: notice.rule_name })
+                  : translations.current("terminal.commandBlocked");
                 terminal.write(`\r\n${message}\r\n`);
               } else if (notice.type === "command_review_pending") {
                 const message = notice.rule_name
-                  ? t("terminal.commandReviewPendingRule", { rule: notice.rule_name })
-                  : t("terminal.commandReviewPending");
+                  ? translations.current("terminal.commandReviewPendingRule", {
+                      rule: notice.rule_name,
+                    })
+                  : translations.current("terminal.commandReviewPending");
                 terminal.write(`\r\n${message}\r\n`);
               } else if (notice.type === "command_review_approved") {
-                terminal.write(`\r\n${t("terminal.commandReviewApproved")}\r\n`);
+                terminal.write(`\r\n${translations.current("terminal.commandReviewApproved")}\r\n`);
               } else if (notice.type === "command_review_denied") {
-                terminal.write(`\r\n${t("terminal.commandReviewDenied")}\r\n`);
+                terminal.write(`\r\n${translations.current("terminal.commandReviewDenied")}\r\n`);
               } else if (notice.type === "command_review_timed_out") {
-                terminal.write(`\r\n${t("terminal.commandReviewTimedOut")}\r\n`);
+                terminal.write(`\r\n${translations.current("terminal.commandReviewTimedOut")}\r\n`);
               }
             } catch {
               // Ignore unsupported text frames; terminal data uses binary frames.
@@ -236,7 +264,7 @@ export default function SSHTerminalDialog({
       terminal.dispose();
       if (sessionId) void closeSession(sessionId);
     };
-  }, [accessToken, assetId, t, kubernetesSelection, terminalPrefix, protocol]);
+  }, [accessToken, assetId, kubernetesSelection, terminalPrefix, protocol]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -276,10 +304,45 @@ export default function SSHTerminalDialog({
               {statusLabel}
             </span>
           </div>
+          <button type="button" className="lang-switch" onClick={() => void toggleLang()}>
+            {t("sharing.language")}
+          </button>
+          {state === "connected" && (
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => setShowSharing((v) => !v)}
+            >
+              {t("sharing.manage")}
+            </button>
+          )}
           <button type="button" className="button-secondary" onClick={onClose}>
             {t("terminal.close")}
           </button>
         </header>
+        {controlBlocked && (
+          <p className="session-monitor-notice">
+            {t("sharing.waitControl")}{" "}
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => {
+                setShowSharing(true);
+              }}
+            >
+              {t("sharing.reclaim")}
+            </button>
+          </p>
+        )}
+        {showSharing && currentID && (
+          <Suspense fallback={null}>
+            <SessionSharePanel
+              sessionID={currentID}
+              accessToken={accessToken}
+              onClose={() => setShowSharing(false)}
+            />
+          </Suspense>
+        )}
         {state === "failed" && (
           <p className="ssh-terminal-error" role="alert">
             {t(`${terminalPrefix}.connectFailed`)}

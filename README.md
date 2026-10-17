@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+活动终端支持指定平台用户的只读分享、输入接管、成员移除与协作审计，Web 和 CLI 共用持续授权；默认需显式启用，见 [终端会话协作](./docs/SESSION-SHARING.md)。
+
 快速验证与独立端口调试见 [Docker 隔离环境](./docs/DOCKER-QA.md)；产物体积、增量构建与自动预算见 [性能基线](./docs/PERFORMANCE.md)。
 
 SSH 主机工具与 Agent 支持固定版本安装、升级/回退、中断检查点恢复、启停、巡检、开机启动和保留数据卸载；独立授权可启用 BanHack SSH 封禁策略。原生 Go 组件 v3 支持 systemd 常驻监督与十秒检查，兼容已有 cron 每分钟恢复。提供结构化 API/CLI、中英 UI 与加密审计。见 [主机工具与 Agent](./docs/HOST-PLUGINS.md) 和 [systemd 服务管理](./docs/AGENT-SYSTEMD.md)。

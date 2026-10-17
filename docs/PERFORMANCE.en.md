@@ -2,6 +2,8 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+Terminal collaboration slice, 2026-10-17: invitation panel approximately 4.83 kB, participant page 5.13 kB and activity list 2.11 kB, all loaded on demand. Main entry is 448,885 bytes; initial scripts including shared static dependencies total 466,229 bytes, or 150,880 gzip bytes. All JavaScript totals 1,218,401 bytes and passes existing budgets. Stripped Windows server is 39,199,744 bytes; CLI is 12,229,120 bytes. Each active terminal retains at most 64 KiB of output tail with bounded participant queues and no copy of the complete recording.
+
 Session security slice, 2026-10-17: settings load on demand in approximately 3.16 kB; the 444.38 kB main entry passes existing budgets. The stripped Windows program is 38,993,408 bytes, approximately 0.36% above the previous baseline. The local production API image is 23,501,151 bytes.
 
 A synthetic 1280×720 static-frame watermark benchmark measured approximately 7.17 ms / 8.34 MB temporary allocations when rendering, versus 14.5 ns and zero allocations for a cached sequence. Network, remote desktop and connector costs are excluded; this is not end-to-end frame latency.

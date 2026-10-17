@@ -32,7 +32,15 @@ export function installOrganizationFetch() {
       return original(input, init);
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
     new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-    headers.set("X-JMS-ORG", selectedOrganization());
+    const sharedOrg = window.location.pathname.startsWith("/share/")
+      ? new URLSearchParams(window.location.search).get("org")
+      : null;
+    headers.set(
+      "X-JMS-ORG",
+      sharedOrg && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(sharedOrg)
+        ? sharedOrg
+        : selectedOrganization(),
+    );
     return original(input, { ...init, headers });
   };
 }

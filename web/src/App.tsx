@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ConsoleLayout from "./layouts/ConsoleLayout";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 
@@ -21,11 +21,16 @@ const LDAPSettingsPage = lazy(() => import("./pages/LDAPSettingsPage"));
 const SAMLSettingsPage = lazy(() => import("./pages/SAMLSettingsPage"));
 const PasskeySettingsPage = lazy(() => import("./pages/PasskeySettingsPage"));
 const CASSettingsPage = lazy(() => import("./pages/CASSettingsPage"));
+const SessionSharePage = lazy(() => import("./pages/SessionSharePage"));
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { authenticated, sessionReady } = useAuth();
+  const location = useLocation();
   if (!sessionReady) return null;
-  return authenticated ? children : <Navigate to="/login" replace />;
+  const target = location.pathname.startsWith("/share/")
+    ? `/login?next=${encodeURIComponent(location.pathname + location.search)}`
+    : "/login";
+  return authenticated ? children : <Navigate to={target} replace />;
 }
 
 export default function App() {
@@ -36,6 +41,14 @@ export default function App() {
       <Suspense fallback={<div className="placeholder">{t("placeholder.skeleton")}</div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/share/:shareID"
+            element={
+              <RequireAuth>
+                <SessionSharePage />
+              </RequireAuth>
+            }
+          />
           <Route
             path="/console"
             element={

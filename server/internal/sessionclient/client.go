@@ -200,6 +200,9 @@ func (c *Client) GetAccessReview(ctx context.Context, reviewID string) (AccessRe
 }
 
 func (c *Client) DialTerminal(ctx context.Context, session gateway.CreatedSession) (*websocket.Conn, error) {
+	return c.dialTerminal(ctx, session, gateway.TerminalSubprotocol)
+}
+func (c *Client) dialTerminal(ctx context.Context, session gateway.CreatedSession, protocol string) (*websocket.Conn, error) {
 	endpoint := *c.serverURL
 	if endpoint.Scheme == "https" {
 		endpoint.Scheme = "wss"
@@ -212,13 +215,17 @@ func (c *Client) DialTerminal(ctx context.Context, session gateway.CreatedSessio
 	}
 	endpoint.Path = strings.TrimRight(endpoint.Path, "/") + reference.Path
 	endpoint.RawQuery = reference.RawQuery
+	protocols := []string{protocol, gateway.TicketSubprotocol(session.Ticket)}
+	if protocol == gateway.TerminalSubprotocol {
+		protocols = append(protocols, gateway.ShareControlCapability)
+	}
 	conn, _, err := websocket.Dial(ctx, endpoint.String(), &websocket.DialOptions{
-		Subprotocols: []string{gateway.TerminalSubprotocol, gateway.TicketSubprotocol(session.Ticket)},
+		Subprotocols: protocols,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("connect to SSH terminal: %w", err)
 	}
-	if conn.Subprotocol() != gateway.TerminalSubprotocol {
+	if conn.Subprotocol() != protocol {
 		_ = conn.CloseNow()
 		return nil, fmt.Errorf("server selected an unsupported terminal protocol")
 	}

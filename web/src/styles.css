@@ -1922,6 +1922,16 @@ a {
   margin: 0 0 5px;
   font-size: 15px;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ssh-terminal-header > div {
+  min-width: 0;
+}
+
+.ssh-terminal-header > button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .ssh-terminal-status {
@@ -2530,6 +2540,13 @@ a {
   .ssh-terminal-header {
     min-height: 58px;
     padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .ssh-terminal-header > div {
+    flex-basis: 100%;
   }
 
   .ssh-terminal-host {
@@ -3047,4 +3064,116 @@ a {
 .kubernetes-target-dialog > label select {
   width: 100%;
   padding: 10px;
+}
+
+.session-share-panel {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-height: 45vh;
+  overflow: auto;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.session-share-panel header,
+.session-share-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+.session-share-panel h3 {
+  margin: 0;
+}
+.session-share-activity {
+  min-width: 0;
+  margin-top: 18px;
+}
+.session-share-activity p {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.session-share-form {
+  display: grid;
+  grid-template-columns: minmax(140px, 2fr) minmax(90px, 1fr) minmax(70px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+.session-share-panel label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+.session-share-panel input,
+.session-share-panel select {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+.session-share-panel .settings-notice {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.shared-session-page {
+  max-width: 1600px;
+  padding: 20px;
+  margin: 0 auto;
+  min-width: 0;
+}
+.shared-session-page h1 {
+  margin: 0;
+  font-size: 24px;
+}
+.shared-session-page nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.shared-session-page > form {
+  max-width: 480px;
+}
+.shared-terminal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.shared-terminal .session-monitor-surface {
+  flex: none;
+  height: 65vh;
+  min-height: 280px;
+  border: 1px solid var(--border);
+}
+.shared-terminal .ssh-terminal-host {
+  overflow: auto;
+}
+.shared-terminal .session-share-row {
+  margin-top: 14px;
+}
+@media (max-width: 650px) {
+  .session-share-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .session-share-form > label:first-child {
+    grid-column: 1 / -1;
+  }
+  .session-share-form > button {
+    grid-column: 1 / -1;
+  }
+  .shared-session-page {
+    padding: 12px;
+  }
+  .session-share-panel {
+    max-height: 42vh;
+  }
 }

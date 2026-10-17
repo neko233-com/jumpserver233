@@ -11,6 +11,7 @@
 ## 设置与权限
 
 - 默认最大空闲 30 分钟、最大连接 8 小时、开启水印；`0` 表示关闭对应时长限制。空闲范围 0–1440 分钟，最大时长范围 0–168 小时。
+- 会话分享默认关闭，独立于水印和时长开关；启用后的指定用户分享、接管、撤权和资源限额见 [终端会话协作](./SESSION-SHARING.md)。
 - 空闲以服务端成功接收并转发的用户输入计算。远端持续输出、浏览器调整窗口及只读监看不能延长主会话。
 - 时长修改作用于已有连接：终端每秒检查，RDP 每 500 ms 检查；新输入也会先检查期限。这是检查间隔，不是断开延迟保证。输入阻塞时先关闭远端传输，再等待审计收尾。
 - 水印在会话创建时确定。更改开关作用于后续新会话，已创建录像保留原始身份标记。
@@ -29,7 +30,7 @@ RDP 在服务端把 ASCII 身份写入 PNG 底部，Web、CLI 截图及加密图
 ## API 与存储
 
 - `GET /api/v1/settings/security/sessions`：读取设置。
-- `PUT /api/v1/settings/security/sessions`：提交 `idle_minutes`、`max_hours`、`watermark` 和当前 `revision`；成功递增版本，冲突返回 409。
+- `PUT /api/v1/settings/security/sessions`：提交 `idle_minutes`、`max_hours`、`watermark`、`sharing` 和当前 `revision`；成功递增版本，冲突返回 409。旧配置缺少 `sharing` 时保持关闭。
 - `GET /api/v1/settings/security/sessions/audit`：最近 200 次变更，包含操作者、时间及前后值，与设置原子保存。
 - 单机写入 `JMS_DATA_DIR/session-security.json`，权限 0600、临时文件同步后替换；失败不修改内存设置。单活 HA 使用 PostgreSQL `session-security` 文档，接管时重新加载设置和审计。
 - 时长结束原因分别为 `idle_timeout` 和 `duration_limit`，进入会话审计。只读监看随主会话结束而断开。

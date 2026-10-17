@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type CommandRecord = {
+  actor?: string;
   id: string;
   command: string;
   submitted_at: string;
@@ -109,6 +110,7 @@ export default function SessionCommandsDialog({
                 </span>
                 <div>
                   <code>{entry.command || t("audit.commandUnknownInput")}</code>
+                  {entry.actor && <small>{t("sharing.actor", { name: entry.actor })}</small>}
                   {entry.rule_name && (
                     <small>{t("audit.commandRule", { rule: entry.rule_name })}</small>
                   )}

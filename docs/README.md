@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+指定平台用户的只读分享、输入接管、踢出和协作审计见 [终端会话协作](./SESSION-SHARING.md)。
+
 终端与 RDP 的统一空闲/最大时长、水印、权限及持久化见 [交互会话安全](./SESSION-SECURITY.md)。
 
 [Docker 纯净验证与并行调试](./DOCKER-QA.md) · [性能与打包基线](./PERFORMANCE.md)

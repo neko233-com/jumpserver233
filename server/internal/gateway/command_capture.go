@@ -21,15 +21,17 @@ var (
 )
 
 type commandSubmission struct {
-	Command       string
-	PolicyCommand string
-	Supported     bool
-	Offset        int
-	SubmittedAt   time.Time
-	Outcome       string
-	RuleName      string
-	ReviewedBy    string
-	ReviewID      string
+	PolicyKey      string
+	ActorID, Actor string
+	Command        string
+	PolicyCommand  string
+	Supported      bool
+	Offset         int
+	SubmittedAt    time.Time
+	Outcome        string
+	RuleName       string
+	ReviewedBy     string
+	ReviewID       string
 }
 
 // commandCapture only emits complete lines entered at a recognizable terminal

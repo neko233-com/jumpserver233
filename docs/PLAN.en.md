@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 4/7 adds terminal collaboration: named platform users, expiring codes, read-only/single-writer control, removal/revocation, continuous authorization, dual-identity command review and collaboration audit, with Web/CLI and bilingual UI. It defaults off with independent `sessions.share` permission. Live state does not migrate; RDP sharing remains open. See [Session collaboration](./SESSION-SHARING.en.md). Overall phases remain in progress.
+
 Agent lifecycle supports account-scoped boot startup, one-minute crash recovery, disabling supervision and data-preserving uninstall, with pinned upgrade/rollback, interrupted checkpoints and separately authorized SSH protection policies. A native Go companion now passes isolated Linux checks for actual cron, container reboot and ban restoration after table loss. It uses existing cron without automatic privilege elevation. Centralized repair events and scheduled collection are covered in [AGENT-EVENTS.en.md](./AGENT-EVENTS.en.md). See [host tools and agents](./HOST-PLUGINS.en.md) for builds and other remaining scope.
 
 SSH host tools and native agent operations are part of the current goal: detection, installation, status and lifecycle start with banhack233 and node_exporter, sharing platform identity, organizations, review and job audit. This Linux installation/lifecycle/API/CLI/UI batch passed Go/race and full browser acceptance. See [host tools and agents](./HOST-PLUGINS.en.md).

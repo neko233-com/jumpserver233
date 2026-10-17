@@ -23,6 +23,7 @@ import (
 
 func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToken string, identities *coreauth.Service, assets *coreassets.Service, grants *coregrants.Store, commandFilters *corecommandfilters.Store, groups *coregroups.Store, nodes *corenodes.Store, accessReviews *coreaccessreviews.Store, accessMu *sync.RWMutex) {
 	registerSessionMonitorRoutes(mux, broker, adminToken, identities)
+	registerSessionShareRoutes(mux, broker, adminToken, identities)
 	mux.Handle("POST /api/v1/sessions", protectAuthenticatedAPI(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request gateway.CreateRequest
 		if err := decodeRequestJSON(w, r, &request); err != nil {

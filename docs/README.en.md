@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Named-user read-only sharing, input control, removal and collaboration audit are documented in [Terminal collaboration](./SESSION-SHARING.en.md).
+
 See [interactive session security](./SESSION-SECURITY.en.md) for shared terminal/RDP idle limits, maximum duration, watermarks, permissions and persistence.
 
 [Clean Docker verification and parallel debugging](./DOCKER-QA.en.md) · [Performance and packaging](./PERFORMANCE.en.md)

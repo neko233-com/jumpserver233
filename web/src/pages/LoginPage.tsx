@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { loginReturnPath, clearLoginReturn } from "../auth/loginReturn";
 import BlurText from "../components/BlurText";
 import ShaderCanvas from "../components/ShaderCanvas";
 import { toggleLang } from "../i18n";
@@ -41,6 +42,11 @@ function useHealth() {
 export default function LoginPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [destination] = useState(loginReturnPath);
+  const finishNavigation = useCallback(() => {
+    clearLoginReturn();
+    navigate(destination, { replace: true });
+  }, [destination, navigate]);
   const { authenticated, sessionReady, setCookieSession } = useAuth();
   const { health, error: healthError } = useHealth();
   const [bootstrapRequired, setBootstrapRequired] = useState(false);
@@ -98,8 +104,8 @@ export default function LoginPage() {
   const completeReview = useCallback(() => {
     setLoginReview(null);
     setCookieSession();
-    navigate("/console", { replace: true });
-  }, [setCookieSession, navigate]);
+    finishNavigation();
+  }, [setCookieSession, finishNavigation]);
   const cancelReview = useCallback(() => {
     setLoginReview(null);
     setPassword("");
@@ -192,8 +198,8 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (sessionReady && authenticated) navigate("/console", { replace: true });
-  }, [authenticated, navigate, sessionReady]);
+    if (sessionReady && authenticated) finishNavigation();
+  }, [authenticated, finishNavigation, sessionReady]);
 
   useEffect(() => () => passkeyOperation.current?.abort(), []);
   async function signInWithPasskey() {
@@ -312,7 +318,7 @@ export default function LoginPage() {
       setPassword("");
       setDirectoryPending(false);
       setCookieSession();
-      navigate("/console", { replace: true });
+      finishNavigation();
     } catch {
       setAuthError(true);
     } finally {
@@ -347,7 +353,7 @@ export default function LoginPage() {
             key={ssoSource}
             onComplete={() => {
               setCookieSession();
-              navigate("/console", { replace: true });
+              finishNavigation();
             }}
             onCancel={() => {
               setSsoSource(null);

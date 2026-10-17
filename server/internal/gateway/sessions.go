@@ -22,6 +22,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/kubeclient"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sessionshares"
 	"github.com/neko233-com/jumpserver233/server/internal/recorder"
 )
 
@@ -71,6 +72,7 @@ type CreateRequest struct {
 }
 
 type CommandPolicyDecision struct {
+	PolicyKey     string
 	Allowed       bool
 	RequireReview bool
 	RuleName      string
@@ -139,6 +141,9 @@ type activeSession struct {
 	inputMu        sync.Mutex
 	pendingReview  *pendingCommandReview
 	monitors       map[*sessionMonitor]struct{} // guarded by Broker.mu
+	sharePeers     map[*sharePeer]struct{}      // guarded by Broker.mu
+	shareHistory   []byte                       // bounded output tail, guarded by Broker.mu
+	shareNotices   bool                         // immutable after terminal attachment; negotiated v1 extension
 	cols, rows     int                          // guarded by Broker.mu
 }
 
@@ -151,6 +156,8 @@ type Broker struct {
 	mu             sync.Mutex
 	sessions       map[string]*activeSession
 	monitors       map[[32]byte]*sessionMonitor
+	shares         *sessionshares.Store
+	shareTickets   map[[32]byte]*sharePeer
 	sessionPolicy  func() sessionpolicy.Settings
 	auditMu        sync.Mutex
 	auditPath      string
@@ -159,15 +166,18 @@ type Broker struct {
 }
 
 func NewBroker(dataDir string, vaultKey []byte, open OpenFunc) *Broker {
-	return &Broker{
-		open:        open,
-		dataDir:     dataDir,
-		vaultKey:    append([]byte(nil), vaultKey...),
-		sessions:    make(map[string]*activeSession),
-		monitors:    make(map[[32]byte]*sessionMonitor),
-		auditPath:   filepath.Join(dataDir, "sessions", "index.jsonl"),
-		commandPath: filepath.Join(dataDir, "sessions", "commands.jsonl"),
+	b := &Broker{
+		open:         open,
+		dataDir:      dataDir,
+		vaultKey:     append([]byte(nil), vaultKey...),
+		sessions:     make(map[string]*activeSession),
+		monitors:     make(map[[32]byte]*sessionMonitor),
+		shareTickets: make(map[[32]byte]*sharePeer),
+		auditPath:    filepath.Join(dataDir, "sessions", "index.jsonl"),
+		commandPath:  filepath.Join(dataDir, "sessions", "commands.jsonl"),
 	}
+	b.shares = sessionshares.New(b.appendShareAudit)
+	return b
 }
 
 func (b *Broker) Create(ctx context.Context, request CreateRequest) (CreatedSession, error) {
@@ -504,6 +514,7 @@ func (b *Broker) ServeTerminal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session.terminalSocket = conn
+	session.shareNotices = acceptsShareControl(r.Header.Values("Sec-WebSocket-Protocol"))
 	session.accessContext = context.WithoutCancel(r.Context())
 	b.mu.Unlock()
 	conn.SetReadLimit(terminalReadLimit)
@@ -576,6 +587,7 @@ func (b *Broker) writeTerminal(ctx context.Context, conn *websocket.Conn, sessio
 				return recordErr
 			}
 			b.publishMonitorOutput(session, data)
+			b.publishShareOutput(session, data)
 			if writeErr := session.writeWebSocket(ctx, conn, websocket.MessageBinary, data); writeErr != nil {
 				return writeErr
 			}
@@ -604,6 +616,16 @@ func (b *Broker) readTerminal(ctx context.Context, conn *websocket.Conn, session
 				continue
 			}
 			session.inputMu.Lock()
+			if b.shares.Controller(session.id) != "" {
+				session.inputMu.Unlock()
+				if !session.shareNotices {
+					continue
+				}
+				if err := session.writeWebSocket(ctx, conn, websocket.MessageText, []byte(`{"type":"share_control_required"}`)); err != nil {
+					return err
+				}
+				continue
+			}
 			forward, err := b.prepareTerminalInput(ctx, conn, session, data)
 			if err != nil {
 				session.inputMu.Unlock()
@@ -654,7 +676,11 @@ func (b *Broker) readTerminal(ctx context.Context, conn *websocket.Conn, session
 	}
 }
 
-func (b *Broker) prepareTerminalInput(ctx context.Context, conn *websocket.Conn, session *activeSession, data []byte) ([]byte, error) {
+func (b *Broker) prepareTerminalInput(ctx context.Context, conn *websocket.Conn, session *activeSession, data []byte, identities ...inputIdentity) ([]byte, error) {
+	identity := inputIdentity{ID: session.operatorID, Name: session.operator}
+	if len(identities) > 0 {
+		identity = identities[0]
+	}
 	b.mu.Lock()
 	hasPendingReview := session.pendingReview != nil
 	b.mu.Unlock()
@@ -665,10 +691,9 @@ func (b *Broker) prepareTerminalInput(ctx context.Context, conn *websocket.Conn,
 	blockedOffsets := make([]int, 0, len(submissions))
 	reviewOffset := -1
 	for _, submission := range submissions {
-		decision := CommandPolicyDecision{Allowed: true}
-		if session.commandPolicy != nil {
-			decision = session.commandPolicy(submission.PolicyCommand, submission.Supported, submission.SubmittedAt)
-		}
+		submission.ActorID, submission.Actor = identity.ID, identity.Name
+		decision := decideInputPolicy(session, identity, submission)
+		submission.PolicyKey = decision.PolicyKey
 		if decision.Allowed {
 			if submission.Supported && submission.Command != "" {
 				submission.Outcome = "allowed"
@@ -679,7 +704,7 @@ func (b *Broker) prepareTerminalInput(ctx context.Context, conn *websocket.Conn,
 			continue
 		}
 		if decision.RequireReview && submission.Supported && submission.Command != "" {
-			if _, err := b.createCommandReview(ctx, conn, session, submission, decision.RuleName); err != nil {
+			if _, err := b.createCommandReview(ctx, conn, session, submission, decision.RuleName, identity); err != nil {
 				return nil, err
 			}
 			reviewOffset = submission.Offset
@@ -758,6 +783,10 @@ func (b *Broker) closeSession(session *activeSession, reason string) {
 	session.closeOnce.Do(func() {
 		b.mu.Lock()
 		session.closing = true
+		for peer := range session.sharePeers {
+			b.stopSharePeerLocked(peer)
+		}
+		b.shares.CloseSession(session.id)
 		for monitor := range session.monitors {
 			b.stopMonitorLocked(monitor)
 		}
@@ -842,16 +871,24 @@ func (b *Broker) appendAudit(session *activeSession, event, reason string) error
 }
 
 func (b *Broker) appendSessionAudit(record any) error {
+	b.auditMu.Lock()
+	defer b.auditMu.Unlock()
+	return b.appendAuditFileLocked(b.auditPath, record)
+}
+func (b *Broker) appendAuditFile(path string, record any) error {
+	b.auditMu.Lock()
+	defer b.auditMu.Unlock()
+	return b.appendAuditFileLocked(path, record)
+}
+func (b *Broker) appendAuditFileLocked(path string, record any) error {
 	encoded, err := json.Marshal(record)
 	if err != nil {
 		return fmt.Errorf("encode session audit event: %w", err)
 	}
-	b.auditMu.Lock()
-	defer b.auditMu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(b.auditPath), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create session audit directory: %w", err)
 	}
-	file, err := os.OpenFile(b.auditPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("open session audit index: %w", err)
 	}

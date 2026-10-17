@@ -18,8 +18,13 @@ import (
 )
 
 func monitorFixture(t *testing.T, options ...CreateRequest) (*Broker, CreatedSession, *websocket.Conn, string, context.Context) {
+	return monitorFixtureWithCapabilities(t, true, options...)
+}
+func monitorFixtureWithCapabilities(t *testing.T, shareControl bool, options ...CreateRequest) (*Broker, CreatedSession, *websocket.Conn, string, context.Context) {
+	return monitorFixtureTerminal(t, shareControl, newEchoTerminal(), options...)
+}
+func monitorFixtureTerminal(t *testing.T, shareControl bool, terminal Terminal, options ...CreateRequest) (*Broker, CreatedSession, *websocket.Conn, string, context.Context) {
 	t.Helper()
-	terminal := newEchoTerminal()
 	b := NewBroker(t.TempDir(), make([]byte, 32), func(context.Context, string, int, int) (AssetInfo, Terminal, error) {
 		return AssetInfo{ID: "qa", Name: "qa", Username: "ops"}, terminal, nil
 	})
@@ -33,12 +38,17 @@ func monitorFixture(t *testing.T, options ...CreateRequest) (*Broker, CreatedSes
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /ws/api/v1/sessions/{sessionID}/terminal", b.ServeTerminal)
 	mux.HandleFunc("GET /ws/api/v1/sessions/{sessionID}/monitor", b.ServeMonitor)
+	mux.HandleFunc("GET /ws/api/v1/sessions/{sessionID}/share", b.ServeShare)
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	ctx, stop := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(stop)
 	base := "ws" + strings.TrimPrefix(server.URL, "http")
-	conn, _, e := websocket.Dial(ctx, base+s.WebSocketURL, &websocket.DialOptions{Subprotocols: []string{TerminalSubprotocol, TicketSubprotocol(s.Ticket)}})
+	protocols := []string{TerminalSubprotocol, TicketSubprotocol(s.Ticket)}
+	if shareControl {
+		protocols = append(protocols, ShareControlCapability)
+	}
+	conn, _, e := websocket.Dial(ctx, base+s.WebSocketURL, &websocket.DialOptions{Subprotocols: protocols})
 	require.NoError(t, e)
 	t.Cleanup(func() { conn.CloseNow() })
 	require.Eventually(t, func() bool {

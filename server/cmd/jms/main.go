@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -43,6 +44,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "share" {
+		return runShare(args[1:])
+	}
 	if len(args) > 0 && args[0] == "agent-events" {
 		return runAgentEvents(args[1:])
 	}
@@ -134,6 +138,7 @@ func run(args []string) error {
 		defer cancel()
 		_ = client.CloseSession(closeCtx, session.SessionID)
 	}()
+	fmt.Fprintln(os.Stderr, shareText("Session ID: "+session.SessionID+". Use jms share in another terminal to manage collaboration.", "会话 ID："+session.SessionID+"。可在另一终端使用 jms share 管理协作。"))
 	conn, err := client.DialTerminal(ctx, session)
 	if err != nil {
 		return err
@@ -151,6 +156,8 @@ func run(args []string) error {
 	defer stopStream()
 
 	writes := make(chan outbound, 16)
+	var writable atomic.Bool
+	writable.Store(true)
 	reads := make(chan inbound, 8)
 	writerErr := make(chan error, 1)
 	go func() {
@@ -178,8 +185,9 @@ func run(args []string) error {
 			}
 			if typ == websocket.MessageText {
 				var notice struct {
-					Type     string `json:"type"`
-					RuleName string `json:"rule_name"`
+					Controller string `json:"controller"`
+					Type       string `json:"type"`
+					RuleName   string `json:"rule_name"`
 				}
 				if json.Unmarshal(data, &notice) != nil {
 					select {
@@ -190,6 +198,14 @@ func run(args []string) error {
 				}
 				var message string
 				switch notice.Type {
+				case "share_controller", "share_control_required":
+					own := notice.Type == "share_controller" && notice.Controller == ""
+					writable.Store(own)
+					if own {
+						message = shareText("\r\nInput control returned to you.\r\n", "\r\n输入控制已交还给你。\r\n")
+					} else {
+						message = shareText("\r\nAnother participant controls input. Use jms share reclaim SESSION_ID in another terminal to reclaim it.\r\n", "\r\n其他参与者拥有输入控制，可在另一终端使用 jms share reclaim SESSION_ID 取回。\r\n")
+					}
 				case "command_blocked":
 					message = commandBlockedNotice(notice.RuleName)
 				case "command_review_pending", "command_review_approved", "command_review_denied", "command_review_timed_out":
@@ -240,7 +256,7 @@ func run(args []string) error {
 		buffer := make([]byte, 4096)
 		for {
 			count, err := os.Stdin.Read(buffer)
-			if count > 0 {
+			if count > 0 && writable.Load() {
 				data := append([]byte(nil), buffer[:count]...)
 				select {
 				case writes <- outbound{typ: websocket.MessageBinary, data: data}:

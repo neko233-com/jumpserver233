@@ -2,7 +2,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 
-type Settings = { idle_minutes: number; max_hours: number; watermark: boolean; revision: number };
+type Settings = {
+  idle_minutes: number;
+  max_hours: number;
+  watermark: boolean;
+  sharing: boolean;
+  revision: number;
+};
 type Audit = { at: string; actor: string; before: Settings; after: Settings };
 
 export default function SessionSecuritySettings() {
@@ -113,6 +119,17 @@ export default function SessionSecuritySettings() {
             <span>{t("sessionSecurity.watermark")}</span>
           </label>
           <p className="settings-help">{t("sessionSecurity.hint")}</p>
+          <label className="settings-checkbox">
+            <input
+              type="checkbox"
+              checked={settings.sharing}
+              onChange={(e) => {
+                setSettings({ ...settings, sharing: e.target.checked });
+                setSaved(false);
+              }}
+            />
+            <span>{t("sharing.enabled")}</span>
+          </label>
           <button type="submit" className="button-primary" disabled={busy}>
             {busy ? "…" : t("sessionSecurity.save")}
           </button>
@@ -135,6 +152,7 @@ export default function SessionSecuritySettings() {
               idle: item.after.idle_minutes,
               max: item.after.max_hours,
               watermark: item.after.watermark ? t("sessionSecurity.on") : t("sessionSecurity.off"),
+              sharing: item.after.sharing ? t("sessionSecurity.on") : t("sessionSecurity.off"),
             })}
           </div>
         ))}

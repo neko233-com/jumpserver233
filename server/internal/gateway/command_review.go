@@ -21,6 +21,8 @@ var (
 )
 
 type CommandReview struct {
+	ActorID     string    `json:"actor_id,omitempty"`
+	Actor       string    `json:"actor,omitempty"`
 	ID          string    `json:"id"`
 	SessionID   string    `json:"session_id"`
 	AssetID     string    `json:"asset_id"`
@@ -34,19 +36,21 @@ type CommandReview struct {
 }
 
 type pendingCommandReview struct {
+	identity   inputIdentity
 	request    CommandReview
 	submission commandSubmission
 	timer      *time.Timer
 	resolving  bool
 }
 
-func (b *Broker) createCommandReview(ctx context.Context, conn *websocket.Conn, session *activeSession, submission commandSubmission, ruleName string) (CommandReview, error) {
+func (b *Broker) createCommandReview(ctx context.Context, conn *websocket.Conn, session *activeSession, submission commandSubmission, ruleName string, identities ...inputIdentity) (CommandReview, error) {
 	id, err := randomToken(18)
 	if err != nil {
 		return CommandReview{}, fmt.Errorf("create command review ID: %w", err)
 	}
 	now := time.Now().UTC()
 	review := CommandReview{
+		ActorID: submission.ActorID, Actor: submission.Actor,
 		ID: id, SessionID: session.id, AssetID: session.asset.ID,
 		AssetName: session.asset.Name, Operator: session.operator,
 		Account: session.asset.Username, Command: submission.Command,
@@ -59,6 +63,9 @@ func (b *Broker) createCommandReview(ctx context.Context, conn *websocket.Conn, 
 		return CommandReview{}, err
 	}
 	pending := &pendingCommandReview{request: review, submission: submission}
+	if len(identities) > 0 {
+		pending.identity = identities[0]
+	}
 	b.mu.Lock()
 	if b.sessions[session.id] != session || session.closing || session.pendingReview != nil {
 		b.mu.Unlock()
@@ -175,9 +182,15 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 		b.closeSession(session, "access_policy_denied")
 		return ErrSessionAccessDenied
 	}
-	if approve && session.commandPolicy != nil {
-		decision := session.commandPolicy(pending.submission.PolicyCommand, pending.submission.Supported, time.Now().UTC())
-		if !decision.Allowed && (!decision.RequireReview || decision.RuleName != pending.request.RuleName) {
+	if pending.identity.Guard != nil && pending.identity.Guard(policyContext) != nil {
+		approve = false
+		outcome, noticeType, input = "denied", "command_review_denied", []byte{0x03}
+	}
+	if approve {
+		candidate := pending.submission
+		candidate.SubmittedAt = time.Now().UTC()
+		decision := decideInputPolicy(session, pending.identity, candidate)
+		if !decision.Allowed && (!decision.RequireReview || decision.RuleName != pending.request.RuleName || decision.PolicyKey != pending.submission.PolicyKey) {
 			outcome, noticeType, input = "denied", "command_review_denied", []byte{0x03}
 		}
 	}

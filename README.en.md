@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Active terminals support named-user read-only sharing, input control, member removal and collaboration audit. Web and CLI share continuous authorization; explicit enablement is required. See [Terminal collaboration](./docs/SESSION-SHARING.en.md).
+
 See [isolated Docker environments](./docs/DOCKER-QA.en.md) for fast verification and parallel ports, and [performance baseline](./docs/PERFORMANCE.en.md) for sizes, incremental builds and enforced budgets.
 
 SSH host tools and agents support pinned installation, upgrade/rollback, explicit checkpoint recovery, lifecycle, diagnostics, boot startup and data-preserving uninstall. Independent authorization enables BanHack SSH blocking policies. Native Go component v3 provides resident systemd supervision with ten-second checks and retains existing cron recovery every minute. Structured APIs/CLI, bilingual UI and encrypted audit are included. See [host tools and agents](./docs/HOST-PLUGINS.en.md) and [systemd service management](./docs/AGENT-SYSTEMD.en.md).

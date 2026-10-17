@@ -7,6 +7,7 @@ const RDPDesktopAudit = lazy(() => import("../components/RDPDesktopAudit"));
 const SessionReplayDialog = lazy(() => import("../components/SessionReplayDialog"));
 const SessionCommandsDialog = lazy(() => import("../components/SessionCommandsDialog"));
 const SessionMonitorDialog = lazy(() => import("../components/SessionMonitorDialog"));
+const SessionShareActivityDialog = lazy(() => import("../components/SessionShareActivityDialog"));
 const pageSize = 50;
 
 type SessionRecord = {
@@ -92,6 +93,7 @@ export default function AuditPage() {
   const [selectedReplay, setSelectedReplay] = useState<SessionRecord | null>(null);
   const [selectedCommands, setSelectedCommands] = useState<SessionRecord | null>(null);
   const [selectedMonitor, setSelectedMonitor] = useState<SessionRecord | null>(null);
+  const [selectedShareActivity, setSelectedShareActivity] = useState<SessionRecord | null>(null);
   const [desktopOpen, setDesktopOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"sessions" | "files">("sessions");
   const [fileTransfers, setFileTransfers] = useState<FileTransfer[]>([]);
@@ -375,6 +377,15 @@ export default function AuditPage() {
                             {t("audit.commands")}
                           </button>
                         )}
+                        {(session.operator_id === userID || allows("audit.sessions.view_all")) && (
+                          <button
+                            type="button"
+                            className="button-text"
+                            onClick={() => setSelectedShareActivity(session)}
+                          >
+                            {t("sharing.events")}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -514,6 +525,16 @@ export default function AuditPage() {
             status={selectedCommands.status}
             accessToken={accessToken}
             onClose={() => setSelectedCommands(null)}
+          />
+        </Suspense>
+      )}
+      {selectedShareActivity && (
+        <Suspense fallback={null}>
+          <SessionShareActivityDialog
+            sessionID={selectedShareActivity.session_id}
+            assetName={selectedShareActivity.asset_name}
+            accessToken={accessToken}
+            onClose={() => setSelectedShareActivity(null)}
           />
         </Suspense>
       )}

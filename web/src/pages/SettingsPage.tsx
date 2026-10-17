@@ -47,6 +47,7 @@ type CommandFilter = {
   created_by: string;
 };
 type CommandReview = {
+  actor?: string;
   id: string;
   session_id: string;
   asset_id: string;
@@ -1809,6 +1810,7 @@ export default function SettingsPage() {
                       </span>
                     </header>
                     <pre>{review.command}</pre>
+                    {review.actor && <p>{t("sharing.actor", { name: review.actor })}</p>}
                     <p>
                       {t("settings.reviewContext", {
                         operator: review.operator,
