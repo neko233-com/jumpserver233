@@ -88,7 +88,10 @@ func TestUnadvertisedUnicodeInputIsRejectedBeforeWriting(t *testing.T) {
 	assert.ErrorIs(t, c.Input(Input{Type: "text", Text: "中文"}), ErrTextUnsupported)
 }
 
-type channelSink struct{ messages [][]byte }
+type channelSink struct {
+	messages [][]byte
+	onFormat func()
+}
 
 func TestClipboardRepeatedEmptyAndFailedResponses(t *testing.T) {
 	c := newTestClient(t)
@@ -118,12 +121,16 @@ func TestClipboardRepeatedEmptyAndFailedResponses(t *testing.T) {
 
 func (s *channelSink) SendToChannel(_ string, p []byte) (int, error) {
 	s.messages = append(s.messages, append([]byte(nil), p...))
+	if len(p) >= 10 && binary.LittleEndian.Uint16(p[8:]) == 2 && s.onFormat != nil {
+		s.onFormat()
+	}
 	return len(p), nil
 }
 func TestClipboardBoundedSessionLocalAndRevocation(t *testing.T) {
 	a, b := newTestClient(t), newTestClient(t)
 	sink := &channelSink{}
 	a.clip = newClipboard(a, sink)
+	sink.onFormat = func() { require.NoError(t, a.clip.process([]byte{3, 0, 1, 0, 0, 0, 0, 0})) }
 	b.clip = newClipboard(b, &channelSink{})
 	a.SetClipboardGuard(func(string) error { return nil })
 	b.SetClipboardGuard(func(string) error { return nil })

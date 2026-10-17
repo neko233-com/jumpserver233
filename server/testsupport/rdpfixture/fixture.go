@@ -17,10 +17,13 @@ const Username = "rdpqa"
 const Password = "synthetic-rdp-password-233"
 
 type State struct {
-	Focus   bool   `json:"focus"`
-	Clicks  int    `json:"clicks"`
-	Text    string `json:"text"`
-	Display string `json:"display"`
+	Copies      int    `json:"copies"`
+	Pastes      int    `json:"pastes"`
+	PasteFailed bool   `json:"paste_failed"`
+	Focus       bool   `json:"focus"`
+	Clicks      int    `json:"clicks"`
+	Text        string `json:"text"`
+	Display     string `json:"display"`
 }
 
 func ReadState() (State, error) {

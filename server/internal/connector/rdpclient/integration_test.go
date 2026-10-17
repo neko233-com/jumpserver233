@@ -84,13 +84,21 @@ func TestNativeDesktop(t *testing.T) {
 		require.NoError(t, client.Input(rdpclient.Input{Type: "pointer", Action: "button", Button: "left", Down: false, X: x, Y: y}))
 	}
 	click(800, 175)
+	require.Eventually(t, func() bool { s, e := rdpfixture.ReadState(); return e == nil && s.Copies > before.Copies }, 5*time.Second, 50*time.Millisecond)
 	require.Eventually(t, func() bool { return client.Input(rdpclient.Input{Type: "clipboard_read"}) == nil }, 5*time.Second, 100*time.Millisecond)
 	require.Eventually(t, func() bool { return strings.Contains(client.Clipboard(), "Native RDP 233") }, 5*time.Second, 100*time.Millisecond)
 	require.NoError(t, client.Input(rdpclient.Input{Type: "clipboard_write", Text: "Remote Clipboard 233 中文"}))
+	beforePaste, e := rdpfixture.ReadState()
+	require.NoError(t, e)
 	click(800, 260)
-	require.Eventually(t, func() bool {
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		s, e := rdpfixture.ReadState()
-		return e == nil && s.Text == "Remote Clipboard 233 中文"
+		if !assert.NoError(c, e) {
+			return
+		}
+		assert.Greater(c, s.Pastes, beforePaste.Pastes)
+		assert.False(c, s.PasteFailed)
+		assert.Equal(c, "Remote Clipboard 233 中文", s.Text)
 	}, 5*time.Second, 100*time.Millisecond)
 	f, e := client.Snapshot()
 	require.NoError(t, e)

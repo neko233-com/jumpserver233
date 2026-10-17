@@ -2,6 +2,10 @@
 
 > [中文](./RDP.md) | English
 
+Clipboard initialization advertises only formats actually available in this session; before explicit text submission, it sends an empty format list. Writes wait up to five seconds for the matching target Format List Response. Startup responses cannot acknowledge later writes. Unacknowledged, rejected or revoked data cannot answer target reads. A timeout disables further clipboard writes on that connection while the desktop may continue.
+
+Ordering follows Microsoft's [initialization sequence](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpeclip/a5cae3c9-170c-4154-992d-9ac8a149cc7e) and [format synchronization/acknowledgement](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpeclip/887747ab-9bad-490f-8ddb-68c6365e58dd). The fixture records actual Copy/Paste counts and Tk paste failure state; success still requires exact remote text equality. Repeated fixture copies explicitly reclaim X11 CLIPBOARD ownership: [Tk](https://github.com/tcltk/tk/blob/core-8-6-branch/generic/tkClipboard.c) updates its own clipboard without another ownership event, while [xrdp observes XFixes ownership events](https://github.com/neutrinolabs/xrdp/blob/v0.9.21.1/sesman/chansrv/clipboard.c).
+
 The server connects using a Go RDP protocol connector. A separate graphical channel delivers PNG desktops to the browser and accepts mouse and keyboard events. Agent CLI uses the same authorization path for input and capture. Remote credentials stay in the encrypted vault.
 
 ## Configuration and use

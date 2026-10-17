@@ -12,6 +12,7 @@ RDP 使用服务端 Go 协议连接器，浏览器通过独立图形通道接收
 - Windows 域可单独填写，也可在账号中使用 `DOMAIN\user`。最多三跳 SSH 网关使用既有逐跳指纹校验。
 - 点开桌面后点击画面获得键鼠焦点。“发送文字”使用 RDP Unicode 事件，实际文字范围依赖目标实现；未声明 Unicode 支持的目标会拒绝非 ASCII 文字并保留输入。系统快捷键是否被本机拦截取决于浏览器。
 - “仅查看”在服务端禁止键鼠、文字及剪贴板写入。剪贴板默认关闭；启用后仅支持当前会话的显式文本传输，不读取服务端进程或操作者电脑的系统剪贴板。
+- 剪贴板初始化仅声明当前实际存在的格式；用户尚未提交文本时发送空格式列表。写入需等待目标对应的 Format List Response（最多 5 秒）后才返回成功，启动响应不能误确认后续写入。未确认、拒绝或撤权的数据不能响应目标读取；超时后本次连接停止接受剪贴板写入，桌面仍可继续。
 - 资产探测仅证明 RDP 安全模式和 TLS 证书可用，不证明远端账号登录或桌面正常。
 
 Agent CLI 继续使用 `JMS_SERVER_URL`、`JMS_TOKEN`/AccessKey 和可选 `JMS_ORG_ID`，无需远端凭据：
@@ -46,6 +47,8 @@ RDP 专项生产故障演练、多活路由及会话迁移仍待验收；不能�
 原生 QA 使用独立 Docker Debian xrdp/Xorg/Openbox/Tk 桌面；目标程序状态文件用于核对真实鼠标点击、焦点和键盘文字，截图来自协议画面。测试资源只绑定回环地址，使用合成账号。
 
 本机 xrdp 0.9.21.1 虽声明 Unicode 输入，仍会忽略直接键入的中文；中文通过显式文本剪贴板已验证。不能用能力声明代替实际文字输入验证。[上游 Unicode 输入问题](https://github.com/neutrinolabs/xrdp/issues/1990) 记录了这类目标兼容性问题。
+
+剪贴板时序遵循 Microsoft 的 [初始化序列](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpeclip/a5cae3c9-170c-4154-992d-9ac8a149cc7e) 和 [格式同步及确认](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpeclip/887747ab-9bad-490f-8ddb-68c6365e58dd)。夹具另记录实际 Copy/Paste 按钮次数与 Tk 粘贴失败状态，仍以远端文字精确相等作为成功条件。重复复制前显式重新取得 X11 CLIPBOARD 选择所有权；[Tk 的实现](https://github.com/tcltk/tk/blob/core-8-6-branch/generic/tkClipboard.c)在已拥有剪贴板时只更新内容，不重新触发 [xrdp 所依赖的 XFixes 所有权事件](https://github.com/neutrinolabs/xrdp/blob/v0.9.21.1/sesman/chansrv/clipboard.c)。
 
 已加入 Testify、协议边界与录像认证测试、浏览器自动化和 CLI 链路。统一测试结果记录在 [自动化验证](./TESTING.md)。本地双节点用例验证在线桌面在切换时关闭、旧票据失效、共享加密历史画面可读取，以及接管后重新建立真实桌面；生产故障演练仍待完成。
 

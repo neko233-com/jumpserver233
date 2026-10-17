@@ -9,13 +9,16 @@ root.geometry('1280x720+0+0')
 root.configure(bg='#102b46')
 root.attributes('-fullscreen', True)
 clicks = 0
+copies = 0
+pastes = 0
+paste_failed = False
 text = tk.StringVar()
 status = tk.StringVar(value='Native Xorg desktop ready')
 
 def save(*_):
     tmp = '/home/rdpqa/qa-state.tmp'
     with open(tmp, 'w') as stream:
-        json.dump({'clicks': clicks, 'text': text.get(), 'display': os.environ.get('DISPLAY'), 'focus': root.focus_get() == entry}, stream)
+        json.dump({'clicks': clicks, 'copies': copies, 'pastes': pastes, 'paste_failed': paste_failed, 'text': text.get(), 'display': os.environ.get('DISPLAY'), 'focus': root.focus_get() == entry}, stream)
     os.replace(tmp, '/home/rdpqa/qa-state.json')
 
 def click():
@@ -25,14 +28,24 @@ def click():
     save()
 
 def copy_text():
+    global copies
+    copies += 1
+    # Tk_ClipboardClear keeps ownership when already active. Re-publish the
+    # selection so reused Xorg sessions emit the XFixes event xrdp observes.
+    root.selection_clear(selection='CLIPBOARD')
     root.clipboard_clear()
     root.clipboard_append(text.get())
+    save()
 
 def paste_text():
+    global pastes, paste_failed
+    pastes += 1
+    paste_failed = False
     try:
         text.set(root.clipboard_get())
     except tk.TclError:
-        pass
+        paste_failed = True
+    save()
 
 tk.Label(root, text='Jumpserver233 · Native RDP QA', fg='white', bg='#102b46', font=('DejaVu Sans', 26)).place(x=40, y=30)
 tk.Label(root, text='TLS verified · Real xrdp / Xorg / Tk', fg='#87dbb8', bg='#102b46', font=('DejaVu Sans', 16)).place(x=40, y=90)

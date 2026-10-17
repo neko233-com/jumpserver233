@@ -8,12 +8,18 @@ import (
 	"errors"
 	"github.com/adfnekc/grdp/core"
 	"sync"
+	"time"
 	"unicode/utf16"
 )
 
 const clipboardWireLimit = 2*MaxClipboard + 4096
 
 type clipboard struct {
+	formatMu, writeMu                        sync.Mutex
+	formatAcks                               []*formatAck
+	generation                               uint64
+	writeTimeout                             time.Duration
+	localAccepted, writeBroken               bool
 	owner                                    *Client
 	sender                                   core.ChannelSender
 	mu                                       sync.Mutex
@@ -25,8 +31,14 @@ type clipboard struct {
 	revision                                 uint64
 	failed                                   bool
 }
+type formatAck struct {
+	generation uint64
+	result     chan error
+}
 
-func newClipboard(c *Client, s core.ChannelSender) *clipboard { return &clipboard{owner: c, sender: s} }
+func newClipboard(c *Client, s core.ChannelSender) *clipboard {
+	return &clipboard{owner: c, sender: s, writeTimeout: 5 * time.Second}
+}
 func (c *clipboard) send(kind, flags uint16, data []byte) error {
 	if len(data) > clipboardWireLimit {
 		return ErrClipboard
@@ -122,17 +134,34 @@ func (c *clipboard) processMessages(raw []byte) error {
 	}
 	return nil
 }
-func (c *clipboard) formatList() error {
+func (c *clipboard) formatList() (<-chan error, error) {
+	c.formatMu.Lock()
+	defer c.formatMu.Unlock()
 	c.mu.Lock()
 	long := c.longNames
-	c.mu.Unlock()
-	n := 36
-	if long {
-		n = 6
+	hasLocalText := c.generation > 0
+	if len(c.formatAcks) >= 16 {
+		c.mu.Unlock()
+		return nil, ErrProtocol
 	}
-	data := make([]byte, n)
-	binary.LittleEndian.PutUint32(data, 13)
-	return c.send(2, 0, data)
+	ack := &formatAck{generation: c.generation, result: make(chan error, 1)}
+	c.formatAcks = append(c.formatAcks, ack)
+	c.mu.Unlock()
+	// Initialization advertises only formats actually present in this session.
+	// An empty client must not claim CF_UNICODETEXT before an explicit write.
+	var data []byte
+	if hasLocalText {
+		n := 36
+		if long {
+			n = 6
+		}
+		data = make([]byte, n)
+		binary.LittleEndian.PutUint32(data, 13)
+	}
+	if e := c.send(2, 0, data); e != nil {
+		return nil, e
+	}
+	return ack.result, nil
 }
 func (c *clipboard) process(raw []byte) error {
 	if len(raw) < 8 || int(binary.LittleEndian.Uint32(raw[4:])) != len(raw)-8 {
@@ -149,7 +178,8 @@ func (c *clipboard) process(raw []byte) error {
 		c.mu.Lock()
 		c.ready = true
 		c.mu.Unlock()
-		return c.formatList()
+		_, e := c.formatList()
+		return e
 	case 7:
 		if len(data) < 4 {
 			return ErrProtocol
@@ -214,12 +244,13 @@ func (c *clipboard) process(raw []byte) error {
 		c.mu.Unlock()
 		return c.send(3, 1, nil)
 	case 4:
-		if len(data) != 4 || binary.LittleEndian.Uint32(data) != 13 || !c.owner.clipboardAllowed("rdp_clipboard_write") {
-			return c.send(5, 2, nil)
-		}
 		c.mu.Lock()
+		accepted := c.localAccepted && !c.writeBroken
 		local := c.local
 		c.mu.Unlock()
+		if len(data) != 4 || binary.LittleEndian.Uint32(data) != 13 || !accepted || !c.owner.clipboardAllowed("rdp_clipboard_write") {
+			return c.send(5, 2, nil)
+		}
 		var b bytes.Buffer
 		for _, v := range utf16.Encode([]rune(local)) {
 			_ = binary.Write(&b, binary.LittleEndian, v)
@@ -265,21 +296,80 @@ func (c *clipboard) process(raw []byte) error {
 		c.failed = false
 		c.revision++
 		c.mu.Unlock()
-	case 3, 6: // Format acknowledgement and deprecated temporary directory.
+	case 3:
+		response := flags & 3
+		if len(data) != 0 || (response != 1 && response != 2) {
+			return ErrProtocol
+		}
+		c.mu.Lock()
+		if len(c.formatAcks) > 0 {
+			ack := c.formatAcks[0]
+			c.formatAcks = c.formatAcks[1:]
+			if ack.generation > 0 && ack.generation == c.generation && !c.writeBroken {
+				c.localAccepted = response == 1
+			}
+			if response == 1 {
+				ack.result <- nil
+			} else {
+				ack.result <- ErrClipboard
+			}
+		}
+		c.mu.Unlock()
+	case 6: // Deprecated temporary directory.
 	default:
 		return errors.New("unsupported RDP clipboard message")
 	}
 	return nil
 }
 func (c *clipboard) set(value string) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	c.mu.Lock()
-	c.local = value
 	ready := c.ready
+	broken := c.writeBroken
+	if ready && !broken {
+		c.local = value
+		c.generation++
+		c.localAccepted = false
+	}
 	c.mu.Unlock()
 	if !ready {
 		return ErrClipboardNotReady
 	}
-	return c.formatList()
+	if broken {
+		return ErrClipboard
+	}
+	ack, e := c.formatList()
+	if e != nil {
+		c.mu.Lock()
+		c.writeBroken = true
+		c.localAccepted = false
+		c.mu.Unlock()
+		return e
+	}
+	timer := time.NewTimer(c.writeTimeout)
+	defer timer.Stop()
+	select {
+	case e = <-ack:
+		if e != nil {
+			return e
+		}
+		if !c.owner.clipboardAllowed("rdp_clipboard_write") {
+			c.mu.Lock()
+			c.localAccepted = false
+			c.mu.Unlock()
+			return ErrClipboard
+		}
+		return nil
+	case <-c.owner.Done():
+		return ErrUnavailable
+	case <-timer.C:
+		c.mu.Lock()
+		c.writeBroken = true
+		c.localAccepted = false
+		c.mu.Unlock()
+		return ErrClipboard
+	}
 }
 func (c *clipboard) request() error {
 	c.mu.Lock()
