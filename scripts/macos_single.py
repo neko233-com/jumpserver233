@@ -187,17 +187,27 @@ def listeners(port):
 
 def assert_owned_listener(port, previous):
     expected = str(previous / 'jms233-server') if previous else None
-    for pid in listeners(port):
+    pids = listeners(port)
+    for pid in pids:
         mappings = command('/usr/sbin/lsof', '-a', '-p', pid, '-d', 'txt', '-Fn').stdout.splitlines()
         if not expected or 'n' + expected not in mappings:
             raise RuntimeError('Port is owned by another application; no service was stopped')
+    return pids
 
 
-def wait_stopped(port):
+def process_alive(pid):
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def wait_stopped(port, pids=()):
     deadline = time.monotonic() + 30
-    while listeners(port):
+    while listeners(port) or any(process_alive(pid) for pid in pids):
         if time.monotonic() >= deadline:
-            raise RuntimeError('Old listener did not exit; refusing concurrent data writers')
+            raise RuntimeError('Old service did not exit; refusing concurrent data writers')
         time.sleep(.25)
 
 
@@ -236,6 +246,8 @@ def switch_link(root, release):
 def activate(staging, root, port, manifest, launch_dir=None):
     releases = root / 'releases'
     current = root / 'current'
+    if (root / 'failed-data').exists():
+        raise RuntimeError('Reconcile retained failed-data before another activation; running service was not stopped')
     if current.exists() and not current.is_symlink():
         raise RuntimeError('Current release must be an owned symlink')
     previous = current.resolve(strict=True) if current.is_symlink() else None
@@ -257,7 +269,7 @@ def activate(staging, root, port, manifest, launch_dir=None):
             raise RuntimeError('LaunchAgent belongs to another deployment')
         if old.get('EnvironmentVariables', {}).get('JMS_ADDR') != '0.0.0.0:' + str(port):
             raise RuntimeError('Changing an existing deployment port requires explicit service migration')
-    assert_owned_listener(port, previous)
+    old_pids = assert_owned_listener(port, previous)
     env = {**config, 'JMS_ADDR': '0.0.0.0:' + str(port), 'JMS_DATA_DIR': str(root / 'data'),
            'JMS_WEB_DIR': str(current / 'web'), 'JMS_VERSION': manifest['version']}
     # Same immutable artifact + healthy process is a no-op: preserve PID, data and keys.
@@ -289,7 +301,7 @@ def activate(staging, root, port, manifest, launch_dir=None):
                'KeepAlive': {'SuccessfulExit': False}, 'ThrottleInterval': 10, 'ExitTimeOut': 30,
                'StandardOutPath': str(root / 'logs/server.log'), 'StandardErrorPath': str(root / 'logs/server.log')}
     command('/bin/launchctl', 'bootout', target, check=False)
-    wait_stopped(port)
+    wait_stopped(port, old_pids)
     # Snapshot only after the old writer exits. Never mix old/new document writers.
     snapshot = root / 'snapshots' / str(time.time_ns())
     if previous:
@@ -301,8 +313,9 @@ def activate(staging, root, port, manifest, launch_dir=None):
         command('/bin/launchctl', 'bootstrap', domain, str(plist_path))
         check_health(port, manifest['version'])
     except Exception:
+        failed_pids = listeners(port)
         command('/bin/launchctl', 'bootout', target, check=False)
-        wait_stopped(port)
+        wait_stopped(port, failed_pids)
         if previous and old_plist:
             # New binaries may have upgraded persisted schemas. Restore the stopped snapshot.
             failed_data = root / 'failed-data'

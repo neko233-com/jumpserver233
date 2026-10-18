@@ -86,6 +86,22 @@ class DeploymentTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Refusing'):
             ci.remove_tree(self.base / 'foreign', self.root)
 
+    def test_wait_stopped_waits_for_writer_after_listener_closes(self):
+        with patch.object(ci, 'listeners', return_value=[]), \
+             patch.object(ci.os, 'kill', side_effect=[None, ProcessLookupError()]) as probe, \
+             patch.object(ci.time, 'sleep') as sleep:
+            ci.wait_stopped(8180, ['456'])
+            self.assertEqual(2, probe.call_count)
+            probe.assert_called_with(456, 0)
+            sleep.assert_called_once()
+
+    def test_failed_data_blocks_activation_before_stopping_a_service(self):
+        (self.root / 'failed-data').mkdir()
+        with patch.object(ci, 'command') as command:
+            with self.assertRaisesRegex(RuntimeError, 'running service was not stopped'):
+                ci.activate(self.staging, self.root, 8180, ci.validate_manifest(self.staging), self.launch)
+            command.assert_not_called()
+
     def test_activation_is_private_and_repeated_artifact_is_noop(self):
         try:
             result, _, _ = self.activate()

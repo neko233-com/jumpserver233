@@ -31,7 +31,7 @@ HTTP serves the specified intranet. Public access requires a controlled HTTPS re
 
 ## Recovery and maintenance
 
-Failed activation stops the new process, restores the preceding binary, LaunchAgent and stopped-writer data snapshot, then verifies the old version's health. Data written by the new binary remains in `failed-data/` for inspection of activation-window writes; restoring an old snapshot does not preserve all new writes. A subsequent rollback stops if that directory still exists, protecting the evidence. Failed initial provisioning retains data for repair.
+Stopping waits for both the listener and verified PIDs to exit, so an early listener close cannot leave an old writer running. Failed activation stops the new process, restores the preceding binary, LaunchAgent and stopped-writer data snapshot, then verifies the old version's health. Data written by the new binary remains in `failed-data/` for inspection of activation-window writes; restoring an old snapshot does not preserve all new writes. Further activation fails before stopping the running service until that directory has been reconciled. Failed initial provisioning retains data for repair.
 
 Successful upgrades retain the current/preceding artifacts and two latest data snapshots, removing other owned release directories. Maintain runtime logs and failed recovery data under an appropriate operational retention policy. QA cleanup must never delete this persistent deployment root. Never print/archive `runtime.json`, LaunchAgent `EnvironmentVariables` or `data/`.
 
@@ -41,6 +41,6 @@ Independent check: `python3 -B -m unittest discover -s scripts -p macos_single_t
 
 ## Verification boundary, 2026-10-18
 
-Project 49's group, GitHub `main` and `Jenkinsfile_mac_single` were saved and read back in the browser. Windows Go static-serving/config/server tests, vet, frontend production build and bilingual checks passed. The deployment state machine passed 8/8 in a network-disabled, read-only-mounted temporary Linux container with launchd test doubles; the container was removed automatically. Windows passed 6 cases and skipped 2 because symlink privileges were unavailable.
+Project 49's group, GitHub `main` and `Jenkinsfile_mac_single` were saved and read back in the browser. Windows Go static-serving/config/server tests, vet, frontend production build and bilingual checks passed. The deployment state machine passed 10/10 in a network-disabled, read-only-mounted temporary Linux container with launchd test doubles; the container was removed automatically. Windows passed 8 cases and skipped 2 because symlink privileges were unavailable.
 
 The real macOS SCM validation failed twice connecting to `github.com:443` after approximately 19 seconds, before build or deployment. A reachable proxy or intranet Git mirror is required to continue. Project creation, Linux state-machine tests and local Docker success do not establish a running macOS deployment.
