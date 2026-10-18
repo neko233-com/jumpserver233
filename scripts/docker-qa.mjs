@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { ownedCompose, removeUnusedQAImages, pruneOwnedQACache, removeLocalBuildHistory, inspectQAContainers } from "./qa-lifecycle.mjs";
 import { createServer } from "node:net";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, createWriteStream, writeFileSync } from "node:fs";
+import { mkdirSync, createWriteStream, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -163,15 +163,36 @@ try {
     await httpSmoke();
     if (browser) await browserSmoke();
     receipt = { ...receipt, success: true, buildSeconds: +((built-started)/1000).toFixed(2), startupSeconds: +((ready-built)/1000).toFixed(2), smokeSeconds: +((performance.now()-ready)/1000).toFixed(2), browser, parallelBrowser: Boolean(peerURL), retained: command === "up" };
-    console.log(JSON.stringify(receipt));
   }
+} catch {
+  receipt.verificationError = "Docker QA verification failed; inspect the bounded stage log";
+  process.exitCode = 1;
 } finally {
+  let cleanupPhase = "containers and volumes";
   try {
-    if (command === "verify") { await docker(["down", "--volumes", "--remove-orphans"]); receipt.cleaned = true; }
-    if (command === "verify" || command === "down" && !keepData) { await removeUnusedQAImages(promisify(execFile), [`${project}-api:latest`, `${project}-web:latest`]); receipt.removedBuildHistory = await removeLocalBuildHistory(execute, cwd); receipt.prunedCache = await pruneOwnedQACache(execute); }
+    if (command === "verify") { await docker(["down", "--volumes", "--remove-orphans"]); receipt.resourcesRemoved = true; }
+    if (command === "verify" || command === "down" && !keepData) {
+      receipt.cleaned = false;
+      cleanupPhase = "unused QA images";
+      await removeUnusedQAImages(promisify(execFile), [`${project}-api:latest`, `${project}-web:latest`]);
+      cleanupPhase = "repository build history";
+      receipt.removedBuildHistory = await removeLocalBuildHistory(execute, cwd);
+      cleanupPhase = "owned build cache";
+      receipt.prunedCache = await pruneOwnedQACache(execute);
+      receipt.cleaned = true;
+    }
+  } catch {
+    receipt.cleaned = false;
+    receipt.cleanupError = { phase: cleanupPhase, message: "Owned QA cleanup incomplete; retry cleanup after Docker is available" };
+    process.exitCode = 1;
   } finally {
     writeFileSync(resolve(output, "summary.json"), JSON.stringify(receipt, null, 2));
     writeFileSync(resolve(output, `summary-${Date.now()}.json`), JSON.stringify(receipt, null, 2));
-    log.end();
+    log.end(() => {
+      const path = resolve(output, "verify.log");
+      if (receipt.success && receipt.cleaned) rmSync(path, { force: true });
+      else writeFileSync(path, readFileSync(path, "utf8").slice(-16_000));
+    });
+    console.log(JSON.stringify({ ...receipt, removedBuildHistory: receipt.removedBuildHistory?.length, prunedCache: receipt.prunedCache?.length }));
   }
 }

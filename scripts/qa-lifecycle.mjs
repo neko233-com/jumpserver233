@@ -1,5 +1,6 @@
 import { lstatSync, realpathSync, rmSync } from "node:fs";
 import { basename, dirname, resolve, win32 } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { isMissingDockerResource } from "../server/testsupport/docker-qa.mjs";
 
 const fixtureName = /^jms233-(?:keyhost|systemdvm|postgres|sharing-postgres|mysql|mariadb|sqlserver|clickhouse|redis|mongodb|kubernetes|telnet|rdp|radius)-[a-f0-9-]{36}$/;
@@ -89,12 +90,26 @@ export async function removeUnusedQAImages(execute, imageIDs) {
 export function ownedCache(record) {
   return record.Reclaimable === true && /^[a-z0-9]+$/.test(record.ID || "") && /(?:\bjms233(?:-|\b)|go generate \.\/internal\/agentbundle)/.test(record.Description || "");
 }
+async function readBuildxMetadata(execute, args, options) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { return await execute("docker", args, options); }
+    catch (error) {
+      const diagnostic = String(error.stderr || error.message);
+      if (/unknown (?:command|flag)/i.test(diagnostic)) throw Object.assign(new Error("Buildx metadata command unsupported"), { code: "BUILDX_UNSUPPORTED" });
+      if (attempt < 2 && /(?:rpc error: code = Unavailable|error reading from server: EOF|connection reset by peer)/i.test(diagnostic)) {
+        await delay(200 * (attempt + 1));
+        continue;
+      }
+      throw new Error("Buildx metadata unavailable; cleanup remains incomplete");
+    }
+  }
+}
 export async function removeLocalBuildHistory(execute, root) {
   const removed = [], seen = new Set();
   for (let attempt = 0; attempt < 100; attempt++) {
     let output;
-    try { output = await execute("docker", ["buildx", "history", "ls", "--local", "--format", "json"], { cwd: root, maxBuffer: 8 * 1024 * 1024 }); }
-    catch (error) { if (/unknown (?:command|flag)/i.test(String(error.stderr || error.message))) return removed; throw error; }
+    try { output = await readBuildxMetadata(execute, ["buildx", "history", "ls", "--local", "--format", "json"], { cwd: root, maxBuffer: 8 * 1024 * 1024 }); }
+    catch (error) { if (error.code === "BUILDX_UNSUPPORTED") return removed; throw error; }
     const records = output.stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)).filter(r => ["Completed", "Error", "Canceled"].includes(r.status) && /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(r.ref || ""));
     if (!records.length) return removed;
     if (records.some(r => seen.has(r.ref))) throw new Error("Build history cleanup did not progress");
@@ -105,11 +120,11 @@ export async function removeLocalBuildHistory(execute, root) {
   throw new Error("Build history cleanup capacity exceeded");
 }
 export async function pruneOwnedQACache(execute) {
-  const { stdout } = await execute("docker", ["buildx", "du", "--format", "json"], { maxBuffer: 16 * 1024 * 1024 });
+  const { stdout } = await readBuildxMetadata(execute, ["buildx", "du", "--format", "json"], { maxBuffer: 16 * 1024 * 1024 });
   const records = stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)).filter(ownedCache);
   if (!records.length) return [];
   await execute("docker", ["buildx", "prune", "--force", "--filter", `id~=^(${records.map(r => r.ID).join("|")})$`], { maxBuffer: 16 * 1024 * 1024 });
-  const after = await execute("docker", ["buildx", "du", "--format", "json"], { maxBuffer: 16 * 1024 * 1024 });
+  const after = await readBuildxMetadata(execute, ["buildx", "du", "--format", "json"], { maxBuffer: 16 * 1024 * 1024 });
   const remaining = new Set(after.stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line).ID));
   // BuildKit may retain shared/dependent records despite a successful command.
   // Count disappearance, never treat a selected record as reclaimed bytes.

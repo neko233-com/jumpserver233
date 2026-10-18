@@ -64,7 +64,21 @@ test("build history cleanup is repository scoped, excludes active builds and rep
   let removed = false;
   const execute = async (_, args, options) => { assert.equal(options.cwd, root); if (args[2] === "ls") { assert.ok(args.includes("--local")); return { stdout: (removed ? [] : [{ ref: "builder/node/completed", name: "server", status: "Completed" }, { ref: "builder/node/active", status: "Running" }]).map(r => JSON.stringify(r)).join("\n") }; } assert.deepEqual(args, ["buildx", "history", "rm", "--builder", "builder", "completed"]); removed = true; return { stdout: "" }; };
   assert.equal((await removeLocalBuildHistory(execute, root)).length, 1); assert.equal((await removeLocalBuildHistory(execute, root)).length, 0);
-  await assert.rejects(removeLocalBuildHistory(async () => { throw Error("daemon offline"); }, root), /offline/);
+  await assert.rejects(removeLocalBuildHistory(async () => { throw Error("daemon offline"); }, root), /unavailable/);
+});
+
+test("build history retries only transient metadata reads and sanitizes exhausted failures", async () => {
+  let calls = 0;
+  const transient = () => Object.assign(Error("private command body"), { stderr: "ERROR: rpc error: code = Unavailable desc = error reading from server: EOF" });
+  assert.deepEqual(await removeLocalBuildHistory(async (_, args) => { assert.equal(args[2], "ls"); if (++calls < 3) throw transient(); return { stdout: "" }; }, root), []);
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(removeLocalBuildHistory(async () => { calls++; throw transient(); }, root), error => error.message === "Buildx metadata unavailable; cleanup remains incomplete");
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(removeLocalBuildHistory(async () => { calls++; throw Object.assign(Error("private"), { stderr: "permission denied" }); }, root), /unavailable/);
+  assert.equal(calls, 1);
+  assert.deepEqual(await removeLocalBuildHistory(async () => { throw Object.assign(Error("private"), { stderr: 'unknown command: history' }); }, root), []);
 });
 test("inspect tolerates concurrent fixture exits and never requests environment or command bodies", async () => {
   const execute = async (_, args) => { const format = args[args.indexOf("--format") + 1]; assert.ok(!format.includes(".Env")); assert.ok(!format.includes(".Cmd")); throw Object.assign(Error("partial"), { stderr: "No such object: exited", stdout: JSON.stringify(compose()) + "\n" }); };

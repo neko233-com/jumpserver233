@@ -38,3 +38,9 @@ Successful upgrades retain the current/preceding artifacts and two latest data s
 Static file access is confined with Go `os.Root`. Hidden paths, missing-asset SPA fallback and directory listings are blocked. `/api` and `/ws` always use the original routes. Entry pages use revalidation and content-hashed `/assets/` use immutable caching.
 
 Independent check: `python3 -B -m unittest discover -s scripts -p macos_single_test.py`. Go static-serving tests in `server/internal/webui` use testify. The workspace `dist/deployment.json` receipt contains no credentials. This is an intranet single-node deployment; see [HA](./CLUSTER-HA.en.md) for clusters.
+
+## Verification boundary, 2026-10-18
+
+Project 49's group, GitHub `main` and `Jenkinsfile_mac_single` were saved and read back in the browser. Windows Go static-serving/config/server tests, vet, frontend production build and bilingual checks passed. The deployment state machine passed 8/8 in a network-disabled, read-only-mounted temporary Linux container with launchd test doubles; the container was removed automatically. Windows passed 6 cases and skipped 2 because symlink privileges were unavailable.
+
+The real macOS SCM validation failed twice connecting to `github.com:443` after approximately 19 seconds, before build or deployment. A reachable proxy or intranet Git mirror is required to continue. Project creation, Linux state-machine tests and local Docker success do not establish a running macOS deployment.
