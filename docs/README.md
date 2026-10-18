@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+库存、审计来源、UTC 日趋势、当前权限及带摘要回执的 CSV 见[运营报表](./REPORTS.md)。
+
 全局认证、MFA、会话签发、原生复核、CSV 和独立平台通知见[平台登录审计](./LOGIN-AUDIT.md)。
 
 真实 SSH 探测的阈值/离线/无数据规则、静默、确认、恢复和通知见[监控告警](./MONITOR-ALERTS.md)。

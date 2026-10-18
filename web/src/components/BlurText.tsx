@@ -1,10 +1,7 @@
-"use client";
+import { useEffect, useMemo, useRef } from "react";
 
-import { LazyMotion, domAnimation, type Transition } from "motion/react";
-import * as m from "motion/react-m";
-import { useEffect, useRef, useState, useMemo } from "react";
-
-type BlurTextProps = {
+type Frame = Record<string, string | number>;
+type Props = {
   text?: string;
   delay?: number;
   className?: string;
@@ -12,27 +9,16 @@ type BlurTextProps = {
   direction?: "top" | "bottom";
   threshold?: number;
   rootMargin?: string;
-  animationFrom?: Record<string, string | number>;
-  animationTo?: Array<Record<string, string | number>>;
-  easing?: (t: number) => number;
-  onAnimationComplete?: () => void;
+  animationFrom?: Frame;
+  animationTo?: Frame[];
+  easing?: string;
   stepDuration?: number;
+  onAnimationComplete?: () => void;
 };
 
-const buildKeyframes = (
-  from: Record<string, string | number>,
-  steps: Array<Record<string, string | number>>,
-): Record<string, Array<string | number>> => {
-  const keys = new Set<string>([...Object.keys(from), ...steps.flatMap((s) => Object.keys(s))]);
-
-  const keyframes: Record<string, Array<string | number>> = {};
-  keys.forEach((k) => {
-    keyframes[k] = [from[k], ...steps.map((s) => s[k])];
-  });
-  return keyframes;
-};
-
-const BlurText: React.FC<BlurTextProps> = ({
+// Retains the React Bits blur/reveal effect using the browser animation engine.
+// The complete accessible text stays readable when animation APIs are absent.
+export default function BlurText({
   text = "",
   delay = 200,
   className = "",
@@ -42,91 +28,153 @@ const BlurText: React.FC<BlurTextProps> = ({
   rootMargin = "0px",
   animationFrom,
   animationTo,
-  easing = (t: number) => t,
-  onAnimationComplete,
+  easing = "linear",
   stepDuration = 0.35,
-}) => {
-  const elements = animateBy === "words" ? text.split("") : text.split("");
-  const [inView, setInView] = useState(false);
-  const ref = useRef<HTMLParagraphElement>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          observer.unobserve(ref.current as Element);
-        }
-      },
-      { threshold, rootMargin },
-    );
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [threshold, rootMargin]);
-
-  const defaultFrom = useMemo(
+  onAnimationComplete,
+}: Props) {
+  const root = useRef<HTMLSpanElement>(null);
+  const segments = useMemo(
     () =>
-      direction === "top"
-        ? { filter: "blur(10px)", opacity: 0, y: -50 }
-        : { filter: "blur(10px)", opacity: 0, y: 50 },
-    [direction],
+      animateBy === "words"
+        ? text.split(/(\s+)/).filter(Boolean)
+        : typeof Intl.Segmenter === "function"
+          ? Array.from(
+              new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text),
+              (s) => s.segment,
+            )
+          : Array.from(text),
+    [text, animateBy],
   );
-
-  const defaultTo = useMemo(
-    () => [
-      {
-        filter: "blur(5px)",
-        opacity: 0.5,
-        y: direction === "top" ? 5 : -5,
-      },
-      { filter: "blur(0px)", opacity: 1, y: 0 },
-    ],
-    [direction],
-  );
-
-  const fromSnapshot = animationFrom ?? defaultFrom;
-  const toSnapshots = animationTo ?? defaultTo;
-
-  const stepCount = toSnapshots.length + 1;
-  const totalDuration = stepDuration * (stepCount - 1);
-  const times = Array.from({ length: stepCount }, (_, i) =>
-    stepCount === 1 ? 0 : i / (stepCount - 1),
-  );
-
-  return (
-    <LazyMotion features={domAnimation} strict>
-      <p ref={ref} className={className} style={{ display: "flex", flexWrap: "wrap" }}>
-        {elements.map((segment, index) => {
-          const animateKeyframes = buildKeyframes(fromSnapshot, toSnapshots);
-
-          const spanTransition: Transition = {
-            duration: totalDuration,
-            times,
-            delay: (index * delay) / 1000,
-            ease: easing,
-          };
-
-          return (
-            <m.span
-              key={index}
-              initial={fromSnapshot}
-              animate={inView ? animateKeyframes : fromSnapshot}
-              transition={spanTransition}
-              onAnimationComplete={index === elements.length - 1 ? onAnimationComplete : undefined}
-              style={{
-                display: "inline-block",
-                willChange: "transform, filter, opacity",
-              }}
-            >
-              {segment === "" ? "" : segment}
-              {animateBy === "words" && index < elements.length - 1 && ""}
-            </m.span>
+  useEffect(() => {
+    const node = root.current;
+    if (!node) return;
+    const children = Array.from(node.querySelectorAll<HTMLElement>("[data-blur-segment]"));
+    const motion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    let cancelled = false,
+      started = false,
+      completed = false;
+    let observer: IntersectionObserver | undefined;
+    const animations: Animation[] = [];
+    const finish = () => {
+      if (!cancelled && !completed) {
+        completed = true;
+        onAnimationComplete?.();
+      }
+    };
+    const stop = () => {
+      for (const a of animations) a.cancel();
+      for (const el of children) el.style.willChange = "";
+    };
+    const play = () => {
+      if (started || cancelled) return;
+      started = true;
+      observer?.disconnect();
+      if (motion?.matches || typeof node.animate !== "function") {
+        finish();
+        return;
+      }
+      const from = animationFrom ?? {
+        filter: "blur(10px)",
+        opacity: 0,
+        y: direction === "top" ? -50 : 50,
+      };
+      const to = animationTo ?? [
+        { filter: "blur(5px)", opacity: 0.5, y: direction === "top" ? 5 : -5 },
+        { filter: "blur(0px)", opacity: 1, y: 0 },
+      ];
+      const frames: Keyframe[] = [from, ...to].map((v) => {
+        const { y, ...css } = v;
+        return {
+          ...css,
+          ...(y === undefined
+            ? {}
+            : { transform: typeof y === "number" ? `translateY(${y}px)` : `translateY(${y})` }),
+        };
+      });
+      try {
+        children.forEach((el, i) => {
+          el.style.willChange = "transform, filter, opacity";
+          animations.push(
+            el.animate(frames, {
+              duration: Math.max(0, stepDuration * to.length * 1000),
+              delay: i * Math.max(0, delay),
+              fill: "backwards",
+              easing,
+            }),
           );
-        })}
-      </p>
-    </LazyMotion>
+        });
+        void Promise.all(animations.map((a) => a.finished)).then(
+          () => {
+            stop();
+            finish();
+          },
+          () => undefined,
+        );
+      } catch {
+        stop();
+        finish();
+      }
+    };
+    const reduce = () => {
+      if (motion?.matches) {
+        observer?.disconnect();
+        stop();
+        finish();
+      }
+    };
+    motion?.addEventListener("change", reduce);
+    if (motion?.matches || typeof IntersectionObserver !== "function") play();
+    else {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) play();
+        },
+        { threshold, rootMargin },
+      );
+      observer.observe(node);
+    }
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+      motion?.removeEventListener("change", reduce);
+      stop();
+    };
+  }, [
+    segments,
+    delay,
+    direction,
+    threshold,
+    rootMargin,
+    animationFrom,
+    animationTo,
+    easing,
+    stepDuration,
+    onAnimationComplete,
+  ]);
+  return (
+    <span ref={root} className={className} style={{ display: "inline-flex", flexWrap: "wrap" }}>
+      <span
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+          clipPath: "inset(50%)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {text}
+      </span>
+      {segments.map((part, i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          data-blur-segment=""
+          style={{ display: "inline-block", whiteSpace: "pre" }}
+        >
+          {part}
+        </span>
+      ))}
+    </span>
   );
-};
-
-export default BlurText;
+}

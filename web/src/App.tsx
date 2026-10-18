@@ -5,6 +5,7 @@ import ConsoleLayout from "./layouts/ConsoleLayout";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const AgentAuditPage = lazy(() => import("./pages/AgentAuditPage"));
 const AccountRisksPage = lazy(() => import("./pages/AccountRisksPage"));
 const RotationPlansPage = lazy(() => import("./pages/RotationPlansPage"));
@@ -75,6 +76,8 @@ export default function App() {
               element={<NotificationsPage key="platform" platform />}
             />
             <Route path="login-audit" element={<LoginAuditPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="dashboard" element={<ReportsPage />} />
             <Route path="monitoring" element={<MonitoringPage />} />
             <Route path="notification-sources/:kind/:id" element={<NotificationSourcePage />} />
             <Route path="database-audit" element={<DatabaseAuditPage />} />
@@ -106,6 +109,7 @@ export default function App() {
                 </Suspense>
               }
             />
+            <Route path="reports" element={<ReportsPage />} />
           </Route>
           <Route
             path="/workbench"

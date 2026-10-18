@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Inventory, audit sources, UTC daily trends, current permissions and CSV digest receipts are covered in [Operations reports](./REPORTS.en.md).
+
 Global authentication, MFA, session grants, native reviews, CSV and independent platform notifications: [Platform sign-in audit](./LOGIN-AUDIT.en.md).
 
 Threshold/offline/missing-data rules, maintenance mute, acknowledgement, recovery and delivery from real SSH probes: [Monitoring alerts](./MONITOR-ALERTS.en.md).

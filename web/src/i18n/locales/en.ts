@@ -1325,6 +1325,8 @@ const en = {
       audit_sessions_view_all: "View every session audit",
       audit_logins_view_all: "View all platform sign-in audits",
       audit_logins_export: "Export all platform sign-in audits",
+      reports_export: "Export visible operations reports",
+      reports_audit: "View all organization report export receipts",
       audit_sessions_monitor_all: "Monitor any live terminal (read only)",
       audit_desktops_monitor_all: "Monitor any live RDP desktop (read only)",
       accounts_discover: "Collect local SSH host account metadata",
@@ -1496,6 +1498,7 @@ const en = {
     name: "JumpServer233",
   },
   nav: {
+    reports: "Overview & reports",
     loginAudit: "Sign-in audit",
     monitoring: "Monitoring alerts",
     accountRisks: "Account risks",

@@ -29,6 +29,7 @@ var (
 // System permissions are independent from account/asset grants. Every new
 // permission must be explicitly added here; wildcards are never accepted.
 var catalog = []string{
+	"reports.export", "reports.audit",
 	"audit.logins.view_all", "audit.logins.export",
 	"organizations.manage", "organizations.members.manage",
 	"roles.manage", "users.manage", "groups.manage", "grants.manage", "nodes.manage",

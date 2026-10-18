@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+运营报表汇总当前库存和 12 类组织数据来源，可显式加入两类全局身份来源，提供 UTC 趋势、原生权限过滤及带 SHA-256 审计回执的 Web/CLI CSV；见[运营报表](./docs/REPORTS.md)。
+
 平台登录审计覆盖全局认证步骤、会话签发、原生复核、权限过滤、CSV 及独立安全通知，支持 Web/CLI/SDK 和单活接管；见[平台登录审计](./docs/LOGIN-AUDIT.md)。
 
 原生 SSH 监控告警支持八类条件、连续样本与恢复阈值、维护静默、确认、通知和 Web/CLI/SDK；使用真实探测，组织隔离及单活接管，见[监控告警](./docs/MONITOR-ALERTS.md)。

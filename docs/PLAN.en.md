@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 5 adds [operations reports](./REPORTS.en.md): 12 organization sources, explicit global identity statistics, UTC daily trends, native permissions, partial-source labels, audited CSV before download, Web/CLI/SDK and PostgreSQL scoped receipt takeover. Scheduled reports, PDF, a full historical warehouse and Enterprise parity remain in progress.
+
 Phase 5 adds [platform sign-in audit and independent platform notifications](./LOGIN-AUDIT.en.md): global authentication steps, MFA, commit before session delivery, native review cursors, permission filtering, CSV, Web/CLI/SDK and PostgreSQL single-active takeover. Native cloud SMS, IM and full Enterprise parity remain open.
 
 Phase 3/5 adds [native SSH monitoring alerts](./MONITOR-ALERTS.en.md): eight conditions, host/node scopes, sample counts and duration, recovery thresholds, maintenance mute, acknowledgement, notifications and Web/CLI/SDK. Organization encryption and PostgreSQL single-active recovery are integrated. Time-series charts, escalation policies and production HA acceptance remain open.

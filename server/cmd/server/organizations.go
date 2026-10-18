@@ -33,6 +33,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/operations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
+	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
@@ -140,6 +141,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 	d := api.Dependencies{SessionPolicy: r.root.SessionPolicy, Tenant: true, OrganizationID: id, Organizations: r.store, Auth: r.root.Auth, AdminToken: r.root.AdminToken, PublicURL: r.root.PublicURL, TrustedProxies: r.root.TrustedProxies, GlobalRBAC: r.root.RBAC, GlobalGroups: r.root.Groups, GlobalPolicies: r.root.AccessPolicies}
 	d.OrganizationAllowed = func(u coreauth.User) bool { return r.allowed(id, u) }
 	d.GlobalAccessMu = r.root.AccessMu
+	d.LoginAudit = r.root.LoginAudit
 	orgKey := r.key
 	if id != organizations.DefaultID {
 		mac := hmac.New(sha256.New, r.key)
@@ -385,6 +387,13 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return nil, e
 		}
 	}
+	if id != organizations.DefaultID {
+		d.Reports, e = reporting.Open(filepath.Join(orgPath, "report-exports.json"), orgKey, docs)
+		if e != nil {
+			r.stop(&organizationRuntime{d: d}, false)
+			return nil, e
+		}
+	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID {
 		ctx, cancel := context.WithCancel(r.ctx)
@@ -437,6 +446,9 @@ func (r *organizationRuntimes) changed(id string) {
 	}
 }
 func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) {
+	if current.d.Reports != nil {
+		current.d.Reports.Close()
+	}
 	if current.d.MonitorAlerts != nil {
 		current.d.MonitorAlerts.Close()
 	}

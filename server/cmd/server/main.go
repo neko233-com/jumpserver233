@@ -46,6 +46,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
+	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
@@ -247,6 +248,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	defer monitorAlertService.Close()
+	reportStore, err := reporting.Open(filepath.Join(cfg.DataDir, "report-exports.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	defer reportStore.Close()
 	platformKeyMAC := hmac.New(sha256.New, vaultKey)
 	platformKeyMAC.Write([]byte("jms233/platform-identity/v1"))
 	platformKey := platformKeyMAC.Sum(nil)
@@ -334,6 +340,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.CommandAlerts = commandAlertStore
 	root.MonitorAlerts = monitorAlertService
 	root.LoginAudit = loginAuditStore
+	root.Reports = reportStore
 	root.GlobalAccessMu = root.AccessMu
 	root.SessionPolicy = sessionSettings
 	root.DatabaseQueries = databaseService
@@ -370,6 +377,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global.PlatformNotifications = true
 	global.CommandAlerts = nil
 	global.MonitorAlerts = nil
+	global.Reports = nil
 	handler := api.NewOrganizationRouter(cfg.Version, global, runtimes.handler)
 	identityService.SetPrivilegedCheck(runtimes.isPrivileged)
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}

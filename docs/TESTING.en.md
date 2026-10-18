@@ -2,6 +2,20 @@
 
 > [中文](./TESTING.md) | English
 
+## Operations reports and native login animation (2026-10-18)
+
+- Final complete production browser regression: `pnpm test:e2e:production`, 76/76 pass, zero failures/skips, 16.8 minutes, runner exit 0. Fresh temporary data, real protocols and native service fixtures were cleaned; existing debug environments remain. Reports, login animation and the existing full business flows are covered by this run.
+
+The first full production browser run passed 75/76 (16.4 minutes). A Kubernetes operator's node request failed with Chromium `net::ERR_NO_BUFFER_SPACE` before reaching the backend, causing the inventory wait to time out. Its trace is retained. Source was unchanged for this system transient, followed by a complete rerun with fresh temporary state.
+
+- Full Go: 66 packages, 1,104 passing tests, 35 platform/missing-fixture skips, zero failures, exit 0. Real OpenSSH, PostgreSQL and RDP fixtures were used. Unavailable protocol/system scenarios explicitly skip.
+- Linux Docker race: 16 relevant packages, 421 pass, 5 missing-protocol-fixture skips, zero failures, exit 0. After lock-order and SDK integrity refinements, the three final affected packages were rerun with race: 125 pass, zero failures/skips, exit 0. The runs overlap and are not added together.
+- Testify covers interval/UTC/source failures, current authorization revocation, explicit partial export, no CSV on audit failure, encrypted receipts/corruption/capacity/TTL, PostgreSQL scoped takeover, native session/file indexes, and SDK/CLI digest/size/short-write handling.
+- Latest production Docker focused browser suite: 2/2 pass, zero failures/skips, 4.7 seconds. Real SSH jobs, ownership, Web/CLI CSV and SHA-256 receipts, cross-organization isolation, revocation, bilingual 390px layout and native login animation pass.
+- Disposable clean Docker: cached build 2.84 seconds, startup 12.11 seconds, browser/port/parallel-isolation checks 3.99 seconds; passed and cleaned. Existing debug instances remain. Retained UI: `http://127.0.0.35:15197/console/reports`, API port `18104`, both loopback only.
+- `go vet`, strict types, lint, production builds, 10 Docker helper tests and 6 frontend helper tests pass. Content checks report 2,712 keys per locale, 118 bilingual documents and 1,066 relative links, zero errors. Existing `.gitignore` excludes caches, runtime state, build outputs and local tooling.
+- The in-app browser export shows its receipt, byte count and SHA-256. Native job history survives rebuilding the production instance. See [REPORTS](./REPORTS.en.md) for sources and measurement limits. Production multi-active and full Enterprise acceptance remain open.
+
 ## Platform sign-in audit and independent platform notifications (2026-10-18)
 
 - Final complete production-frontend regression: `pnpm test:e2e:production`, 74/74 pass, zero failures/skips, 16.2 minutes, runner exit 0. Fresh temporary data, real protocol and native service fixtures were used and cleaned; existing debug environments remain. The latest-image focused suite separately passed after the two actor-label corrections.

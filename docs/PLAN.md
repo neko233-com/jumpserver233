@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+Phase 5 新增[运营报表](./REPORTS.md)：12 类组织来源与显式全局身份统计、UTC 日趋势、沿用原生权限、部分结果标注、先审计后下载的 CSV、Web/CLI/SDK 和 PostgreSQL 组织回执接管。定时报表、PDF、完整历史仓库及企业版整体对齐继续进行。
+
 Phase 5 已接入[平台登录审计与独立平台通知](./LOGIN-AUDIT.md)：全局认证步骤、MFA、会话签发前提交、原生复核游标、权限过滤、CSV、Web/CLI/SDK 和 PostgreSQL 单活接管。原生云短信、IM 和完整企业版对齐仍在进行。
 
 Phase 3/5 新增[原生 SSH 监控告警](./MONITOR-ALERTS.md)：八类条件、主机/节点范围、连续样本与持续时间、恢复阈值、维护静默、确认、通知中心和 Web/CLI/SDK。组织加密和 PostgreSQL 单活恢复已接入；时序曲线、升级策略与生产 HA 验收仍待完成。

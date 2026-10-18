@@ -2,6 +2,14 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Operations reports and login animation (2026-10-18)
+
+The login text uses native browser animation, removing Motion while retaining reduced motion and a complete accessible heading. The report route and locale modules are lazy, with native SVG and a data table. Including the new report, total JS falls from the previous sign-in audit baseline of 1,490,654 to 1,438,044 bytes: 52,610 bytes (about 3.5%) smaller. Initial JS is 498,267 bytes, gzip 160,671, main 481,235; existing budgets pass. Report and login chunks are about 20.62 kB and 64.85 kB. The Vite stage took 163 ms, excluding type checking.
+
+Windows stripped API: 42,597,888 bytes; CLI: 12,621,824. The 100,000-record single-source aggregation benchmark on Windows / AMD Ryzen 9 9950X measured 10,290,752 ns/op, 1,423 B/op and 16 allocs/op. Before removing per-record date strings it measured 13,886,281 ns/op, 1,603,065 B/op and 100,018 allocs/op. This in-memory aggregation excludes authorization, disk, HTTP and encrypted receipt writes and is not end-to-end latency.
+
+Non-inventory selections skip asset snapshots. Agent visibility is cached per host/account within one collection. IO, records, states and export size have explicit limits and partial-source labels. The first focused local Docker build took 12.35 seconds and startup 12.19 seconds. Focused browser checks with available caches took 3.7 seconds, not the duration of the complete protocol regression.
+
 ## Platform sign-in audit (2026-10-18)
 
 The page and bilingual resources load on demand, without new dependencies. Main entry: 480,585 bytes; initial JS: 497,929 bytes, gzip 160,599; total JS: 1,490,654. Existing 500 kB / 1.5 MB budgets pass. Vite's build stage took 177 ms, excluding type checking. Windows stripped API: 42,450,944 bytes; CLI: 12,602,880 bytes.

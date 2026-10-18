@@ -31,6 +31,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
+	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
@@ -40,6 +41,7 @@ import (
 )
 
 type Dependencies struct {
+	Reports               *reporting.Store
 	PlatformNotifications bool
 	LoginAudit            *loginaudit.Store
 	MonitorAlerts         *monitoralerts.Service
@@ -114,6 +116,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		dependencies[0].Sessions.SetCommandAlerts(dependencies[0].CommandAlerts.Publish)
 	}
 	if len(dependencies) > 0 {
+		registerReportRoutes(mux, dependencies[0], accessMu)
 		registerMonitorAlertRoutes(mux, dependencies[0], accessMu)
 		registerTicketRoutes(mux, dependencies[0], accessMu)
 		registerNotificationRoutes(mux, dependencies[0])

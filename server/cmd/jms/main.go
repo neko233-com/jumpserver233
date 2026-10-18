@@ -44,6 +44,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "reports" {
+		return runReports(args[1:])
+	}
 	if len(args) > 0 && args[0] == "login-audit" {
 		return runLoginAudit(args[1:])
 	}

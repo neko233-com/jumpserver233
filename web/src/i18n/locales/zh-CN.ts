@@ -1225,6 +1225,8 @@ const zhCN = {
       audit_sessions_view_all: "查看全部会话审计",
       audit_logins_view_all: "查看全部平台登录审计",
       audit_logins_export: "导出全部平台登录审计",
+      reports_export: "导出可见运营报表",
+      reports_audit: "查看当前组织全部报表导出回执",
       audit_sessions_monitor_all: "只读监看任意在线终端",
       audit_desktops_monitor_all: "只读监看任意在线 RDP 桌面",
       accounts_discover: "收集 SSH 主机本地账号元数据",
@@ -1391,6 +1393,7 @@ const zhCN = {
     name: "JumpServer233",
   },
   nav: {
+    reports: "概览与报表",
     loginAudit: "登录审计",
     monitoring: "监控告警",
     accountRisks: "账号风险",
