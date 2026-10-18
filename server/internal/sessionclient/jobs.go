@@ -43,6 +43,9 @@ func (c *Client) CancelJob(ctx context.Context, id string) error {
 	return c.jobRequest(ctx, http.MethodDelete, "/api/v1/ops/jobs/"+url.PathEscape(id), nil, nil)
 }
 func (c *Client) jobRequest(ctx context.Context, method, path string, input, output any) error {
+	if c.platformNotifications && strings.HasPrefix(path, "/api/v1/notifications/") {
+		path = strings.Replace(path, "/api/v1/notifications/", "/api/v1/platform-notifications/", 1)
+	}
 	path, selectionErr := c.selectedAccountPath(ctx, path)
 	if selectionErr != nil {
 		return selectionErr
@@ -105,7 +108,7 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 			}
 		}
 		if problem.Detail == "" {
-			if strings.HasPrefix(target.Path, "/api/v1/notifications/") {
+			if strings.HasPrefix(target.Path, "/api/v1/notifications/") || strings.HasPrefix(target.Path, "/api/v1/platform-notifications/") || strings.HasPrefix(target.Path, "/api/v1/audits/logins") {
 				switch problem.Code {
 				case "invalid", "denied", "not_found", "conflict", "verification_required", "rate_limit", "capacity", "unavailable":
 					problem.Detail = problem.Code

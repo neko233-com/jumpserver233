@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"errors"
 	"log/slog"
 	"net"
@@ -34,6 +36,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	corejobs "github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
+	"github.com/neko233-com/jumpserver233/server/internal/core/loginaudit"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/monitoralerts"
 	corenodes "github.com/neko233-com/jumpserver233/server/internal/core/nodes"
@@ -244,6 +247,27 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	defer monitorAlertService.Close()
+	platformKeyMAC := hmac.New(sha256.New, vaultKey)
+	platformKeyMAC.Write([]byte("jms233/platform-identity/v1"))
+	platformKey := platformKeyMAC.Sum(nil)
+	defer clear(platformKey)
+	var platformDocuments *storage.Documents
+	if documents != nil {
+		platformDocuments, err = documents.Scoped("platform-identity")
+		if err != nil {
+			return err
+		}
+	}
+	loginAuditStore, err := loginaudit.Open(filepath.Join(cfg.DataDir, "platform-login-audit"), platformKey, platformDocuments)
+	if err != nil {
+		return err
+	}
+	defer loginAuditStore.Close()
+	platformNotifications, err := notifications.Open(filepath.Join(cfg.DataDir, "platform-notifications.json"), platformKey, platformDocuments)
+	if err != nil {
+		return err
+	}
+	defer platformNotifications.Close()
 	databaseService, err := databasequery.Open(filepath.Join(cfg.DataDir, "database-queries.json"), vaultKey, documents, assetService.QueryDatabase)
 	if err != nil {
 		return err
@@ -309,6 +333,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.Notifications = notificationService
 	root.CommandAlerts = commandAlertStore
 	root.MonitorAlerts = monitorAlertService
+	root.LoginAudit = loginAuditStore
 	root.GlobalAccessMu = root.AccessMu
 	root.SessionPolicy = sessionSettings
 	root.DatabaseQueries = databaseService
@@ -341,7 +366,8 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global.AccountRisks = nil
 	global.RotationPlans = nil
 	global.Tickets = nil
-	global.Notifications = nil
+	global.Notifications = platformNotifications
+	global.PlatformNotifications = true
 	global.CommandAlerts = nil
 	global.MonitorAlerts = nil
 	handler := api.NewOrganizationRouter(cfg.Version, global, runtimes.handler)
@@ -357,6 +383,8 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	credentialPlans.Start(nodeCtx)
 	accessTickets.Start(nodeCtx)
 	notificationService.Start(nodeCtx)
+	platformNotifications.Start(nodeCtx)
+	loginAuditStore.Start(nodeCtx, loginaudit.ReviewSource(loginReviewStore))
 	monitorAlertService.Start(nodeCtx)
 	monitorDone := make(chan struct{})
 	go func() {

@@ -115,6 +115,7 @@ func registerLDAPRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		sum := sha256.Sum256([]byte(strings.ToLower(in.Username)))
+		attemptedLoginName(r, in.Username)
 		key := "name:" + hex.EncodeToString(sum[:])
 		if !reserve(w, key) {
 			return

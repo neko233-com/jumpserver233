@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+平台登录审计覆盖全局认证步骤、会话签发、原生复核、权限过滤、CSV 及独立安全通知，支持 Web/CLI/SDK 和单活接管；见[平台登录审计](./docs/LOGIN-AUDIT.md)。
+
 原生 SSH 监控告警支持八类条件、连续样本与恢复阈值、维护静默、确认、通知和 Web/CLI/SDK；使用真实探测，组织隔离及单活接管，见[监控告警](./docs/MONITOR-ALERTS.md)。
 
 通知中心支持个人订阅、联系方式验证、站内信、TLS 邮件、签名 Webhook 和自定义短信；覆盖工单、SSH 作业、改密、安全命令、资产/命令复核、风险扫描和主机 Agent 报告，详情可按当前权限复核；见[通知中心](./docs/NOTIFICATIONS.md)。

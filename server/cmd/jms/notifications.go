@@ -13,7 +13,7 @@ import (
 
 const notificationUsage = "usage: jms notifications list|deliveries|audit [--offset 0 --limit 25 --unread --state STATE] | preferences|settings|health | preferences-save|settings-save --file FILE.json (or - for stdin) | source KIND ID | read ID | read-all | test --request-id ID | request-code email|sms | verify email|sms --code-stdin | retry ID --revision N [--acknowledge-uncertain]"
 
-func runNotifications(args []string) error {
+func runNotifications(args []string, platform ...bool) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
 	if endpoint == "" {
 		endpoint = "http://127.0.0.1:8080"
@@ -21,6 +21,9 @@ func runNotifications(args []string) error {
 	c, e := clientFromEnvironment(endpoint, "")
 	if e != nil {
 		return e
+	}
+	if len(platform) > 0 && platform[0] {
+		c = c.WithPlatformNotifications()
 	}
 	return executeNotifications(context.Background(), c, args, os.Stdin, os.Stdout)
 }

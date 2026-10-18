@@ -1,5 +1,13 @@
 export default {
   notifications: {
+    platformTitle: "平台通知",
+    platformHint: "平台登录、新来源、连续失败及登录复核。",
+    scopeSwitcher: "通知范围",
+    organizationScope: "组织通知",
+    platformScope: "平台通知",
+    platformPreferenceHint: "这些偏好和已验证联系方式属于全局平台身份，跨组织生效。",
+    platformSourcesHint:
+      "已接入平台登录、新来源 IP、连续认证失败及原生登录复核事件；通道配置独立于组织通知。",
     sourceDetail: "通知详情",
     sourceDetailHint: "详情按事件源当前权限读取。批准后仍执行原有访问与命令策略。",
     backInbox: "返回通知中心",
@@ -21,6 +29,7 @@ export default {
     confirmDecision: "确认决定",
     sourceDecisionSaved: "决定已保存，请通过原入口继续操作。",
     sourceKinds: {
+      "platform-logins": "平台登录",
       "access-reviews": "资产访问复核",
       "job-security": "SSH 作业复核与安全",
       "command-reviews": "交互命令复核",
@@ -155,6 +164,17 @@ export default {
       sms_secret: "短信网关签名密钥",
     },
     states: {
+      platform_login_succeeded: "平台会话已签发",
+      platform_login_new_source: "从新来源 IP 登录",
+      platform_login_failures: "连续登录失败",
+      platform_review_pending: "平台登录等待复核",
+      platform_review_approved: "平台登录已批准",
+      platform_review_denied: "平台登录已拒绝",
+      platform_review_expired: "平台登录复核已过期",
+      platform_review_cancelled: "平台登录复核已取消",
+      platform_review_consumed: "平台登录复核已消费",
+      platform_review_invalidated: "平台登录复核已失效",
+      platform_policy_notified: "平台登录策略通知",
       monitoring_firing: "主机监控告警",
       monitoring_resolved: "主机监控已恢复",
       pending: "等待复核",

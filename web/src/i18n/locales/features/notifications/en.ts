@@ -1,5 +1,14 @@
 export default {
   notifications: {
+    platformTitle: "Platform notifications",
+    platformHint: "Platform sign-in, source changes, repeated failures and sign-in reviews.",
+    scopeSwitcher: "Notification scope",
+    organizationScope: "Organization notifications",
+    platformScope: "Platform notifications",
+    platformPreferenceHint:
+      "These preferences and verified contacts apply to your global platform identity, across organizations.",
+    platformSourcesHint:
+      "Connected: platform sign-ins, new source IPs, repeated authentication failures and native sign-in review events. Channel configuration is independent of organization notifications.",
     sourceDetail: "Notification details",
     sourceDetailHint:
       "Current source permissions apply. Approval does not bypass the original access or command policy.",
@@ -26,6 +35,7 @@ export default {
     confirmDecision: "Confirm decision",
     sourceDecisionSaved: "Decision saved. Continue the operation through its original entry.",
     sourceKinds: {
+      "platform-logins": "Platform sign-in",
       "access-reviews": "Asset access review",
       "job-security": "SSH job review & safety",
       "command-reviews": "Interactive command review",
@@ -167,6 +177,17 @@ export default {
       sms_secret: "SMS gateway signing secret",
     },
     states: {
+      platform_login_succeeded: "Platform session issued",
+      platform_login_new_source: "Sign-in from a new source IP",
+      platform_login_failures: "Repeated sign-in failures",
+      platform_review_pending: "Platform sign-in review pending",
+      platform_review_approved: "Platform sign-in approved",
+      platform_review_denied: "Platform sign-in denied",
+      platform_review_expired: "Platform sign-in review expired",
+      platform_review_cancelled: "Platform sign-in review cancelled",
+      platform_review_consumed: "Platform sign-in review consumed",
+      platform_review_invalidated: "Platform sign-in review invalidated",
+      platform_policy_notified: "Platform sign-in policy notification",
       monitoring_firing: "Host monitoring alert",
       monitoring_resolved: "Host monitoring recovered",
       pending: "Awaiting review",

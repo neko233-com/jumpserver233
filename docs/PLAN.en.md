@@ -2,9 +2,11 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 5 adds [platform sign-in audit and independent platform notifications](./LOGIN-AUDIT.en.md): global authentication steps, MFA, commit before session delivery, native review cursors, permission filtering, CSV, Web/CLI/SDK and PostgreSQL single-active takeover. Native cloud SMS, IM and full Enterprise parity remain open.
+
 Phase 3/5 adds [native SSH monitoring alerts](./MONITOR-ALERTS.en.md): eight conditions, host/node scopes, sample counts and duration, recovery thresholds, maintenance mute, acknowledgement, notifications and Web/CLI/SDK. Organization encryption and PostgreSQL single-active recovery are integrated. Time-series charts, escalation policies and production HA acceptance remain open.
 
-Phase 5 adds the [notification center](./NOTIFICATIONS.en.md): in-app unread messages, personal subscriptions/contact verification, TLS SMTP, signed HTTPS Webhooks, custom SMS gateway, ticket/SSH job/rotation results, delivery receipts and explicit retries, with organization encryption and PostgreSQL single-active recovery. Security messages now cover native asset/command reviews, blocked SSH input, risk scans, host monitoring and Agent repair reports, with current-permission inline review details. Global platform sign-in aggregation, native cloud SMS and instant messaging remain open.
+Phase 5 adds the [notification center](./NOTIFICATIONS.en.md): in-app unread messages, personal subscriptions/contact verification, TLS SMTP, signed HTTPS Webhooks, custom SMS gateway, ticket/SSH job/rotation results, delivery receipts and explicit retries, with organization encryption and PostgreSQL single-active recovery. Security messages now cover native asset/command reviews, blocked SSH input, risk scans, host monitoring and Agent repair reports, with current-permission inline review details. Platform sign-in aggregation now uses independent global notifications; native cloud SMS and instant messaging remain open.
 
 Phase 5/7 adds [access request tickets](./ACCESS-TICKETS.en.md): published asset/node and account scopes, one to five distinct reviewers, user/group/role selectors, copied discussion, amendment reset, time-limited native grants, revocation and recovery across Web/CLI/SDK with organization encryption. External delivery is in the notification center; production multi-active, the phase and full Enterprise goal remain in progress.
 

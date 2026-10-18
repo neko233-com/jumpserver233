@@ -15,14 +15,22 @@ export default function NotificationBell() {
       if (running || document.visibilityState === "hidden") return;
       running = true;
       try {
-        const response = await fetch("/api/v1/notifications/inbox?unread=true&limit=1", {
-          headers,
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
-        });
-        if (!response.ok) throw new Error();
-        const value = await response.json();
+        const values = await Promise.allSettled(
+          ["notifications", "platform-notifications"].map(async (scope) => {
+            const response = await fetch(`/api/v1/${scope}/inbox?unread=true&limit=1`, {
+              headers,
+              signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
+            });
+            if (!response.ok) throw new Error();
+            const value = await response.json();
+            return Number.isSafeInteger(value.unread) && value.unread >= 0
+              ? (value.unread as number)
+              : 0;
+          }),
+        );
+        if (values.every((v) => v.status === "rejected")) throw new Error();
         if (!controller.signal.aborted)
-          setCount(Number.isSafeInteger(value.unread) ? value.unread : 0);
+          setCount(values.reduce((sum, v) => sum + (v.status === "fulfilled" ? v.value : 0), 0));
       } catch {
         if (!controller.signal.aborted) setCount(null);
       } finally {
@@ -47,15 +55,19 @@ export default function NotificationBell() {
   }, [accessToken]);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/v1/notifications/locale", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
-      body: JSON.stringify({ language: i18n.language.startsWith("zh") ? "zh-CN" : "en" }),
-      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
-    }).catch(() => undefined);
+    void Promise.allSettled(
+      ["notifications", "platform-notifications"].map((scope) =>
+        fetch(`/api/v1/${scope}/locale`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ language: i18n.language.startsWith("zh") ? "zh-CN" : "en" }),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
+        }),
+      ),
+    );
     return () => controller.abort();
   }, [accessToken, i18n.language]);
   return (

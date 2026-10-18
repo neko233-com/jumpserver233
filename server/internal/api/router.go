@@ -21,6 +21,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	corejobs "github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
+	"github.com/neko233-com/jumpserver233/server/internal/core/loginaudit"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/monitoralerts"
 	corenodes "github.com/neko233-com/jumpserver233/server/internal/core/nodes"
@@ -39,30 +40,32 @@ import (
 )
 
 type Dependencies struct {
-	MonitorAlerts        *monitoralerts.Service
-	CommandAlerts        *commandalerts.Store
-	Notifications        *notifications.Service
-	Tickets              *tickets.Service
-	RotationPlans        *rotationplans.Service
-	AccountRisks         *accountrisks.Service
-	AccountDiscovery     *accountdiscovery.Store
-	SessionPolicy        *sessionpolicy.Store
-	AgentEvents          *agentevents.Store
-	HostPlugins          *hostplugins.Service
-	Desktops             *desktop.Broker
-	DatabaseQueries      *databasequery.Service
-	AccessMu             *sync.RWMutex
-	GlobalAccessMu       *sync.RWMutex
-	PlatformOnlyPolicies bool
-	Tenant               bool
-	OrganizationID       string
-	Organizations        *organizations.Store
-	GlobalRBAC           *rbac.Store
-	GlobalGroups         *coregroups.Store
-	GlobalPolicies       *accesspolicies.Store
-	OrganizationAllowed  func(coreauth.User) bool
-	OrganizationSnapshot func(string, coreauth.User) (rbac.Snapshot, error)
-	OrganizationChanged  func(string)
+	PlatformNotifications bool
+	LoginAudit            *loginaudit.Store
+	MonitorAlerts         *monitoralerts.Service
+	CommandAlerts         *commandalerts.Store
+	Notifications         *notifications.Service
+	Tickets               *tickets.Service
+	RotationPlans         *rotationplans.Service
+	AccountRisks          *accountrisks.Service
+	AccountDiscovery      *accountdiscovery.Store
+	SessionPolicy         *sessionpolicy.Store
+	AgentEvents           *agentevents.Store
+	HostPlugins           *hostplugins.Service
+	Desktops              *desktop.Broker
+	DatabaseQueries       *databasequery.Service
+	AccessMu              *sync.RWMutex
+	GlobalAccessMu        *sync.RWMutex
+	PlatformOnlyPolicies  bool
+	Tenant                bool
+	OrganizationID        string
+	Organizations         *organizations.Store
+	GlobalRBAC            *rbac.Store
+	GlobalGroups          *coregroups.Store
+	GlobalPolicies        *accesspolicies.Store
+	OrganizationAllowed   func(coreauth.User) bool
+	OrganizationSnapshot  func(string, coreauth.User) (rbac.Snapshot, error)
+	OrganizationChanged   func(string)
 
 	LoginReviews   *loginreviews.Store
 	AccessPolicies *accesspolicies.Store
@@ -212,6 +215,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	}
 	var h http.Handler = mux
 	if len(dependencies) > 0 {
+		registerLoginAuditRoutes(mux, dependencies[0])
+	}
+	if len(dependencies) > 0 {
 		h = withRBAC(h, dependencies[0].RBAC, dependencies[0].Groups)
 		h = withAccessPolicies(h, dependencies[0])
 	}
@@ -220,6 +226,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	h = WithRecover(h)
 	if len(dependencies) > 0 {
 		h = withPublicOrigin(h, dependencies[0].PublicURL)
+		h = withLoginAudit(h, dependencies[0])
 	}
 	return h
 }

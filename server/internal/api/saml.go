@@ -102,6 +102,7 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		setSAMLCookie(w, r, d, samlFlowCookie, start.Proof, 600)
+		markLoginAudit(r, "started", "")
 		http.Redirect(w, r, start.URL, 303)
 	})
 	mux.HandleFunc("GET /api/v1/authentication/saml/metadata", func(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +119,10 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 	mux.HandleFunc("POST /api/v1/authentication/saml/acs", func(w http.ResponseWriter, r *http.Request) {
 		setNoStore(w)
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		fail := func() { http.Redirect(w, r, d.SAML.ReturnURL("/login?saml_error=1"), 303) }
+		fail := func() {
+			markLoginAudit(r, "failed", "flow_rejected")
+			http.Redirect(w, r, d.SAML.ReturnURL("/login?saml_error=1"), 303)
+		}
 		if !reserve(w, "host:"+remoteHost(r.RemoteAddr)) {
 			return
 		}
@@ -137,6 +141,7 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
+		markLoginAudit(r, "external_verified", "external_identity_verified")
 		http.Redirect(w, r, d.SAML.ReturnURL("/api/v1/authentication/saml/finalize?code="+code), 303)
 	})
 	mux.HandleFunc("GET /api/v1/authentication/saml/finalize", func(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +149,10 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		proof := samlCookie(r, samlFlowCookie)
 		setSAMLCookie(w, r, d, samlFlowCookie, "", -1)
-		fail := func() { http.Redirect(w, r, d.SAML.ReturnURL("/login?saml_error=1"), 303) }
+		fail := func() {
+			markLoginAudit(r, "failed", "flow_rejected")
+			http.Redirect(w, r, d.SAML.ReturnURL("/login?saml_error=1"), 303)
+		}
 		q := r.URL.Query()
 		if len(q["code"]) != 1 || len(q) != 1 {
 			fail()
@@ -165,6 +173,8 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
+		loginAuditSubject(r, user)
+		markLoginAudit(r, "external_verified", "external_identity_verified")
 		setSAMLCookie(w, r, d, samlPendingCookie, ticket, 300)
 		http.Redirect(w, r, d.SAML.ReturnURL("/login?saml=continue"), 303)
 	})

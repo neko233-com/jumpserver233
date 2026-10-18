@@ -19,6 +19,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/workbench", label: t("nav.workbench"), end: false },
   ];
   const consoleNav = [
+    { to: "/console/login-audit", label: t("nav.loginAudit"), end: false },
     ...(allows("monitoring.view") || allows("monitoring.manage")
       ? [{ to: "/console/monitoring", label: t("nav.monitoring"), end: false }]
       : []),

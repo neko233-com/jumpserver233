@@ -2,6 +2,19 @@
 
 > [中文](./TESTING.md) | English
 
+## Platform sign-in audit and independent platform notifications (2026-10-18)
+
+- Final complete production-frontend regression: `pnpm test:e2e:production`, 74/74 pass, zero failures/skips, 16.2 minutes, runner exit 0. Fresh temporary data, real protocol and native service fixtures were used and cleaned; existing debug environments remain. The latest-image focused suite separately passed after the two actor-label corrections.
+
+- Full Go: 65 packages, 1,080 passing tests, 35 fixture/platform skips, zero failures, process exit 0. Real OpenSSH, shared PostgreSQL storage and RDP fixtures were used. Missing database, Kubernetes, Telnet, system protection and systemd scenarios explicitly skipped.
+- Linux race: 8 packages, 350 passing tests, 5 missing real-protocol fixture skips, zero failures, exit 0. Covers login audit, native reviews, notifications, identities, API, SDK, CLI and server entry.
+- Testify cases cover interrupted multi-segment index commits, restart deduplication, cursors/gaps, 100,000-event capacity, 365-day query retention, corrupted ciphertext, close/cancellation, concurrent writes and PostgreSQL platform namespace isolation/takeover. HTTP cases exercise real local LDAP/OIDC/SAML/CAS/Passkey protocol fixtures, MFA, audit-failure session revocation, CSV formula prefixes, export audit failure, trusted proxies and permission withdrawal. This does not establish production identity-provider acceptance.
+- Latest-image isolated Docker browser test: 11.9 seconds, 12.3 including runner. Own/global visibility, separate export authority, detail removal after withdrawal, native sign-in approval and session exchange, platform/organization channel isolation, signed TLS Webhook, bilingual 390 px, CSV and CLI; zero pageerrors. Notifications only went to an owned local TLS capture with synthetic identities. IAB separately verified the actor label to distinguish consumption/cancellation from review decisions.
+- vet, zero-warning lint, frontend/E2E type checks, production builds, 10 Docker helper and 6 frontend Node tests pass. Content validation covers 2,580 keys per language and 116 bilingual documents.
+- Fresh-volume dual-instance Docker browser smoke passes in about 22.19 seconds; disposable resources were cleaned. Debug UI remains at http://127.0.0.33:15196, API 18103; existing debug environments were preserved. IAB separately verified Chinese lists, consumed-review details, close/return and no console errors.
+
+Capability and retention boundaries are in [Platform sign-in audit](./LOGIN-AUDIT.en.md).
+
 ## Native host monitoring alerts (2026-10-18)
 
 - Final complete production-frontend Playwright: 73/73 pass, zero failures/skips, 16.7 minutes, runner exit 0. One production build used fresh temporary data and all existing real protocol/native fixtures. All 828 implementation/verification source hashes remained unchanged. Owned fixtures were cleaned; retained debug environments were preserved. Coverage includes real SSH firing/acknowledgement/recovery, permission withdrawal, BanHack/Agent, systemd repair, databases, Kubernetes, RDP, Telnet and session collaboration.

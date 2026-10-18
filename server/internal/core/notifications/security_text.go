@@ -2,6 +2,28 @@ package notifications
 
 func securityStateText(value string) ([2]string, bool) {
 	switch value {
+	case "platform_login_succeeded":
+		return [2]string{"Platform session issued", "平台登录会话已签发"}, true
+	case "platform_login_new_source":
+		return [2]string{"Platform sign-in from a new source", "平台登录来源发生变化"}, true
+	case "platform_login_failures":
+		return [2]string{"Repeated platform sign-in failures", "平台登录连续失败"}, true
+	case "platform_review_pending":
+		return [2]string{"Platform sign-in awaiting review", "平台登录等待复核"}, true
+	case "platform_review_approved":
+		return [2]string{"Platform sign-in approved", "平台登录复核已批准"}, true
+	case "platform_review_denied":
+		return [2]string{"Platform sign-in denied", "平台登录复核已拒绝"}, true
+	case "platform_review_expired":
+		return [2]string{"Platform sign-in review expired", "平台登录复核已过期"}, true
+	case "platform_review_cancelled":
+		return [2]string{"Platform sign-in review cancelled", "平台登录复核已取消"}, true
+	case "platform_review_consumed":
+		return [2]string{"Platform sign-in permit consumed", "平台登录许可已消费"}, true
+	case "platform_review_invalidated":
+		return [2]string{"Platform sign-in review invalidated", "平台登录复核已失效"}, true
+	case "platform_policy_notified":
+		return [2]string{"Platform sign-in policy notification", "平台登录策略通知"}, true
 	case "monitoring_firing":
 		return [2]string{"Host monitoring alert", "主机监控告警"}, true
 	case "monitoring_resolved":

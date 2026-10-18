@@ -29,6 +29,7 @@ var (
 // System permissions are independent from account/asset grants. Every new
 // permission must be explicitly added here; wildcards are never accepted.
 var catalog = []string{
+	"audit.logins.view_all", "audit.logins.export",
 	"organizations.manage", "organizations.members.manage",
 	"roles.manage", "users.manage", "groups.manage", "grants.manage", "nodes.manage",
 	"assets.manage", "assets.probe", "assets.rotate", "assets.backups", "assets.view_all", "assets.connect_all", "assets.sftp_all",
@@ -108,7 +109,7 @@ type Store struct {
 func OrganizationCatalog() []string {
 	out := []string{}
 	for _, p := range Catalog() {
-		if !slices.Contains([]string{"users.manage", "security.manage", "organizations.manage", "reviews.platform_login.manage"}, p) {
+		if !slices.Contains([]string{"users.manage", "security.manage", "organizations.manage", "reviews.platform_login.manage", "audit.logins.view_all", "audit.logins.export"}, p) {
 			out = append(out, p)
 		}
 	}

@@ -47,6 +47,20 @@ func (s *Service) ActiveUserByID(id string) (User, bool) {
 	return User{}, false
 }
 
+// ActiveUsersSnapshot reads public identities in one pass for notification
+// audience selection. Delivery rechecks the selected identity individually.
+func (s *Service) ActiveUsersSnapshot() []User {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]User, 0, len(s.users))
+	for _, r := range s.users {
+		if s.externalAllowedLocked(r) {
+			out = append(out, r.User)
+		}
+	}
+	return out
+}
+
 // Identity is bound to the exact issuer/subject pair. Provider names, email,
 // preferred_username and role claims never link or promote existing accounts.
 func (s *Service) EnsureOIDCUser(issuer, subject, alias string, provision bool) (User, error) {

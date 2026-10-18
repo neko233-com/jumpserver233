@@ -2,6 +2,14 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Platform sign-in audit (2026-10-18)
+
+The page and bilingual resources load on demand, without new dependencies. Main entry: 480,585 bytes; initial JS: 497,929 bytes, gzip 160,599; total JS: 1,490,654. Existing 500 kB / 1.5 MB budgets pass. Vite's build stage took 177 ms, excluding type checking. Windows stripped API: 42,450,944 bytes; CLI: 12,602,880 bytes.
+
+Native review imports use an incremental cursor and batch commits; idle polling does not rewrite segments or the index. With 10,000 cached events and the cursor at the tail, three benchmark runs measured about 12 ns/op, 0 B/op and zero allocations. This only measures the locked cache-tail check, excluding load, history reads, queries, HTTP, encrypted persistence and delivery. Reproduce with `go test -run '^$' -bench BenchmarkReviewFeedIdle -benchmem -count 3 ./internal/core/loginaudit`.
+
+The latest-image focused Docker browser test took 11.9 seconds, 12.3 including its runner. Fresh-volume dual-instance browser smoke took about 22.19 seconds: cached build 5.03, startup 12.14, checks 5.02. Debug UI remains at http://127.0.0.33:15196, API 18103, bound only to loopback. Disposable smoke resources were cleaned. Existing .gitignore / .dockerignore cover reports, caches, builds and generated native artifacts.
+
 ## Native monitoring alerts (2026-10-18)
 
 The page loads lazily at about 25.68 kB JS. Main entry: 479,663 bytes; initial JS including shared dependencies: 497,007 bytes, gzip 160,394; total JS: 1,468,408. Existing budgets pass. Vite's build stage took 211 ms, excluding type checking. No dependencies were added. Windows stripped API: 42,288,128 bytes; CLI: 12,576,768. Uncompressed Linux API image: 24,819,360 bytes.

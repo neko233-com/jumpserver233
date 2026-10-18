@@ -44,6 +44,12 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "login-audit" {
+		return runLoginAudit(args[1:])
+	}
+	if len(args) > 0 && args[0] == "platform-notifications" {
+		return runNotifications(args[1:], true)
+	}
 	if len(args) > 0 && args[0] == "monitor" {
 		return runMonitor(args[1:])
 	}

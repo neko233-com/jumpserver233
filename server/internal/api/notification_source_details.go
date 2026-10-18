@@ -7,6 +7,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
+	"github.com/neko233-com/jumpserver233/server/internal/core/loginaudit"
 	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"time"
 )
@@ -35,6 +36,33 @@ type notificationSourceDetail struct {
 
 func notificationSourceDetails(ctx context.Context, d Dependencies, user, kind, id string) (notificationSourceDetail, error) {
 	out := notificationSourceDetail{ID: id, Kind: kind}
+	if d.PlatformNotifications {
+		if d.LoginAudit == nil || kind != "platform-logins" {
+			return out, notifications.ErrNotFound
+		}
+		u, p, ok := globalLoginActor(d, user)
+		if !ok {
+			return out, notifications.ErrDenied
+		}
+		r, e := d.LoginAudit.Get(id)
+		if errors.Is(e, loginaudit.ErrNotFound) {
+			return out, notifications.ErrNotFound
+		}
+		if e != nil {
+			return out, e
+		}
+		if !canReadLoginAudit(d, u, p, r) {
+			return out, notifications.ErrNotFound
+		}
+		out.Name = r.Username
+		out.Owner = r.Username
+		out.State = r.Outcome
+		out.Method = r.Method
+		out.At = r.At
+		out.ReviewID = r.ReviewID
+		out.CanReview = r.ReviewID != "" && canReviewPlatformLogin(d, u, p, r.ReviewID)
+		return out, ctx.Err()
+	}
 	u, p, ok := notificationActor(ctx, d, user)
 	if !ok {
 		return out, notifications.ErrDenied

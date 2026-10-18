@@ -152,8 +152,10 @@ func registerAuthRoutes(mux *http.ServeMux, service *coreauth.Service, adminToke
 			writeJSON(w, http.StatusBadRequest, map[string]string{"detail": "invalid sign-in request"})
 			return
 		}
+		attemptedLoginName(r, input.Username)
 		session, setup, err := service.AuthenticateWithOTPOrMFASetup(input.Username, input.Password, input.OTP)
 		if setup != nil {
+			markLoginAudit(r, "challenge", "enrollment_required")
 			failures.succeeded(host)
 			setNoStore(w)
 			writeJSON(w, http.StatusUnauthorized, map[string]any{
@@ -165,12 +167,14 @@ func registerAuthRoutes(mux *http.ServeMux, service *coreauth.Service, adminToke
 			return
 		}
 		if errors.Is(err, coreauth.ErrOTPRequired) {
+			markLoginAudit(r, "challenge", "second_factor_required")
 			failures.succeeded(host)
 			setNoStore(w)
 			writeJSON(w, http.StatusUnauthorized, map[string]any{"detail": "one-time code required", "mfa_required": true})
 			return
 		}
 		if errors.Is(err, coreauth.ErrInvalidCredentials) {
+			markLoginAudit(r, "failed", "credentials_rejected")
 			failures.failed(host, now)
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"detail": "invalid username or password"})
 			return
@@ -261,6 +265,9 @@ func registerAuthRoutes(mux *http.ServeMux, service *coreauth.Service, adminToke
 			}
 		}
 		if ok {
+			if u, valid := service.ValidateToken(token); valid {
+				loginAuditSubject(r, u)
+			}
 			if err := service.RevokeToken(token); err != nil {
 				writeJSON(w, http.StatusInternalServerError, map[string]string{"detail": "could not revoke login session"})
 				return
@@ -592,6 +599,9 @@ func setNoStore(w http.ResponseWriter) {
 func setLoginSession(w http.ResponseWriter, r *http.Request, session coreauth.LoginSession, forceSecure ...bool) bool {
 	secure := len(forceSecure) > 0 && forceSecure[0]
 	if !prepareNewLogin(w, r, session, secure) {
+		return false
+	}
+	if !commitLoginAudit(w, r, session) {
 		return false
 	}
 	writeSessionCookie(w, r, session, secure)

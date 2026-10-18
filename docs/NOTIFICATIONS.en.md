@@ -2,6 +2,8 @@
 
 > English | [中文](./NOTIFICATIONS.md)
 
+Platform identities use independent [platform notifications and sign-in audit](./LOGIN-AUDIT.en.md). Preferences, contacts, channels, deliveries and audit are isolated from organizations and use global authority. External messages also exclude login usernames and source IP. Header unread counts combine both scopes.
+
 The console header opens notifications with unread filtering, mark all read and related details. System events generate messages; tests send fixed messages only to the caller's subscriptions. Preferences are per user and organization, default to in-app, and support Chinese, English or automatic delivery language (last interface language).
 
 2026-10-18, isolated Docker, synthetic contacts and a real OpenSSH job:

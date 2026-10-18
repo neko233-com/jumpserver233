@@ -29,6 +29,7 @@ func completeExternalBrowserLogin(w http.ResponseWriter, r *http.Request, auth *
 		writeError(w, logintickets.ErrTicket)
 		return
 	}
+	loginAuditSubject(r, user)
 	key := "mfa:" + p.UserID
 	if retry, ok := failures.reserve(key, time.Now()); !ok {
 		w.Header().Set("Retry-After", strconv.Itoa(retry))
@@ -55,6 +56,7 @@ func completeExternalBrowserLogin(w http.ResponseWriter, r *http.Request, auth *
 			session, setup, e = auth.AuthenticateExternalUser(p.UserID, source, otp)
 		}
 		if e == nil && setup != nil {
+			markLoginAudit(r, "challenge", "enrollment_required")
 			if flow.SetSetup(ticket, setup.Token) != nil {
 				writeError(w, logintickets.ErrTicket)
 				return
@@ -64,10 +66,12 @@ func completeExternalBrowserLogin(w http.ResponseWriter, r *http.Request, auth *
 		}
 	}
 	if errors.Is(e, coreauth.ErrOTPRequired) {
+		markLoginAudit(r, "challenge", "second_factor_required")
 		writeJSON(w, 401, map[string]bool{"mfa_required": true})
 		return
 	}
 	if e != nil {
+		markLoginAudit(r, "failed", "second_factor_rejected")
 		if errors.Is(e, coreauth.ErrInvalidOTP) || errors.Is(e, coreauth.ErrInvalidCredentials) || errors.Is(e, coreauth.ErrMFASetupChallenge) {
 			failures.failed(key, time.Now())
 		}

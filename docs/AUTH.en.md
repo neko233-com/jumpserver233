@@ -2,6 +2,8 @@
 
 > [中文](./AUTH.md) | English
 
+Authentication steps, audit commit before session delivery, global permissions and independent security notifications: [Platform sign-in audit](./LOGIN-AUDIT.en.md).
+
 On first startup with an empty user store, the server creates default administrator **`root / root`**. Sign-in uses normal local authentication and the password is stored as a scrypt hash. Restarts never reset the password or add this account to an existing user store. Change it in Profile. Set `JMS_DEFAULT_ADMIN_ENABLED=false` to initialize a custom administrator; ordinary account creation and password changes still require 12–256 bytes.
 
 Organizations isolate resources, roles and operational audit through `X-JMS-ORG`, browser switching and Agent CLI selection. Standalone storage and PostgreSQL single-active HA are supported. See [Organizations](./ORGANIZATIONS.en.md). Full Enterprise parity remains in progress.

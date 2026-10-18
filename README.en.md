@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Platform sign-in audit covers global authentication steps, session grants, native reviews, permission filtering, CSV and independent security notifications through Web/CLI/SDK, with single-active takeover. See [Platform sign-in audit](./docs/LOGIN-AUDIT.en.md).
+
 Native SSH monitoring alerts provide eight conditions, sample/duration thresholds, recovery, maintenance mute, acknowledgement, notifications and Web/CLI/SDK, using real observations with organization isolation and single-active takeover. See [Monitoring alerts](./docs/MONITOR-ALERTS.en.md).
 
 Notifications support subscriptions, verified contacts, in-app messages, TLS email, signed Webhooks and custom SMS for tickets, SSH jobs, rotations, command safety, asset/command reviews, risk scans and host Agent reports. Details support inline review with current permissions. See [Notification center](./docs/NOTIFICATIONS.en.md).

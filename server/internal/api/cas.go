@@ -108,6 +108,7 @@ func registerCASRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		setCASCookie(w, r, d, casFlowCookie, start.Proof, 600)
+		markLoginAudit(r, "started", "")
 		http.Redirect(w, r, start.URL, 303)
 	})
 	mux.HandleFunc("GET /api/v1/authentication/cas/callback", func(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +116,10 @@ func registerCASRoutes(mux *http.ServeMux, d Dependencies) {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		proof := casCookie(r, casFlowCookie)
 		setCASCookie(w, r, d, casFlowCookie, "", -1)
-		fail := func() { http.Redirect(w, r, d.CAS.ReturnURL("/login?cas_error=1"), 303) }
+		fail := func() {
+			markLoginAudit(r, "failed", "flow_rejected")
+			http.Redirect(w, r, d.CAS.ReturnURL("/login?cas_error=1"), 303)
+		}
 		q := r.URL.Query()
 		if len(q["state"]) != 1 || len(q["ticket"]) != 1 {
 			fail()
@@ -136,6 +140,8 @@ func registerCASRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
+		loginAuditSubject(r, user)
+		markLoginAudit(r, "external_verified", "external_identity_verified")
 		setCASCookie(w, r, d, casPendingCookie, ticket, 300)
 		http.Redirect(w, r, d.CAS.ReturnURL("/login?cas=continue"), 303)
 	})

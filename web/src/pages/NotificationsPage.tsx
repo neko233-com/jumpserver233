@@ -94,13 +94,18 @@ class NotificationError extends Error {
   }
 }
 
-export default function NotificationsPage() {
+export default function NotificationsPage({ platform = false }: { platform?: boolean } = {}) {
   const { t, i18n } = useTranslation();
   const { accessToken } = useAuth();
   const { allows } = usePermissions();
-  const manage = allows("notifications.manage"),
-    audit = allows("notifications.audit");
-  const [tab, setTab] = useState<Tab>("inbox");
+  const [platformCaps, setPlatformCaps] = useState({ manage: false, audit: false });
+  const manage = platform ? platformCaps.manage : allows("notifications.manage"),
+    audit = platform ? platformCaps.audit : allows("notifications.audit");
+  const [selectedTab, setTab] = useState<Tab>("inbox");
+  const tab =
+    (selectedTab === "settings" && !manage) || (selectedTab === "audit" && !audit)
+      ? "inbox"
+      : selectedTab;
   const [offset, setOffset] = useState(0),
     [total, setTotal] = useState(0),
     [unreadOnly, setUnreadOnly] = useState(false),
@@ -137,24 +142,82 @@ export default function NotificationsPage() {
       const signals = [AbortSignal.timeout(30_000)];
       if (life.current) signals.push(life.current.signal);
       if (signal) signals.push(signal);
-      const response = await fetch(`/api/v1/notifications/${path}`, {
-        method,
-        headers,
-        signal: AbortSignal.any(signals),
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
+      const response = await fetch(
+        `/api/v1/${platform ? "platform-notifications" : "notifications"}/${path}`,
+        {
+          method,
+          headers,
+          signal: AbortSignal.any(signals),
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        },
+      );
       if (!response.ok) {
         const p = await response.json().catch(() => ({}));
-        throw new NotificationError(codes.has(p.error_code) ? p.error_code : "unavailable");
+        throw new NotificationError(
+          response.status === 401 || response.status === 403
+            ? "denied"
+            : codes.has(p.error_code)
+              ? p.error_code
+              : "unavailable",
+        );
       }
       return response.json() as Promise<T>;
     },
-    [accessToken],
+    [accessToken, platform],
   );
   const fail = useCallback((e: unknown) => {
-    if (!life.current?.signal.aborted)
+    if (!life.current?.signal.aborted) {
       setError(e instanceof NotificationError ? e.code : "unavailable");
+      if (e instanceof NotificationError && e.code === "denied") {
+        setMessages([]);
+        setDeliveries([]);
+        setEvents([]);
+        setSettings(null);
+        setHealth(null);
+        setSecrets({});
+        setClear({});
+        setConfirm(null);
+        setPlatformCaps({ manage: false, audit: false });
+      }
+    }
   }, []);
+  useEffect(() => {
+    if (!platform) return;
+    const controller = new AbortController();
+    let running = false;
+    const load = async () => {
+      if (running || document.visibilityState === "hidden") return;
+      running = true;
+      try {
+        const c = await request<{ manage: boolean; audit: boolean }>(
+          "capabilities",
+          "GET",
+          undefined,
+          controller.signal,
+        );
+        if (!controller.signal.aborted) {
+          setPlatformCaps(c);
+          if (!c.manage) {
+            setSettings(null);
+            setHealth(null);
+            setSecrets({});
+            setClear({});
+          }
+          if (!c.audit) setEvents([]);
+        }
+      } catch (e) {
+        if (!controller.signal.aborted) fail(e);
+      } finally {
+        running = false;
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 10_000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [platform, request, fail, version]);
   useEffect(() => {
     const controller = new AbortController(),
       serial = ++sequence.current;
@@ -277,13 +340,21 @@ export default function NotificationsPage() {
     <section className="rotation-page notifications-page" aria-busy={busy}>
       <header>
         <div>
-          <h1>{t("notifications.title")}</h1>
-          <p>{t("notifications.hint")}</p>
+          <h1>{t(platform ? "notifications.platformTitle" : "notifications.title")}</h1>
+          <p>{t(platform ? "notifications.platformHint" : "notifications.hint")}</p>
         </div>
         <button type="button" disabled={busy} onClick={() => setVersion((n) => n + 1)}>
           {t("notifications.refresh")}
         </button>
       </header>
+      <nav className="rotation-actions" aria-label={t("notifications.scopeSwitcher")}>
+        <Link to="/console/notifications" aria-current={!platform ? "page" : undefined}>
+          {t("notifications.organizationScope")}
+        </Link>
+        <Link to="/console/platform-notifications" aria-current={platform ? "page" : undefined}>
+          {t("notifications.platformScope")}
+        </Link>
+      </nav>
       <nav className="rotation-actions" aria-label={t("notifications.views")}>
         {(
           [
@@ -387,7 +458,9 @@ export default function NotificationsPage() {
           }}
         >
           <h2>{t("notifications.tabs.preferences")}</h2>
-          <p>{t("notifications.preferenceHint")}</p>
+          <p>
+            {t(platform ? "notifications.platformPreferenceHint" : "notifications.preferenceHint")}
+          </p>
           <label>
             {t("notifications.language")}
             <select
@@ -484,7 +557,7 @@ export default function NotificationsPage() {
             })}
           </div>
           <h3>{t("notifications.subscriptions")}</h3>
-          <p>{t("notifications.sourcesHint")}</p>
+          <p>{t(platform ? "notifications.platformSourcesHint" : "notifications.sourcesHint")}</p>
           <div className="notification-topics">
             {topics.map((topic) => (
               <fieldset key={topic}>

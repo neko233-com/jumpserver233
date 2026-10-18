@@ -18,13 +18,14 @@ import (
 )
 
 type Client struct {
-	managedAccount string
-	serverURL      *url.URL
-	organization   string
-	token          string
-	keyID          string
-	secret         string
-	http           *http.Client
+	platformNotifications bool
+	managedAccount        string
+	serverURL             *url.URL
+	organization          string
+	token                 string
+	keyID                 string
+	secret                string
+	http                  *http.Client
 }
 
 type AccessReviewPendingError struct {

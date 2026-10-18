@@ -1,0 +1,48 @@
+.login-audit-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.login-audit-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.login-audit-table {
+  overflow-x: auto;
+}
+.login-audit-table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.login-audit-table th,
+.login-audit-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.login-audit-detail {
+  width: min(680px, calc(100vw - 24px));
+  max-height: 85dvh;
+  overflow: auto;
+  padding: 24px;
+  color: var(--text);
+  background: var(--surface, #151b27);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.login-audit-detail::backdrop {
+  background: #0009;
+}
+.login-audit-detail dl {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(0, 3fr);
+  gap: 10px;
+}
+.login-audit-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

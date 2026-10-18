@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+全局认证、MFA、会话签发、原生复核、CSV 和独立平台通知见[平台登录审计](./LOGIN-AUDIT.md)。
+
 真实 SSH 探测的阈值/离线/无数据规则、静默、确认、恢复和通知见[监控告警](./MONITOR-ALERTS.md)。
 
 站内信、邮件、Webhook、自定义短信、联系方式验证和送达恢复见[通知中心](./NOTIFICATIONS.md)。

@@ -44,10 +44,12 @@ func loginAuthSource(r *http.Request, user coreauth.User) string {
 // Only freshly authenticated sessions enter this gate. Standing API credentials
 // pass deny rules without creating another primary-authentication review.
 func prepareNewLogin(w http.ResponseWriter, r *http.Request, session coreauth.LoginSession, secure bool) bool {
+	loginAuditSubject(r, session.User)
 	d := policyDependencies(r)
 	origin := accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(r.Context())}
 	decision, e := checkAccessPolicies(d, session.User, coreassets.Asset{}, origin, true)
 	fail := func(err error) {
+		markLoginAudit(r, "denied", "source_policy")
 		if d.Auth != nil {
 			_ = d.Auth.RevokeToken(session.AccessToken)
 		}
@@ -96,6 +98,8 @@ func prepareNewLogin(w http.ResponseWriter, r *http.Request, session coreauth.Lo
 		writeLoginReviewError(w, e)
 		return false
 	}
+	loginAuditReview(r, item.ID, in.AuthSource)
+	markLoginAudit(r, "review_pending", "review_required")
 	setNoStore(w)
 	setExpiredSessionCookie(w, r)
 	setReviewCookie(w, r, ticket, item.ExpiresAt, in.Secure)
@@ -220,6 +224,7 @@ func registerPlatformLoginReviewRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		result, e := d.LoginReviews.Complete(ticket, accesspolicies.SourceIP(r.Context()), func(p loginreviews.Payload) (coreauth.LoginSession, error) {
+			loginAuditReview(r, p.ID, p.AuthSource)
 			if e := checkReviewedLogin(d, p); e != nil {
 				return coreauth.LoginSession{}, e
 			}
@@ -231,6 +236,9 @@ func registerPlatformLoginReviewRoutes(mux *http.ServeMux, d Dependencies) {
 		}, d.Auth.RevokeToken)
 		if e != nil {
 			writeLoginReviewError(w, e)
+			return
+		}
+		if !commitLoginAudit(w, r, result.Session) {
 			return
 		}
 		clearReviewCookie(w, r)

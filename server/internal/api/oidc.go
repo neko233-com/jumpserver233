@@ -100,6 +100,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		setOIDCCookie(w, r, d, oidcFlowCookie, start.Proof, start.Expires)
+		markLoginAudit(r, "started", "")
 		http.Redirect(w, r, start.URL, http.StatusSeeOther)
 	})
 	mux.HandleFunc("GET /api/v1/authentication/oidc/callback", func(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +108,10 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		proof := oidcCookieValue(r, oidcFlowCookie)
 		setOIDCCookie(w, r, d, oidcFlowCookie, "", time.Unix(1, 0))
-		fail := func() { http.Redirect(w, r, d.OIDC.ReturnURL("/login?sso_error=1"), http.StatusSeeOther) }
+		fail := func() {
+			markLoginAudit(r, "failed", "flow_rejected")
+			http.Redirect(w, r, d.OIDC.ReturnURL("/login?sso_error=1"), http.StatusSeeOther)
+		}
 		if r.URL.Query().Get("error") != "" {
 			fail()
 			return
@@ -127,6 +131,8 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
+		loginAuditSubject(r, user)
+		markLoginAudit(r, "external_verified", "external_identity_verified")
 		setOIDCCookie(w, r, d, oidcPendingCookie, ticket, time.Now().Add(5*time.Minute))
 		http.Redirect(w, r, d.OIDC.ReturnURL("/login?sso=continue"), http.StatusSeeOther)
 	})
@@ -159,6 +165,9 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		attemptKey := "oidc-user:" + p.UserID
+		if u, ok := d.Auth.UserByID(p.UserID); ok {
+			loginAuditSubject(r, u)
+		}
 		if retry, ok := attempts.reserve(attemptKey, time.Now()); !ok {
 			w.Header().Set("Retry-After", strconv.Itoa(retry))
 			writeJSON(w, 429, map[string]string{"detail": "SSO second-factor attempt limit reached"})
@@ -184,6 +193,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			var setup *coreauth.MFASetupChallenge
 			session, setup, err = d.Auth.AuthenticateOIDCUser(p.UserID, input.OTP)
 			if err == nil && setup != nil {
+				markLoginAudit(r, "challenge", "enrollment_required")
 				if d.OIDC.SetSetup(ticket, setup.Token) != nil {
 					writeOIDCError(w, oidclogin.ErrFlow)
 					return
@@ -194,6 +204,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 		}
 		if err != nil {
 			if errors.Is(err, coreauth.ErrOTPRequired) {
+				markLoginAudit(r, "challenge", "second_factor_required")
 				writeJSON(w, 401, map[string]bool{"mfa_required": true})
 				return
 			}

@@ -193,6 +193,7 @@ func registerPasskeyRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		setPasskeyCookie(w, r, d, passkeyLoginCookie, start.Token, 300)
+		markLoginAudit(r, "started", "")
 		writeJSON(w, 200, start.Options)
 	})
 	mux.HandleFunc("POST /api/v1/authentication/passkey/verify", func(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +220,7 @@ func registerPasskeyRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		setPasskeyCookie(w, r, d, passkeyPendingCookie, pending, 300)
+		markLoginAudit(r, "external_verified", "external_identity_verified")
 		writeJSON(w, 200, map[string]bool{"pending": true})
 	})
 	mux.HandleFunc("GET /api/v1/authentication/passkey/pending", func(w http.ResponseWriter, r *http.Request) {

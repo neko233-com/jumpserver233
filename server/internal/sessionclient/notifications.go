@@ -29,9 +29,19 @@ type NotificationSourceDetails struct {
 	Resolved  int       `json:"resolved,omitempty"`
 }
 
+func (c *Client) WithPlatformNotifications() *Client {
+	copy := *c
+	copy.platformNotifications = true
+	return &copy
+}
+
 func (c *Client) NotificationSource(ctx context.Context, kind, id string) (NotificationSourceDetails, error) {
 	var out NotificationSourceDetails
 	switch kind {
+	case "platform-logins":
+		if !c.platformNotifications {
+			return out, fmt.Errorf("invalid notification source kind")
+		}
 	case "access-reviews", "job-security", "command-reviews", "command-alerts", "agent-events", "account-risks":
 	default:
 		return out, fmt.Errorf("invalid notification source kind")

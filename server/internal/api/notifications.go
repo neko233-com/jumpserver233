@@ -25,6 +25,13 @@ func notificationPrincipal(ctx context.Context, d Dependencies, id string) (noti
 		return notifications.Principal{}, notifications.ErrDenied
 	}
 	p := effectivePermissions(u, d.RBAC, d.Groups)
+	if d.PlatformNotifications {
+		var ok bool
+		u, p, ok = globalLoginActor(d, id)
+		if !ok {
+			return notifications.Principal{}, notifications.ErrDenied
+		}
+	}
 	return notifications.Principal{Actor: notifications.Actor{ID: u.ID, Name: u.Username}, CanManage: p.Allows("notifications.manage"), CanAudit: p.Allows("notifications.audit"), CanRetry: p.Allows("notifications.retry")}, nil
 }
 func notificationError(w http.ResponseWriter, e error) {
@@ -111,6 +118,9 @@ func registerNotificationRoutes(mux *http.ServeMux, d Dependencies) {
 		}, Link: func(e eventfeed.Event) string { return "/console/rotation-plans?run=" + url.QueryEscape(e.ResourceID) }})
 	}
 	runner.Feeds = append(runner.Feeds, securityNotificationFeeds(d)...)
+	if d.PlatformNotifications {
+		runner.Feeds = platformLoginNotificationFeeds(d)
+	}
 	s.SetRunner(runner)
 	handle := func(pattern string, h func(http.ResponseWriter, *http.Request, string)) {
 		mux.Handle(pattern, protectAuthenticatedAPI(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +163,18 @@ func registerNotificationRoutes(mux *http.ServeMux, d Dependencies) {
 		}
 		return offset, limit, true
 	}
-	const base = "/api/v1/notifications"
+	base := "/api/v1/notifications"
+	if d.PlatformNotifications {
+		base = "/api/v1/platform-notifications"
+	}
+	handle("GET "+base+"/capabilities", func(w http.ResponseWriter, r *http.Request, id string) {
+		p, e := notificationPrincipal(r.Context(), d, id)
+		if e != nil {
+			notificationError(w, e)
+			return
+		}
+		writeJSON(w, 200, map[string]bool{"manage": p.CanManage, "audit": p.CanAudit, "retry": p.CanRetry, "platform": d.PlatformNotifications})
+	})
 	handle("GET "+base+"/sources/{kind}/{id}", func(w http.ResponseWriter, r *http.Request, id string) {
 		out, e := notificationSourceDetails(r.Context(), d, id, r.PathValue("kind"), r.PathValue("id"))
 		respond(w, out, e)
