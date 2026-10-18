@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { usePermissions } from "../auth/usePermissions";
+import "../i18n/locales/features/operations/register";
+import OperationScheduleFields from "./OperationScheduleFields";
+import { scheduleDraft, schedulePayload, type ScheduledPlan } from "./operationSchedules";
+const OperationScheduleEditor = lazy(() => import("./OperationScheduleEditor"));
 
 type Asset = { id: string; name: string; username: string };
 type Template = {
@@ -10,7 +14,8 @@ type Template = {
   timeout_seconds: number;
   revision: number;
 };
-type Plan = {
+type Plan = ScheduledPlan & {
+  host_plugin?: object;
   account_discovery?: object;
   config_revision?: number;
   id: string;
@@ -31,6 +36,10 @@ type Item = {
   error_code?: string;
 };
 type Run = {
+  scheduled_for?: string;
+  plan_revision?: number;
+  lateness_seconds?: number;
+  coalesced?: boolean;
   id: string;
   owner_id: string;
   name: string;
@@ -52,6 +61,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
   const [open, setOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [planTotal, setPlanTotal] = useState(0);
   const [planOffset, setPlanOffset] = useState(0);
   const [runs, setRuns] = useState<Run[]>([]);
   const [offset, setOffset] = useState(0);
@@ -62,9 +72,8 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
   const [command, setCommand] = useState("");
   const [timeout, setTimeoutSeconds] = useState(60);
   const [templateID, setTemplateID] = useState("");
-  const [kind, setKind] = useState("batch");
-  const [runAt, setRunAt] = useState("");
-  const [interval, setIntervalSeconds] = useState(3600);
+  const [schedule, setSchedule] = useState(() => scheduleDraft());
+  const [schedulePlan, setSchedulePlan] = useState<Plan | null>(null);
   const [editing, setEditing] = useState<Template | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [templateCommand, setTemplateCommand] = useState("");
@@ -73,25 +82,32 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const requestID = useRef("");
+  const reading = useRef(false);
   const resetID = () => {
     requestID.current = "";
     setMessage("");
+    setError(false);
   };
   const load = useCallback(
     async (signal?: AbortSignal) => {
+      if (reading.current) return;
+      reading.current = true;
       try {
         const responses = await Promise.all([
           request("/api/v1/ops/templates", { signal }),
-          request("/api/v1/ops/plans", { signal }),
+          request(`/api/v1/ops/plans?offset=${planOffset}&limit=50`, { signal }),
           request(`/api/v1/ops/runs?limit=50&offset=${offset}`, { signal }),
         ]);
         if (responses.some((r) => !r.ok)) throw new Error("operations unavailable");
         const [templateData, planData, runData] = (await Promise.all(
           responses.map((r) => r.json()),
-        )) as [Template[], Plan[], { results: Run[]; total: number }];
+        )) as [Template[], { results: Plan[]; total: number }, { results: Run[]; total: number }];
         if (signal?.aborted) return;
         setTemplates(templateData);
-        setPlans(planData);
+        setPlans(planData.results);
+        setPlanTotal(planData.total);
+        if (planOffset >= planData.total && planOffset > 0)
+          setPlanOffset(Math.floor(Math.max(0, planData.total - 1) / 50) * 50);
         setRuns(runData.results);
         setTotal(runData.total);
         setSelected((previous) =>
@@ -100,9 +116,11 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
         setError(false);
       } catch {
         if (!signal?.aborted) setError(true);
+      } finally {
+        reading.current = false;
       }
     },
-    [offset, request],
+    [offset, planOffset, request],
   );
   useEffect(() => {
     if (!open) return;
@@ -111,7 +129,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
       if (!controller.signal.aborted) void load(controller.signal);
     });
     const timer = window.setInterval(() => {
-      void load(controller.signal);
+      if (document.visibilityState === "visible") void load(controller.signal);
     }, 3000);
     return () => {
       controller.abort();
@@ -181,11 +199,9 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
       const body = {
         name,
         asset_ids: targets,
-        kind,
+        ...schedulePayload(schedule),
         request_id: requestID.current,
         ...(templateID ? { template_id: templateID } : { command, timeout_seconds: timeout }),
-        ...(kind !== "batch" && runAt ? { run_at: new Date(runAt).toISOString() } : {}),
-        ...(kind === "interval" ? { interval_seconds: interval } : {}),
       };
       const response = await request("/api/v1/ops/plans", {
         method: "POST",
@@ -208,7 +224,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
         method: "PUT",
         body: JSON.stringify({
           enabled: !plan.enabled,
-          ...(plan.account_discovery ? { revision: plan.config_revision } : {}),
+          revision: plan.config_revision,
         }),
       });
       if (!response.ok) throw new Error("plan update failed");
@@ -235,7 +251,13 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
   }
   const time = (value?: string) => (value ? new Date(value).toLocaleString(i18n.language) : "—");
   return (
-    <details className="operations-panel" onToggle={(event) => setOpen(event.currentTarget.open)}>
+    <details
+      className="operations-panel"
+      onToggle={(event) => {
+        setOpen(event.currentTarget.open);
+        if (!event.currentTarget.open) setSchedulePlan(null);
+      }}
+    >
       <summary>{t("operations.title")}</summary>
       {open && (
         <div>
@@ -407,52 +429,15 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                 </label>
               </>
             )}
-            <label>
-              {t("operations.kind")}
-              <select
-                value={kind}
-                onChange={(event) => {
-                  setKind(event.target.value);
-                  setRunAt("");
-                  resetID();
-                }}
-              >
-                <option value="batch">{t("operations.kinds.batch")}</option>
-                <option value="once">{t("operations.kinds.once")}</option>
-                <option value="interval">{t("operations.kinds.interval")}</option>
-              </select>
-            </label>
-            {kind !== "batch" && (
-              <label>
-                {t("operations.runAt")}
-                <input
-                  type="datetime-local"
-                  step={1}
-                  required={kind === "once"}
-                  value={runAt}
-                  onChange={(event) => {
-                    setRunAt(event.target.value);
-                    resetID();
-                  }}
-                />
-              </label>
-            )}
-            {kind === "interval" && (
-              <label>
-                {t("operations.interval")}
-                <input
-                  type="number"
-                  required
-                  min={60}
-                  max={2678400}
-                  value={interval}
-                  onChange={(event) => {
-                    setIntervalSeconds(Number(event.target.value));
-                    resetID();
-                  }}
-                />
-              </label>
-            )}
+            <OperationScheduleFields
+              value={schedule}
+              onChange={(value) => {
+                setSchedule(value);
+                resetID();
+              }}
+              request={request}
+              disabled={busy}
+            />
             <button type="submit" disabled={busy || targets.length < 1 || targets.length > 50}>
               {t("operations.create")}
             </button>
@@ -470,22 +455,37 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {plans.slice(planOffset, planOffset + 50).map((plan) => (
+                {plans.map((plan) => (
                   <tr key={plan.id}>
                     <td>{plan.name}</td>
                     <td>
                       {t(
                         plan.account_discovery
                           ? "accountSchedule.title"
-                          : `operations.kinds.${plan.kind}`,
+                          : plan.kind === "cron"
+                            ? "calendar.kindCron"
+                            : `operations.kinds.${plan.kind}`,
                       )}
                     </td>
                     <td>{time(plan.next_run)}</td>
                     <td>
                       {t(plan.enabled ? "operations.enabled" : "operations.paused")}
-                      {plan.error_code && <p>{t(`operations.errors.${plan.error_code}`)}</p>}
+                      {plan.error_code && (
+                        <p>
+                          {t(`operations.errors.${plan.error_code}`, {
+                            defaultValue: t(`calendar.errors.${plan.error_code}`, {
+                              defaultValue: t("operations.dispatchError"),
+                            }),
+                          })}
+                        </p>
+                      )}
                     </td>
                     <td>
+                      {!plan.account_discovery && !plan.host_plugin && (
+                        <button type="button" onClick={() => setSchedulePlan(plan)}>
+                          {t("calendar.edit")}
+                        </button>
+                      )}
                       {(plan.owner_id === userID || allows("plans.manage_all")) &&
                         plan.kind !== "batch" &&
                         !(plan.kind === "once" && plan.last_run_id) && (
@@ -520,10 +520,10 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
             >
               {t("jobs.previous")}
             </button>
-            <span>{t("operations.planCount", { count: plans.length })}</span>
+            <span>{t("operations.planCount", { count: planTotal })}</span>
             <button
               type="button"
-              disabled={planOffset + 50 >= plans.length}
+              disabled={planOffset + 50 >= planTotal}
               onClick={() => setPlanOffset(planOffset + 50)}
             >
               {t("jobs.next")}
@@ -594,6 +594,15 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                 </button>
               </header>
               <p>{t(`operations.states.${selected.state}`)}</p>
+              {selected.scheduled_for && (
+                <p>
+                  {t("calendar.scheduledFor")}:{" "}
+                  <time dateTime={selected.scheduled_for}>{time(selected.scheduled_for)}</time> ·{" "}
+                  {t("calendar.revision")}: {selected.plan_revision} · {t("calendar.lateness")}:{" "}
+                  {selected.lateness_seconds || 0}
+                  {selected.coalesced && <> · {t("calendar.coalesced")}</>}
+                </p>
+              )}
               <ul>
                 {selected.items.map((item) => (
                   <li key={item.asset_id}>
@@ -622,6 +631,20 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
             </section>
           )}
         </div>
+      )}
+      {schedulePlan && (
+        <Suspense fallback={null}>
+          <OperationScheduleEditor
+            plan={schedulePlan}
+            editable={schedulePlan.owner_id === userID || allows("plans.manage_all")}
+            request={request}
+            onSaved={() => {
+              setSchedulePlan(null);
+              void load();
+            }}
+            onClose={() => setSchedulePlan(null)}
+          />
+        </Suspense>
       )}
     </details>
   );

@@ -33,7 +33,7 @@ CLI 默认将远端 stdout/stderr 分别写到本地对应流，作业 ID 写入
 - 全局最多同时执行 8 个作业、每用户 2 个；每用户最多 20 个待审批作业；审计最多 1000 条，达到后拒绝新作业，不自动删除旧审计。
 - 取消、超时或节点关闭会关闭 SSH 传输；远端自行脱离会话的子进程可能继续运行，必须通过后续运维检查确认。
 - 重启或 HA 接管把未完成作业标记为中断，不自动重放。失去选主锁的旧节点停止写作业文档。最终审计保存失败显示 `audit_unavailable`，重试前应确认远端实际结果。
-- 当前提供 SSH 命令作业、批量派发、模板及间隔调度。Playbook/Ansible、cron/日历调度及其他工单类型仍待实现；授权工单和外部通知见 [访问工单](./ACCESS-TICKETS.md) 与 [通知中心](./NOTIFICATIONS.md)。
+- 当前提供 SSH 命令作业、批量派发、模板及间隔调度。Playbook/Ansible 及其他工单类型仍待实现；cron/日历调度见[日历计划](./SCHEDULING.md)；授权工单和外部通知见 [访问工单](./ACCESS-TICKETS.md) 与 [通知中心](./NOTIFICATIONS.md)。
 
 ## 批量、模板与调度
 
@@ -51,7 +51,7 @@ CLI 默认将远端 stdout/stderr 分别写到本地对应流，作业 ID 写入
 
 模板：`GET/POST /api/v1/ops/templates`、`PUT /api/v1/ops/templates/{id}`、`DELETE /api/v1/ops/templates/{id}?revision=N`。创建/更新内容 `{name, command, timeout_seconds, revision}`。
 
-计划：`GET/POST /api/v1/ops/plans`。创建内容 `{name, asset_ids, command, timeout_seconds, kind, request_id}`；使用 `template_id` 时省略 `command`；`kind` 为 `batch`、`once`（必填未来 `run_at`）或 `interval`（必填 `interval_seconds`，可选未来 `run_at`）。`PUT /api/v1/ops/plans/{id}` 的 `{enabled: true|false}` 暂停/恢复未完成计划。
+计划：`GET/POST /api/v1/ops/plans`。创建内容 `{name, asset_ids, command, timeout_seconds, kind, request_id}`；使用 `template_id` 时省略 `command`；`kind` 为 `batch`、`once`（必填未来 `run_at`）、`interval`（必填 `interval_seconds`，可选未来 `run_at`）或 `cron`（五段 `cron_expression` 与显式 `timezone`）。`PUT /api/v1/ops/plans/{id}` 的 `{enabled: true|false, revision: N}` 暂停/恢复未完成计划。
 
 执行：`GET /api/v1/ops/runs?limit=50&offset=0`、`GET /api/v1/ops/runs/{id}`、`POST /api/v1/ops/runs/{id}/cancel`。每个目标包含 `state`、`job_id`、`review_id` 或 `error_code`，通过作业详情读取实际输出。
 

@@ -2,6 +2,17 @@
 
 > [中文](./TESTING.md) | English
 
+## Unified calendar-scheduling acceptance (2026-10-18)
+
+- Implementation, automated cases and bilingual documentation were authored as one batch before verification. Final full production browser regression: pnpm test:e2e:production, 77/77 pass, zero failures/skips, 17.9m, runner exit 0. Fresh temporary data and real protocol/native fixtures were cleaned; existing debug environments remain. All 957 implementation, configuration and test-source fingerprints stayed unchanged.
+- Full Go: 66 packages, 1,143 passing tests, 35 platform/missing-protocol-fixture skips, zero failures, exit 0, with real OpenSSH, PostgreSQL and RDP. Linux Docker race: 5 related packages, 316 pass, 4 missing-protocol-fixture skips, zero failures, exit 0. These runs overlap and must not be added.
+- Testify covers five fields, UTC/IANA, DST gaps/full-hour and half-hour folds, century leap years, windows, coalesce/skip, concurrent claims, clock rollback, revision conflicts, atomic audit, creation idempotency, template deletion, legacy migration and PostgreSQL organization takeover. API/SDK/CLI cases cover current rights, paging and input/response bounds.
+- Complete production Docker feature flow: 1/1 pass, no failures/skips, runner 11.2 seconds. Real SSH minute dispatch, Web creation/preview, conflict reload, editing, pause/resume, CLI, revoked rights, English desktop and Chinese 390px pass without pageerrors. Actual minute waits vary; this timing is not a fixed upper bound. The in-app browser separately verified the Chinese dialog, UTC/schedule-local preview, change audit and no warnings/errors.
+- Clean empty-volume Docker browser smoke with port and peer-instance isolation passes: cached build 3.25 seconds, startup 12.25, checks 4.30, about 19.8 total, with disposable resources cleaned. Retained debug: http://127.0.0.37:15198/workbench, API 18105, loopback only.
+- Vet, full Go build, lint, strict frontend/E2E type checks, production build, 10 Docker helper tests and 6 frontend helper tests pass. Content has 2,771 keys per locale and 120 bilingual documents; final link checks report no errors. Existing ignore rules cover caches, logs, reports and generated artifacts.
+- The first full regression was 76/77 (17.5 minutes): an existing organization-isolation CLI child failed without enough output to establish a cause; its trace is retained. Credential-free exit-code/signal/job-state diagnostics were added before the complete fresh-environment rerun reported above. Runs are not added. New-fixture route dependencies and a creation-response wait were also corrected; the final case checks rendered success and the native API. Full Enterprise parity, Playbook/Ansible and production active-active remain open. Semantics, retention and v3 migration are in [Calendar schedules](./SCHEDULING.en.md).
+
+
 ## Operations reports and native login animation (2026-10-18)
 
 - Final complete production browser regression: `pnpm test:e2e:production`, 76/76 pass, zero failures/skips, 16.8 minutes, runner exit 0. Fresh temporary data, real protocols and native service fixtures were cleaned; existing debug environments remain. Reports, login animation and the existing full business flows are covered by this run.

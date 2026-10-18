@@ -33,7 +33,7 @@ By default the CLI writes remote stdout/stderr to the corresponding local stream
 - At most eight jobs run globally and two per user. Each user can have 20 pending reviews. The store holds 1000 audit records; new jobs are refused at capacity, without silently deleting old audits.
 - Cancellation, timeout, or node shutdown closes the SSH transport. Detached remote descendants may continue; verify them separately when needed.
 - Restart or HA takeover marks unfinished jobs interrupted without replay. A node that loses its election lock stops writing job documents. Failure to persist the final audit reports `audit_unavailable`; verify the remote outcome before retrying.
-- Current coverage includes SSH jobs, batch dispatch, templates, and interval schedules. Playbook/Ansible, cron/calendar scheduling and other ticket types remain open; access tickets and external notifications are covered in [Access tickets](./ACCESS-TICKETS.en.md) and [Notifications](./NOTIFICATIONS.en.md).
+- Current coverage includes SSH jobs, batch dispatch, templates, and interval schedules. Playbook/Ansible and other ticket types remain open; cron/calendar scheduling is described in [Calendar schedules](./SCHEDULING.en.md); access tickets and external notifications are covered in [Access tickets](./ACCESS-TICKETS.en.md) and [Notifications](./NOTIFICATIONS.en.md).
 
 ## Batches, templates, and schedules
 
@@ -51,7 +51,7 @@ Expand “Batch commands and schedules” in the workbench, select 1–50 author
 
 Templates: `GET/POST /api/v1/ops/templates`, `PUT /api/v1/ops/templates/{id}`, and `DELETE /api/v1/ops/templates/{id}?revision=N`. Create/update fields are `{name, command, timeout_seconds, revision}`.
 
-Plans: `GET/POST /api/v1/ops/plans`. Create fields are `{name, asset_ids, command, timeout_seconds, kind, request_id}`. With `template_id`, omit `command`. Kind is `batch`, `once` (requires future `run_at`), or `interval` (requires `interval_seconds`, optional future `run_at`). `PUT /api/v1/ops/plans/{id}` with `{enabled: true|false}` pauses/resumes unfinished plans.
+Plans: `GET/POST /api/v1/ops/plans`. Create fields are `{name, asset_ids, command, timeout_seconds, kind, request_id}`. With `template_id`, omit `command`. Kind is `batch`, `once` (requires future `run_at`), `interval` (requires `interval_seconds`, optional future `run_at`), or `cron` (five-field `cron_expression` and explicit `timezone`). `PUT /api/v1/ops/plans/{id}` with `{enabled: true|false, revision: N}` pauses/resumes unfinished plans.
 
 Runs: `GET /api/v1/ops/runs?limit=50&offset=0`, `GET /api/v1/ops/runs/{id}`, and `POST /api/v1/ops/runs/{id}/cancel`. Each target exposes `state`, `job_id`, `review_id`, or `error_code`. Job details contain actual output.
 

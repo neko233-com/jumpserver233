@@ -54,12 +54,22 @@ type PlanInput struct {
 	Command         string                `json:"command"`
 	TimeoutSeconds  int                   `json:"timeout_seconds"`
 	TemplateID      string                `json:"template_id,omitempty"`
-	Kind            string                `json:"kind"` // batch, once, interval
+	Kind            string                `json:"kind"` // batch, once, interval, cron
 	RunAt           time.Time             `json:"run_at,omitzero"`
 	IntervalSeconds int                   `json:"interval_seconds,omitempty"`
+	CronExpression  string                `json:"cron_expression,omitempty"`
+	Timezone        string                `json:"timezone,omitempty"`
+	EndAt           time.Time             `json:"end_at,omitzero"`
+	MisfirePolicy   string                `json:"misfire_policy,omitempty"`
+	GraceSeconds    int                   `json:"grace_seconds,omitempty"`
+	FoldPolicy      string                `json:"fold_policy,omitempty"`
 	RequestID       string                `json:"request_id"`
 }
 type Plan struct {
+	CreationHash        string                      `json:"creation_hash,omitempty"`
+	LastScheduledAt     time.Time                   `json:"last_scheduled_at,omitzero"`
+	CalendarWatermark   string                      `json:"calendar_watermark,omitempty"`
+	SkippedTriggers     uint64                      `json:"skipped_triggers,omitempty"`
 	Discovery           *accountdiscovery.Operation `json:"account_discovery,omitempty"`
 	ConfigRevision      int                         `json:"config_revision,omitempty"`
 	HostPlugin          *hostplugins.Operation      `json:"host_plugin,omitempty"`
@@ -87,6 +97,10 @@ type Item struct {
 	RetryAt   time.Time `json:"retry_at,omitzero"`
 }
 type Run struct {
+	ScheduledFor        time.Time                   `json:"scheduled_for,omitzero"`
+	PlanRevision        int                         `json:"plan_revision,omitempty"`
+	LatenessSeconds     int64                       `json:"lateness_seconds,omitempty"`
+	Coalesced           bool                        `json:"coalesced,omitempty"`
 	Owner               string                      `json:"owner,omitempty"`
 	Discovery           *accountdiscovery.Operation `json:"account_discovery,omitempty"`
 	HostPlugin          *hostplugins.Operation      `json:"host_plugin,omitempty"`
@@ -111,9 +125,10 @@ type Submission struct {
 }
 type SubmitFunc func(ownerID string, input jobs.Input, reviewID string) (Submission, error)
 type state struct {
-	Templates map[string]Template `json:"templates"`
-	Plans     map[string]Plan     `json:"plans"`
-	Runs      map[string]Run      `json:"runs"`
+	ScheduleEvents []ScheduleEvent     `json:"schedule_events,omitempty"`
+	Templates      map[string]Template `json:"templates"`
+	Plans          map[string]Plan     `json:"plans"`
+	Runs           map[string]Run      `json:"runs"`
 }
 type envelope struct {
 	Version    int    `json:"version"`
@@ -169,7 +184,7 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 	formatVersion := 1
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version != 1 && e.Version != 2 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 3 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid operations store")
 		}
@@ -179,13 +194,14 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 			cancel()
 			return nil, err
 		}
-		if json.Unmarshal(plain, &s.data) != nil || s.data.Templates == nil || s.data.Plans == nil || s.data.Runs == nil || len(s.data.Templates) > 500 || len(s.data.Plans) > 1000 || len(s.data.Runs) > 1000 {
+		if json.Unmarshal(plain, &s.data) != nil || s.data.Templates == nil || s.data.Plans == nil || s.data.Runs == nil || len(s.data.Templates) > 500 || len(s.data.Plans) > 1000 || len(s.data.Runs) > 1000 || len(s.data.ScheduleEvents) > 4000 {
 			cancel()
 			return nil, fmt.Errorf("invalid operations records")
 		}
 	}
-	for _, p := range s.data.Plans {
-		if p.Discovery != nil && formatVersion != 2 {
+	changed := false
+	for id, p := range s.data.Plans {
+		if p.Discovery != nil && formatVersion < 2 {
 			cancel()
 			return nil, ErrInvalid
 		}
@@ -197,12 +213,26 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 			cancel()
 			return nil, ErrInvalid
 		}
+		if _, e := normalizeSchedule(scheduleOf(p.PlanInput), time.Now().UTC(), true); e != nil || p.Kind == "cron" && (formatVersion < 3 || p.ConfigRevision < 1 || p.Enabled && p.NextRun.IsZero()) {
+			cancel()
+			return nil, ErrInvalid
+		}
+		if p.ConfigRevision == 0 {
+			p.ConfigRevision = 1
+			changed = true
+		}
+		if p.HostPlugin == nil && p.Discovery == nil && p.CreationHash == "" {
+			original := p.PlanInput
+			original.Origin = p.AccessOrigin
+			p.CreationHash = creationHash(original)
+			changed = true
+		}
+		s.data.Plans[id] = p
 	}
 	// A persisted claim may have crossed the SSH boundary. Link an existing
 	// idempotent job, otherwise mark interrupted; never submit the claim again.
-	changed := false
 	for id, run := range s.data.Runs {
-		if run.Discovery != nil && formatVersion != 2 {
+		if run.Discovery != nil && formatVersion < 2 {
 			cancel()
 			return nil, ErrInvalid
 		}
@@ -269,6 +299,7 @@ func clone(in state) state {
 		r.Discovery = cloneDiscovery(r.Discovery)
 		out.Runs[id] = r
 	}
+	out.ScheduleEvents = append([]ScheduleEvent(nil), in.ScheduleEvents...)
 	return out
 }
 func (s *Service) mutate(fn func(*state) error) error {
@@ -391,26 +422,11 @@ func (s *Service) Prepare(owner string, in PlanInput) (PlanInput, int, error) {
 	}
 	in.Command = validated.Command
 	in.TimeoutSeconds = validated.TimeoutSeconds
-	now := s.now().UTC()
-	if !in.RunAt.IsZero() {
-		in.RunAt = in.RunAt.UTC()
+	c, e := normalizeSchedule(scheduleOf(in), s.now().UTC(), false)
+	if e != nil {
+		return in, 0, e
 	}
-	switch in.Kind {
-	case "batch":
-		if !in.RunAt.IsZero() || in.IntervalSeconds != 0 {
-			return in, 0, ErrInvalid
-		}
-	case "once":
-		if !in.RunAt.After(now) || in.IntervalSeconds != 0 {
-			return in, 0, ErrInvalid
-		}
-	case "interval":
-		if in.IntervalSeconds < 60 || in.IntervalSeconds > 31*86400 || (!in.RunAt.IsZero() && !in.RunAt.After(now)) {
-			return in, 0, ErrInvalid
-		}
-	default:
-		return in, 0, ErrInvalid
-	}
+	applySchedule(&in, c)
 	return in, revision, nil
 }
 
@@ -432,7 +448,11 @@ func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, 
 					expected.ParentAssetID = parent
 					expected.Account = account
 				}
-				if !reflect.DeepEqual(previous, in) || !reflect.DeepEqual(p.HostPlugin, plugin) || !reflect.DeepEqual(p.Discovery, expected) {
+				same := reflect.DeepEqual(previous, in)
+				if p.CreationHash != "" && plugin == nil && discovery == nil {
+					same = p.CreationHash == creationHash(in)
+				}
+				if !same || !reflect.DeepEqual(p.HostPlugin, plugin) || !reflect.DeepEqual(p.Discovery, expected) {
 					return ErrConflict
 				}
 				result = p
@@ -461,14 +481,18 @@ func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, 
 			return err
 		}
 		now := s.now().UTC()
-		due := in.RunAt
-		if due.IsZero() {
+		due, e := firstOccurrence(scheduleOf(in), now)
+		if e != nil {
+			return ErrInvalid
+		}
+		if discovery != nil && in.RunAt.IsZero() {
 			due = now
-			if in.Kind == "interval" && discovery == nil {
-				due = now.Add(time.Duration(in.IntervalSeconds) * time.Second)
-			}
 		}
 		result = Plan{HostPlugin: clonePlugin(plugin), CollectionAccount: account, CollectionAssetName: assetName, AccessOrigin: in.Origin, ID: id, OwnerID: ownerID, Owner: owner, PlanInput: in, TemplateRevision: revision, Enabled: true, NextRun: due, CreatedAt: now}
+		result.ConfigRevision = 1
+		if plugin == nil && discovery == nil {
+			result.CreationHash = creationHash(in)
+		}
 		if discovery != nil {
 			result.Discovery = cloneDiscovery(discovery)
 			result.Discovery.PlanID = id
@@ -478,6 +502,9 @@ func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, 
 		}
 		result.AssetIDs = append([]string(nil), in.AssetIDs...)
 		next.Plans[id] = result
+		if plugin == nil && discovery == nil {
+			return appendScheduleEvent(next, result, Schedule{}, "created", ScheduleActor{ownerID, owner}, now)
+		}
 		return nil
 	})
 	result.HostPlugin = clonePlugin(result.HostPlugin)
@@ -497,7 +524,12 @@ func (s *Service) Plans(owner string) []Plan {
 			items = append(items, p)
 		}
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.After(items[j].CreatedAt) })
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].ID < items[j].ID
+		}
+		return items[i].CreatedAt.After(items[j].CreatedAt)
+	})
 	return items
 }
 func (s *Service) Plan(id string) (Plan, error) {
@@ -513,28 +545,8 @@ func (s *Service) Plan(id string) (Plan, error) {
 	return p, nil
 }
 func (s *Service) SetEnabled(id string, enabled bool) error {
-	return s.mutate(func(next *state) error {
-		p, ok := next.Plans[id]
-		if !ok {
-			return ErrNotFound
-		}
-		if p.Kind == "batch" || p.Kind == "once" && p.LastRunID != "" {
-			return ErrConflict
-		}
-		if p.Discovery != nil {
-			return ErrConflict
-		}
-		p.Enabled = enabled
-		p.ErrorCode = ""
-		if enabled && !p.NextRun.After(s.now()) {
-			if p.Kind == "once" {
-				return ErrConflict
-			}
-			p.NextRun = s.now().UTC().Add(time.Duration(p.IntervalSeconds) * time.Second)
-		}
-		next.Plans[id] = p
-		return nil
-	})
+	_, e := s.SetEnabledRevision(id, enabled, 0, ScheduleActor{})
+	return e
 }
 func (s *Service) Runs(owner string, offset, limit int) ([]Run, int) {
 	s.mu.Lock()
@@ -634,7 +646,15 @@ func (s *Service) Tick() {
 			if !p.Enabled || p.NextRun.After(now) {
 				continue
 			}
-			if p.Kind == "interval" {
+			if !p.EndAt.IsZero() && !now.Before(p.EndAt) {
+				if e := endSchedule(next, &p, now); e != nil {
+					return e
+				}
+				next.Plans[id] = p
+				changed = true
+				continue
+			}
+			if p.Kind == "interval" || p.Kind == "cron" {
 				overlaps := false
 				for _, prior := range next.Runs {
 					if prior.PlanID == p.ID && (prior.State == "running" || prior.State == "waiting_review") {
@@ -642,9 +662,21 @@ func (s *Service) Tick() {
 						break
 					}
 				}
-				if overlaps {
-					p.NextRun = now.Add(time.Duration(p.IntervalSeconds) * time.Second)
-					p.ErrorCode = "previous_run_active"
+				misfire := p.Kind == "cron" && p.MisfirePolicy == "skip" && now.Sub(p.NextRun) > time.Duration(p.GraceSeconds)*time.Second
+				if overlaps || misfire {
+					markOccurrence(&p)
+					due, e := nextPlanOccurrence(p, now)
+					p.NextRun = due
+					p.SkippedTriggers++
+					p.ErrorCode = "missed_skipped"
+					if overlaps {
+						p.ErrorCode = "previous_run_active"
+					}
+					if e != nil {
+						if e := endSchedule(next, &p, now); e != nil {
+							return e
+						}
+					}
 					next.Plans[id] = p
 					changed = true
 					continue
@@ -680,6 +712,10 @@ func (s *Service) Tick() {
 				p.CollectionSequence++
 			}
 			r := Run{HostPlugin: clonePlugin(p.HostPlugin), CollectionSequence: p.CollectionSequence, CollectionAccount: p.CollectionAccount, CollectionAssetName: p.CollectionAssetName, AccessOrigin: origin, ID: runID, PlanID: p.ID, OwnerID: p.OwnerID, Name: p.Name, Command: p.Command, TimeoutSeconds: p.TimeoutSeconds, CreatedAt: now, State: "running", Items: []Item{}}
+			r.ScheduledFor = p.NextRun
+			r.PlanRevision = p.ConfigRevision
+			r.LatenessSeconds = max(0, int64(now.Sub(p.NextRun)/time.Second))
+			r.Coalesced = p.Kind == "cron" && r.LatenessSeconds > int64(p.GraceSeconds)
 			r.Owner = p.Owner
 			r.Discovery = cloneDiscovery(p.Discovery)
 			if r.Discovery != nil {
@@ -691,8 +727,14 @@ func (s *Service) Tick() {
 			next.Runs[runID] = r
 			p.LastRunID = runID
 			p.ErrorCode = ""
-			if p.Kind == "interval" {
-				p.NextRun = now.Add(time.Duration(p.IntervalSeconds) * time.Second)
+			markOccurrence(&p)
+			if p.Kind == "interval" || p.Kind == "cron" {
+				p.NextRun, err = nextPlanOccurrence(p, now)
+				if err != nil {
+					if e := endSchedule(next, &p, now); e != nil {
+						return e
+					}
+				}
 			} else {
 				p.Enabled = false
 				p.NextRun = time.Time{}
@@ -867,19 +909,7 @@ func (s *Service) persist(next state) error {
 	if _, err = rand.Read(nonce); err != nil {
 		return err
 	}
-	version := 1
-	for _, p := range next.Plans {
-		if p.Discovery != nil {
-			version = 2
-			break
-		}
-	}
-	for _, r := range next.Runs {
-		if r.Discovery != nil {
-			version = 2
-			break
-		}
-	}
+	version := 3
 	data, err := json.Marshal(envelope{Version: version, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte(fmt.Sprintf("jms233/operations/v%d", version)))})
 	if err != nil {
 		return err

@@ -355,7 +355,9 @@ test("executes two-host batches, snapshots templates for a scheduled run, and pa
     const date = new Date(Date.now() + 12_000);
     return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
   });
-  await panel.getByLabel("Start time (local time)", { exact: true }).fill(normalizeDateTimeLocal(localTime));
+  await panel
+    .getByLabel("Start time (local time)", { exact: true })
+    .fill(normalizeDateTimeLocal(localTime));
   await panel.getByRole("button", { name: "Create plan", exact: true }).click();
   await expect(panel.getByRole("status")).toHaveText("Plan created with a saved command snapshot.");
   await panel
@@ -2251,7 +2253,37 @@ test("isolates organization inventory, roles, monitoring, Web SSH and CLI, then 
         },
         timeout: 30_000,
       },
-    );
+    ).catch(async (error: unknown) => {
+      const failure = error as {
+        code?: string | number;
+        signal?: string;
+        killed?: boolean;
+        stdout?: string;
+      };
+      let job: Record<string, unknown> = {};
+      try {
+        const raw = JSON.parse(failure.stdout || "{}");
+        job = {
+          state: raw.state,
+          error_code: raw.error_code,
+          exit_code: raw.exit_code,
+          command: raw.command,
+        };
+      } catch {
+        /* Capture only structured synthetic-job diagnostics. */
+      }
+      const diagnostic = {
+        code: failure.code,
+        signal: failure.signal,
+        killed: failure.killed,
+        job,
+      };
+      await testInfo.attach("organization-cli-failure", {
+        body: JSON.stringify(diagnostic),
+        contentType: "application/json",
+      });
+      throw new Error(`Organization CLI failed: ${JSON.stringify(diagnostic)}`);
+    });
     expect(JSON.parse(result.stdout).state).toBe("succeeded");
     await page.goto("/console/organizations");
     await orgRow().getByRole("button", { name: "Manage members", exact: true }).click();

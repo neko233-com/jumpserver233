@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+SSH command plans support five-field cron, explicit timezones, DST, missed-run policies, previews, revisioned editing and change audit, with a complete Ops CLI. See [Calendar schedules](./SCHEDULING.en.md).
+
 Inventory, audit sources, UTC daily trends, current permissions and CSV digest receipts are covered in [Operations reports](./REPORTS.en.md).
 
 Global authentication, MFA, session grants, native reviews, CSV and independent platform notifications: [Platform sign-in audit](./LOGIN-AUDIT.en.md).

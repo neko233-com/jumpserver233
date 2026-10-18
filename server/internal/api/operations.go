@@ -23,6 +23,7 @@ func jobOwner(d Dependencies, id string) (coreauth.User, bool) {
 	return user, ok
 }
 func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(coreauth.User, string, string, accesspolicies.Origin) (string, string, commandfilters.Decision, int), accessMu *sync.RWMutex) {
+	registerCalendarRoutes(mux, d, authorize, accessMu)
 	protect := func(h http.HandlerFunc) http.Handler { return protectAuthenticatedAPI(h, d.AdminToken, d.Auth) }
 	visible := func(r *http.Request, user coreauth.User, owner, permission string) bool {
 		return hasPermission(r, permission) || user.ID == owner
@@ -70,6 +71,21 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 		if hasPermission(r, "plans.view_all") || hasPermission(r, "plans.manage_all") {
 			owner = ""
 		}
+		if r.URL.Query().Has("offset") || r.URL.Query().Has("limit") {
+			offset, e := strconv.Atoi(defaultQuery(r, "offset", "0"))
+			limit, e2 := strconv.Atoi(defaultQuery(r, "limit", "50"))
+			if e != nil || e2 != nil {
+				writeJobError(w, operations.ErrInvalid)
+				return
+			}
+			rows, total, e := d.Operations.PlanPage(owner, offset, limit)
+			if e != nil {
+				writeJobError(w, e)
+				return
+			}
+			writeJSON(w, 200, map[string]any{"results": rows, "total": total})
+			return
+		}
 		writeJSON(w, http.StatusOK, d.Operations.Plans(owner))
 	}))
 	mux.Handle("POST /api/v1/ops/plans", protect(func(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +95,18 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 			return
 		}
 		user, _ := PrincipalFromContext(r.Context())
+		in.Origin = accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(r.Context()), Method: "scheduled_exec"}
+		if in.Kind == "batch" {
+			in.Origin.Method = "exec"
+		}
+		if prior, found, e := d.Operations.ReplayPlan(user.ID, in); found {
+			if e != nil {
+				writeJobError(w, e)
+				return
+			}
+			writeJSON(w, http.StatusCreated, prior)
+			return
+		}
 		prepared, revision, err := d.Operations.Prepare(user.ID, in)
 		if err != nil {
 			writeJobError(w, err)
@@ -140,16 +168,18 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 			writeJSON(w, 200, updated)
 			return
 		}
-		if err := d.Operations.SetEnabled(p.ID, *in.Enabled); err != nil {
-			writeJobError(w, err)
+		release := lockCalendarAccess(d, accessMu)
+		defer release()
+		if *in.Enabled && !authorizeCalendarOwner(d, p, authorize) {
+			writeJobError(w, operations.ErrDenied)
 			return
 		}
-		p, err = d.Operations.Plan(p.ID)
-		if err != nil {
-			writeJobError(w, err)
+		updated, updateError := d.Operations.SetEnabledRevision(p.ID, *in.Enabled, in.Revision, operations.ScheduleActor{ID: user.ID, Name: user.Username})
+		if updateError != nil {
+			writeJobError(w, updateError)
 			return
 		}
-		writeJSON(w, http.StatusOK, p)
+		writeJSON(w, http.StatusOK, updated)
 	}))
 	mux.Handle("GET /api/v1/ops/runs", protect(func(w http.ResponseWriter, r *http.Request) {
 		limit, offset := 50, 0

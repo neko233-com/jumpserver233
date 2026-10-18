@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+SSH 命令计划支持五段 cron、显式时区、夏令时、错过触发策略、预览、版本编辑和变更审计，并提供完整 Ops CLI；见[日历调度](./SCHEDULING.md)。
+
 库存、审计来源、UTC 日趋势、当前权限及带摘要回执的 CSV 见[运营报表](./REPORTS.md)。
 
 全局认证、MFA、会话签发、原生复核、CSV 和独立平台通知见[平台登录审计](./LOGIN-AUDIT.md)。

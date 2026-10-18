@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import "../i18n/locales/features/operations/register";
 import { usePermissions } from "../auth/usePermissions";
 import "./host-plugins.css";
 import AgentEvents from "./AgentEvents";

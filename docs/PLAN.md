@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+SSH 命令计划支持五段 cron、显式时区、夏令时、错过触发策略、预览、版本编辑和变更审计，并提供完整 Ops CLI；见[日历调度](./SCHEDULING.md)。
+
 Phase 5 新增[运营报表](./REPORTS.md)：12 类组织来源与显式全局身份统计、UTC 日趋势、沿用原生权限、部分结果标注、先审计后下载的 CSV、Web/CLI/SDK 和 PostgreSQL 组织回执接管。定时报表、PDF、完整历史仓库及企业版整体对齐继续进行。
 
 Phase 5 已接入[平台登录审计与独立平台通知](./LOGIN-AUDIT.md)：全局认证步骤、MFA、会话签发前提交、原生复核游标、权限过滤、CSV、Web/CLI/SDK 和 PostgreSQL 单活接管。原生云短信、IM 和完整企业版对齐仍在进行。
@@ -192,7 +194,7 @@ Phase 7 凭据备份切片：凭据历史使用 AES-GCM 加密，密码修改与
 
 Phase 7 RBAC 当前能力：全局系统角色管理、自定义权限组合、用户/用户组绑定、乐观版本控制及变更审计已接入。服务端在每次请求/计划派发时计算当前权限；管理、连接、凭据操作、读取全局审计与中断/取消分别授权。兼容管理员保留完整权限，委派用户管理不能单独创建管理员。`admins` MFA 策略包含系统角色账号。单机文件和 PostgreSQL 单活 HA 均支持；跨组织汇总与自动组织映射仍待实现。详见 [RBAC.md](./RBAC.md)。
 
-Phase 5 当前能力：工作台和无 TTY 的 `jms exec` 支持 SSH 命令作业，包含 stdout/stderr、退出码、超时/取消、请求去重、命令复核和加密执行审计。工作台另提供最多 50 台主机的批量派发、带版本的个人命令模板、命令快照、一次性及间隔计划、暂停/恢复和逐主机结果。实际派发重新检查授权、登录复核和命令策略；周期任务合并错过次数并避免重叠。单机优先，计划与执行索引支持 PostgreSQL 单活 HA，已领取且结果不明确的任务不自动重放。Playbook/Ansible、cron/日历调度及其他工单类型仍待实现；授权工单和外部通知见 [访问工单](./ACCESS-TICKETS.md) 与 [通知中心](./NOTIFICATIONS.md)。详见 [JOBS.md](./JOBS.md)。
+Phase 5 当前能力：工作台和无 TTY 的 `jms exec` 支持 SSH 命令作业，包含 stdout/stderr、退出码、超时/取消、请求去重、命令复核和加密执行审计。工作台另提供最多 50 台主机的批量派发、带版本的个人命令模板、命令快照、一次性及间隔计划、暂停/恢复和逐主机结果。实际派发重新检查授权、登录复核和命令策略；周期任务合并错过次数并避免重叠。单机优先，计划与执行索引支持 PostgreSQL 单活 HA，已领取且结果不明确的任务不自动重放。Playbook/Ansible 及其他工单类型仍待实现；cron/日历调度见[日历计划](./SCHEDULING.md)；授权工单和外部通知见 [访问工单](./ACCESS-TICKETS.md) 与 [通知中心](./NOTIFICATIONS.md)。详见 [JOBS.md](./JOBS.md)。
 
 Phase 6 OIDC 当前能力：单身份提供方 Authorization Code + PKCE、服务端 ID Token/JWKS 校验、精确 issuer/subject 受控建号、HttpOnly 浏览器票据、本地强制 MFA 与恢复码、Secret 加密及配置审计。外部声明不能关联本地管理员或提升权限；停用提供方会阻止其平台身份入口。配置、账号映射及已完成的共享会话支持单活 HA；未完成流程在重启/接管后需重新发起。多 provider、组织/组声明映射及联合退出仍待完成。详见 [OIDC.md](./OIDC.md)。
 

@@ -180,7 +180,7 @@ func TestDiscoveryCollectorRevocationPausesWithoutSubmittingAndOldEnvelopeCannot
 	assert.NotContains(t, string(raw), "asset-physical")
 	var box envelope
 	require.NoError(t, json.Unmarshal(raw, &box))
-	assert.Equal(t, 2, box.Version)
+	assert.Equal(t, 3, box.Version)
 	_, e = s.aead.Open(nil, box.Nonce, box.Ciphertext, []byte("jms233/operations/v1"))
 	require.Error(t, e)
 	box.Version = 1

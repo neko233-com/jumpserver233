@@ -1,0 +1,113 @@
+.calendar-fields {
+  border: 1px solid #ffffff30;
+  border-radius: 6px;
+  padding: 14px;
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.calendar-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.calendar-fields input,
+.calendar-fields select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.calendar-help {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #b5c6d8;
+  margin: 0;
+}
+.calendar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block: 10px;
+}
+.calendar-preview {
+  min-width: 0;
+}
+.calendar-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  margin-block: 12px;
+}
+.calendar-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.calendar-scroll th,
+.calendar-scroll td {
+  padding: 8px;
+  border-bottom: 1px solid #ffffff24;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  min-width: 110px;
+}
+.calendar-dialog {
+  width: min(900px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  box-sizing: border-box;
+  border: 1px solid #52677f;
+  border-radius: 8px;
+  background: #111923;
+  color: #edf2f9;
+  padding: 22px;
+}
+.calendar-dialog::backdrop {
+  background: #000a;
+}
+.calendar-dialog > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.calendar-dialog h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.calendar-dialog input,
+.calendar-dialog select {
+  background: #172231;
+  color: inherit;
+  border: 1px solid #52677f;
+  border-radius: 4px;
+  padding: 9px;
+}
+.calendar-dialog button {
+  padding: 8px 12px;
+  cursor: pointer;
+  background: #223149;
+  color: inherit;
+  border: 1px solid #52677f;
+  border-radius: 4px;
+}
+.calendar-dialog button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.calendar-dialog :focus-visible {
+  outline: 2px solid #8cc4ff;
+  outline-offset: 2px;
+}
+.calendar-dialog [role="alert"] {
+  color: #ffc5bc;
+}
+@media (max-width: 600px) {
+  .calendar-dialog {
+    padding: 14px;
+  }
+  .calendar-dialog > header {
+    flex-wrap: wrap;
+  }
+}

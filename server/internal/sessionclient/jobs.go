@@ -130,6 +130,9 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 	}
 	if output != nil {
 		limit := int64(1024 * 1024)
+		if strings.HasPrefix(target.Path, "/api/v1/ops/") {
+			limit = 16 << 20
+		}
 		if strings.HasPrefix(target.Path, "/api/v1/accounts/risks") || strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-") || strings.HasPrefix(target.Path, "/api/v1/tickets/") {
 			limit = 8 << 20
 		}

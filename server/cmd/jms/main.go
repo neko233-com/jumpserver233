@@ -44,6 +44,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "ops" {
+		return runOperations(args[1:])
+	}
 	if len(args) > 0 && args[0] == "reports" {
 		return runReports(args[1:])
 	}
@@ -120,7 +123,7 @@ func run(args []string) error {
 		return runExec(args[1:], selector)
 	}
 	if len(args) != 2 || args[0] != "ssh" || strings.TrimSpace(args[1]) == "" {
-		return errors.New("usage: jms ssh <asset-id> | jms telnet <asset-id> | jms k8s <asset-id> --namespace NS --pod POD [--container NAME] | jms exec <asset-id> [--timeout 60] [--json] -- <command> | jms db <asset-id> < query.sql")
+		return errors.New("usage: jms ssh <asset-id> | jms telnet <asset-id> | jms k8s <asset-id> --namespace NS --pod POD [--container NAME] | jms exec <asset-id> [--timeout 60] [--json] -- <command> | jms ops <action> | jms db <asset-id> < query.sql")
 	}
 	stdin := int(os.Stdin.Fd())
 	if selection == nil && protocol != "telnet" && !term.IsTerminal(stdin) {

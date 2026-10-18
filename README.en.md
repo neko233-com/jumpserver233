@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+SSH command plans support five-field cron, explicit timezones, DST, missed-run policies, previews, revisioned editing and change audit, with a complete Ops CLI. See [Calendar schedules](./docs/SCHEDULING.en.md).
+
 Operations reports cover current inventory and 12 organization sources, with two explicitly selected global identity sources, UTC trends, native authorization and audited SHA-256 CSV exports through Web/CLI. See [Operations reports](./docs/REPORTS.en.md).
 
 Platform sign-in audit covers global authentication steps, session grants, native reviews, permission filtering, CSV and independent security notifications through Web/CLI/SDK, with single-active takeover. See [Platform sign-in audit](./docs/LOGIN-AUDIT.en.md).

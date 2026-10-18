@@ -2,6 +2,15 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Calendar schedules (2026-10-18)
+
+Ops translations move from the initial entry to feature resources; the editor loads on demand. Plans use server paging, visible polling and a concurrent-read guard, without frontend dependencies. Initial JS is 494,144 bytes, gzip 159,463, main 476,985: 4,123 initial bytes below the previous reports baseline. Total JS is 1,455,768, adding 17,724 bytes with calendars while retaining the existing 500 kB / 1.5 MB budgets. The editor is about 5.26 kB and shared Ops translations 9.86 kB, both lazy. Vite took 183 ms, excluding type checking.
+
+Windows stripped API is 42,704,384 bytes, CLI 12,668,928. One next-calendar-time benchmark takes about 3,899–6,459 ns/op, 5,882 B/op and 35 allocs/op over three runs on AMD Ryzen 9 9950X. It measures parsing, timezone and next-time calculation, excluding persistence, authorization, HTTP, schedule waits and SSH. Expression search, preview counts and audit capacity are bounded.
+
+Clean Docker peer-browser smoke takes about 19.8 seconds: cached build 3.25, startup 12.25, checks 4.30. Full production browser regression takes 17.9m. The feature flow includes actual minute dispatch and took 11.2 seconds this time; waits depend on the minute boundary. Verification followed the completed implementation batch. See [Testing](./TESTING.en.md).
+
+
 ## Operations reports and login animation (2026-10-18)
 
 The login text uses native browser animation, removing Motion while retaining reduced motion and a complete accessible heading. The report route and locale modules are lazy, with native SVG and a data table. Including the new report, total JS falls from the previous sign-in audit baseline of 1,490,654 to 1,438,044 bytes: 52,610 bytes (about 3.5%) smaller. Initial JS is 498,267 bytes, gzip 160,671, main 481,235; existing budgets pass. Report and login chunks are about 20.62 kB and 64.85 kB. The Vite stage took 163 ms, excluding type checking.
