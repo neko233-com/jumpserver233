@@ -65,7 +65,7 @@ func registerRDPRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWMutex) {
 			}
 		}
 		guard := func(ctx context.Context, method string) error {
-			user, ok := jobOwner(d, u.ID)
+			user, ok := jobOwnerSnapshot(d, u)
 			if !ok {
 				return accesspolicies.ErrDenied
 			}

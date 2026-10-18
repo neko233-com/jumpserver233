@@ -69,6 +69,9 @@ func run(args []string) error {
 		return runNotifications(args[1:])
 	}
 	selector := ""
+	if len(args) > 0 && args[0] == "user" {
+		return runUsers(args[1:])
+	}
 	if len(args) > 0 && args[0] == "--account" {
 		if len(args) < 4 || strings.TrimSpace(args[1]) == "" {
 			return errors.New("usage: jms --account USERNAME_OR_ID ssh|exec|plugin|accounts ASSET ...")

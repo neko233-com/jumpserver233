@@ -106,6 +106,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	if len(dependencies) > 0 && dependencies[0].AccessMu != nil {
 		accessMu = dependencies[0].AccessMu
 	}
+	if len(dependencies) > 0 {
+		dependencies[0].AccessMu = accessMu
+	}
 	if len(dependencies) > 0 && !dependencies[0].Tenant && dependencies[0].Auth != nil && dependencies[0].RBAC != nil {
 		d := dependencies[0]
 		d.Auth.SetPrivilegedCheck(func(id string) bool {
@@ -118,6 +121,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		dependencies[0].Sessions.SetCommandAlerts(dependencies[0].CommandAlerts.Publish)
 	}
 	if len(dependencies) > 0 {
+		if !dependencies[0].Tenant && dependencies[0].Auth != nil {
+			registerUserLifecycle(mux, dependencies[0])
+		}
 		registerReportRoutes(mux, dependencies[0], accessMu)
 		registerMonitorAlertRoutes(mux, dependencies[0], accessMu)
 		registerTicketRoutes(mux, dependencies[0], accessMu)

@@ -30,6 +30,7 @@ const SAMLSettingsPage = lazy(() => import("./pages/SAMLSettingsPage"));
 const PasskeySettingsPage = lazy(() => import("./pages/PasskeySettingsPage"));
 const CASSettingsPage = lazy(() => import("./pages/CASSettingsPage"));
 const RadiusSettingsPage = lazy(() => import("./pages/RadiusSettingsPage"));
+const UsersPage = lazy(() => import("./pages/UsersPage"));
 const SessionSharePage = lazy(() => import("./pages/SessionSharePage"));
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -84,6 +85,7 @@ export default function App() {
             <Route path="database-audit" element={<DatabaseAuditPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="roles" element={<RolesPage />} />
+            <Route path="users" element={<UsersPage />} />
             <Route path="organizations" element={<OrganizationsPage />} />
             <Route path="organization-roles" element={<RolesPage organization />} />
             <Route path="access-policies" element={<AccessPoliciesPage />} />

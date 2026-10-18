@@ -1434,6 +1434,7 @@ const en = {
     name: "JumpServer233",
   },
   nav: {
+    users: "Platform users",
     radius: "RADIUS authentication",
     reports: "Overview & reports",
     loginAudit: "Sign-in audit",

@@ -155,7 +155,7 @@ func registerKubernetesRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync
 		guard := func(ctx context.Context) error {
 			currentOrigin := origin
 			currentOrigin.SourceIP = accesspolicies.SourceIP(ctx)
-			currentUser, ok := jobOwner(d, u.ID)
+			currentUser, ok := jobOwnerSnapshot(d, u)
 			if !ok {
 				return accesspolicies.ErrDenied
 			}

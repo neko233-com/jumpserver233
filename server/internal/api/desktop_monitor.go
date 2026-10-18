@@ -26,7 +26,7 @@ func registerDesktopMonitorRoutes(mux *http.ServeMux, d Dependencies) {
 			if accesspolicies.SourceIP(ctx) != source {
 				return accesspolicies.ErrDenied
 			}
-			current, ok := jobOwner(d, u.ID)
+			current, ok := jobOwnerSnapshot(d, u)
 			if !ok || all && !effectivePermissions(current, d.RBAC, d.Groups).Allows("audit.desktops.monitor_all") {
 				return accesspolicies.ErrDenied
 			}

@@ -50,7 +50,7 @@ func registerAccountImportRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RW
 			writeJSON(w, 401, map[string]string{"error_code": "denied"})
 			return u, rbac.Snapshot{}, false
 		}
-		u, ok = jobOwner(d, u.ID)
+		u, ok = jobOwnerSnapshot(d, u)
 		if !ok || d.OrganizationAllowed != nil && !d.OrganizationAllowed(u) {
 			writeJSON(w, 403, map[string]string{"error_code": "denied"})
 			return u, rbac.Snapshot{}, false

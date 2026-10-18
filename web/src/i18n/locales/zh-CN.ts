@@ -1330,6 +1330,7 @@ const zhCN = {
     name: "JumpServer233",
   },
   nav: {
+    users: "平台用户",
     radius: "RADIUS 认证",
     reports: "概览与报表",
     loginAudit: "登录审计",

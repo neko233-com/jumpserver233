@@ -53,12 +53,19 @@ var (
 
 // User is the public, non-secret identity representation.
 type User struct {
-	ID         string    `json:"id"`
-	Username   string    `json:"username"`
-	Role       string    `json:"role"`
-	MFAEnabled bool      `json:"mfa_enabled"`
-	CreatedAt  time.Time `json:"created_at"`
-	Source     string    `json:"source,omitempty"`
+	Name           string    `json:"name,omitempty"`
+	Comment        string    `json:"comment,omitempty"`
+	Disabled       bool      `json:"disabled,omitempty"`
+	DateExpired    time.Time `json:"date_expired,omitzero"`
+	ArchivedAt     time.Time `json:"archived_at,omitzero"`
+	Revision       int       `json:"revision,omitempty"`
+	AuthGeneration int       `json:"auth_generation,omitempty"`
+	ID             string    `json:"id"`
+	Username       string    `json:"username"`
+	Role           string    `json:"role"`
+	MFAEnabled     bool      `json:"mfa_enabled"`
+	CreatedAt      time.Time `json:"created_at"`
+	Source         string    `json:"source,omitempty"`
 }
 
 // LoginSession contains a one-time-returned bearer token. The token itself is
@@ -120,6 +127,7 @@ type Service struct {
 	externalAllowed map[string]func(string) bool
 	passkeyAllowed  func(string, string) bool
 	users           map[string]storedUser
+	userEvents      []UserEvent
 	sessions        map[[32]byte]activeSession
 	hashSlots       chan struct{}
 	now             func() time.Time
@@ -204,13 +212,34 @@ func openService(path string, documents *storage.Documents, key []byte) (*Servic
 		return service, nil
 	}
 	var users []storedUser
-	if err := json.Unmarshal(data, &users); err != nil {
-		return nil, fmt.Errorf("decode user store: %w", err)
+	var decodeErr error
+	if strings.HasPrefix(strings.TrimSpace(string(data)), "[") {
+		decodeErr = json.Unmarshal(data, &users)
+	} else {
+		var doc userEnvelope
+		decodeErr = json.Unmarshal(data, &doc)
+		if decodeErr == nil && (doc.Version != 2 || len(doc.Audit) > 5000) {
+			decodeErr = ErrUserStoreCorrupt
+		}
+		users = doc.Users
+		service.userEvents = doc.Audit
+	}
+	if decodeErr == nil && !validUserEvents(service.userEvents) {
+		decodeErr = ErrUserStoreCorrupt
+	}
+	if decodeErr != nil {
+		return nil, fmt.Errorf("decode user store: %w", decodeErr)
 	}
 	seenAccessKeyIDs := make(map[string]struct{})
 	seenPermanentTokenIDs := make(map[string]struct{})
 	seenPermanentTokenHashes := make(map[string]struct{})
 	for _, user := range users {
+		if !lifecycleValid(user.User) {
+			return nil, ErrUserStoreCorrupt
+		}
+		if user.Revision == 0 {
+			user.Revision = 1
+		}
 		if (user.Source != "" && !isExternalSource(user.Source)) || (user.Source != "" && (user.ExternalIssuer == "" || len(user.ExternalIdentity) != 64 || user.Role != RoleOperator)) {
 			return nil, ErrUserStoreCorrupt
 		}
@@ -362,7 +391,7 @@ func (s *Service) createUser(username, password, role string, firstOnly, default
 		return User{}, fmt.Errorf("generate user ID: %w", err)
 	}
 	now := s.now().UTC()
-	user := User{ID: "user-" + hex.EncodeToString(idBytes[:]), Username: canonical, Role: role, CreatedAt: now}
+	user := User{Revision: 1, ID: "user-" + hex.EncodeToString(idBytes[:]), Username: canonical, Role: role, CreatedAt: now}
 	record := storedUser{User: user, PasswordSalt: salt, PasswordHash: passwordHash}
 
 	s.mu.Lock()
@@ -388,6 +417,9 @@ func (s *Service) ListUsers() []User {
 	s.mu.RLock()
 	users := make([]User, 0, len(s.users))
 	for _, record := range s.users {
+		if !record.ArchivedAt.IsZero() {
+			continue
+		}
 		users = append(users, record.User)
 	}
 	s.mu.RUnlock()
@@ -399,7 +431,7 @@ func (s *Service) UserByID(id string) (User, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, record := range s.users {
-		if record.ID == id {
+		if record.ID == id && record.ArchivedAt.IsZero() {
 			return record.User, true
 		}
 	}
@@ -449,7 +481,7 @@ func (s *Service) ChangePassword(userID, currentToken, currentPassword, newPassw
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	current, exists := s.users[username]
-	if !exists || current.ID != userID {
+	if !exists || current.ID != userID || current.AuthGeneration != snapshot.AuthGeneration || !s.externalAllowedLocked(current) {
 		return ErrUserNotFound
 	}
 	if subtle.ConstantTimeCompare(current.PasswordHash, snapshot.PasswordHash) != 1 {
@@ -537,7 +569,7 @@ func (s *Service) AuthenticateWithOTPOrMFASetup(username, password, otp string) 
 	s.mu.Lock()
 	now := s.now()
 	current, currentExists := s.users[canonical]
-	if !currentExists || current.ID != record.ID || subtle.ConstantTimeCompare(current.PasswordHash, record.PasswordHash) != 1 {
+	if !currentExists || current.ID != record.ID || current.AuthGeneration != record.AuthGeneration || !s.externalAllowedLocked(current) || subtle.ConstantTimeCompare(current.PasswordHash, record.PasswordHash) != 1 {
 		s.mu.Unlock()
 		return LoginSession{}, nil, ErrInvalidCredentials
 	}
@@ -622,7 +654,7 @@ func (s *Service) ValidateToken(token string) (User, bool) {
 	if exists {
 		for _, record := range s.users {
 			if record.ID == session.user.ID {
-				if !s.externalAllowedLocked(record) || (session.passkeyID != "" && (s.passkeyAllowed == nil || !s.passkeyAllowed(record.ID, session.passkeyID))) {
+				if session.user.AuthGeneration != record.AuthGeneration || !s.externalAllowedLocked(record) || (session.passkeyID != "" && (s.passkeyAllowed == nil || !s.passkeyAllowed(record.ID, session.passkeyID))) {
 					delete(s.sessions, hash)
 					exists = false
 					_ = s.persistSessionsLocked()
@@ -660,7 +692,7 @@ func (s *Service) persistLocked() error {
 			users = append(users, record)
 		}
 		sort.Slice(users, func(i, j int) bool { return users[i].Username < users[j].Username })
-		data, err := json.Marshal(users)
+		data, err := s.marshalUsersLocked(users)
 		if err != nil {
 			return fmt.Errorf("encode user document: %w", err)
 		}
@@ -677,7 +709,7 @@ func (s *Service) persistLocked() error {
 		users = append(users, record)
 	}
 	sort.Slice(users, func(i, j int) bool { return users[i].Username < users[j].Username })
-	data, err := json.MarshalIndent(users, "", "  ")
+	data, err := s.marshalUsersLocked(users)
 	if err != nil {
 		return fmt.Errorf("encode user store: %w", err)
 	}
@@ -728,6 +760,9 @@ func (s *Service) loadSessions() error {
 		}
 		username, valid := normalizeUsername(record.User.Username)
 		stored, exists := s.users[username]
+		if exists && (record.User.AuthGeneration != stored.AuthGeneration || !userUsable(stored.User, now)) {
+			continue
+		}
 		if !valid || !exists || stored.ID != record.User.ID || stored.Role != record.User.Role {
 			return ErrSessionStoreCorrupt
 		}

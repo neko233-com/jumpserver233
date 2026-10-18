@@ -14,11 +14,11 @@ func (s *Service) SetPasskeyAllowed(check func(string, string) bool) {
 }
 
 // Called only after the WebAuthn boundary verified a one-use browser assertion.
-func (s *Service) AuthenticatePasskeyUser(id, credentialID, otp string) (LoginSession, *MFASetupChallenge, error) {
+func (s *Service) AuthenticatePasskeyUser(id, credentialID, otp string, generation ...int) (LoginSession, *MFASetupChallenge, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	name, current, ok := s.storedUserByIDLocked(id)
-	if !ok || credentialID == "" || s.passkeyAllowed == nil || !s.passkeyAllowed(id, credentialID) || !s.externalAllowedLocked(current) {
+	if !ok || len(generation) > 1 || len(generation) == 1 && current.AuthGeneration != generation[0] || credentialID == "" || s.passkeyAllowed == nil || !s.passkeyAllowed(id, credentialID) || !s.externalAllowedLocked(current) {
 		return LoginSession{}, nil, ErrInvalidCredentials
 	}
 	return s.authenticateVerifiedPrimaryLocked(name, current, otp, credentialID)
@@ -70,7 +70,7 @@ func (s *Service) VerifyPasskeyManagement(id, password, otp, sessionToken string
 }
 
 func sameCredentialVersion(a, b storedUser) bool {
-	return a.ID == b.ID && a.Source == b.Source && a.ExternalIdentity == b.ExternalIdentity && a.ExternalIssuer == b.ExternalIssuer && a.MFAEnabled == b.MFAEnabled && bytes.Equal(a.PasswordHash, b.PasswordHash) && bytes.Equal(a.PasswordSalt, b.PasswordSalt) && bytes.Equal(a.MFASecretCiphertext, b.MFASecretCiphertext)
+	return a.AuthGeneration == b.AuthGeneration && a.ID == b.ID && a.Source == b.Source && a.ExternalIdentity == b.ExternalIdentity && a.ExternalIssuer == b.ExternalIssuer && a.MFAEnabled == b.MFAEnabled && bytes.Equal(a.PasswordHash, b.PasswordHash) && bytes.Equal(a.PasswordSalt, b.PasswordSalt) && bytes.Equal(a.MFASecretCiphertext, b.MFASecretCiphertext)
 }
 
 func (s *Service) PasskeyManagementReady(id string) bool {
@@ -90,11 +90,12 @@ func (s *Service) PasskeyManagementVersion(id string) string {
 		return ""
 	}
 	raw, _ := json.Marshal(struct {
+		AuthGeneration                int `json:"AuthGeneration,omitempty"`
 		ID, Source, Issuer, Identity  string
 		Salt, PasswordHash, MFASecret []byte
 		MFAEnabled                    bool
 		Policy                        MFAEnforcement
-	}{u.ID, u.Source, u.ExternalIssuer, u.ExternalIdentity, u.PasswordSalt, u.PasswordHash, u.MFASecretCiphertext, u.MFAEnabled, s.mfaPolicy})
+	}{u.AuthGeneration, u.ID, u.Source, u.ExternalIssuer, u.ExternalIdentity, u.PasswordSalt, u.PasswordHash, u.MFASecretCiphertext, u.MFAEnabled, s.mfaPolicy})
 	hash := sha256.Sum256(raw)
 	return base64.RawURLEncoding.EncodeToString(hash[:])
 }

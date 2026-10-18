@@ -101,7 +101,7 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 					currentUser := principal
 					if identities != nil && principal.ID != "admin-token" && principal.ID != "loopback-admin" {
 						var ok bool
-						currentUser, ok = identities.ActiveUserByID(principal.ID)
+						currentUser, ok = identities.ActiveUserSnapshot(principal)
 						if !ok {
 							return accesspolicies.ErrDenied
 						}

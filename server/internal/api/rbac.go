@@ -85,6 +85,8 @@ func adminAPIAllowed(r *http.Request, user coreauth.User) bool {
 			return allowed("users.manage", "roles.manage", "groups.manage", "grants.manage", "command_filters.manage", "access_policies.manage")
 		}
 		return allowed("users.manage")
+	case strings.HasPrefix(path, "/api/v1/users/"):
+		return allowed("users.manage")
 	case strings.HasPrefix(path, "/api/v1/user-groups"):
 		if r.Method == "GET" {
 			return allowed("groups.manage", "roles.manage", "grants.manage", "command_filters.manage", "access_policies.manage")

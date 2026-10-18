@@ -260,13 +260,17 @@ func (s *Service) Finish(ctx context.Context, state, proof, ticket string) (Iden
 	}
 	return Identity{Issuer: c.BaseURL, Subject: subject, Provision: c.ProvisionNew, Revision: c.Revision}, nil
 }
-func (s *Service) NewPending(user string, revision int) (string, error) {
+func (s *Service) NewPending(user string, revision int, generation ...int) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.data.Config.Enabled || s.data.Config.Revision != revision {
 		return "", ErrConflict
 	}
-	return s.Tickets.Issue(user, revision)
+	token, e := s.Tickets.Issue(user, revision)
+	if e == nil && len(generation) == 1 {
+		e = s.Tickets.BindGeneration(token, generation[0])
+	}
+	return token, e
 }
 func (s *Service) Pending(token string, attempt bool) (logintickets.Ticket, error) {
 	s.mu.Lock()

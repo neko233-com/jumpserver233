@@ -2,6 +2,14 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Platform user lifecycle (2026-10-18)
+
+The final complete production browser suite passed 80/80 in 19.4 minutes; its lifecycle case took 12.9 seconds. Implementation was authored before verification, and selected source fingerprints remained unchanged during the suite.
+
+The management page and bilingual feature resources load on demand, with no new dependencies. Initial JS: 494,992 bytes; gzip: 159,742; main entry: 477,833; total JS: 1,497,494. Existing 500 kB / 1.5 MB budgets remain, with 2,506 bytes of total JS headroom. The page including feature resources is 13.66 kB; CSS is 0.81 kB. Vite took 178–217 ms, excluding type checking.
+
+Windows stripped API: 43,563,520 bytes; CLI: 12,777,984. The isolated Docker browser case took 13.8 seconds. Fresh container/data and two-instance port isolation smoke took about 19.7 seconds: cached build 3.19 s, startup 12.15 s and browser checks 4.40 s. Temporary resources were cleaned. Actual API restart preserved user state, identity generation and audit while rejecting the old session; restart and checks took 1.07 s. See [Testing](./TESTING.en.md) for remaining evidence.
+
 ## RADIUS and background rendering (2026-10-18)
 
 Authentication views load on demand without new dependencies. The background keeps OGL Program/Renderer and uses one screen triangle instead of Mesh/Plane and scene matrix traversal. Initial JS: 494654 bytes, gzip 159661, main 477495, total JS 1483492. Total JS is 2029 bytes below the preceding Playbook baseline; 500 kB / 1.5 MB budgets remain. Vite took 277 ms, excluding type checks; this is not a device frame rate measurement.

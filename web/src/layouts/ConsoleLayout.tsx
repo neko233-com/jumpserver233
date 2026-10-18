@@ -10,7 +10,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
   const { t, i18n } = useTranslation();
   const { setAccessToken } = useAuth();
   const navigate = useNavigate();
-  const { allows } = usePermissions();
+  const { allows, systemAllows } = usePermissions();
   const isZh = i18n.language !== "en";
 
   const views = [
@@ -40,6 +40,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/console", label: t("assets.title"), end: true },
     { to: "/console/settings", label: t("nav.systemSettings"), end: false },
     { to: "/console/roles", label: t("rbac.title"), end: false },
+    ...(systemAllows("users.manage")
+      ? [{ to: "/console/users", label: t("nav.users"), end: false }]
+      : []),
     { to: "/console/access-policies", label: t("acl.title"), end: false },
     { to: "/console/login-reviews", label: t("platformReview.title"), end: false },
     { to: "/console/identity", label: t("oidc.settingsTitle"), end: false },

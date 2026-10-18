@@ -85,7 +85,7 @@ func registerSessionShareRoutes(mux *http.ServeMux, b *gateway.Broker, adminToke
 			current := u
 			if u.ID != "admin-token" && u.ID != "loopback-admin" {
 				var ok bool
-				current, ok = identities.ActiveUserByID(u.ID)
+				current, ok = identities.ActiveUserSnapshot(u)
 				if !ok {
 					return sessionshares.ErrDenied
 				}
@@ -179,7 +179,7 @@ func registerSessionShareRoutes(mux *http.ServeMux, b *gateway.Broker, adminToke
 			if identities == nil {
 				return u, false
 			}
-			return identities.ActiveUserByID(u.ID)
+			return identities.ActiveUserSnapshot(u)
 		}
 		guard := func(ctx context.Context, info gateway.AssetInfo) error {
 			if accesspolicies.SourceIP(ctx) != source {

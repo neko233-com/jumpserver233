@@ -18,9 +18,12 @@ func TestTicketsExpireConsumeAndLimitAttempts(t *testing.T) {
 	require.NoError(t, e)
 	assert.Equal(t, 3, p.Revision)
 	require.NoError(t, s.SetSetup(token, "setup"))
+	require.NoError(t, s.BindGeneration(token, 7))
 	p, e = s.Read(token, false)
 	require.NoError(t, e)
 	assert.Equal(t, "setup", p.SetupToken)
+	assert.Equal(t, 7, p.AuthGeneration)
+	assert.Error(t, s.BindGeneration(token, -1))
 	for i := 0; i < 5; i++ {
 		_, e = s.Read(token, true)
 		require.NoError(t, e)

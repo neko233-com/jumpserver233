@@ -57,7 +57,7 @@ func (s *Service) CreatePermanentToken(userID string) (PermanentTokenCredentials
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	username, record, exists := s.storedUserByIDLocked(userID)
-	if !exists {
+	if !exists || !s.externalAllowedLocked(record) {
 		return PermanentTokenCredentials{}, ErrUserNotFound
 	}
 	if len(record.PermanentTokens) >= maxPermanentTokens {

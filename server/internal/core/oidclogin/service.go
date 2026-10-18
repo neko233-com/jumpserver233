@@ -85,11 +85,12 @@ type flow struct {
 	expires         time.Time
 }
 type Pending struct {
-	UserID     string
-	SetupToken string
-	Revision   int
-	Expires    time.Time
-	Attempts   int
+	AuthGeneration int
+	UserID         string
+	SetupToken     string
+	Revision       int
+	Expires        time.Time
+	Attempts       int
 }
 type Identity struct {
 	Issuer, Subject string
@@ -416,7 +417,7 @@ func (s *Service) Finish(ctx context.Context, state, proof, code string) (Identi
 	}
 	return Identity{Issuer: c.Issuer, Subject: id.Subject, Provision: c.ProvisionNew, Revision: c.Revision}, nil
 }
-func (s *Service) NewPending(userID string, revision int) (string, error) {
+func (s *Service) NewPending(userID string, revision int, generation ...int) (string, error) {
 	ticket, err := randomValue()
 	if err != nil {
 		return "", err
@@ -430,7 +431,11 @@ func (s *Service) NewPending(userID string, revision int) (string, error) {
 	if len(s.pending) >= 4096 {
 		return "", ErrCapacity
 	}
-	s.pending[sha256.Sum256([]byte(ticket))] = Pending{UserID: userID, Revision: revision, Expires: s.now().Add(5 * time.Minute)}
+	g := 0
+	if len(generation) == 1 {
+		g = generation[0]
+	}
+	s.pending[sha256.Sum256([]byte(ticket))] = Pending{AuthGeneration: g, UserID: userID, Revision: revision, Expires: s.now().Add(5 * time.Minute)}
 	return ticket, nil
 }
 func (s *Service) Pending(ticket string, attempt bool) (Pending, error) {

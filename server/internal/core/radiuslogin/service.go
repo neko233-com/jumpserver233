@@ -462,7 +462,7 @@ func (s *Service) Probe(ctx context.Context, endpoint, username, password string
 	s.mu.Unlock()
 	return s.exchange(ctx, c, secret, radiusclient.Request{Username: username, Password: password})
 }
-func (s *Service) NewPending(user string, revision int, source string) (string, error) {
+func (s *Service) NewPending(user string, revision int, source string, generation ...int) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed || !s.data.Config.Enabled || s.data.Config.Revision != revision {
@@ -477,6 +477,9 @@ func (s *Service) NewPending(user string, revision int, source string) (string, 
 		return "", ErrCapacity
 	}
 	token, e := s.Tickets.Issue(user, revision)
+	if e == nil && len(generation) == 1 {
+		e = s.Tickets.BindGeneration(token, generation[0])
+	}
 	if e == nil {
 		s.origins[flowHash(token)] = pendingOrigin{source, s.now().Add(5 * time.Minute)}
 	}

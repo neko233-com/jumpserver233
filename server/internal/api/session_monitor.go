@@ -25,7 +25,7 @@ func registerSessionMonitorRoutes(mux *http.ServeMux, broker *gateway.Broker, ad
 			current := u
 			if identities != nil && u.ID != "admin-token" && u.ID != "loopback-admin" {
 				var ok bool
-				current, ok = identities.ActiveUserByID(u.ID)
+				current, ok = identities.ActiveUserSnapshot(u)
 				if !ok {
 					return accesspolicies.ErrDenied
 				}

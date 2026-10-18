@@ -2,6 +2,20 @@
 
 > [中文](./TESTING.md) | English
 
+## Platform user lifecycle validation (2026-10-18)
+
+- Final complete production browser suite: 80/80 passed, zero failures/skips, 19.4 minutes, runner exit 0; temporary data and protocol fixtures were cleaned. The lifecycle case took 12.9 seconds within this suite. All 1,021 selected source/test fingerprints remained unchanged during the suite.
+
+- Implementation, companion cases and bilingual documentation were authored together before unified verification. Final full Go: 69 packages, 1,257 passing test/subtest events, 35 platform/missing-fixture skips, zero failures, exit 0; real OpenSSH, PostgreSQL, RDP and FreeRADIUS were used.
+- Linux Docker race: 11 related packages, 395 passing events, four missing-fixture skips, zero failures, exit 0. This includes real PostgreSQL takeover and rejection of stale-generation session documents. These overlap with full Go and are not additive.
+- Testify covers status/expiry, Bearer/permanent-token/AccessKey credential channels, quarantined login proofs, pending MFA setup, external/Passkey generations, revisions, batch rollback, self/admin/permanent-local-admin guards, archive/restore, legacy array migration, failed persistence rollback, invalid audit rejection, SDK and CLI. API cases also reject revoked pending OIDC/RADIUS capabilities.
+- Docker feature browser: 1/1 passed, no skips, 13.8 s. It covers real OpenSSH, continuous authorization closing after disable, Bearer/Token/Signature credentials rejected after disable and re-enable, metadata edits preserving sessions, batch conflict rollback, expiry, archive/disabled restore, CLI, bilingual desktop and 390px mobile layout.
+- An independent HTTP check authenticated with a browser cookie, then confirmed HTTP 401 after disable and re-enable, supplementing the three explicit authorization-header channels above. The synthetic user was archived.
+- Initial unified checks corrected an MFA variable reference and test-environment RDP health URL/SSH `container_name` parameters. A five-second browser assertion was shorter than the existing ten-second authorization check; increasing its bound to 15 seconds passed without changing the production interval.
+- Actual API container restart preserved user revision/generation and audit, rejected the old session, then archived the synthetic user. Restart and checks took 1.07 s. The in-app browser confirmed Chinese/English management, archived records and persisted audit, with no captured warnings/errors.
+- Go vet/build, frontend lint, strict application/E2E typing, production build, 3,052 bilingual keys, 126 paired documents and 16 lifecycle/render/cache helper tests passed. Fresh Docker data and two-instance browser port isolation took about 19.7 s; disposable resources were cleaned. The new loopback debug instance at `http://127.0.0.43:15201/console/users` (API 18108) and older instances remain available.
+- Back up and upgrade every takeover node before writing v2 user documents. Restore retains grants, role bindings and MFA; explicit enabling reactivates retained authorization. Permanent erasure, import, administrative password/MFA reset, production HA and overall Enterprise parity are not declared complete.
+
 ## Native RADIUS validation (2026-10-18)
 
 - Implementation, companion tests and bilingual docs were authored together before verification. Full Go: 69 packages, 1242 passing cases, 35 platform/missing-fixture skips, zero failures, exit 0, using actual OpenSSH, PostgreSQL, RDP and FreeRADIUS.

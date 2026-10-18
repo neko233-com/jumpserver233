@@ -126,7 +126,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
-		ticket, err := d.OIDC.NewPending(user.ID, identity.Revision)
+		ticket, err := d.OIDC.NewPending(user.ID, identity.Revision, user.AuthGeneration)
 		if err != nil {
 			fail()
 			return
@@ -146,8 +146,8 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			writeOIDCError(w, err)
 			return
 		}
-		user, ok := d.Auth.UserByID(p.UserID)
-		if !ok || user.Source != "oidc" {
+		user, ok := d.Auth.ActiveUserByID(p.UserID)
+		if !ok || user.AuthGeneration != p.AuthGeneration || user.Source != "oidc" {
 			writeOIDCError(w, oidclogin.ErrFlow)
 			return
 		}
@@ -162,6 +162,11 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 		p, err := d.OIDC.Pending(ticket, true)
 		if err != nil {
 			writeOIDCError(w, err)
+			return
+		}
+		u, active := d.Auth.ActiveUserByID(p.UserID)
+		if !active || u.AuthGeneration != p.AuthGeneration {
+			writeOIDCError(w, oidclogin.ErrFlow)
 			return
 		}
 		attemptKey := "oidc-user:" + p.UserID
@@ -191,7 +196,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			session, err = d.Auth.ConfirmMFASetupChallenge(input.SetupToken, input.OTP, p.UserID)
 		} else {
 			var setup *coreauth.MFASetupChallenge
-			session, setup, err = d.Auth.AuthenticateOIDCUser(p.UserID, input.OTP)
+			session, setup, err = d.Auth.AuthenticateExternalUser(p.UserID, "oidc", input.OTP, p.AuthGeneration)
 			if err == nil && setup != nil {
 				markLoginAudit(r, "challenge", "enrollment_required")
 				if d.OIDC.SetSetup(ticket, setup.Token) != nil {
@@ -214,7 +219,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			writeOIDCError(w, err)
 			return
 		}
-		if session.User.ID != p.UserID || !d.OIDC.ConsumePending(ticket) {
+		if session.User.ID != p.UserID || session.User.AuthGeneration != p.AuthGeneration || !d.OIDC.ConsumePending(ticket) {
 			_ = d.Auth.RevokeToken(session.AccessToken)
 			writeOIDCError(w, oidclogin.ErrFlow)
 			return

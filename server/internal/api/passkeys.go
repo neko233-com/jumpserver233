@@ -214,9 +214,18 @@ func registerPasskeyRoutes(mux *http.ServeMux, d Dependencies) {
 			writePasskeyError(w, passkeys.ErrFlow)
 			return
 		}
+		release := lockCalendarAccess(d, d.AccessMu)
+		defer release()
 		pending, e := d.Passkeys.FinishLogin(token, in.Credential)
 		if e != nil {
 			writePasskeyError(w, e)
+			return
+		}
+		p, err := d.Passkeys.Pending(pending, false)
+		u, ok := d.Auth.ActiveUserByID(p.UserID)
+		if err != nil || !ok || d.Passkeys.Tickets.BindGeneration(pending, u.AuthGeneration) != nil {
+			d.Passkeys.Tickets.Consume(pending)
+			writePasskeyError(w, passkeys.ErrFlow)
 			return
 		}
 		setPasskeyCookie(w, r, d, passkeyPendingCookie, pending, 300)

@@ -30,6 +30,9 @@ func (s *Service) SetExternalSourceAllowed(source string, check func(string) boo
 	s.mu.Unlock()
 }
 func (s *Service) externalAllowedLocked(record storedUser) bool {
+	if !userUsable(record.User, s.now()) {
+		return false
+	}
 	check := s.externalAllowed[record.Source]
 	return record.Source == "" || (check != nil && check(record.ExternalIssuer))
 }
@@ -106,7 +109,7 @@ func (s *Service) EnsureExternalUser(source, issuer, subject, alias string, prov
 			return User{}, err
 		}
 	}
-	user := User{ID: "user-" + hex.EncodeToString(id[:]), Username: name, Role: RoleOperator, Source: source, CreatedAt: s.now().UTC()}
+	user := User{Revision: 1, ID: "user-" + hex.EncodeToString(id[:]), Username: name, Role: RoleOperator, Source: source, CreatedAt: s.now().UTC()}
 	s.users[name] = storedUser{User: user, ExternalIssuer: issuer, ExternalIdentity: identity, PasswordSalt: salt[:], PasswordHash: inertHash[:]}
 	if err := s.persistLocked(); err != nil {
 		delete(s.users, name)
@@ -120,11 +123,11 @@ func (s *Service) EnsureExternalUser(source, issuer, subject, alias string, prov
 func (s *Service) AuthenticateOIDCUser(id, otp string) (LoginSession, *MFASetupChallenge, error) {
 	return s.AuthenticateExternalUser(id, "oidc", otp)
 }
-func (s *Service) AuthenticateExternalUser(id, source, otp string) (LoginSession, *MFASetupChallenge, error) {
+func (s *Service) AuthenticateExternalUser(id, source, otp string, generation ...int) (LoginSession, *MFASetupChallenge, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	name, current, ok := s.storedUserByIDLocked(id)
-	if !ok || !isExternalSource(source) || current.Source != source || !s.externalAllowedLocked(current) {
+	if !ok || len(generation) > 1 || len(generation) == 1 && current.AuthGeneration != generation[0] || !isExternalSource(source) || current.Source != source || !s.externalAllowedLocked(current) {
 		return LoginSession{}, nil, ErrInvalidCredentials
 	}
 	return s.authenticateVerifiedPrimaryLocked(name, current, otp, "")

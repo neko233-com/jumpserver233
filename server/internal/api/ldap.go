@@ -137,7 +137,7 @@ func registerLDAPRoutes(mux *http.ServeMux, d Dependencies) {
 			writeLDAPError(w, e)
 			return
 		}
-		ticket, e := d.LDAP.NewPending(user.ID, id.Revision)
+		ticket, e := d.LDAP.NewPending(user.ID, id.Revision, user.AuthGeneration)
 		if e != nil {
 			writeLDAPError(w, e)
 			return

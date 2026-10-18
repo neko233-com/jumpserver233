@@ -15,6 +15,11 @@ import (
 
 var errJobLoginPending = errors.New("job login review pending")
 
+func jobOwnerSnapshot(d Dependencies, user coreauth.User) (coreauth.User, bool) {
+	current, ok := jobOwner(d, user.ID)
+	return current, ok && current.AuthGeneration == user.AuthGeneration
+}
+
 func jobOwner(d Dependencies, id string) (coreauth.User, bool) {
 	user, ok := d.Auth.ActiveUserByID(id)
 	if !ok && ((id == "admin-token" && d.AdminToken != "") || (id == "loopback-admin" && d.AdminToken == "" && d.Auth.BootstrapRequired())) {

@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Platform identity editing, expiry, archive/restore, credential revocation, atomic batches and metadata audit are available in Web/CLI/SDK. See [User lifecycle](./USERS.en.md). Overall Enterprise parity remains in progress.
+
 Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./RADIUS.en.md). Overall Enterprise parity remains in progress.
 
 Go native Playbooks provide revisioned workspaces, organization publication, source snapshots, sequential SSH modules, conditions/loops/retries, durable recovery and Web/CLI/SDK. See [Native Playbooks](./PLAYBOOKS.en.md). Full Ansible and Enterprise parity remain in progress.

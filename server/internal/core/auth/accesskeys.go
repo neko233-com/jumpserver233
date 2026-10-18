@@ -61,7 +61,7 @@ func (s *Service) CreateAccessKey(userID string) (AccessKeyCredentials, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	username, record, exists := s.storedUserByIDLocked(userID)
-	if !exists {
+	if !exists || !s.externalAllowedLocked(record) {
 		return AccessKeyCredentials{}, ErrUserNotFound
 	}
 	if len(record.AccessKeys) >= maxAccessKeys {

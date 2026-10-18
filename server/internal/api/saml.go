@@ -168,7 +168,7 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
-		ticket, e := d.SAML.NewPending(user.ID, id.Revision)
+		ticket, e := d.SAML.NewPending(user.ID, id.Revision, user.AuthGeneration)
 		if e != nil {
 			fail()
 			return

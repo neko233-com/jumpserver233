@@ -65,7 +65,7 @@ func (s *Service) StartMFAEnrollment(userID string) (MFAEnrollment, error) {
 	defer s.mu.Unlock()
 
 	username, record, ok := s.storedUserByIDLocked(userID)
-	if !ok {
+	if !ok || !s.externalAllowedLocked(record) {
 		return MFAEnrollment{}, ErrUserNotFound
 	}
 	if record.MFAEnabled {
@@ -117,7 +117,7 @@ func (s *Service) ConfirmMFAEnrollment(userID, code string) (User, error) {
 	defer s.mu.Unlock()
 
 	username, record, ok := s.storedUserByIDLocked(userID)
-	if !ok {
+	if !ok || !s.externalAllowedLocked(record) {
 		return User{}, ErrUserNotFound
 	}
 	if record.MFAEnabled {
@@ -189,7 +189,7 @@ func (s *Service) DisableMFA(userID, password, code string, sessionToken ...stri
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	current, exists := s.users[username]
-	if !exists || current.ID != userID || !current.MFAEnabled || subtle.ConstantTimeCompare(current.PasswordHash, snapshot.PasswordHash) != 1 {
+	if !exists || current.ID != userID || current.AuthGeneration != snapshot.AuthGeneration || !s.externalAllowedLocked(current) || !current.MFAEnabled || subtle.ConstantTimeCompare(current.PasswordHash, snapshot.PasswordHash) != 1 {
 		return User{}, ErrInvalidCredentials
 	}
 	if s.requiresMFALocked(current.User) {
@@ -245,7 +245,7 @@ func (s *Service) RegenerateMFARecoveryCodes(userID, password, code string, sess
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	current, exists := s.users[username]
-	if !exists || current.ID != userID || !current.MFAEnabled || subtle.ConstantTimeCompare(current.PasswordHash, snapshot.PasswordHash) != 1 {
+	if !exists || current.ID != userID || current.AuthGeneration != snapshot.AuthGeneration || !s.externalAllowedLocked(current) || !current.MFAEnabled || subtle.ConstantTimeCompare(current.PasswordHash, snapshot.PasswordHash) != 1 {
 		return MFARecoveryCodes{}, ErrInvalidCredentials
 	}
 	updated, consumed, err := s.consumeMFASecondFactorLocked(current, code, s.now())

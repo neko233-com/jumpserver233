@@ -17,6 +17,7 @@ type Ticket struct {
 	UserID, SetupToken string
 	CredentialID       string
 	Revision, Attempts int
+	AuthGeneration     int
 	Expires            time.Time
 }
 type Store struct {
@@ -79,6 +80,20 @@ func (s *Store) SetSetup(token, setup string) error {
 		return ErrTicket
 	}
 	p.SetupToken = setup
+	s.pending[k] = p
+	return nil
+}
+
+// BindGeneration is used before a verified primary ticket is given to a client.
+func (s *Store) BindGeneration(token string, generation int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	k := sha256.Sum256([]byte(token))
+	p, ok := s.pending[k]
+	if !ok || generation < 0 || !s.now().Before(p.Expires) {
+		return ErrTicket
+	}
+	p.AuthGeneration = generation
 	s.pending[k] = p
 	return nil
 }

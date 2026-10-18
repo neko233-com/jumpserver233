@@ -284,7 +284,7 @@ func registerRadiusRoutes(mux *http.ServeMux, d Dependencies) {
 			radiusError(w, e)
 			return
 		}
-		ticket, e := d.RADIUS.NewPending(user.ID, id.Revision, accesspolicies.SourceIP(r.Context()))
+		ticket, e := d.RADIUS.NewPending(user.ID, id.Revision, accesspolicies.SourceIP(r.Context()), user.AuthGeneration)
 		if e != nil {
 			radiusError(w, e)
 			return
