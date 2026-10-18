@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-const operationsUsage = "usage: jms ops preview|create|template-create --file JSON_OR_- | schedule|template-update ID --file JSON_OR_- | enable|disable|template-delete ID --revision N | plans|plan ID|templates|runs|run ID|events ID|cancel ID [--offset N --limit N]"
+const operationsUsage = "usage: jms ops preview|create|template-create|validate|playbook-create --file JSON_OR_- | schedule|template-update|playbook-update ID --file JSON_OR_- | enable|disable|template-delete|playbook-delete ID --revision N | trigger PLAN_ID --request-id ID | step RUN_ID ASSET_ID STEP_ID | plans|plan ID|templates|runs|run ID|events ID|cancel ID|playbooks|playbook ID|playbook-events ID|program RUN_ID [--offset N --limit N]"
 
 func runOperations(args []string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
@@ -25,6 +25,9 @@ func runOperations(args []string) error {
 	return executeOperations(context.Background(), c, args, os.Stdin, os.Stdout)
 }
 func operationJSON(path string, stdin io.Reader, out any) error {
+	return operationJSONLimit(path, stdin, out, 64<<10)
+}
+func operationJSONLimit(path string, stdin io.Reader, out any, limit int64) error {
 	if path == "" {
 		return errors.New("structured JSON input is required (--file PATH or --file -)")
 	}
@@ -37,9 +40,9 @@ func operationJSON(path string, stdin io.Reader, out any) error {
 		defer f.Close()
 		reader = f
 	}
-	raw, e := io.ReadAll(io.LimitReader(reader, (64<<10)+1))
-	if e != nil || len(raw) > 64<<10 {
-		return errors.New("operation JSON exceeds 64 KiB")
+	raw, e := io.ReadAll(io.LimitReader(reader, limit+1))
+	if e != nil || int64(len(raw)) > limit {
+		return errors.New("operation JSON exceeds its input limit")
 	}
 	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		return errors.New("operation JSON must be an object")
@@ -58,8 +61,8 @@ func executeOperations(ctx context.Context, c *sessionclient.Client, args []stri
 	action := args[0]
 	rest := args[1:]
 	id := ""
-	withID := map[string]bool{"plan": true, "schedule": true, "enable": true, "disable": true, "events": true, "run": true, "cancel": true, "template-update": true, "template-delete": true}
-	known := withID[action] || action == "plans" || action == "preview" || action == "create" || action == "templates" || action == "template-create" || action == "runs"
+	withID := map[string]bool{"plan": true, "schedule": true, "enable": true, "disable": true, "events": true, "run": true, "cancel": true, "template-update": true, "template-delete": true, "playbook": true, "playbook-update": true, "playbook-delete": true, "playbook-events": true, "program": true, "trigger": true, "step": true}
+	known := withID[action] || action == "plans" || action == "preview" || action == "create" || action == "templates" || action == "template-create" || action == "runs" || action == "playbooks" || action == "playbook-create" || action == "validate"
 	if !known {
 		return errors.New(operationsUsage)
 	}
@@ -70,24 +73,35 @@ func executeOperations(ctx context.Context, c *sessionclient.Client, args []stri
 		id = rest[0]
 		rest = rest[1:]
 	}
+	assetID, stepID := "", ""
+	if action == "step" {
+		if len(rest) < 2 {
+			return errors.New(operationsUsage)
+		}
+		assetID, stepID = rest[0], rest[1]
+		rest = rest[2:]
+	}
 	f := flag.NewFlagSet("ops", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	file := f.String("file", "", "")
 	revision := f.Int("revision", 0, "")
 	offset := f.Int("offset", 0, "")
 	limit := f.Int("limit", 25, "")
+	requestID := f.String("request-id", "", "")
 	if f.Parse(rest) != nil || f.NArg() != 0 || *offset < 0 || *limit < 1 || *limit > 100 {
 		return errors.New(operationsUsage)
 	}
 	allowed := map[string]bool{}
 	switch action {
-	case "preview", "create", "schedule", "template-create", "template-update":
+	case "preview", "create", "schedule", "template-create", "template-update", "validate", "playbook-create", "playbook-update":
 		allowed["file"] = true
-	case "enable", "disable", "template-delete":
+	case "enable", "disable", "template-delete", "playbook-delete":
 		allowed["revision"] = true
-	case "plans", "runs", "events":
+	case "plans", "runs", "events", "playbooks", "playbook-events":
 		allowed["offset"] = true
 		allowed["limit"] = true
+	case "trigger":
+		allowed["request-id"] = true
 	}
 	valid := true
 	f.Visit(func(v *flag.Flag) {
@@ -101,6 +115,31 @@ func executeOperations(ctx context.Context, c *sessionclient.Client, args []stri
 	var value any
 	var e error
 	switch action {
+	case "validate":
+		var in sessionclient.PlaybookWorkspace
+		if e = operationJSONLimit(*file, stdin, &in, 512<<10); e == nil {
+			value, e = c.ValidatePlaybook(ctx, in)
+		}
+	case "playbooks":
+		value, e = c.Playbooks(ctx, *offset, *limit)
+	case "playbook":
+		value, e = c.Playbook(ctx, id)
+	case "playbook-create", "playbook-update":
+		var in sessionclient.PlaybookInput
+		if e = operationJSONLimit(*file, stdin, &in, 512<<10); e == nil {
+			value, e = c.SavePlaybook(ctx, id, in)
+		}
+	case "playbook-delete":
+		e = c.DeletePlaybook(ctx, id, *revision)
+		value = map[string]bool{"deleted": e == nil}
+	case "playbook-events":
+		value, e = c.PlaybookEvents(ctx, id, *offset, *limit)
+	case "program":
+		value, e = c.OperationProgram(ctx, id)
+	case "step":
+		value, e = c.OperationStepOutput(ctx, id, assetID, stepID)
+	case "trigger":
+		value, e = c.TriggerOperationPlan(ctx, id, *requestID)
 	case "preview":
 		var in sessionclient.OperationPreviewInput
 		if e = operationJSON(*file, stdin, &in); e == nil {

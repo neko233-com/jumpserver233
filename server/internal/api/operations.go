@@ -24,6 +24,7 @@ func jobOwner(d Dependencies, id string) (coreauth.User, bool) {
 }
 func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(coreauth.User, string, string, accesspolicies.Origin) (string, string, commandfilters.Decision, int), accessMu *sync.RWMutex) {
 	registerCalendarRoutes(mux, d, authorize, accessMu)
+	registerPlaybookRoutes(mux, d, authorize, accessMu)
 	protect := func(h http.HandlerFunc) http.Handler { return protectAuthenticatedAPI(h, d.AdminToken, d.Auth) }
 	visible := func(r *http.Request, user coreauth.User, owner, permission string) bool {
 		return hasPermission(r, permission) || user.ID == owner
@@ -113,6 +114,14 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 			return
 		}
 		prepared.Origin = accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(r.Context()), Method: "scheduled_exec"}
+		if prepared.PlaybookID != "" {
+			prepared.Inventory = map[string]string{}
+			for _, id := range prepared.AssetIDs {
+				if asset, e := d.Assets.Get(id); e == nil {
+					prepared.Inventory[id] = asset.Name
+				}
+			}
+		}
 		if prepared.Kind == "batch" {
 			prepared.Origin.Method = "exec"
 		}
@@ -202,6 +211,9 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 			owner = ""
 		}
 		items, total := d.Operations.Runs(owner, offset, limit)
+		for i := range items {
+			items[i] = operations.PublicRun(items[i])
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"results": items, "total": total})
 	}))
 	getRun := func(w http.ResponseWriter, r *http.Request) (operations.Run, bool) {
@@ -229,7 +241,7 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 	}
 	mux.Handle("GET /api/v1/ops/runs/{runID}", protect(func(w http.ResponseWriter, r *http.Request) {
 		if run, ok := getRun(w, r); ok {
-			writeJSON(w, http.StatusOK, run)
+			writeJSON(w, http.StatusOK, operations.PublicRun(run))
 		}
 	}))
 	mux.Handle("POST /api/v1/ops/runs/{runID}/cancel", protect(func(w http.ResponseWriter, r *http.Request) {

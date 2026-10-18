@@ -58,11 +58,14 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 			return "", "", commandfilters.Decision{}, http.StatusForbidden
 		}
 		if d.CommandFilters != nil {
-			decision = d.CommandFilters.Decide(commandfilters.Scope{UserID: user.ID, GroupIDs: groupIDs, AssetID: assets.ResourceID(asset), NodeIDs: nodeIDs, Account: asset.Username}, command, !strings.ContainsAny(command, ";&|`$<>\\()"), time.Now().UTC())
+			decision = d.CommandFilters.Decide(commandfilters.Scope{UserID: user.ID, GroupIDs: groupIDs, AssetID: assets.ResourceID(asset), NodeIDs: nodeIDs, Account: asset.Username}, command, !strings.ContainsAny(command, ";&|`$<>\\()\n\r\t"), time.Now().UTC())
 		}
 		return asset.Name, asset.Username, decision, http.StatusOK
 	}
 	jobGuardLocked := func(job jobs.Job) error {
+		if job.PlaybookStep != nil && (d.Operations == nil || !d.Operations.WorkflowJobAllowed(job.OperatorID, job.AssetID, *job.PlaybookStep, job.Command)) {
+			return jobs.ErrAccessDenied
+		}
 		owner, ok := jobOwner(d, job.OperatorID)
 		if !ok {
 			return jobs.ErrAccessDenied
@@ -85,6 +88,9 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		}
 		accessMu.RLock()
 		defer accessMu.RUnlock()
+		if input.PlaybookStep != nil && (d.Operations == nil || !d.Operations.WorkflowJobAllowed(user.ID, input.AssetID, *input.PlaybookStep, input.Command)) {
+			return operations.Submission{}, operations.ErrDenied
+		}
 		if !pluginJobAllowed(d, user, input.AssetID, input.Plugin) || !discoveryJobAllowed(d, user, input.AssetID, input.Discovery, input.Origin) || !remoteAccountJobAllowed(d, user, input.AssetID, input.RemoteAccount, input.Origin) {
 			return operations.Submission{}, operations.ErrDenied
 		}

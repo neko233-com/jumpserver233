@@ -320,6 +320,20 @@ func (s *Service) ReplayPlan(owner string, in PlanInput) (Plan, bool, error) {
 	in.Name = strings.TrimSpace(in.Name)
 	in.AssetIDs = slices.Clone(in.AssetIDs)
 	slices.Sort(in.AssetIDs)
+	if in.PlaybookID != "" {
+		if in.Command != "" || in.TemplateID != "" || in.PlaybookID != found.PlaybookID {
+			return Plan{}, true, ErrConflict
+		}
+		in.Command = found.Command
+		if in.PlaybookTimeout == 0 {
+			in.PlaybookTimeout = 3600
+		}
+		var e error
+		in.Variables, e = normalizedBindings(in.Variables)
+		if e != nil {
+			return Plan{}, true, ErrConflict
+		}
+	}
 	if in.TemplateID != "" {
 		if in.Command != "" || in.TemplateID != found.TemplateID {
 			return Plan{}, true, ErrConflict
@@ -342,7 +356,7 @@ func (s *Service) ReplayPlan(owner string, in PlanInput) (Plan, bool, error) {
 		return Plan{}, true, ErrConflict
 	}
 	found.AssetIDs = slices.Clone(found.AssetIDs)
-	return found, true, nil
+	return cloneWorkflowPlan(found), true, nil
 }
 func appendScheduleEvent(next *state, p Plan, before Schedule, action string, actor ScheduleActor, at time.Time) error {
 	if actor.ID == "" {
@@ -458,7 +472,7 @@ func (s *Service) UpdateSchedule(id string, in ScheduleUpdate, actor ScheduleAct
 		return appendScheduleEvent(next, p, before, "updated", actor, s.now())
 	})
 	out.AssetIDs = slices.Clone(out.AssetIDs)
-	return out, e
+	return cloneWorkflowPlan(out), e
 }
 func (s *Service) SetEnabledRevision(id string, enabled bool, revision int, actor ScheduleActor) (Plan, error) {
 	var out Plan
@@ -504,5 +518,5 @@ func (s *Service) SetEnabledRevision(id string, enabled bool, revision int, acto
 	})
 	out.AssetIDs = slices.Clone(out.AssetIDs)
 	out.HostPlugin = clonePlugin(out.HostPlugin)
-	return out, e
+	return cloneWorkflowPlan(out), e
 }

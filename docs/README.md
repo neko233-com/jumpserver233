@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+Go 原生 Playbook 支持工作空间版本、组织发布、源码快照、顺序 SSH 模块、条件/循环/重试、持久化恢复和 Web/CLI/SDK；见[原生 Playbook](./PLAYBOOKS.md)。完整 Ansible 和企业版整体仍在进行。
+
 SSH 命令计划支持五段 cron、显式时区、夏令时、错过触发策略、预览、版本编辑和变更审计，并提供完整 Ops CLI；见[日历调度](./SCHEDULING.md)。
 
 库存、审计来源、UTC 日趋势、当前权限及带摘要回执的 CSV 见[运营报表](./REPORTS.md)。

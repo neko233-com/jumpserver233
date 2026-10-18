@@ -2,6 +2,8 @@
 
 > [中文](./JOBS.md) | English
 
+Go native Playbooks provide revisioned workspaces, organization publication, source snapshots, sequential SSH modules, conditions/loops/retries, durable recovery and Web/CLI/SDK. See [Native Playbooks](./PLAYBOOKS.en.md). Full Ansible and Enterprise parity remain in progress.
+
 Host plugins expose structured `jms plugin` operations through the same idempotent jobs, review, owner audit and encrypted output. Authorization is checked during execution. See [host tools and agents](./HOST-PLUGINS.en.md).
 
 Source, weekly-hour and execution-channel restrictions support standalone and single-active HA. See [Access policies](./ACCESS-POLICIES.en.md). Full Enterprise parity remains in progress.
@@ -33,7 +35,7 @@ By default the CLI writes remote stdout/stderr to the corresponding local stream
 - At most eight jobs run globally and two per user. Each user can have 20 pending reviews. The store holds 1000 audit records; new jobs are refused at capacity, without silently deleting old audits.
 - Cancellation, timeout, or node shutdown closes the SSH transport. Detached remote descendants may continue; verify them separately when needed.
 - Restart or HA takeover marks unfinished jobs interrupted without replay. A node that loses its election lock stops writing job documents. Failure to persist the final audit reports `audit_unavailable`; verify the remote outcome before retrying.
-- Current coverage includes SSH jobs, batch dispatch, templates, and interval schedules. Playbook/Ansible and other ticket types remain open; cron/calendar scheduling is described in [Calendar schedules](./SCHEDULING.en.md); access tickets and external notifications are covered in [Access tickets](./ACCESS-TICKETS.en.md) and [Notifications](./NOTIFICATIONS.en.md).
+- Current coverage includes SSH jobs, batch dispatch, templates, and interval schedules. Full Ansible and other ticket types remain open; cron/calendar scheduling is described in [Calendar schedules](./SCHEDULING.en.md); access tickets and external notifications are covered in [Access tickets](./ACCESS-TICKETS.en.md) and [Notifications](./NOTIFICATIONS.en.md).
 
 ## Batches, templates, and schedules
 

@@ -304,7 +304,7 @@ func TestCalendarEncryptedV2MigrationAndRestartRetainsFoldWatermark(t *testing.T
 	assert.NotContains(t, string(raw), "private-command")
 	var box envelope
 	require.NoError(t, json.Unmarshal(raw, &box))
-	assert.Equal(t, 3, box.Version)
+	assert.Equal(t, 4, box.Version)
 	peer.Close()
 	// Legacy ordinary plans gain revision and immutable-create identity on open.
 	legacy := clone(s.data)
@@ -337,7 +337,7 @@ func TestCalendarEncryptedV2MigrationAndRestartRetainsFoldWatermark(t *testing.T
 	raw, e = os.ReadFile(s.path)
 	require.NoError(t, e)
 	require.NoError(t, json.Unmarshal(raw, &box))
-	assert.Equal(t, 3, box.Version)
+	assert.Equal(t, 4, box.Version)
 }
 func TestCalendarPostgresScopedTakeover(t *testing.T) {
 	dsn := os.Getenv("JMS_TEST_DATABASE_URL")

@@ -2,9 +2,13 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEven
 import { useTranslation } from "react-i18next";
 import { usePermissions } from "../auth/usePermissions";
 import "../i18n/locales/features/operations/register";
+import "../i18n/locales/features/playbooks/register";
+import { jsonBindings, type Playbook, type WorkflowRun } from "./playbooks";
 import OperationScheduleFields from "./OperationScheduleFields";
 import { scheduleDraft, schedulePayload, type ScheduledPlan } from "./operationSchedules";
 const OperationScheduleEditor = lazy(() => import("./OperationScheduleEditor"));
+const PlaybookWorkspaces = lazy(() => import("./PlaybookWorkspaces"));
+const PlaybookRunDetails = lazy(() => import("./PlaybookRunDetails"));
 
 type Asset = { id: string; name: string; username: string };
 type Template = {
@@ -15,6 +19,8 @@ type Template = {
   revision: number;
 };
 type Plan = ScheduledPlan & {
+  playbook_id?: string;
+  playbook_revision?: number;
   host_plugin?: object;
   account_discovery?: object;
   config_revision?: number;
@@ -35,7 +41,7 @@ type Item = {
   review_id?: string;
   error_code?: string;
 };
-type Run = {
+type Run = WorkflowRun & {
   scheduled_for?: string;
   plan_revision?: number;
   lateness_seconds?: number;
@@ -60,6 +66,9 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
   const { allows, userID } = usePermissions();
   const [open, setOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [variables, setVariables] = useState("{}");
+  const [workflowTimeout, setWorkflowTimeout] = useState(3600);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [planTotal, setPlanTotal] = useState(0);
   const [planOffset, setPlanOffset] = useState(0);
@@ -72,6 +81,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
   const [command, setCommand] = useState("");
   const [timeout, setTimeoutSeconds] = useState(60);
   const [templateID, setTemplateID] = useState("");
+  const playbookID = templateID.startsWith("playbook-") ? templateID : "";
   const [schedule, setSchedule] = useState(() => scheduleDraft());
   const [schedulePlan, setSchedulePlan] = useState<Plan | null>(null);
   const [editing, setEditing] = useState<Template | null>(null);
@@ -97,13 +107,22 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
           request("/api/v1/ops/templates", { signal }),
           request(`/api/v1/ops/plans?offset=${planOffset}&limit=50`, { signal }),
           request(`/api/v1/ops/runs?limit=50&offset=${offset}`, { signal }),
+          request("/api/v1/ops/playbooks?offset=0&limit=100", { signal }),
+          request("/api/v1/ops/playbooks?offset=100&limit=100", { signal }),
         ]);
         if (responses.some((r) => !r.ok)) throw new Error("operations unavailable");
-        const [templateData, planData, runData] = (await Promise.all(
+        const [templateData, planData, runData, booksFirst, booksSecond] = (await Promise.all(
           responses.map((r) => r.json()),
-        )) as [Template[], { results: Plan[]; total: number }, { results: Run[]; total: number }];
+        )) as [
+          Template[],
+          { results: Plan[]; total: number },
+          { results: Run[]; total: number },
+          { results: Playbook[] },
+          { results: Playbook[] },
+        ];
         if (signal?.aborted) return;
         setTemplates(templateData);
+        setPlaybooks([...booksFirst.results, ...booksSecond.results]);
         setPlans(planData.results);
         setPlanTotal(planData.total);
         if (planOffset >= planData.total && planOffset > 0)
@@ -201,7 +220,16 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
         asset_ids: targets,
         ...schedulePayload(schedule),
         request_id: requestID.current,
-        ...(templateID ? { template_id: templateID } : { command, timeout_seconds: timeout }),
+        ...(playbookID
+          ? {
+              playbook_id: playbookID,
+              variables: jsonBindings(variables),
+              playbook_timeout_seconds: workflowTimeout,
+              timeout_seconds: timeout,
+            }
+          : templateID
+            ? { template_id: templateID }
+            : { command, timeout_seconds: timeout }),
       };
       const response = await request("/api/v1/ops/plans", {
         method: "POST",
@@ -249,6 +277,22 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
       setBusy(false);
     }
   }
+  async function trigger(plan: Plan) {
+    setBusy(true);
+    setError(false);
+    try {
+      const response = await request(`/api/v1/ops/plans/${encodeURIComponent(plan.id)}/runs`, {
+        method: "POST",
+        body: JSON.stringify({ request_id: crypto.randomUUID() }),
+      });
+      if (!response.ok) throw Error();
+      await load();
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
+  }
   const time = (value?: string) => (value ? new Date(value).toLocaleString(i18n.language) : "—");
   return (
     <details
@@ -262,6 +306,16 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
       {open && (
         <div>
           <p>{t("operations.description")}</p>
+          <Suspense fallback={null}>
+            <PlaybookWorkspaces
+              request={request}
+              onChanged={() => void load()}
+              onChoose={(book) => {
+                setTemplateID(book.id);
+                resetID();
+              }}
+            />
+          </Suspense>
           {error && (
             <p role="alert" className="login-error">
               {t("operations.error")}
@@ -395,8 +449,67 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                     {item.name} · v{item.revision}
                   </option>
                 ))}
+                <optgroup label={t("playbooks.title")}>
+                  {playbooks.map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.name} · v{book.revision}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </label>
+            {playbookID && (
+              <>
+                <label>
+                  {t("playbooks.variables")}
+                  <textarea
+                    rows={4}
+                    spellCheck={false}
+                    value={variables}
+                    onChange={(e) => {
+                      setVariables(e.target.value);
+                      try {
+                        jsonBindings(e.target.value);
+                        e.target.setCustomValidity("");
+                      } catch {
+                        e.target.setCustomValidity(t("playbooks.variablesInvalid"));
+                      }
+                      resetID();
+                    }}
+                  />
+                </label>
+                <p>{t("playbooks.variablesHint")}</p>
+                <label>
+                  {t("playbooks.timeout")}
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    max={86400}
+                    value={workflowTimeout}
+                    onChange={(e) => {
+                      setWorkflowTimeout(Number(e.target.value));
+                      resetID();
+                    }}
+                  />
+                </label>
+                <label>
+                  {t("operations.timeout")}
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    max={300}
+                    value={timeout}
+                    onChange={(e) => {
+                      setTimeoutSeconds(Number(e.target.value));
+                      resetID();
+                    }}
+                  />
+                </label>
+                <p>{t("playbooks.stepTimeout")}</p>
+              </>
+            )}
             {!templateID && (
               <>
                 <label>
@@ -459,6 +572,11 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                   <tr key={plan.id}>
                     <td>{plan.name}</td>
                     <td>
+                      {plan.playbook_id && (
+                        <>
+                          {t("playbooks.type")} · v{plan.playbook_revision} ·{" "}
+                        </>
+                      )}
                       {t(
                         plan.account_discovery
                           ? "accountSchedule.title"
@@ -486,6 +604,13 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                           {t("calendar.edit")}
                         </button>
                       )}
+                      {(plan.owner_id === userID || allows("plans.manage_all")) &&
+                        !plan.account_discovery &&
+                        !plan.host_plugin && (
+                          <button type="button" disabled={busy} onClick={() => void trigger(plan)}>
+                            {t("playbooks.runNow")}
+                          </button>
+                        )}
                       {(plan.owner_id === userID || allows("plans.manage_all")) &&
                         plan.kind !== "batch" &&
                         !(plan.kind === "once" && plan.last_run_id) && (
@@ -602,6 +727,16 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                   {selected.lateness_seconds || 0}
                   {selected.coalesced && <> · {t("calendar.coalesced")}</>}
                 </p>
+              )}
+              {selected.program_id && (
+                <Suspense fallback={null}>
+                  <PlaybookRunDetails
+                    key={selected.id}
+                    run={selected}
+                    request={request}
+                    onJob={onJob}
+                  />
+                </Suspense>
               )}
               <ul>
                 {selected.items.map((item) => (

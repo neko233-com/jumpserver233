@@ -2,6 +2,18 @@
 
 > [中文](./TESTING.md) | English
 
+## Native Playbook verification batch (2026-10-18)
+
+- Implementation, test code and bilingual documentation completed before unified verification. Final full Go: 67 packages, 1190 passing tests, 35 platform/missing-fixture skips, zero failures, exit 0, using real OpenSSH, PostgreSQL and RDP.
+- Docker native Playbook acceptance: 1/1 passed, zero failures/skips, 20.2 seconds. Real SSH file/template/stat/command, assert, loops, notified handlers, immutable source, deduplicated manual reruns, permission denial, conflicts, CLI and English 1440px/Chinese 390px. The in-app browser additionally confirmed v1 source, unchanged repeated file modules and actual stdout with no captured warnings/errors.
+- Fresh-volume Docker browser and peer isolation passed: cached build 4.81 seconds, startup 12.19, checks 4.56, about 21.6 total; disposable resources cleaned. Retained instance: http://127.0.0.39:15199/workbench, API 18106, loopback only.
+- Linux Docker race: six related packages, 363 passing tests, four missing-fixture skips, zero failures, exit 0. These overlap full Go and are not added together. The first race pass found the same three test issues; this is the corrected related-package rerun.
+- The production API container was restarted during a persisted native pause. After signing in again, the five-step run succeeded, retained the original child job ID and read exactly one appended `x`, confirming no completed-step replay in this scenario. Its last step removed the owned marker file.
+- Final complete production browser regression, pnpm test:e2e:production: 78/78 passed, zero failures/skips, 17.7 minutes, runner exit 0. Fresh temporary data, real protocol/native-service fixtures and final cleanup completed; existing debug instances remain. The new Playbook flow also passed inside this suite in 19.6 seconds. All 986 implementation/configuration/test source fingerprints stayed unchanged throughout.
+- Vet, full Go build, lint, strict frontend/E2E types, production build and ten helper tests passed. Content checks: 2904 keys per language, 122 bilingual documents, 1114 relative links, zero errors. Existing gitignore rules exclude caches/logs/builds/local tools; changelog is not edited manually.
+- The first Go pass found three test failures: old Operations format assertion, a trailing control-whitespace sample normalized by validation, and an unquoted flow-style YAML condition with an array index. Tests were corrected and the full suite rerun to the final result above. Browser locators now use accessible textbox roles and explicit action deadlines; focused acceptance then passed.
+- [Native Playbooks](./PLAYBOOKS.en.md) defines format limits. Full Ansible, full Enterprise parity and production multi-active remain open.
+
 ## Unified calendar-scheduling acceptance (2026-10-18)
 
 - Implementation, automated cases and bilingual documentation were authored as one batch before verification. Final full production browser regression: pnpm test:e2e:production, 77/77 pass, zero failures/skips, 17.9m, runner exit 0. Fresh temporary data and real protocol/native fixtures were cleaned; existing debug environments remain. All 957 implementation, configuration and test-source fingerprints stayed unchanged.

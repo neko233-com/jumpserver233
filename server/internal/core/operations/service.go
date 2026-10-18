@@ -23,6 +23,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
+	"github.com/neko233-com/jumpserver233/server/internal/core/playbooks"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 )
 
@@ -48,24 +49,33 @@ type Template struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 type PlanInput struct {
-	Origin          accesspolicies.Origin `json:"-"`
-	Name            string                `json:"name"`
-	AssetIDs        []string              `json:"asset_ids"`
-	Command         string                `json:"command"`
-	TimeoutSeconds  int                   `json:"timeout_seconds"`
-	TemplateID      string                `json:"template_id,omitempty"`
-	Kind            string                `json:"kind"` // batch, once, interval, cron
-	RunAt           time.Time             `json:"run_at,omitzero"`
-	IntervalSeconds int                   `json:"interval_seconds,omitempty"`
-	CronExpression  string                `json:"cron_expression,omitempty"`
-	Timezone        string                `json:"timezone,omitempty"`
-	EndAt           time.Time             `json:"end_at,omitzero"`
-	MisfirePolicy   string                `json:"misfire_policy,omitempty"`
-	GraceSeconds    int                   `json:"grace_seconds,omitempty"`
-	FoldPolicy      string                `json:"fold_policy,omitempty"`
-	RequestID       string                `json:"request_id"`
+	ProgramID        string                `json:"-"`
+	PlaybookRevision int                   `json:"-"`
+	Inventory        map[string]string     `json:"-"`
+	PlaybookID       string                `json:"playbook_id,omitempty"`
+	Variables        map[string]any        `json:"variables,omitempty"`
+	PlaybookTimeout  int                   `json:"playbook_timeout_seconds,omitempty"`
+	Origin           accesspolicies.Origin `json:"-"`
+	Name             string                `json:"name"`
+	AssetIDs         []string              `json:"asset_ids"`
+	Command          string                `json:"command"`
+	TimeoutSeconds   int                   `json:"timeout_seconds"`
+	TemplateID       string                `json:"template_id,omitempty"`
+	Kind             string                `json:"kind"` // batch, once, interval, cron
+	RunAt            time.Time             `json:"run_at,omitzero"`
+	IntervalSeconds  int                   `json:"interval_seconds,omitempty"`
+	CronExpression   string                `json:"cron_expression,omitempty"`
+	Timezone         string                `json:"timezone,omitempty"`
+	EndAt            time.Time             `json:"end_at,omitzero"`
+	MisfirePolicy    string                `json:"misfire_policy,omitempty"`
+	GraceSeconds     int                   `json:"grace_seconds,omitempty"`
+	FoldPolicy       string                `json:"fold_policy,omitempty"`
+	RequestID        string                `json:"request_id"`
 }
 type Plan struct {
+	ProgramID           string                      `json:"program_id,omitempty"`
+	PlaybookRevision    int                         `json:"playbook_revision,omitempty"`
+	Inventory           map[string]string           `json:"inventory,omitempty"`
 	CreationHash        string                      `json:"creation_hash,omitempty"`
 	LastScheduledAt     time.Time                   `json:"last_scheduled_at,omitzero"`
 	CalendarWatermark   string                      `json:"calendar_watermark,omitempty"`
@@ -89,14 +99,28 @@ type Plan struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 type Item struct {
-	AssetID   string    `json:"asset_id"`
-	JobID     string    `json:"job_id,omitempty"`
-	State     string    `json:"state"`
-	ReviewID  string    `json:"review_id,omitempty"`
-	ErrorCode string    `json:"error_code,omitempty"`
-	RetryAt   time.Time `json:"retry_at,omitzero"`
+	LoopValues []any        `json:"loop_values,omitempty"`
+	Steps      []StepResult `json:"steps,omitempty"`
+	TaskCursor int          `json:"task_cursor,omitempty"`
+	AssetID    string       `json:"asset_id"`
+	JobID      string       `json:"job_id,omitempty"`
+	State      string       `json:"state"`
+	ReviewID   string       `json:"review_id,omitempty"`
+	ErrorCode  string       `json:"error_code,omitempty"`
+	RetryAt    time.Time    `json:"retry_at,omitzero"`
 }
 type Run struct {
+	ProgramID           string                      `json:"program_id,omitempty"`
+	PlaybookID          string                      `json:"playbook_id,omitempty"`
+	PlaybookRevision    int                         `json:"playbook_revision,omitempty"`
+	Variables           map[string]any              `json:"variables,omitempty"`
+	Inventory           map[string]string           `json:"inventory,omitempty"`
+	Deadline            time.Time                   `json:"deadline,omitzero"`
+	StepReservation     int                         `json:"step_reservation,omitempty"`
+	Trigger             string                      `json:"trigger,omitempty"`
+	TriggeredBy         ScheduleActor               `json:"triggered_by,omitempty"`
+	RequestID           string                      `json:"request_id,omitempty"`
+	ErrorCode           string                      `json:"error_code,omitempty"`
 	ScheduledFor        time.Time                   `json:"scheduled_for,omitzero"`
 	PlanRevision        int                         `json:"plan_revision,omitempty"`
 	LatenessSeconds     int64                       `json:"lateness_seconds,omitempty"`
@@ -125,10 +149,13 @@ type Submission struct {
 }
 type SubmitFunc func(ownerID string, input jobs.Input, reviewID string) (Submission, error)
 type state struct {
-	ScheduleEvents []ScheduleEvent     `json:"schedule_events,omitempty"`
-	Templates      map[string]Template `json:"templates"`
-	Plans          map[string]Plan     `json:"plans"`
-	Runs           map[string]Run      `json:"runs"`
+	Playbooks      map[string]Playbook          `json:"playbooks,omitempty"`
+	Programs       map[string]playbooks.Program `json:"programs,omitempty"`
+	PlaybookEvents []PlaybookEvent              `json:"playbook_events,omitempty"`
+	ScheduleEvents []ScheduleEvent              `json:"schedule_events,omitempty"`
+	Templates      map[string]Template          `json:"templates"`
+	Plans          map[string]Plan              `json:"plans"`
+	Runs           map[string]Run               `json:"runs"`
 }
 type envelope struct {
 	Version    int    `json:"version"`
@@ -136,22 +163,23 @@ type envelope struct {
 	Ciphertext []byte `json:"ciphertext"`
 }
 type Service struct {
-	mu        sync.Mutex
-	tickMu    sync.Mutex
-	path      string
-	documents *storage.Documents
-	aead      cipher.AEAD
-	data      state
-	jobs      *jobs.Service
-	ctx       context.Context
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
-	started   bool
-	abandoned bool
-	archive   func(Run, *jobs.Job) error
-	resolve   func(jobs.Input) (jobs.Input, error)
-	submit    SubmitFunc
-	now       func() time.Time
+	mu                sync.Mutex
+	tickMu            sync.Mutex
+	path              string
+	documents         *storage.Documents
+	aead              cipher.AEAD
+	data              state
+	jobs              *jobs.Service
+	ctx               context.Context
+	cancel            context.CancelFunc
+	wg                sync.WaitGroup
+	started           bool
+	abandoned         bool
+	archive           func(Run, *jobs.Job) error
+	resolve           func(jobs.Input) (jobs.Input, error)
+	submit            SubmitFunc
+	playbookAuthorize func(string, string, accesspolicies.Origin) error
+	now               func() time.Time
 }
 
 func Open(path string, key []byte, documents *storage.Documents, jobService *jobs.Service) (*Service, error) {
@@ -167,7 +195,7 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Service{path: path, documents: documents, aead: aead, jobs: jobService, ctx: ctx, cancel: cancel, now: time.Now, data: state{Templates: map[string]Template{}, Plans: map[string]Plan{}, Runs: map[string]Run{}}}
+	s := &Service{path: path, documents: documents, aead: aead, jobs: jobService, ctx: ctx, cancel: cancel, now: time.Now, data: state{Templates: map[string]Template{}, Plans: map[string]Plan{}, Runs: map[string]Run{}, Playbooks: map[string]Playbook{}, Programs: map[string]playbooks.Program{}}}
 	var data []byte
 	if documents != nil {
 		data, err = documents.LoadOrImport("operations", path)
@@ -184,7 +212,7 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 	formatVersion := 1
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 3 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 4 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid operations store")
 		}
@@ -200,6 +228,10 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 		}
 	}
 	changed := false
+	if err := validatePrograms(&s.data, formatVersion); err != nil {
+		cancel()
+		return nil, err
+	}
 	for id, p := range s.data.Plans {
 		if p.Discovery != nil && formatVersion < 2 {
 			cancel()
@@ -232,6 +264,15 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 	// A persisted claim may have crossed the SSH boundary. Link an existing
 	// idempotent job, otherwise mark interrupted; never submit the claim again.
 	for id, run := range s.data.Runs {
+		if run.ProgramID != "" {
+			if err := s.recoverPlaybook(&run, formatVersion); err != nil {
+				cancel()
+				return nil, err
+			}
+			s.data.Runs[id] = run
+			changed = true
+			continue
+		}
 		if run.Discovery != nil && formatVersion < 2 {
 			cancel()
 			return nil, ErrInvalid
@@ -284,16 +325,20 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 }
 func clone(in state) state {
 	out := state{Templates: map[string]Template{}, Plans: map[string]Plan{}, Runs: map[string]Run{}}
+	clonePlaybookState(&out, in)
 	for id, t := range in.Templates {
 		out.Templates[id] = t
 	}
 	for id, p := range in.Plans {
 		p.AssetIDs = append([]string(nil), p.AssetIDs...)
+		p.Variables = playbooks.CloneValues(p.Variables)
+		p.Inventory = cloneInventory(p.Inventory)
 		p.HostPlugin = clonePlugin(p.HostPlugin)
 		p.Discovery = cloneDiscovery(p.Discovery)
 		out.Plans[id] = p
 	}
 	for id, r := range in.Runs {
+		r = cloneWorkflowRun(r)
 		r.Items = append([]Item(nil), r.Items...)
 		r.HostPlugin = clonePlugin(r.HostPlugin)
 		r.Discovery = cloneDiscovery(r.Discovery)
@@ -402,6 +447,15 @@ func (s *Service) Prepare(owner string, in PlanInput) (PlanInput, int, error) {
 		}
 	}
 	revision := 0
+	if in.PlaybookID != "" {
+		var e error
+		in, e = s.preparePlaybook(owner, in)
+		if e != nil {
+			return in, 0, e
+		}
+	} else if len(in.Variables) > 0 || in.PlaybookTimeout != 0 {
+		return in, 0, ErrInvalid
+	}
 	if in.TemplateID != "" {
 		if in.Command != "" {
 			return in, 0, ErrInvalid
@@ -489,6 +543,13 @@ func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, 
 			due = now
 		}
 		result = Plan{HostPlugin: clonePlugin(plugin), CollectionAccount: account, CollectionAssetName: assetName, AccessOrigin: in.Origin, ID: id, OwnerID: ownerID, Owner: owner, PlanInput: in, TemplateRevision: revision, Enabled: true, NextRun: due, CreatedAt: now}
+		result.ProgramID = in.ProgramID
+		result.PlaybookRevision = in.PlaybookRevision
+		result.Inventory = cloneInventory(in.Inventory)
+		result.Variables = playbooks.CloneValues(in.Variables)
+		result.PlanInput.ProgramID = ""
+		result.PlanInput.PlaybookRevision = 0
+		result.PlanInput.Inventory = nil
 		result.ConfigRevision = 1
 		if plugin == nil && discovery == nil {
 			result.CreationHash = creationHash(in)
@@ -510,7 +571,7 @@ func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, 
 	result.HostPlugin = clonePlugin(result.HostPlugin)
 	result.Discovery = cloneDiscovery(result.Discovery)
 	result.AssetIDs = append([]string(nil), result.AssetIDs...)
-	return result, err
+	return cloneWorkflowPlan(result), err
 }
 func (s *Service) Plans(owner string) []Plan {
 	s.mu.Lock()
@@ -521,7 +582,7 @@ func (s *Service) Plans(owner string) []Plan {
 			p.AssetIDs = append([]string(nil), p.AssetIDs...)
 			p.HostPlugin = clonePlugin(p.HostPlugin)
 			p.Discovery = cloneDiscovery(p.Discovery)
-			items = append(items, p)
+			items = append(items, cloneWorkflowPlan(p))
 		}
 	}
 	sort.Slice(items, func(i, j int) bool {
@@ -542,7 +603,7 @@ func (s *Service) Plan(id string) (Plan, error) {
 	p.AssetIDs = append([]string(nil), p.AssetIDs...)
 	p.HostPlugin = clonePlugin(p.HostPlugin)
 	p.Discovery = cloneDiscovery(p.Discovery)
-	return p, nil
+	return cloneWorkflowPlan(p), nil
 }
 func (s *Service) SetEnabled(id string, enabled bool) error {
 	_, e := s.SetEnabledRevision(id, enabled, 0, ScheduleActor{})
@@ -557,7 +618,7 @@ func (s *Service) Runs(owner string, offset, limit int) ([]Run, int) {
 			r.Items = append([]Item(nil), r.Items...)
 			r.HostPlugin = clonePlugin(r.HostPlugin)
 			r.Discovery = cloneDiscovery(r.Discovery)
-			items = append(items, r)
+			items = append(items, cloneWorkflowRun(r))
 		}
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt.After(items[j].CreatedAt) })
@@ -575,16 +636,18 @@ func (s *Service) Run(id string) (Run, error) {
 	r.Items = append([]Item(nil), r.Items...)
 	r.HostPlugin = clonePlugin(r.HostPlugin)
 	r.Discovery = cloneDiscovery(r.Discovery)
-	return r, nil
+	return cloneWorkflowRun(r), nil
 }
 func (s *Service) CancelRun(id string) error {
 	var ids []string
+	book := false
 	err := s.mutate(func(next *state) error {
 		r, ok := next.Runs[id]
 		if !ok {
 			return ErrNotFound
 		}
 		r.Cancelled = true
+		book = r.ProgramID != ""
 		for i, item := range r.Items {
 			if item.JobID != "" {
 				ids = append(ids, item.JobID)
@@ -603,6 +666,11 @@ func (s *Service) CancelRun(id string) error {
 	}
 	for _, jobID := range ids {
 		_ = s.jobs.Cancel(jobID)
+	}
+	if book {
+		if r, e := s.Run(id); e == nil {
+			s.finishPlaybook(r, s.now().UTC())
+		}
 	}
 	return nil
 }
@@ -692,6 +760,13 @@ func (s *Service) Tick() {
 				changed = true
 				continue
 			}
+			if p.ProgramID != "" && !canReservePlaybook(next, p) {
+				p.Enabled = false
+				p.ErrorCode = "history_full"
+				next.Plans[id] = p
+				changed = true
+				continue
+			}
 			runID, err := newID("run-")
 			if err != nil {
 				return err
@@ -712,6 +787,9 @@ func (s *Service) Tick() {
 				p.CollectionSequence++
 			}
 			r := Run{HostPlugin: clonePlugin(p.HostPlugin), CollectionSequence: p.CollectionSequence, CollectionAccount: p.CollectionAccount, CollectionAssetName: p.CollectionAssetName, AccessOrigin: origin, ID: runID, PlanID: p.ID, OwnerID: p.OwnerID, Name: p.Name, Command: p.Command, TimeoutSeconds: p.TimeoutSeconds, CreatedAt: now, State: "running", Items: []Item{}}
+			initPlaybookRun(&r, p, next, now)
+			r.Trigger = "schedule"
+			r.TriggeredBy = ScheduleActor{"system", "system"}
 			r.ScheduledFor = p.NextRun
 			r.PlanRevision = p.ConfigRevision
 			r.LatenessSeconds = max(0, int64(now.Sub(p.NextRun)/time.Second))
@@ -750,6 +828,10 @@ func (s *Service) Tick() {
 	runs, _ := s.Runs("", 0, 1000)
 	sort.Slice(runs, func(i, j int) bool { return runs[i].CreatedAt.Before(runs[j].CreatedAt) })
 	for _, run := range runs {
+		if run.ProgramID != "" {
+			s.tickPlaybook(run, now)
+			continue
+		}
 		for index, item := range run.Items {
 			if s.ctx.Err() != nil {
 				return
@@ -909,7 +991,7 @@ func (s *Service) persist(next state) error {
 	if _, err = rand.Read(nonce); err != nil {
 		return err
 	}
-	version := 3
+	version := 4
 	data, err := json.Marshal(envelope{Version: version, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte(fmt.Sprintf("jms233/operations/v%d", version)))})
 	if err != nil {
 		return err

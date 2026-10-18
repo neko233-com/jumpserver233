@@ -8,7 +8,7 @@
 
 ![English calendar editor](./images/calendar.en.png)
 
-The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html). Its [official job-management guide](https://docs.fit2cloud.com/jumpserver/v3/guide/user/ops/job_management/) includes commands, Playbooks and periodic execution. This feature implements SSH command scheduling. Playbook/Ansible, scheduled reports and production active-active operation remain on the roadmap. Full Enterprise parity remains in progress.
+The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html). Its [official job-management guide](https://docs.fit2cloud.com/jumpserver/v3/guide/user/ops/job_management/) includes commands, Playbooks and periodic execution. This feature implements SSH command scheduling. Native Playbooks are described in [PLAYBOOKS](./PLAYBOOKS.en.md); full Ansible, scheduled reports and production active-active operation remain on the roadmap. Full Enterprise parity remains in progress.
 
 ## Time and execution semantics
 
@@ -37,7 +37,7 @@ Recurring plans do not overlap: an active run or review skips the due trigger an
 - Owners can read/manage their ordinary plans. `plans.view_all` reads other plans and time audit; `plans.manage_all` manages them. Editing/resuming also checks that the original owner is active, belongs to the organization and currently has execution access to every original target. Actual dispatch rechecks authorization, login review and command rules.
 - Account-discovery and Agent-plugin collectors retain their typed interval APIs. General calendar editing cannot convert them into shell plans. Completed one-time plans and immediate batches are read-only.
 - Created, updated, paused, resumed and automatically ended events commit atomically with plans in the same AES-GCM encrypted state. Organization-wide retention is 4000 events and one year, pruning oldest events. Migration does not invent historical events.
-- Storage format is v3, reading/migrating v1/v2. Old services cannot read v3. Preserve a compatible data snapshot before downgrading. Existing single-active election, former-leader write rejection, claim-before-dispatch and no replay of ambiguous execution remain in force.
+- Storage format is v4 after native Playbooks, reading/migrating v1/v2/v3. Old services cannot read v4. Preserve a compatible data snapshot before downgrading. Existing single-active election, former-leader write rejection, claim-before-dispatch and no replay of ambiguous execution remain in force.
 - Server paging allows 100 records; the workbench uses pages of 50 and polls while visible. The editor and feature translations load on demand, using native dialogs, Escape and focus restoration.
 
 ## API and CLI

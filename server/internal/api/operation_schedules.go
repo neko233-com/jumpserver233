@@ -27,15 +27,20 @@ func lockCalendarAccess(d Dependencies, mu *sync.RWMutex) func() {
 	}
 }
 func authorizeCalendarOwner(d Dependencies, p operations.Plan, authorize calendarAuthorize) bool {
+	return authorizeOperationOwner(d, p, authorize, true)
+}
+func authorizeOperationOwner(d Dependencies, p operations.Plan, authorize calendarAuthorize, scheduled bool) bool {
 	owner, ok := jobOwner(d, p.OwnerID)
 	if !ok || d.OrganizationAllowed != nil && !d.OrganizationAllowed(owner) {
 		return false
 	}
 	origin := p.AccessOrigin
-	origin.Method = "scheduled_exec"
+	if scheduled {
+		origin.Method = "scheduled_exec"
+	}
 	for _, id := range p.AssetIDs {
 		_, _, decision, status := authorize(owner, id, p.Command, origin)
-		if status != http.StatusOK || !decision.Allowed {
+		if status != http.StatusOK || p.ProgramID == "" && !decision.Allowed {
 			return false
 		}
 	}

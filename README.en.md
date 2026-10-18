@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Go native Playbooks provide revisioned workspaces, organization publication, source snapshots, sequential SSH modules, conditions/loops/retries, durable recovery and Web/CLI/SDK. See [Native Playbooks](./docs/PLAYBOOKS.en.md). Full Ansible and Enterprise parity remain in progress.
+
 SSH command plans support five-field cron, explicit timezones, DST, missed-run policies, previews, revisioned editing and change audit, with a complete Ops CLI. See [Calendar schedules](./docs/SCHEDULING.en.md).
 
 Operations reports cover current inventory and 12 organization sources, with two explicitly selected global identity sources, UTC trends, native authorization and audited SHA-256 CSV exports through Web/CLI. See [Operations reports](./docs/REPORTS.en.md).

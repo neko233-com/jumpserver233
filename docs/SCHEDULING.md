@@ -8,7 +8,7 @@
 
 ![日历计划中文窄屏](./images/calendar.zh-CN.png)
 
-竞品明确为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)。[官方作业管理说明](https://docs.fit2cloud.com/jumpserver/v3/guide/user/ops/job_management/)包含命令、Playbook 与周期执行；这里实现 SSH 命令调度。Playbook/Ansible、定时报表及生产多活仍在路线图中，完整企业版目标保持进行中。
+竞品明确为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)。[官方作业管理说明](https://docs.fit2cloud.com/jumpserver/v3/guide/user/ops/job_management/)包含命令、Playbook 与周期执行；这里实现 SSH 命令调度。原生 Playbook 见 [PLAYBOOKS](./PLAYBOOKS.md)；完整 Ansible、定时报表及生产多活仍在路线图中，完整企业版目标保持进行中。
 
 ## 时间与执行语义
 
@@ -37,7 +37,7 @@
 - 所有者可查看和管理自己的普通计划；`plans.view_all` 可查看其他计划及其时间审计，`plans.manage_all` 可管理。编辑和恢复还检查原所有者目前有效、组织成员关系和对全部原目标的当前执行权限。实际派发再次校验授权、登录复核与命令规则。
 - 账号收集和 Agent 插件采集继续使用各自的带类型间隔接口，不能通过通用日历编辑改成普通 shell 任务。已完成的一次性计划和立即批量任务只读。
 - 创建、编辑、暂停、恢复和自动结束事件，与计划在同一份 AES-GCM 加密状态中原子提交。审计最多 4000 条、保留一年，按组织共享上限滚动淘汰最早记录。旧计划迁移不伪造历史事件。
-- 存储格式升级为 v3，支持读取 v1/v2 并迁移；旧版本服务不能读取 v3。降级前需保留兼容版本的数据快照。现有单活选主、失主停止写入、派发前领取和不明确结果不重放规则不变。
+- Playbook 增加后存储格式为 v4，支持读取 v1/v2/v3 并迁移；旧版本服务不能读取 v4。降级前需保留兼容版本的数据快照。现有单活选主、失主停止写入、派发前领取和不明确结果不重放规则不变。
 - 列表使用服务器分页，最多 100 条；工作台每页 50 条，仅可见页面轮询。编辑器与功能语言资源按需加载，沿用原生对话框、键盘 Escape 和焦点返回。
 
 ## API 与 CLI

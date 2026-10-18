@@ -2,6 +2,8 @@
 
 > 中文 | [English](./JOBS.en.md)
 
+Go 原生 Playbook 支持工作空间版本、组织发布、源码快照、顺序 SSH 模块、条件/循环/重试、持久化恢复和 Web/CLI/SDK；见[原生 Playbook](./PLAYBOOKS.md)。完整 Ansible 和企业版整体仍在进行。
+
 主机插件也提供 `jms plugin` 结构化接口，复用任务去重、复核、所有者审计及加密输出；操作期间持续检查当前授权，详见 [主机工具与 Agent](./HOST-PLUGINS.md)。
 
 来源、每周时段及执行通道限制支持单机和单活 HA，详见 [访问策略](./ACCESS-POLICIES.md)；完整企业版对齐仍在推进。
@@ -33,7 +35,7 @@ CLI 默认将远端 stdout/stderr 分别写到本地对应流，作业 ID 写入
 - 全局最多同时执行 8 个作业、每用户 2 个；每用户最多 20 个待审批作业；审计最多 1000 条，达到后拒绝新作业，不自动删除旧审计。
 - 取消、超时或节点关闭会关闭 SSH 传输；远端自行脱离会话的子进程可能继续运行，必须通过后续运维检查确认。
 - 重启或 HA 接管把未完成作业标记为中断，不自动重放。失去选主锁的旧节点停止写作业文档。最终审计保存失败显示 `audit_unavailable`，重试前应确认远端实际结果。
-- 当前提供 SSH 命令作业、批量派发、模板及间隔调度。Playbook/Ansible 及其他工单类型仍待实现；cron/日历调度见[日历计划](./SCHEDULING.md)；授权工单和外部通知见 [访问工单](./ACCESS-TICKETS.md) 与 [通知中心](./NOTIFICATIONS.md)。
+- 当前提供 SSH 命令作业、批量派发、模板及间隔调度。完整 Ansible 及其他工单类型仍待实现；cron/日历调度见[日历计划](./SCHEDULING.md)；授权工单和外部通知见 [访问工单](./ACCESS-TICKETS.md) 与 [通知中心](./NOTIFICATIONS.md)。
 
 ## 批量、模板与调度
 

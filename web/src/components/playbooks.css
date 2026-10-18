@@ -1,0 +1,149 @@
+.playbooks-manager {
+  margin-block: 18px;
+  min-width: 0;
+}
+.playbooks-manager summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.playbooks-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  margin-block: 12px;
+}
+.playbooks-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.playbooks-scroll th,
+.playbooks-scroll td {
+  border-bottom: 1px solid #ffffff24;
+  padding: 8px;
+  vertical-align: top;
+  min-width: 90px;
+  overflow-wrap: anywhere;
+}
+.playbooks-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  margin-block: 12px;
+}
+.playbooks-dialog {
+  width: min(960px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 22px;
+  background: #111923;
+  color: #edf2f9;
+  border: 1px solid #52677f;
+  border-radius: 8px;
+}
+.playbooks-dialog::backdrop {
+  background: #000a;
+}
+.playbooks-dialog header {
+  display: flex;
+  gap: 14px;
+  align-items: start;
+  justify-content: space-between;
+}
+.playbooks-dialog header h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.playbooks-dialog fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.playbooks-dialog label,
+.playbook-run label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.playbooks-dialog input,
+.playbooks-dialog select,
+.playbooks-dialog textarea {
+  background: #172231;
+  color: inherit;
+  border: 1px solid #52677f;
+  border-radius: 4px;
+  padding: 9px;
+  min-width: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+.playbooks-dialog button,
+.playbook-run button {
+  padding: 8px 12px;
+  cursor: pointer;
+  background: #223149;
+  color: inherit;
+  border: 1px solid #52677f;
+  border-radius: 4px;
+}
+.playbooks-dialog button:disabled,
+.playbook-run button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.playbooks-dialog :focus-visible,
+.playbook-run :focus-visible {
+  outline: 2px solid #8cc4ff;
+  outline-offset: 2px;
+}
+.playbooks-dialog code,
+.playbook-run code {
+  overflow-wrap: anywhere;
+}
+.playbooks-dialog [role="alert"],
+.playbook-run [role="alert"] {
+  color: #ffc5bc;
+}
+.playbooks-code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+  max-height: 480px;
+}
+.playbooks-dialog textarea.playbooks-code {
+  min-height: 300px;
+  resize: vertical;
+}
+.playbook-run {
+  min-width: 0;
+  margin-block: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #ffffff24;
+}
+.playbook-run pre {
+  max-height: 480px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .playbooks-dialog {
+    padding: 14px;
+  }
+  .playbooks-dialog header {
+    flex-wrap: wrap;
+  }
+  .playbooks-scroll table {
+    font-size: 13px;
+  }
+  .playbooks-dialog textarea.playbooks-code {
+    font-size: 13px;
+  }
+}

@@ -91,10 +91,14 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var problem struct {
-			Detail string `json:"detail"`
-			Code   string `json:"error_code"`
+			Detail string         `json:"detail"`
+			Code   string         `json:"error_code"`
+			Issue  *PlaybookIssue `json:"issue"`
 		}
 		_ = json.NewDecoder(io.LimitReader(resp.Body, 65536)).Decode(&problem)
+		if strings.HasPrefix(target.Path, "/api/v1/ops/playbooks") && problem.Code == "playbook_invalid" {
+			return &PlaybookValidationError{Issue: problem.Issue}
+		}
 		if problem.Detail == "" && strings.Contains(target.Path, "/remote-account-tasks") {
 			switch problem.Code {
 			case "invalid", "not_found", "pending", "referenced", "conflict", "capacity", "denied", "unavailable":

@@ -1367,7 +1367,8 @@ const en = {
       jobs_cancel_all: "Cancel any SSH job",
       jobs_review: "Approve and deny SSH jobs",
       plans_view_all: "Read every plan and run",
-      plans_manage_all: "Pause and resume any plan, cancel any run",
+      plans_manage_all: "Manage and trigger any plan, cancel any run",
+      playbooks_publish: "Publish Playbook workspaces to organization members",
     },
   },
   jobs: {

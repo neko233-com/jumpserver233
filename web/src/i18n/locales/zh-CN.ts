@@ -1267,7 +1267,8 @@ const zhCN = {
       jobs_cancel_all: "取消任意 SSH 作业",
       jobs_review: "批准或拒绝 SSH 作业",
       plans_view_all: "读取全部计划及执行",
-      plans_manage_all: "暂停恢复任意计划及取消任意执行",
+      plans_manage_all: "管理与触发任意计划及取消任意执行",
+      playbooks_publish: "向组织成员发布 Playbook 工作空间",
     },
   },
   jobs: {

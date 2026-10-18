@@ -2,6 +2,14 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Native Playbooks (2026-10-18)
+
+Workspace editor and run details load on demand, without frontend dependencies. Initial JS: 494285 bytes, gzip 159545, main 477126, total JS 1485521; existing 500 kB / 1.5 MB budgets pass. Editor is about 10.70 kB and run details 5.22 kB. Vite took 200 ms, excluding type checks. Source digests deduplicate snapshots; files, tasks, loops, retries, run reservations and variables are bounded.
+
+Windows stripped API: 43261952 bytes; CLI: 12711936. Three 32-task compile benchmarks: 178794–193293 ns/op, about 220866–220877 B/op, 2466 allocs/op on AMD Ryzen 9 9950X. This measures YAML compilation only, excluding authorization, storage, HTTP and SSH. Focused Docker browser acceptance took 20.2 seconds; clean two-instance smoke about 21.6 seconds. See [verification](./TESTING.en.md).
+
+Final complete production browser regression: 78/78 in 17.7 minutes, including the new Playbook flow in 19.6 seconds. Implementation completed as a batch before verification; source stayed frozen during the final suite.
+
 ## Calendar schedules (2026-10-18)
 
 Ops translations move from the initial entry to feature resources; the editor loads on demand. Plans use server paging, visible polling and a concurrent-read guard, without frontend dependencies. Initial JS is 494,144 bytes, gzip 159,463, main 476,985: 4,123 initial bytes below the previous reports baseline. Total JS is 1,455,768, adding 17,724 bytes with calendars while retaining the existing 500 kB / 1.5 MB budgets. The editor is about 5.26 kB and shared Ops translations 9.86 kB, both lazy. Vite took 183 ms, excluding type checking.
