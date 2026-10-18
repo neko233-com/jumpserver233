@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Native SSH monitoring alerts provide eight conditions, sample/duration thresholds, recovery, maintenance mute, acknowledgement, notifications and Web/CLI/SDK, using real observations with organization isolation and single-active takeover. See [Monitoring alerts](./docs/MONITOR-ALERTS.en.md).
+
 Notifications support subscriptions, verified contacts, in-app messages, TLS email, signed Webhooks and custom SMS for tickets, SSH jobs, rotations, command safety, asset/command reviews, risk scans and host Agent reports. Details support inline review with current permissions. See [Notification center](./docs/NOTIFICATIONS.en.md).
 
 2026-10-18: notifications in isolated Docker, with synthetic contacts and a real OpenSSH job:

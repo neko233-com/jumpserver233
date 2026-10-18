@@ -167,6 +167,8 @@ export default {
       sms_secret: "SMS gateway signing secret",
     },
     states: {
+      monitoring_firing: "Host monitoring alert",
+      monitoring_resolved: "Host monitoring recovered",
       pending: "Awaiting review",
       pending_review: "Awaiting command review",
       running: "Running",

@@ -22,6 +22,7 @@ import (
 	corejobs "github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginreviews"
+	"github.com/neko233-com/jumpserver233/server/internal/core/monitoralerts"
 	corenodes "github.com/neko233-com/jumpserver233/server/internal/core/nodes"
 	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"github.com/neko233-com/jumpserver233/server/internal/core/oidclogin"
@@ -38,6 +39,7 @@ import (
 )
 
 type Dependencies struct {
+	MonitorAlerts        *monitoralerts.Service
 	CommandAlerts        *commandalerts.Store
 	Notifications        *notifications.Service
 	Tickets              *tickets.Service
@@ -109,6 +111,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		dependencies[0].Sessions.SetCommandAlerts(dependencies[0].CommandAlerts.Publish)
 	}
 	if len(dependencies) > 0 {
+		registerMonitorAlertRoutes(mux, dependencies[0], accessMu)
 		registerTicketRoutes(mux, dependencies[0], accessMu)
 		registerNotificationRoutes(mux, dependencies[0])
 	}

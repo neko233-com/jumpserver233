@@ -45,6 +45,7 @@ docs/     PLAN / BASELINE / 约定（中英双语）
 | 前端构建 + 类型检查 | `cd web && pnpm build` |
 | 前端 lint | `cd web && pnpm lint`（Vite+ / oxlint，限定 `src`） |
 | 浏览器端到端 | `cd web && pnpm test:e2e`（Playwright 启动隔离 API/UI 实例并使用临时数据） |
+| 生产前端端到端 | `cd web && pnpm test:e2e:production`（一次静态构建，完整套件与相同隔离夹具） |
 | 前端格式化 | `cd web && pnpm format` |
 | 完整验证 | `make verify`（Go 测试、Playwright、vet、lint 与生产构建） |
 | Docker 纯净快速检查 | `node scripts/docker-qa.mjs verify`（已有 Playwright Chromium 时加 `--browser`） |

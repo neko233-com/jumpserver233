@@ -27,6 +27,8 @@ var ErrInvalidInput = errors.New("invalid asset input")
 // MonitorStatus is the latest SSH probe result. ErrorCode is a stable code for
 // localization and never includes server output or credential material.
 type MonitorStatus struct {
+	binding                       string
+	networkReady                  bool
 	LatencyMS                     *float64           `json:"latency_ms,omitempty"`
 	State                         string             `json:"state"`
 	ErrorCode                     string             `json:"error_code,omitempty"`
@@ -50,6 +52,7 @@ type ListItem struct {
 type ProbeFunc func(context.Context, sshclient.Target, sshclient.Credentials, time.Duration) (sshclient.Metrics, error)
 
 type previousSample struct {
+	binding string
 	metrics sshclient.Metrics
 	at      time.Time
 }
@@ -366,13 +369,13 @@ func (s *Service) Probe(ctx context.Context, id string) (ListItem, error) {
 	metrics, probeErr := s.probe(ctx, target, credentials, 8*time.Second)
 	checkedAt := time.Now().UTC()
 	if probeErr != nil {
-		status := MonitorStatus{State: "offline", ErrorCode: classifyProbeError(probeErr), LastChecked: &checkedAt}
+		status := MonitorStatus{State: "offline", ErrorCode: classifyProbeError(probeErr), LastChecked: &checkedAt, binding: monitorTargetBinding(asset, target)}
 		s.mu.Lock()
 		s.status[id] = status
 		s.mu.Unlock()
 		return ListItem{Asset: asset, Monitor: status}, fmt.Errorf("SSH host probe failed")
 	}
-	status := s.recordMetrics(id, metrics, checkedAt)
+	status := s.recordMetrics(id, metrics, checkedAt, monitorTargetBinding(asset, target))
 	return ListItem{Asset: asset, Monitor: status}, nil
 }
 
@@ -456,19 +459,23 @@ func (s *Service) find(id string) (Asset, bool) {
 	return s.store.lookup(id)
 }
 
-func (s *Service) recordMetrics(id string, metrics sshclient.Metrics, at time.Time) MonitorStatus {
+func (s *Service) recordMetrics(id string, metrics sshclient.Metrics, at time.Time, bindings ...string) MonitorStatus {
 	metrics.CollectedAt = at
 	status := MonitorStatus{State: "online", LastChecked: &at, Metrics: &metrics}
+	if len(bindings) > 0 {
+		status.binding = bindings[0]
+	}
 	s.mu.Lock()
 	if previous, exists := s.last[id]; exists {
 		seconds := at.Sub(previous.at).Seconds()
-		if seconds > 0 && metrics.NetworkReceivedBytes >= previous.metrics.NetworkReceivedBytes && metrics.NetworkSentBytes >= previous.metrics.NetworkSentBytes {
+		if previous.binding == status.binding && seconds > 0 && metrics.NetworkReceivedBytes >= previous.metrics.NetworkReceivedBytes && metrics.NetworkSentBytes >= previous.metrics.NetworkSentBytes {
 			status.NetworkReceivedBytesPerSecond = float64(metrics.NetworkReceivedBytes-previous.metrics.NetworkReceivedBytes) / seconds
 			status.NetworkSentBytesPerSecond = float64(metrics.NetworkSentBytes-previous.metrics.NetworkSentBytes) / seconds
+			status.networkReady = true
 		}
 	}
 	s.status[id] = status
-	s.last[id] = previousSample{metrics: metrics, at: at}
+	s.last[id] = previousSample{metrics: metrics, at: at, binding: status.binding}
 	s.mu.Unlock()
 	return status
 }

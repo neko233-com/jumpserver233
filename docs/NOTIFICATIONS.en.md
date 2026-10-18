@@ -21,9 +21,10 @@ The console header opens notifications with unread filtering, mark all read and 
 | Interactive Web SSH commands | Current reviewers receive tasks; session owner, input participant and audit.commands.view_all receive denial, input blocking, review outcomes and cancellation metadata |
 | Host Agent events | Collector and audit.agents.view_all, subject to original event access; repair completed/failed/interrupted, history gaps, stream changes and missing journals |
 | Terminal account risk scans | accounts.risks.view plus assets.view_all or assets.manage; scan summaries only |
+| SSH host alerts and recovery | monitoring.view plus current host visibility; firing messages recheck rule authority, mute, acknowledgement and state, linking directly to [monitoring details](./MONITOR-ALERTS.en.md) |
 | System test | Caller with active account and organization |
 
-Messages contain only type, resource name, state, time, ID and detail link, excluding commands, stdout/stderr, comment text, target credentials and rotation secrets. Platform sign-in reviews retain their separate global entry. Monitoring threshold rules, native cloud SMS/CMPP, instant messaging adapters and overall Enterprise parity remain pending.
+Messages contain only type, resource name, state, time, ID and detail link, excluding commands, stdout/stderr, comment text, target credentials and rotation secrets. Platform sign-in reviews retain their separate global entry. Native cloud SMS/CMPP, instant messaging adapters and overall Enterprise parity remain pending.
 
 ## Security messages and native reviews
 

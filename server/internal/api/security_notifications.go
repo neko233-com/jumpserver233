@@ -9,6 +9,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	"github.com/neko233-com/jumpserver233/server/internal/core/eventfeed"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
+	"github.com/neko233-com/jumpserver233/server/internal/core/monitoralerts"
 	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"net/url"
@@ -204,6 +205,33 @@ func securityNotificationFeeds(d Dependencies) []notifications.Feed {
 				}
 				_, exists := d.AccountRisks.ScanRecord(source.ID)
 				return exists && p.Allows("accounts.risks.view") && (p.Allows("assets.view_all") || p.Allows("assets.manage")), nil
+			}})
+	}
+	if d.MonitorAlerts != nil {
+		out = append(out, notifications.Feed{Name: "monitor-alerts", Read: d.MonitorAlerts.NotificationFeed, Link: func(e eventfeed.Event) string { return "/console/monitoring?alert=" + url.QueryEscape(e.ResourceID) },
+			Recipients: func(ctx context.Context, e eventfeed.Event) ([]notifications.Recipient, error) {
+				a, err := d.MonitorAlerts.Alert(e.ResourceID)
+				if errors.Is(err, monitoralerts.ErrNotFound) {
+					return []notifications.Recipient{}, nil
+				}
+				if err != nil {
+					return nil, err
+				}
+				return notificationAudience(ctx, d, func(u coreauth.User, p rbac.Snapshot) []string {
+					if p.Allows("monitoring.view") && monitorVisible(d, u, p, a.AssetID) {
+						return []string{"security"}
+					}
+					return nil
+				})
+			}, Allowed: func(ctx context.Context, id string, source notifications.Source) (bool, error) {
+				a, err := d.MonitorAlerts.Alert(source.ID)
+				if errors.Is(err, monitoralerts.ErrNotFound) {
+					return false, nil
+				}
+				if err != nil {
+					return false, err
+				}
+				return monitorNotificationAllowed(ctx, d, id, a, source.Action), ctx.Err()
 			}})
 	}
 	return out

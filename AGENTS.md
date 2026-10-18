@@ -45,6 +45,7 @@ Before direct backend tests/builds/run, use `cd server && go generate ./internal
 | Frontend build + type check | `cd web && pnpm build` |
 | Frontend lint | `cd web && pnpm lint` (Vite+ / oxlint, scoped to `src`) |
 | Browser end-to-end | `cd web && pnpm test:e2e` (Playwright starts isolated API/UI instances and uses temporary data) |
+| Production frontend end-to-end | `cd web && pnpm test:e2e:production` (one static build, same complete suite and isolated fixtures) |
 | Frontend format | `cd web && pnpm format` |
 | Full verification | `make verify` (Go tests, Playwright, vet, lint, and production builds) |
 | Fast clean Docker smoke | `node scripts/docker-qa.mjs verify` (add `--browser` with installed Playwright Chromium) |

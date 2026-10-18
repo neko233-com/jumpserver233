@@ -155,6 +155,8 @@ export default {
       sms_secret: "短信网关签名密钥",
     },
     states: {
+      monitoring_firing: "主机监控告警",
+      monitoring_resolved: "主机监控已恢复",
       pending: "等待复核",
       pending_review: "等待命令复核",
       running: "运行中",

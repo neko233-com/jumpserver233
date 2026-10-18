@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node ../scripts/check-web-bundle.mjs",
     "preview": "vite preview",
+    "test:e2e:production": "node --test ./testsupport/plugin-artifact-cache.test.mjs ./testsupport/desktop-frame-renderer.test.mjs && tsc --noEmit -p tsconfig.e2e.json && node ./e2e/run-tests.mjs --production",
     "lint": "vp lint src vite.config.ts --react-plugin",
     "format": "vp fmt src vite.config.ts",
     "test:e2e": "node --test ./testsupport/plugin-artifact-cache.test.mjs ./testsupport/desktop-frame-renderer.test.mjs && tsc --noEmit -p tsconfig.e2e.json && node ./e2e/run-tests.mjs"

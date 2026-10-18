@@ -2,6 +2,10 @@ package notifications
 
 func securityStateText(value string) ([2]string, bool) {
 	switch value {
+	case "monitoring_firing":
+		return [2]string{"Host monitoring alert", "主机监控告警"}, true
+	case "monitoring_resolved":
+		return [2]string{"Host monitoring recovered", "主机监控已恢复"}, true
 	case "pending":
 		return [2]string{"Awaiting review", "等待复核"}, true
 	case "pending_review":

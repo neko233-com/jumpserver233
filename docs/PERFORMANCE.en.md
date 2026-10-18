@@ -2,6 +2,14 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Native monitoring alerts (2026-10-18)
+
+The page loads lazily at about 25.68 kB JS. Main entry: 479,663 bytes; initial JS including shared dependencies: 497,007 bytes, gzip 160,394; total JS: 1,468,408. Existing budgets pass. Vite's build stage took 211 ms, excluding type checking. No dependencies were added. Windows stripped API: 42,288,128 bytes; CLI: 12,576,768. Uncompressed Linux API image: 24,819,360 bytes.
+
+An idle evaluation of 100 rules × 500 healthy hosts improved from about 29.8 ms/op, 22.1 MB/op and 101,259 allocations to 2.40 ms/op, 254 KB/op and 449 allocations. Rules share the source sample watermark for an evaluation; healthy untracked hosts avoid per-rule tracking state. Repeated snapshots do not write to disk. This local in-memory benchmark excludes SSH, HTTP, encrypted persistence, delivery and initial loading; it is not end-to-end latency. Count, age and encoded-size limits bound history and events. Active episodes are not evicted for capacity.
+
+Complete production-frontend regression is reproducible with `cd web && pnpm test:e2e:production`, building once for all pages. Existing .gitignore/.dockerignore rules exclude snapshots, reports and binaries. The real browser case took 30.6 seconds, 31.0 including its runner, covering SSH pause, firing, acknowledgement, recovery, permission withdrawal and bilingual narrow layout. See [verification](./TESTING.en.md) for complete results.
+
 ## Security notifications and review details (2026-10-18)
 
 Details load lazily at about 6.60 kB JS. Main entry: 478,877 bytes; initial JS: 496,221 bytes, gzip 160,183; total JS: 1,441,758. Existing budgets pass. The Vite build stage took 222 ms, excluding type checks. No dependencies were added. Windows stripped API: 42,102,784 bytes; CLI: 12,547,584 bytes. Uncompressed Linux API image: 24,754,481 bytes.

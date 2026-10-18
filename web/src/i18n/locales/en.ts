@@ -1326,6 +1326,9 @@ const en = {
       audit_sessions_monitor_all: "Monitor any live terminal (read only)",
       audit_desktops_monitor_all: "Monitor any live RDP desktop (read only)",
       accounts_discover: "Collect local SSH host account metadata",
+      monitoring_view:"View alerts for currently visible SSH hosts",
+      monitoring_manage:"Manage organization monitoring rules (requires all-assets access)",
+      monitoring_ack:"Acknowledge visible monitoring alerts",
       accounts_view: "Read collected host accounts and activity",
       accounts_review: "Acknowledge or ignore collected accounts",
       accounts_manage: "Manage credentials and access state of visible host accounts",
@@ -1491,6 +1494,7 @@ const en = {
     name: "JumpServer233",
   },
   nav: {
+    monitoring:"Monitoring alerts",
     accountRisks: "Account risks",
     rotationPlans: "Credential rotation",
     accessTickets: "Access requests",

@@ -1,0 +1,64 @@
+.monitoring-page small {
+  display: block;
+  overflow-wrap: anywhere;
+  opacity: 0.75;
+  margin-top: 4px;
+}
+.monitoring-dialog {
+  width: min(680px, calc(100vw - 28px));
+  max-width: calc(100vw - 28px);
+  box-sizing: border-box;
+}
+.monitoring-dialog form > label,
+.monitoring-dialog fieldset label {
+  display: block;
+  margin-block: 10px;
+}
+.monitoring-dialog input:not([type="checkbox"]),
+.monitoring-dialog select,
+.monitoring-dialog textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 5px;
+}
+.monitoring-dialog .monitor-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.monitor-grid label {
+  min-width: 0;
+}
+.monitor-targets {
+  max-height: 220px;
+  overflow: auto;
+}
+.monitor-fields {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr);
+  gap: 10px;
+}
+.monitor-fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .monitor-grid {
+    grid-template-columns: 1fr;
+  }
+  .monitoring-page {
+    padding: 16px;
+  }
+  .monitor-fields {
+    grid-template-columns: 1fr;
+  }
+  .monitor-fields dd {
+    margin-bottom: 6px;
+  }
+}

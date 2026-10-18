@@ -29,5 +29,5 @@ The current monitoring panel targets registered Linux SSH hosts. It shows reacha
 ## Current boundaries
 
 - Monitoring supports hosts with common Linux `/proc` files and POSIX command-line tools. It does not install an agent.
-- Only the latest in-memory snapshot is retained. Historical charts, alert rules, and persistent time-series storage are not available. Collection starts again after a server restart.
+- Raw measurements retain the latest in-memory snapshot and are recollected after restart. Historical charts and persistent time-series storage are not available. [Monitoring alerts](./MONITOR-ALERTS.en.md) provide threshold/offline/missing-data rules, durable episodes, acknowledgement, recovery and delivery.
 - Standalone is the default deployment. Cluster mode uses single-active hot standby, so only the lock holder collects metrics. The new active node resumes collection after failover, but the latest in-memory snapshot is not shared across nodes.

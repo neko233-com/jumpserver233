@@ -1226,6 +1226,9 @@ const zhCN = {
       audit_sessions_monitor_all: "只读监看任意在线终端",
       audit_desktops_monitor_all: "只读监看任意在线 RDP 桌面",
       accounts_discover: "收集 SSH 主机本地账号元数据",
+      monitoring_view:"查看当前可见主机的监控告警",
+      monitoring_manage:"管理组织监控规则（另需全部资产权限）",
+      monitoring_ack:"确认可见的监控告警",
       accounts_view: "查看已收集账号与活动",
       accounts_review: "确认或忽略已收集账号",
       accounts_manage: "管理可见主机账号的凭据及启用状态",
@@ -1386,6 +1389,7 @@ const zhCN = {
     name: "JumpServer233",
   },
   nav: {
+    monitoring:"监控告警",
     accountRisks: "账号风险",
     rotationPlans: "账号改密",
     accessTickets: "授权工单",

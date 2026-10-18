@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+真实 SSH 探测的阈值/离线/无数据规则、静默、确认、恢复和通知见[监控告警](./MONITOR-ALERTS.md)。
+
 站内信、邮件、Webhook、自定义短信、联系方式验证和送达恢复见[通知中心](./NOTIFICATIONS.md)。
 
 发布申请范围、1–5 级审批、调整重审、限时授权、撤销和 Web/CLI 见[访问授权工单](./ACCESS-TICKETS.md)。

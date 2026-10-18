@@ -5,6 +5,9 @@ import { defineConfig } from "@playwright/test";
 const webDir = fileURLToPath(new URL(".", import.meta.url));
 const serverDir = resolve(webDir, "../server");
 const testDataDir = process.env.JMS_E2E_DATA_DIR;
+const frontend = process.env.JMS_E2E_PRODUCTION === "true"
+  ? "pnpm exec vite preview --config e2e/preview.vite.config.ts"
+  : "pnpm exec vite";
 if (!testDataDir)
   throw new Error(
     "Run browser tests with `pnpm test:e2e` so temporary test data is cleaned safely",
@@ -60,7 +63,7 @@ export default defineConfig({
       },
     },
     {
-      command: "pnpm exec vite --host 127.0.0.1 --port 15180 --strictPort",
+      command: frontend + " --host 127.0.0.1 --port 15180 --strictPort",
       cwd: webDir,
       url: "http://127.0.0.1:15180/api/health",
       timeout: 120_000,
@@ -300,7 +303,7 @@ export default defineConfig({
       },
     },
     {
-      command: "pnpm exec vite --host 127.0.0.1 --port 5177 --strictPort",
+      command: frontend + " --host 127.0.0.1 --port 5177 --strictPort",
       cwd: webDir,
       url: "http://127.0.0.1:5177/api/health",
       timeout: 120_000,

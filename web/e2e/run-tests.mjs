@@ -9,8 +9,9 @@ import { stagePluginArtifacts } from "./plugin-artifact-cache.mjs";
 const webDir = fileURLToPath(new URL("..", import.meta.url));
 const temporaryRoot = resolve(tmpdir());
 const cleanupOnly = process.argv[2] === "--cleanup";
-if (process.argv.length > 2 && (!cleanupOnly || process.argv.length !== 4))
-  throw new Error("Use --cleanup with one owned E2E directory");
+const production = process.argv.length === 3 && process.argv[2] === "--production";
+if (process.argv.length > 2 && !production && (!cleanupOnly || process.argv.length !== 4))
+  throw new Error("Use --production, or --cleanup with one owned E2E directory");
 const dataDir = cleanupOnly
   ? resolve(process.argv[3])
   : mkdtempSync(resolve(temporaryRoot, "jumpserver233-e2e-"));
@@ -20,13 +21,20 @@ let exitCode = 1;
 
 try {
   if (!cleanupOnly) execFileSync("go", ["generate", "./internal/agentbundle"], { cwd: resolve(webDir, "../server"), stdio: "inherit" });
+  if (production) {
+    await new Promise((done, reject) => {
+      const build = spawn("pnpm build", {cwd:webDir,shell:true,stdio:"inherit"});
+      build.once("error",reject);
+      build.once("exit",code=>code===0?done():reject(new Error("Production frontend build failed")));
+    });
+  }
   if (!cleanupOnly) stagePluginArtifacts(process.env.JMS_E2E_PLUGIN_CACHE_DIR || artifactCache, resolve(dataDir, "plugin-artifacts"));
   exitCode = cleanupOnly
     ? 0
     : await new Promise((resolveExit) => {
         const playwright = spawn("pnpm exec playwright test", {
           cwd: webDir,
-          env: { ...process.env, JMS_E2E_DATA_DIR: dataDir },
+          env: { ...process.env, JMS_E2E_DATA_DIR: dataDir, JMS_E2E_PRODUCTION:production?"true":"false" },
           shell: true,
           stdio: "inherit",
         });

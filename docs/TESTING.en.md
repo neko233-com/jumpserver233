@@ -2,6 +2,17 @@
 
 > [中文](./TESTING.md) | English
 
+## Native host monitoring alerts (2026-10-18)
+
+- Final complete production-frontend Playwright: 73/73 pass, zero failures/skips, 16.7 minutes, runner exit 0. One production build used fresh temporary data and all existing real protocol/native fixtures. All 828 implementation/verification source hashes remained unchanged. Owned fixtures were cleaned; retained debug environments were preserved. Coverage includes real SSH firing/acknowledgement/recovery, permission withdrawal, BanHack/Agent, systemd repair, databases, Kubernetes, RDP, Telnet and session collaboration.
+
+- Final uncached Go/Testify suite: 64 packages, 1,055 passing tests, 35 fixture/platform skips, zero failures, exit 0. Native recovery helpers were generated first; coverage includes real OpenSSH and PostgreSQL takeover/organization isolation.
+- Final Linux Docker race: 10 packages, 449 passing tests, 7 missing real SSH/database/Kubernetes/RDP/Telnet fixture skips, zero failures, exit 0. Real protocols are covered separately by complete Go/browser checks; skips are not counted as passes.
+- Monitoring engine statement coverage: 83.5%. Focused cases cover duplicate samples, duration/hysteresis, missing-data warmup, mute expiry, acknowledgement conflicts, target identity, permission withdrawal, disk rollback, encrypted corruption, restart streak resets, concurrent CAS, 20,000 active episode capacity while recovery progresses, history pruning and returned-value isolation.
+- Latest production Docker case: 27.6 seconds, 28.1 with its runner. Pausing real OpenSSH produced offline/firing notifications; Web acknowledgement, resumed-probe recovery, CLI details, English/Chinese, 390px and asset-grant withdrawal clearing details passed with zero page errors. The earlier case took 30.6 seconds and also passed. After the API container was updated/restarted, the in-app browser signed in again and separately verified acknowledged/recovered details from the old episode.
+- Fresh-volume, dual-instance real-browser Docker smoke: 18.79 seconds (cached build 2.37, startup 12.13, checks 4.29). Its random environment was cleaned automatically. Latest retained UI: http://127.0.0.31:15195, API 18102; older environments remain.
+- Go vet, lint with zero warnings, strict types, production build, 10 Docker utility tests and 6 frontend cache/frame tests pass. Bilingual checks cover 2,444 keys per language, 114 documents and 1,030 relative links. Screenshots and boundaries: [Monitoring alerts](./MONITOR-ALERTS.en.md). Complete production-frontend regression used `cd web && pnpm test:e2e:production`.
+
 ## Security notifications and command reviews (2026-10-18)
 
 - Final complete production-frontend Playwright: 72/72 passes, no failures/skips, 16.4 minutes. It used a prebuilt static frontend, fresh temporary data and all existing real-protocol/native fixtures; all 850 source fingerprints remained identical. Coverage includes SSH filtering/native reviews, permission withdrawal, sharing, databases, Telnet, Kubernetes, RDP, and actual systemd repair/reboot followed by Agent repair notification collection and detail navigation. The run's owned fixtures were cleaned afterward.

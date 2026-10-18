@@ -44,6 +44,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "monitor" {
+		return runMonitor(args[1:])
+	}
 	if len(args) > 0 && args[0] == "ticket" {
 		return runTickets(args[1:])
 	}

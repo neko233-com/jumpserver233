@@ -6,6 +6,8 @@ Docker builds the production API and web application from source, with separate 
 
 ## Fast verification
 
+Run `cd web && pnpm test:e2e:production` for complete protocol regression: build the frontend once, serve static output, and start fresh temporary data with the existing real protocol fixtures. Owned resources are checked and cleaned afterward. This is timed separately from fast Docker smoke and avoids development module transforms without reducing test scope.
+
 Requires Docker Compose and Node 24:
 
 ```sh
