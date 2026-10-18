@@ -33,5 +33,10 @@ const risks = "src/pages/AccountRisksPage.tsx";
 if (!manifest[risks]?.isDynamicEntry || initial.has(risks)) throw new Error("Account risk UI and feature locales must remain a lazy route");
 const rotation="src/pages/RotationPlansPage.tsx";
 if(!manifest[rotation]?.isDynamicEntry || initial.has(rotation)) throw new Error("Credential rotation UI and feature locales must remain a lazy route");
-if (largest > 500_000 || initialBytes > 500_000 || total > 1_500_000) throw new Error("Production JavaScript exceeds the recorded size budget");
+for (const entry of ["src/pages/PasswordChangePage.tsx", "src/components/PasswordSecuritySettings.tsx"]) {
+  if (!manifest[entry]?.isDynamicEntry || initial.has(entry)) throw new Error("Password security screens must remain lazy");
+}
+// Allocate 25 kB for required password security screens and shared resources.
+// Keep counting every chunk and retain the existing initial/single-chunk limits.
+if (largest > 500_000 || initialBytes > 500_000 || total > 1_525_000) throw new Error("Production JavaScript exceeds the recorded size budget");
 console.log(JSON.stringify({ initialJavaScriptBytes: initialBytes, initialGzipBytes: initialGzip, totalJavaScriptBytes: total, largestChunkBytes: largest, lazyLogin: true }));

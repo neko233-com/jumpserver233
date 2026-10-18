@@ -2,6 +2,10 @@
 
 > [中文](./README.md) | English
 
+Default BuildWorld intranet macOS pipeline: [Jenkinsfile_mac_single](./Jenkinsfile_mac_single), with unified checks, native packaging, persistence, idempotent activation and failure recovery. See [deployment](./docs/BUILDWORLD.en.md).
+
+Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./docs/PASSWORD-SECURITY.en.md). Overall Enterprise parity remains in progress.
+
 Platform identity editing, expiry, archive/restore, credential revocation, atomic batches and metadata audit are available in Web/CLI/SDK. See [User lifecycle](./docs/USERS.en.md). Overall Enterprise parity remains in progress.
 
 Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./docs/RADIUS.en.md). Overall Enterprise parity remains in progress.

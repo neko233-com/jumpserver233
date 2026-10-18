@@ -1,3 +1,4 @@
+import { passwordRedirect } from "../auth/passwordRedirect";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -67,7 +68,7 @@ export default function LoginReviewPanel({
             body: "{}",
             signal: c.signal,
           });
-          const result = (await finish.json()) as { browser_session?: boolean; code?: string };
+          const result = (await finish.json()) as { password_change_required?: boolean; browser_session?: boolean; code?: string };
           if (c.signal.aborted) return;
           if (!finish.ok) {
             if (result.code === "login_review_invalidated") {
@@ -76,6 +77,7 @@ export default function LoginReviewPanel({
             }
             throw new Error("review completion failed");
           }
+          if (passwordRedirect(result))return;
           if (!result.browser_session) throw new Error("browser session missing");
           if (!stopped.current) onComplete();
         }

@@ -131,8 +131,12 @@ Login is a separate lazy route. Motion uses `LazyMotion`, `domAnimation` and the
 
 `pnpm build` retains strict type checks. TypeScript and E2E use separate incremental caches under `node_modules/.cache/`. Local Vite bundling took approximately 160–253 ms; the complete command also includes type checking and budget verification. These warm-cache observations do not describe cold builds or other machines.
 
-Builds run `scripts/check-web-bundle.mjs`, enforcing 500,000 bytes for each JS chunk and the complete initial static graph, 1,500,000 bytes for all JavaScript, and a lazy login route. The default Vite chunk warning limit is unchanged. Terminals, protocol dialogs and administration pages remain loaded on demand.
+Builds run `scripts/check-web-bundle.mjs`, enforcing 500,000 bytes for each JS chunk and the complete initial static graph, 1,525,000 bytes for all JavaScript, and a lazy login route. The default Vite chunk warning limit is unchanged. Terminals, protocol dialogs and administration pages remain loaded on demand.
 
 `make build` produces the server, platform CLI and web application. Go delivery binaries use `-trimpath -ldflags="-s -w"`. The native Linux generator reuses verified artifacts when the source digest is unchanged. [Docker verification](./DOCKER-QA.en.md) also reuses Go/pnpm/TypeScript caches. Builds with different cache states were not used to claim a speed improvement.
 
 `.gitignore` excludes dependencies, build/test output, incremental caches, environment files, runtime data and local tool files. Source, lockfiles, required driver source and licenses remain versioned. Runtime logs, private keys, Vault and QA data stay outside commits.
+
+Password-change and policy settings remain lazy. The total JS budget explicitly allocates 25,000 additional bytes for these features and shared resources (1,500,000 to 1,525,000); initial and individual chunk limits remain 500,000 bytes. This allocation is not a size reduction; measured output is recorded by the build report.
+
+Password-security checkpoint, 2026-10-18: all JS totals 1,510,989 bytes, 13,495 above the prior checkpoint. Initial scripts are 494,291 bytes and the largest chunk is 477,132, both down 701 bytes; initial gzip is 159,485. Stripped Windows server/CLI are 43,689,984 and 12,802,560 bytes, with no dependency version added. Clean two-instance Docker browser verification took about 18.9 seconds warm (3.32 build, 11.94 startup, 3.65 checks). A build after attributable-cache cleanup took 35.89 seconds; these cache states are not directly comparable. Tests remove temporary programs, volumes and fixtures while retaining reports/key screenshots. Shared base images and unattributable build cache remain.

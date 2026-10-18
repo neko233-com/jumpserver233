@@ -1304,6 +1304,7 @@ const en = {
       organizations_manage: "Manage organizations",
       organizations_members_manage: "Manage organization members",
       roles_manage: "Manage roles and assign all system permissions",
+      users_credentials_manage: "Recover user passwords and TOTP",
       users_manage: "List users and create accounts",
       groups_manage: "Manage user groups and membership",
       grants_manage: "Manage asset-account grants",
@@ -2038,30 +2039,7 @@ const en = {
     reviewContext: "Operator: {{operator}} · Account: {{account}} · Rule: {{rule}}",
   },
   placeholder: {
-    skeleton: "Skeleton is in place; features land phase by phase.",
-    console: {
-      title: "Console dashboard",
-      hints: [
-        "Asset/session/user stats charts (Phase 5)",
-        "Entries for assets, users and grants (Phase 2–3)",
-      ],
-    },
-    audit: {
-      title: "Audit",
-      hints: ["Session/command/file/login/operation/password audit (Phase 5)"],
-    },
-    workbench: {
-      title: "Workbench",
-      hints: ["My assets, Web terminal (Phase 4), job center (Phase 5)"],
-    },
-    settings: {
-      title: "Settings",
-      hints: ["Notification/auth/security/storage settings (Phase 2, 6)"],
-    },
-    profile: {
-      title: "Profile",
-      hints: ["SSH keys and global MFA enforcement (Phase 2)"],
-    },
+    skeleton: "Loading…",
   },
 };
 

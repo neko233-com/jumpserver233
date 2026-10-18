@@ -560,6 +560,10 @@ func writeMFAError(w http.ResponseWriter, err error) {
 
 func writePasswordChangeError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, coreauth.ErrPasswordHistory), errors.Is(err, coreauth.ErrPasswordPolicy):
+		passwordError(w, err)
+	case errors.Is(err, coreauth.ErrUserRevision):
+		userError(w, err)
 	case errors.Is(err, coreauth.ErrExternalIdentity):
 		writeJSON(w, 403, map[string]string{"detail": "password is managed by the identity provider"})
 	case errors.Is(err, coreauth.ErrInvalidPassword), errors.Is(err, coreauth.ErrPasswordUnchanged):

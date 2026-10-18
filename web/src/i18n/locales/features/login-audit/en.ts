@@ -105,6 +105,7 @@ export default {
     reasons: {
       credentials_rejected: "Credentials rejected",
       second_factor_required: "MFA required",
+      password_change_required: "Password change required",
       enrollment_required: "MFA enrollment required",
       second_factor_rejected: "MFA rejected",
       identity_rejected: "Identity rejected",

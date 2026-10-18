@@ -2,6 +2,18 @@
 
 > [中文](./TESTING.md) | English
 
+## Password security, idempotency and test cleanup (2026-10-18)
+
+- Final production browser cases: 81/81 passed, no failures/skips, 18.3 minutes. The password case took 17.8 seconds in the suite. Coverage includes real SSH, databases, RADIUS, systemd, Web/CLI and bilingual desktop/mobile flows.
+- The running runner retained the earlier cleanup module after its fix: that teardown exited 1, preserved in the original report. The corrected tool then cleaned the same temporary directory twice, both exit 0, with the directory removed. Repeated historical Docker cleanup removed zero additional resources. Do not describe the original full command as exit 0.
+- Final full Go: 69 packages, 1,280 test/subtest passes, 35 platform/missing-fixture skips, no failures, exit 0, using isolated real OpenSSH, PostgreSQL, RDP and FreeRADIUS. Linux Docker race: four affected packages, 359 passes, 14 platform/missing-fixture skips, no failures, exit 0. Results overlap and are not added together.
+- Testify covers role policies, UTF-8/classes, HMAC history, legacy hash migration, expiry, credential revocation, source/timeout/replay checks, revision conflicts, unchanged-policy side effects, persistence rollback, recovery permissions, TOTP recovery and PostgreSQL takeover. CLI tests check protected Windows DACLs at creation and Linux 0600 files.
+- Isolated Docker feature browser: 1/1 passed in 18.6 seconds. A real API-container restart and checks took 0.85 seconds: pending password changes resumed, fresh login worked, replay was rejected and audit persisted. Administrative queries reauthenticated after restart. The in-app browser confirmed both languages, disabled unchanged submissions and no warnings/errors.
+- All 31 cleanup/fixture/cache/render helper tests passed. They cover repeat cleanup, owner changes, active E2E isolation, concurrent exits, unlabeled images, JSON templates, shared images and repository build history. Inspect never requests environment variables or command bodies; unrelated labels are removed after parsing and errors omit raw bodies. Reports exclude authentication traces.
+- Clean Docker data and two-instance Cookie/port isolation passed: cached build 3.32 seconds, startup 11.94, browser 3.65, about 18.9 seconds; disposable resources removed. Debug shutdown repeated successfully. Historical cleanup included 74 pre-existing containers, 25 volumes and 23 networks. Shared base images, other projects' data and unattributable cache remain; Docker accounting does not establish physical host disk reclamation.
+- Go vet/build, frontend lint, strict application/E2E types, production build and bilingual/provenance checks passed. JavaScript totals 1,510,989 bytes, initial graph 494,291 (159,485 gzip), largest chunk 477,132. The lazy password feature explicitly allocates 25,000 additional total-budget bytes; see [performance](./PERFORMANCE.en.md). Compact reports/key screenshots live under ignored `.cache/qa-reports/`; temporary programs/data are removed and AGENTS records the rule.
+- [Password security](./PASSWORD-SECURITY.en.md) writes v3 users and reads legacy arrays/v2. Back up and upgrade every takeover node. Mail reset/reminders, breached-password lists, directory writeback, idle accounts, bulk user import, production HA and full Enterprise parity remain in progress.
+
 ## Platform user lifecycle validation (2026-10-18)
 
 - Final complete production browser suite: 80/80 passed, zero failures/skips, 19.4 minutes, runner exit 0; temporary data and protocol fixtures were cleaned. The lifecycle case took 12.9 seconds within this suite. All 1,021 selected source/test fingerprints remained unchanged during the suite.

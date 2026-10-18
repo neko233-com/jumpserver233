@@ -19,6 +19,8 @@ web/.auth/
 /CODELY.md
 .cache/
 *.tsbuildinfo
+__pycache__/
+*.pyc
 
 # Local configuration and runtime state
 .env

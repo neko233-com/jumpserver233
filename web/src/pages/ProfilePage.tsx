@@ -1,3 +1,4 @@
+import PasswordRules from "../components/PasswordRules";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import PasskeysPanel from "../components/PasskeysPanel";
@@ -70,7 +71,7 @@ export default function ProfilePage() {
       if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
       if (init.body) headers.set("Content-Type", "application/json");
       const response = await fetch(path, { ...init, headers });
-      if (!response.ok) throw new Error(String(response.status));
+      if (!response.ok) { if(path === "/api/v1/users/me/password/change") { const data = await response.json() as {error_code?:string};throw new Error(data.error_code || String(response.status)); } throw new Error(String(response.status)); }
       if (response.status === 204) return undefined as T;
       return response.json() as Promise<T>;
     },
@@ -130,7 +131,7 @@ export default function ProfilePage() {
   function reportPasswordError(error: unknown) {
     const status = error instanceof Error ? error.message : "";
     const key =
-      status === "401"
+      status === "password_history" ? "passwordSecurity.password_history" : status === "password_policy" ? "passwordSecurity.password_policy" : status === "user_revision" ? "profile.passwordConflict" : status === "401"
         ? "profile.errorAuth"
         : status === "403"
           ? "profile.passwordCurrentInvalid"
@@ -400,6 +401,7 @@ export default function ProfilePage() {
             </div>
           </div>
           <form className="mfa-form" onSubmit={(event) => void changePassword(event)}>
+ <PasswordRules admin={profile?.role === "admin"} />
             <label className="mfa-field">
               <span>{t("profile.password")}</span>
               <input

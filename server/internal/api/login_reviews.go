@@ -67,6 +67,9 @@ func prepareNewLogin(w http.ResponseWriter, r *http.Request, session coreauth.Lo
 	if !prepareRadiusFactor(w, r, session, secure) {
 		return false
 	}
+	if !preparePasswordChange(w, r, session, secure) {
+		return false
+	}
 	if decision.Action != "review" && decision.Action != "notify" {
 		if _, cookieError := r.Cookie(reviewCookieName); cookieError == nil {
 			clearReviewCookie(w, r)
@@ -247,6 +250,9 @@ func registerPlatformLoginReviewRoutes(mux *http.ServeMux, d Dependencies) {
 		}, d.Auth.RevokeToken)
 		if e != nil {
 			writeLoginReviewError(w, e)
+			return
+		}
+		if !preparePasswordChange(w, passwordBrowserContext(r, result.Browser), result.Session, result.Secure) {
 			return
 		}
 		if !commitLoginAudit(w, r, result.Session) {

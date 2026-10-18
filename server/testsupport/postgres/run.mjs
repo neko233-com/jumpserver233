@@ -22,7 +22,7 @@ async function stop(){if(stopping)return;stopping=true;try{await cleanup();proce
 process.on('SIGINT',()=>void stop());process.on('SIGTERM',()=>void stop());
 try{
  await buildQAImage(execute,['build','--tag','jms233-postgres-qa:local',fileURLToPath(new URL('.',import.meta.url))]);
- const args=['run','--detach','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--publish',`127.0.0.1:${port}:5432`,'--env','POSTGRES_USER=jumpserver','--env','POSTGRES_PASSWORD=synthetic-postgres-state-233','--env','POSTGRES_DB=jumpserver_test'];
+ const args=['run','--detach','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--label',`com.jumpserver233.qa.workspace=${fileURLToPath(new URL('../../../',import.meta.url))}`,'--publish',`127.0.0.1:${port}:5432`,'--env','POSTGRES_USER=jumpserver','--env','POSTGRES_PASSWORD=synthetic-postgres-state-233','--env','POSTGRES_DB=jumpserver_test'];
  if(process.env.JMS_QA_POSTGRES_NETWORK){if(!/^[A-Za-z0-9_.-]+$/.test(process.env.JMS_QA_POSTGRES_NETWORK))throw new Error('Invalid network');args.push('--network',process.env.JMS_QA_POSTGRES_NETWORK);}
  args.push('jms233-postgres-qa:local');await execute('docker',args);
  let ready=false;for(let i=0;i<120;i++){try{await execute('docker',['exec',name,'psql','-U','jumpserver','-d','qa','-Atc','SELECT 1']);ready=true;break;}catch{await new Promise(r=>setTimeout(r,500));}}

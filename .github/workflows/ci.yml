@@ -40,7 +40,9 @@ jobs:
         with:
           version: 12.9.1
       - name: Test owned fixture lifecycle helpers
-        run: node --test server/testsupport/docker-qa.test.mjs scripts/docker-qa.test.mjs
+        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs
+      - name: Test macOS deployment state machine
+        run: python3 -B -m unittest discover -s scripts -p macos_single_test.py
       - name: Build embedded native recovery agents
         working-directory: server
         run: go generate ./internal/agentbundle
@@ -61,15 +63,25 @@ jobs:
       - name: Start disposable SQL and NoSQL TLS fixtures
         run: |
           JMS_QA_SQL_ENGINE=mysql node server/testsupport/mysql/run.mjs > "$RUNNER_TEMP/mysql-query.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/mysql.pid"
           JMS_QA_SQL_ENGINE=mariadb node server/testsupport/mysql/run.mjs > "$RUNNER_TEMP/mariadb-query.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/mariadb.pid"
           node server/testsupport/sqlserver/run.mjs > "$RUNNER_TEMP/sqlserver-query.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/sqlserver.pid"
           node server/testsupport/clickhouse/run.mjs > "$RUNNER_TEMP/clickhouse-query.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/clickhouse.pid"
           JMS_QA_NOSQL_ENGINE=redis node server/testsupport/nosql/run.mjs > "$RUNNER_TEMP/redis-query.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/redis.pid"
           JMS_QA_NOSQL_ENGINE=mongodb node server/testsupport/nosql/run.mjs > "$RUNNER_TEMP/mongodb-query.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/mongodb.pid"
           node server/testsupport/kubernetes/run.mjs > "$RUNNER_TEMP/kubernetes-query.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/kubernetes.pid"
           node server/testsupport/rdp/run.mjs > "$RUNNER_TEMP/rdp.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/rdp.pid"
           node server/testsupport/telnet/run.mjs > "$RUNNER_TEMP/telnet.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/telnet.pid"
           node server/testsupport/radius/run.mjs > "$RUNNER_TEMP/radius.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/radius.pid"
           node server/testsupport/mysql/ci-env.mjs
       - name: Start isolated Debian systemd VM
         run: |
@@ -137,12 +149,12 @@ jobs:
       - name: Browser end-to-end tests
         working-directory: web
         run: pnpm test:e2e
-      - name: Retain failed browser evidence
-        if: failure()
+      - name: Retain compact browser reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-failure
-          path: web/test-results/
+          name: browser-report
+          path: .cache/qa-reports/
           if-no-files-found: ignore
           retention-days: 3
 

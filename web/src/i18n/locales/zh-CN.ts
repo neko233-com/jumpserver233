@@ -1205,6 +1205,7 @@ const zhCN = {
       organizations_manage: "系统组织管理",
       organizations_members_manage: "组织成员管理",
       roles_manage: "管理角色及分配全部系统权限",
+      users_credentials_manage: "重置用户密码和 TOTP",
       users_manage: "查看用户及创建账号",
       groups_manage: "管理用户组及成员",
       grants_manage: "管理资产账号授权",
@@ -1894,27 +1895,7 @@ const zhCN = {
     reviewContext: "操作员：{{operator}} · 账号：{{account}} · 规则：{{rule}}",
   },
   placeholder: {
-    skeleton: "骨架已就位，功能按阶段实现。",
-    console: {
-      title: "控制台仪表盘",
-      hints: ["资产/会话/用户统计图表（Phase 5）", "资产、用户、授权等管理入口（Phase 2–3）"],
-    },
-    audit: {
-      title: "审计台",
-      hints: ["会话/命令/文件/登录/操作/改密审计（Phase 5）"],
-    },
-    workbench: {
-      title: "工作台",
-      hints: ["我的资产、Web 终端（Phase 4）、作业中心（Phase 5）"],
-    },
-    settings: {
-      title: "系统设置",
-      hints: ["通知/认证/安全/存储设置（Phase 2、6）"],
-    },
-    profile: {
-      title: "个人设置",
-      hints: ["SSH 密钥与全局 MFA 策略（Phase 2）"],
-    },
+    skeleton: "正在加载…",
   },
 };
 

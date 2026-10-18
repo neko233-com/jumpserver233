@@ -61,7 +61,7 @@ func (s *Service) CreateAccessKey(userID string) (AccessKeyCredentials, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	username, record, exists := s.storedUserByIDLocked(userID)
-	if !exists || !s.externalAllowedLocked(record) {
+	if !exists || !s.credentialUsableLocked(record) {
 		return AccessKeyCredentials{}, ErrUserNotFound
 	}
 	if len(record.AccessKeys) >= maxAccessKeys {
@@ -177,7 +177,7 @@ func (s *Service) VerifyAccessKeySignature(keyID, stringToSign, signature string
 
 	s.mu.RLock()
 	current, exists := s.users[username]
-	if exists && current.ID == owner.ID && s.externalAllowedLocked(current) {
+	if exists && current.ID == owner.ID && s.credentialUsableLocked(current) {
 		for _, key := range current.AccessKeys {
 			if key.ID == keyID && subtle.ConstantTimeCompare(key.SecretCiphertext, snapshot.SecretCiphertext) == 1 {
 				owner = current.User

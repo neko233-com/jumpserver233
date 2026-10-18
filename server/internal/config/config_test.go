@@ -126,7 +126,7 @@ func TestFromEnvRejectsInvalidClusterModeAndEmptyClusterID(t *testing.T) {
 
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"JMS_ADDR", "JMS_VERSION", "JMS_DATA_DIR", "JMS_VAULT_KEY", "JMS_ADMIN_TOKEN", "JMS_MONITOR_INTERVAL", "JMS_CLUSTER_MODE", "JMS_DATABASE_URL", "JMS_CLUSTER_ID", "JMS_CLUSTER_HEALTH_ADDR", "JMS_PUBLIC_URL", "JMS_TRUSTED_PROXIES", "JMS_DEFAULT_ADMIN_ENABLED"} {
+	for _, name := range []string{"JMS_ADDR", "JMS_WEB_DIR", "JMS_VERSION", "JMS_DATA_DIR", "JMS_VAULT_KEY", "JMS_ADMIN_TOKEN", "JMS_MONITOR_INTERVAL", "JMS_CLUSTER_MODE", "JMS_DATABASE_URL", "JMS_CLUSTER_ID", "JMS_CLUSTER_HEALTH_ADDR", "JMS_PUBLIC_URL", "JMS_TRUSTED_PROXIES", "JMS_DEFAULT_ADMIN_ENABLED"} {
 		value, existed := os.LookupEnv(name)
 		if err := os.Unsetenv(name); err != nil {
 			t.Fatal(err)

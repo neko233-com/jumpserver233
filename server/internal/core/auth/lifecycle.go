@@ -24,6 +24,7 @@ type UserActor struct {
 	ID, Name             string
 	AuthGeneration       int
 	ManageAdministrators bool
+	ManageCredentials    bool
 }
 type UserUpdate struct {
 	Revision    int        `json:"revision"`
@@ -41,8 +42,10 @@ type UserChange struct {
 }
 type ManagedUser struct {
 	User
-	IsActive bool   `json:"is_active"`
-	State    string `json:"state"`
+	IsActive               bool      `json:"is_active"`
+	State                  string    `json:"state"`
+	PasswordChangeRequired bool      `json:"password_change_required,omitempty"`
+	PasswordExpiresAt      time.Time `json:"password_expires_at,omitzero"`
 }
 type UserEvent struct {
 	ID             string    `json:"id"`
@@ -59,9 +62,12 @@ type UserEvent struct {
 	After          string    `json:"after"`
 }
 type userEnvelope struct {
-	Version int          `json:"version"`
-	Users   []storedUser `json:"users"`
-	Audit   []UserEvent  `json:"audit"`
+	Version        int                   `json:"version"`
+	Users          []storedUser          `json:"users"`
+	Audit          []UserEvent           `json:"audit"`
+	PasswordPolicy *PasswordPolicy       `json:"password_policy,omitempty"`
+	PasswordAudit  []PasswordPolicyEvent `json:"password_policy_audit,omitempty"`
+	PasswordMarker []byte                `json:"password_history_marker,omitempty"`
 }
 
 func userRevision(u User) int { return max(1, u.Revision) }
@@ -82,7 +88,7 @@ func userState(u User, now time.Time) string {
 }
 func managedUser(u User, now time.Time) ManagedUser {
 	u.Revision = userRevision(u)
-	return ManagedUser{u, userUsable(u, now), userState(u, now)}
+	return ManagedUser{User: u, IsActive: userUsable(u, now), State: userState(u, now)}
 }
 func lifecycleValid(u User) bool {
 	return u.Revision >= 0 && u.AuthGeneration >= 0 && len(u.Name) <= 128 && len(u.Comment) <= 2000 && utf8.ValidString(u.Name) && utf8.ValidString(u.Comment) && strings.IndexFunc(u.Name, unicode.IsControl) < 0 && strings.IndexFunc(u.Comment, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\t' }) < 0 && (u.DateExpired.IsZero() || u.DateExpired.Year() >= 1970 && u.DateExpired.Year() <= 9999) && (u.ArchivedAt.IsZero() || u.ArchivedAt.Year() >= 1970 && u.ArchivedAt.Year() <= 9999)
@@ -102,7 +108,7 @@ func (s *Service) ManagedUsers(scope, query string, offset, limit int) ([]Manage
 		if query != "" && !strings.Contains(strings.ToLower(r.Username+" "+r.Name), query) {
 			continue
 		}
-		out = append(out, managedUser(r.User, s.now()))
+		out = append(out, s.managedPasswordUserLocked(r))
 	}
 	slices.SortFunc(out, func(a, b ManagedUser) int { return strings.Compare(a.Username, b.Username) })
 	total := len(out)
@@ -116,7 +122,7 @@ func (s *Service) ManagedUser(id string) (ManagedUser, error) {
 	if !ok {
 		return ManagedUser{}, ErrUserNotFound
 	}
-	return managedUser(r.User, s.now()), nil
+	return s.managedPasswordUserLocked(r), nil
 }
 func (s *Service) UserAudit(user string, offset, limit int) ([]UserEvent, int, error) {
 	if offset < 0 || limit < 1 || limit > 100 || len(user) > 128 {
@@ -266,15 +272,9 @@ func (s *Service) ChangeUsers(changes []UserChange, actor UserActor) ([]ManagedU
 		}
 		r.Revision = userRevision(previous.User) + 1
 		if security {
-			r.AuthGeneration++
-			r.AccessKeys = nil
-			r.PermanentTokens = nil
-			r.PendingMFASecretCiphertext = nil
-			r.PendingMFAExpiresAt = nil
-			r.MFASetupChallengeHash = nil
-			r.MFASetupChallengeExpiresAt = nil
-			r.MFASetupPasskeyID = ""
+			clearUserCapabilities(&r)
 		}
+
 		if !lifecycleValid(r.User) {
 			return nil, ErrUserState
 		}
@@ -325,17 +325,17 @@ func (s *Service) ActiveUserSnapshot(user User) (User, bool) {
 	return current, ok && current.AuthGeneration == user.AuthGeneration
 }
 func (s *Service) marshalUsersLocked(users []storedUser) ([]byte, error) {
-	return json.Marshal(userEnvelope{Version: 2, Users: users, Audit: s.userEvents})
+	return json.Marshal(userEnvelope{Version: 3, Users: users, Audit: s.userEvents, PasswordPolicy: &s.passwordPolicy, PasswordAudit: s.passwordPolicyEvents, PasswordMarker: s.passwordStoreMarker()})
 }
 func validUserEvents(events []UserEvent) bool {
 	seen := map[string]bool{}
 	for _, e := range events {
-		if e.ID == "" || seen[e.ID] || e.At.IsZero() || e.UserID == "" || e.Username == "" || e.ActorID == "" || e.Revision < 2 || e.AuthGeneration < 0 || !slices.Contains([]string{"update", "archive", "restore", "revoke"}, e.Action) || len(e.Fields) < 1 || len(e.Fields) > 6 {
+		if e.ID == "" || seen[e.ID] || e.At.IsZero() || e.UserID == "" || e.Username == "" || e.ActorID == "" || e.Revision < 2 || e.AuthGeneration < 0 || !slices.Contains([]string{"update", "archive", "restore", "revoke", "password_change", "password_reset", "mfa_reset"}, e.Action) || len(e.Fields) < 1 || len(e.Fields) > 6 {
 			return false
 		}
 		seen[e.ID] = true
 		for _, f := range e.Fields {
-			if !slices.Contains([]string{"name", "comment", "role", "is_active", "date_expired", "archived", "restored", "credentials"}, f) {
+			if !slices.Contains([]string{"name", "comment", "role", "is_active", "date_expired", "archived", "restored", "credentials", "password", "password_reset_required", "mfa"}, f) {
 				return false
 			}
 		}

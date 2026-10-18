@@ -57,7 +57,7 @@ func (s *Service) CreatePermanentToken(userID string) (PermanentTokenCredentials
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	username, record, exists := s.storedUserByIDLocked(userID)
-	if !exists || !s.externalAllowedLocked(record) {
+	if !exists || !s.credentialUsableLocked(record) {
 		return PermanentTokenCredentials{}, ErrUserNotFound
 	}
 	if len(record.PermanentTokens) >= maxPermanentTokens {
@@ -138,7 +138,7 @@ func (s *Service) ValidatePermanentToken(plaintext string) (User, bool) {
 	for _, record := range s.users {
 		for _, token := range record.PermanentTokens {
 			if len(token.TokenHash) == sha256.Size && subtle.ConstantTimeCompare(provided[:], token.TokenHash) == 1 {
-				if !s.externalAllowedLocked(record) {
+				if !s.credentialUsableLocked(record) {
 					return User{}, false
 				}
 				return record.User, true

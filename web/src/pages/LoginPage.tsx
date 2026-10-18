@@ -1,3 +1,4 @@
+import { passwordRedirect } from "../auth/passwordRedirect";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +18,7 @@ type Health = { status: string; version: string; time: string };
 type AuthStatus = { bootstrap_required: boolean };
 type MFAEnrollment = { secret: string; provisioning_uri: string; expires_at: string };
 type LoginResult = {
+ password_change_required?: boolean;
   radius_factor_required?: boolean;
   login_review_required?: boolean;
   review_id?: string;
@@ -309,6 +311,7 @@ export default function LoginPage() {
         ),
       });
       const result = (await response.json()) as LoginResult;
+ if(passwordRedirect(result))return;
       if (response.status === 202 && result.radius_factor_required) {
         waitForFactor();
         return;

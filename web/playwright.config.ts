@@ -20,14 +20,14 @@ export default defineConfig({
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  reporter: "list",
+  reporter: [["list"], ["./e2e/report.mjs"]],
   timeout: 30_000,
   expect: { timeout: 7_500 },
   use: {
     actionTimeout: 10_000,
     baseURL: "http://127.0.0.1:5177",
     browserName: "chromium",
-    trace: "retain-on-failure",
+    trace: "off",
     screenshot: "only-on-failure",
   },
   webServer: [

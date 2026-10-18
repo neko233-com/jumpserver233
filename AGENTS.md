@@ -53,6 +53,8 @@ Before direct backend tests/builds/run, use `cd server && go generate ./internal
 
 A phase is done only when tests, lint and build all pass and the feature works in the UI.
 
+Author the complete batch before unified verification. Cover idempotent retries, revision conflicts and one-time capability replay. After every run keep compact reports, essential screenshots and sanitized failure diagnostics; remove owned test data, containers, volumes, temporary executables, unused QA images and attributable test caches. Repeating cleanup must be safe. Do not retain debug stacks unless explicitly requested, and never prune another project's resources. See [Docker QA](./docs/DOCKER-QA.en.md).
+
 ## 5. Conventions
 
 **Go (server/)**

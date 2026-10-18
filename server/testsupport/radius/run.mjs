@@ -23,7 +23,7 @@ process.on('SIGINT',()=>void stop());process.on('SIGTERM',()=>void stop());
 function authenticated(ca,cert,key){return new Promise(done=>{const s=tlsConnect({host:'127.0.0.1',port:tls,servername:'radius.synthetic.invalid',ca,cert,key,rejectUnauthorized:true});s.setTimeout(1000);s.once('secureConnect',()=>{s.destroy();done(true)});s.once('error',()=>{s.destroy();done(false)});s.once('timeout',()=>{s.destroy();done(false)})})}
 try{
  await buildQAImage(execute,['build','--tag','jms233-radius-qa:local',fileURLToPath(new URL('.',import.meta.url))]);
- const args=['run','--detach','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--publish',`127.0.0.1:${udp}:1812/udp`,'--publish',`127.0.0.1:${tls}:2083`];
+ const args=['run','--detach','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--label',`com.jumpserver233.qa.workspace=${fileURLToPath(new URL('../../../',import.meta.url))}`,'--publish',`127.0.0.1:${udp}:1812/udp`,'--publish',`127.0.0.1:${tls}:2083`];
  if(process.env.JMS_QA_RADIUS_NETWORK){if(!/^[A-Za-z0-9_.-]+$/.test(process.env.JMS_QA_RADIUS_NETWORK))throw Error('Invalid fixture network');args.push('--network',process.env.JMS_QA_RADIUS_NETWORK)}
  args.push('jms233-radius-qa:local');await execute('docker',args);
  const read=async file=>(await execute('docker',['exec',name,'cat',`/run/qa-tls/${file}`])).stdout;

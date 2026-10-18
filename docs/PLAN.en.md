@@ -2,6 +2,10 @@
 
 > [中文](./PLAN.md) | English
 
+Added the BuildWorld intranet `builtin` macOS deployment entry and default `Jenkinsfile_mac_single`, with persistent data, same-port frontend, idempotent activation and recovery. See [deployment](./BUILDWORLD.en.md) for acceptance boundaries. Enterprise parity and production HA continue through the phased roadmap.
+
+Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./PASSWORD-SECURITY.en.md). Overall Enterprise parity remains in progress.
+
 Platform identity editing, expiry, archive/restore, credential revocation, atomic batches and metadata audit are available in Web/CLI/SDK. See [User lifecycle](./USERS.en.md). Overall Enterprise parity remains in progress.
 
 Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./RADIUS.en.md). Overall Enterprise parity remains in progress.

@@ -28,7 +28,7 @@ func executeUsers(ctx context.Context, c *sessionclient.Client, args []string, i
 	action := args[0]
 	id := ""
 	args = args[1:]
-	if action == "show" || action == "update" || action == "archive" || action == "restore" || action == "revoke" {
+	if action == "show" || action == "update" || action == "archive" || action == "restore" || action == "revoke" || action == "reset-password" || action == "reset-mfa" {
 		if len(args) == 0 {
 			return errors.New("user ID is required")
 		}
@@ -56,9 +56,9 @@ func executeUsers(ctx context.Context, c *sessionclient.Client, args []string, i
 		for _, v := range []string{"user", "offset", "limit"} {
 			allowed[v] = true
 		}
-	case "update", "batch":
+	case "update", "batch", "password", "reset-password":
 		allowed["file"] = true
-	case "archive", "restore", "revoke":
+	case "archive", "restore", "revoke", "reset-mfa":
 		allowed["revision"] = true
 	case "show":
 	default:
@@ -76,6 +76,24 @@ func executeUsers(ctx context.Context, c *sessionclient.Client, args []string, i
 	var out any
 	var e error
 	switch action {
+	case "reset-password":
+		var in sessionclient.PasswordResetInput
+		e = operationJSON(*file, input, &in)
+		if e == nil {
+			out, e = c.ResetPassword(ctx, id, in)
+		}
+	case "reset-mfa":
+		out, e = c.ResetMFA(ctx, id, *revision)
+	case "password":
+		var in struct {
+			Current string `json:"current_password"`
+			New     string `json:"new_password"`
+		}
+		e = operationJSON(*file, input, &in)
+		if e == nil {
+			e = c.ChangePassword(ctx, in.Current, in.New)
+			out = map[string]bool{"changed": e == nil}
+		}
 	case "list":
 		out, e = c.ManagedUsers(ctx, *scope, *query, *offset, *limit)
 	case "audit":

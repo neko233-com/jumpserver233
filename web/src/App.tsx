@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ConsoleLayout from "./layouts/ConsoleLayout";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 
+const PasswordChangePage = lazy(()=>import("./pages/PasswordChangePage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const AgentAuditPage = lazy(() => import("./pages/AgentAuditPage"));
@@ -51,6 +52,7 @@ export default function App() {
       <Suspense fallback={<div className="placeholder">{t("placeholder.skeleton")}</div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+ <Route path="/password-change" element={<PasswordChangePage />} />
           <Route
             path="/share/:shareID"
             element={

@@ -1,6 +1,8 @@
+import PasswordRules from "../components/PasswordRules";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
+const PasswordSecuritySettings = lazy(() => import("../components/PasswordSecuritySettings"));
 const SessionSecuritySettings = lazy(() => import("../components/SessionSecuritySettings"));
 
 type User = { id: string; username: string; role: "admin" | "operator"; created_at: string };
@@ -844,6 +846,7 @@ export default function SettingsPage() {
             <div className="settings-columns">
               <Suspense fallback={null}>
                 <SessionSecuritySettings />
+                <PasswordSecuritySettings />
               </Suspense>
               <form
                 className="settings-card settings-form"
@@ -914,6 +917,7 @@ export default function SettingsPage() {
                     autoComplete="new-password"
                   />
                 </label>
+                <PasswordRules admin={userRole === "admin"} />
                 <label>
                   <span>{t("settings.role")}</span>
                   <select

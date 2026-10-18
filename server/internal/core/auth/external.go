@@ -43,7 +43,7 @@ func (s *Service) ActiveUserByID(id string) (User, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, record := range s.users {
-		if record.ID == id && s.externalAllowedLocked(record) {
+		if record.ID == id && s.credentialUsableLocked(record) {
 			return record.User, true
 		}
 	}
@@ -57,7 +57,7 @@ func (s *Service) ActiveUsersSnapshot() []User {
 	defer s.mu.RUnlock()
 	out := make([]User, 0, len(s.users))
 	for _, r := range s.users {
-		if s.externalAllowedLocked(r) {
+		if s.credentialUsableLocked(r) {
 			out = append(out, r.User)
 		}
 	}

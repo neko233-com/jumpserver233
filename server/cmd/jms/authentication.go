@@ -57,7 +57,7 @@ func saveAuthState(path string, state authState) error {
 	if e != nil || len(raw) > 32768 {
 		return errors.New("invalid authentication state")
 	}
-	f, e := os.CreateTemp(filepath.Dir(path), ".jms-auth-*")
+	f, e := privateAuthTemp(filepath.Dir(path))
 	if e != nil {
 		return errors.New("could not create authentication state")
 	}
@@ -79,6 +79,10 @@ func saveAuthState(path string, state authState) error {
 }
 func authNext(action string, r sessionclient.AuthenticationResult) string {
 	switch {
+	case r.PasswordChanged:
+		return "login"
+	case r.PasswordChangeRequired:
+		return "password-complete"
 	case r.AccessToken != "":
 		return "authenticated"
 	case r.ReviewRequired:
@@ -109,7 +113,7 @@ func runAuthentication(args []string) error {
 	}
 	var client *sessionclient.Client
 	var e error
-	if len(args) > 0 && strings.HasPrefix(args[0], "radius-") && args[0] != "radius-login" {
+	if len(args) > 0 && (strings.HasPrefix(args[0], "radius-") && args[0] != "radius-login" || args[0] == "password-settings" || args[0] == "password-save" || args[0] == "password-audit") {
 		client, e = clientFromEnvironment(server)
 	} else {
 		client, e = sessionclient.New(server, "")
@@ -140,12 +144,12 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 		allowed["state-file"] = true
 	case "status":
 		allowed["state-file"] = true
-	case "radius-save", "radius-check":
+	case "radius-save", "radius-check", "password-save":
 		allowed["file"] = true
-	case "radius-audit":
+	case "radius-audit", "password-audit":
 		allowed["offset"] = true
 		allowed["limit"] = true
-	case "radius-settings":
+	case "radius-settings", "password-settings":
 	default:
 		return errors.New("unknown authentication action")
 	}
@@ -161,6 +165,16 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 	var result any
 	var e error
 	switch action {
+	case "password-settings":
+		result, e = c.PasswordPolicy(ctx)
+	case "password-audit":
+		result, e = c.PasswordPolicyAudit(ctx, *offset, *limit)
+	case "password-save":
+		var in sessionclient.PasswordPolicy
+		e = operationJSON(*file, input, &in)
+		if e == nil {
+			result, e = c.SavePasswordPolicy(ctx, in)
+		}
 	case "radius-settings":
 		result, e = c.RadiusSettings(ctx)
 	case "radius-save":
@@ -199,7 +213,15 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 			}
 		}
 		if action == "status" {
-			result = map[string]any{"next": current.Next, "expires_at": current.Result.ExpiresAt, "user": current.Result.User}
+			if current.Next == "password-complete" {
+				pending, err := c.Authentication(ctx, "password-status", sessionclient.AuthenticationInput{ChangeToken: current.Result.ChangeToken})
+				if err != nil {
+					return err
+				}
+				current.Result.User = pending.User
+				current.Result.PasswordPolicy = pending.PasswordPolicy
+			}
+			result = map[string]any{"next": current.Next, "expires_at": current.Result.ExpiresAt, "user": current.Result.User, "password_policy": current.Result.PasswordPolicy}
 			break
 		}
 		var in sessionclient.AuthenticationInput
@@ -212,6 +234,7 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 			if step == "authenticated" || step == "" {
 				return errors.New("no pending authentication step")
 			}
+			in.ChangeToken = current.Result.ChangeToken
 			in.ChallengeToken = current.Result.ChallengeToken
 			in.PendingToken = current.Result.PendingToken
 			in.FactorToken = current.Result.FactorToken
@@ -226,6 +249,9 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 		next, err := c.Authentication(ctx, step, in)
 		if err != nil {
 			return err
+		}
+		if next.ChangeToken == "" {
+			next.ChangeToken = current.Result.ChangeToken
 		}
 		if next.PendingToken == "" {
 			next.PendingToken = current.Result.PendingToken
@@ -247,7 +273,8 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 		if current.Next == "" {
 			return errors.New("authentication server returned no next step")
 		}
-		if next.AccessToken != "" {
+		if next.AccessToken != "" || next.PasswordChanged {
+			current.Result.ChangeToken = ""
 			current.Result.ChallengeToken = ""
 			current.Result.PendingToken = ""
 			current.Result.FactorToken = ""

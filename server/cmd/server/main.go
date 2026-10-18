@@ -55,6 +55,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
+	"github.com/neko233-com/jumpserver233/server/internal/webui"
 )
 
 const (
@@ -385,6 +386,14 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global.MonitorAlerts = nil
 	global.Reports = nil
 	handler := api.NewOrganizationRouter(cfg.Version, global, runtimes.handler)
+	if cfg.WebDir != "" {
+		ui, err := webui.Open(handler, cfg.WebDir)
+		if err != nil {
+			return err
+		}
+		defer ui.Close()
+		handler = ui
+	}
 	identityService.SetPrivilegedCheck(runtimes.isPrivileged)
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	listener, err := net.Listen("tcp", cfg.Addr)

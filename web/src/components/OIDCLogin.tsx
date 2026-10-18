@@ -1,3 +1,4 @@
+import { passwordRedirect } from "../auth/passwordRedirect";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { type LoginReviewPending } from "./LoginReviewPanel";
@@ -54,6 +55,7 @@ export default function OIDCLogin({
         body: JSON.stringify({ otp, ...(setup ? { setup_token: setup.token } : {}) }),
       });
       const data = (await r.json()) as {
+ password_change_required?: boolean;
         radius_factor_required?: boolean;
         login_review_required?: boolean;
         review_id?: string;
@@ -65,6 +67,7 @@ export default function OIDCLogin({
         setup_token?: string;
         enrollment?: Setup["enrollment"];
       };
+      if (passwordRedirect(data))return;
       if (r.status === 202 && data.radius_factor_required && onFactor) {
         onFactor();
         return;

@@ -2,6 +2,10 @@
 
 > 中文 | [English](./README.en.md)
 
+BuildWorld 内网 macOS 单机默认流水线：[Jenkinsfile_mac_single](./Jenkinsfile_mac_single)，包含统一检查、原生打包、持久化、幂等激活及失败回滚，见[部署说明](./docs/BUILDWORLD.md)。
+
+平台本地密码策略、历史与有效期、受限改密、独立授权的密码/TOTP 恢复接入 Web/CLI/SDK，支持 v3 用户文档接管；见[密码安全](./docs/PASSWORD-SECURITY.md)。企业版整体对齐保持进行中。
+
 平台身份编辑、到期、归档恢复、撤销凭证、原子批量变更和元数据审计接入 Web/CLI/SDK，见[用户生命周期](./docs/USERS.md)。企业版整体对齐保持进行中。
 
 原生 PAP RADIUS 主登录、双向 TLS、多轮挑战和统一附加因子接入 Web/CLI/SDK，保留本地 MFA 与平台登录审批；见 [RADIUS 认证](./docs/RADIUS.md)。完整企业版对齐保持进行中。

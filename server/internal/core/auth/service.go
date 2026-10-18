@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -53,19 +54,21 @@ var (
 
 // User is the public, non-secret identity representation.
 type User struct {
-	Name           string    `json:"name,omitempty"`
-	Comment        string    `json:"comment,omitempty"`
-	Disabled       bool      `json:"disabled,omitempty"`
-	DateExpired    time.Time `json:"date_expired,omitzero"`
-	ArchivedAt     time.Time `json:"archived_at,omitzero"`
-	Revision       int       `json:"revision,omitempty"`
-	AuthGeneration int       `json:"auth_generation,omitempty"`
-	ID             string    `json:"id"`
-	Username       string    `json:"username"`
-	Role           string    `json:"role"`
-	MFAEnabled     bool      `json:"mfa_enabled"`
-	CreatedAt      time.Time `json:"created_at"`
-	Source         string    `json:"source,omitempty"`
+	PasswordChangedAt     time.Time `json:"password_changed_at,omitzero"`
+	PasswordResetRequired bool      `json:"password_reset_required,omitempty"`
+	Name                  string    `json:"name,omitempty"`
+	Comment               string    `json:"comment,omitempty"`
+	Disabled              bool      `json:"disabled,omitempty"`
+	DateExpired           time.Time `json:"date_expired,omitzero"`
+	ArchivedAt            time.Time `json:"archived_at,omitzero"`
+	Revision              int       `json:"revision,omitempty"`
+	AuthGeneration        int       `json:"auth_generation,omitempty"`
+	ID                    string    `json:"id"`
+	Username              string    `json:"username"`
+	Role                  string    `json:"role"`
+	MFAEnabled            bool      `json:"mfa_enabled"`
+	CreatedAt             time.Time `json:"created_at"`
+	Source                string    `json:"source,omitempty"`
 }
 
 // LoginSession contains a one-time-returned bearer token. The token itself is
@@ -78,6 +81,9 @@ type LoginSession struct {
 
 type storedUser struct {
 	User
+	PasswordFingerprint        []byte                 `json:"password_fingerprint,omitempty"`
+	PasswordHistory            []passwordHistory      `json:"password_history,omitempty"`
+	PasswordPending            *passwordPending       `json:"password_pending,omitempty"`
 	ExternalIssuer             string                 `json:"external_issuer,omitempty"`
 	ExternalIdentity           string                 `json:"external_identity,omitempty"`
 	PasswordSalt               []byte                 `json:"password_salt"`
@@ -117,20 +123,24 @@ type storedSession struct {
 // keeps sessions in memory; shared-state mode persists only token digests.
 // Passwords are scrypt hashes.
 type Service struct {
-	mu              sync.RWMutex
-	path            string
-	documents       *storage.Documents
-	aead            cipher.AEAD
-	mfaPolicyPath   string
-	mfaPolicy       MFAEnforcement
-	privilegedCheck func(string) bool
-	externalAllowed map[string]func(string) bool
-	passkeyAllowed  func(string, string) bool
-	users           map[string]storedUser
-	userEvents      []UserEvent
-	sessions        map[[32]byte]activeSession
-	hashSlots       chan struct{}
-	now             func() time.Time
+	mu                   sync.RWMutex
+	path                 string
+	documents            *storage.Documents
+	aead                 cipher.AEAD
+	mfaPolicyPath        string
+	mfaPolicy            MFAEnforcement
+	privilegedCheck      func(string) bool
+	externalAllowed      map[string]func(string) bool
+	passkeyAllowed       func(string, string) bool
+	users                map[string]storedUser
+	userEvents           []UserEvent
+	passwordPolicy       PasswordPolicy
+	passwordPolicyEvents []PasswordPolicyEvent
+	passwordPepper       []byte
+	passwordMarker       []byte
+	sessions             map[[32]byte]activeSession
+	hashSlots            chan struct{}
+	now                  func() time.Time
 }
 
 func OpenService(path string) (*Service, error) {
@@ -179,14 +189,20 @@ func openService(path string, documents *storage.Documents, key []byte) (*Servic
 		}
 	}
 	service := &Service{
-		path:          path,
-		documents:     documents,
-		aead:          aead,
-		mfaPolicyPath: filepath.Join(filepath.Dir(path), "mfa-policy.json"),
-		users:         make(map[string]storedUser),
-		sessions:      make(map[[32]byte]activeSession),
-		hashSlots:     make(chan struct{}, 4),
-		now:           time.Now,
+		path:           path,
+		documents:      documents,
+		aead:           aead,
+		mfaPolicyPath:  filepath.Join(filepath.Dir(path), "mfa-policy.json"),
+		users:          make(map[string]storedUser),
+		sessions:       make(map[[32]byte]activeSession),
+		hashSlots:      make(chan struct{}, 4),
+		now:            time.Now,
+		passwordPolicy: defaultPasswordPolicy(),
+	}
+	if len(key) > 0 {
+		m := hmac.New(sha256.New, key)
+		m.Write([]byte("jms233/password-history/v1"))
+		service.passwordPepper = m.Sum(nil)
 	}
 	policy, err := service.loadMFAEnforcement()
 	if err != nil {
@@ -218,8 +234,23 @@ func openService(path string, documents *storage.Documents, key []byte) (*Servic
 	} else {
 		var doc userEnvelope
 		decodeErr = json.Unmarshal(data, &doc)
-		if decodeErr == nil && (doc.Version != 2 || len(doc.Audit) > 5000) {
+		if decodeErr == nil && ((doc.Version != 2 && doc.Version != 3) || len(doc.Audit) > 5000 || len(doc.PasswordAudit) > 1000 || doc.Version == 3 && doc.PasswordPolicy == nil || doc.Version == 2 && (doc.PasswordPolicy != nil || len(doc.PasswordAudit) > 0 || len(doc.PasswordMarker) > 0)) {
 			decodeErr = ErrUserStoreCorrupt
+		}
+		if decodeErr == nil && doc.PasswordPolicy != nil {
+			if !validPasswordPolicy(*doc.PasswordPolicy) || !validPasswordPolicyEvents(doc.PasswordAudit) || len(doc.PasswordMarker) != 0 && len(doc.PasswordMarker) != 32 {
+				decodeErr = ErrUserStoreCorrupt
+			} else {
+				service.passwordPolicy = *doc.PasswordPolicy
+				service.passwordPolicyEvents = doc.PasswordAudit
+				service.passwordMarker = doc.PasswordMarker
+				if len(service.passwordPepper) > 0 && len(doc.PasswordMarker) > 0 && subtle.ConstantTimeCompare(doc.PasswordMarker, service.passwordStoreMarker()) != 1 {
+					decodeErr = ErrUserStoreCorrupt
+				}
+				if len(service.passwordPepper) == 0 && (service.passwordPolicy.HistoryCount > 0 || service.passwordPolicy.MaxAgeDays > 0 || service.passwordPolicy.AdminMaxAgeDays > 0) {
+					return nil, ErrMFAKeyUnavailable
+				}
+			}
 		}
 		users = doc.Users
 		service.userEvents = doc.Audit
@@ -234,6 +265,9 @@ func openService(path string, documents *storage.Documents, key []byte) (*Servic
 	seenPermanentTokenIDs := make(map[string]struct{})
 	seenPermanentTokenHashes := make(map[string]struct{})
 	for _, user := range users {
+		if !validPasswordRecord(user) {
+			return nil, ErrUserStoreCorrupt
+		}
 		if !lifecycleValid(user.User) {
 			return nil, ErrUserStoreCorrupt
 		}
@@ -366,6 +400,14 @@ func (s *Service) createUser(username, password, role string, firstOnly, default
 	if role != RoleAdmin && role != RoleOperator {
 		return User{}, ErrInvalidRole
 	}
+	s.mu.RLock()
+	passwordPolicy := s.passwordPolicy
+	s.mu.RUnlock()
+	if !defaultCredential {
+		if e := passwordPolicy.check(password, role); e != nil {
+			return User{}, e
+		}
+	}
 	if firstOnly {
 		role = RoleAdmin
 		s.mu.RLock()
@@ -391,8 +433,8 @@ func (s *Service) createUser(username, password, role string, firstOnly, default
 		return User{}, fmt.Errorf("generate user ID: %w", err)
 	}
 	now := s.now().UTC()
-	user := User{Revision: 1, ID: "user-" + hex.EncodeToString(idBytes[:]), Username: canonical, Role: role, CreatedAt: now}
-	record := storedUser{User: user, PasswordSalt: salt, PasswordHash: passwordHash}
+	user := User{PasswordChangedAt: now, Revision: 1, ID: "user-" + hex.EncodeToString(idBytes[:]), Username: canonical, Role: role, CreatedAt: now}
+	record := storedUser{User: user, PasswordSalt: salt, PasswordHash: passwordHash, PasswordFingerprint: s.passwordFingerprint(user.ID, password)}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -404,6 +446,9 @@ func (s *Service) createUser(username, password, role string, firstOnly, default
 	}
 	if _, exists := s.users[canonical]; exists {
 		return User{}, ErrUserExists
+	}
+	if passwordPolicy.Revision != s.passwordPolicy.Revision {
+		return User{}, ErrUserRevision
 	}
 	s.users[canonical] = record
 	if err := s.persistLocked(); err != nil {
@@ -442,86 +487,7 @@ func (s *Service) UserByID(id string) (User, bool) {
 // hash, and revokes the user's other active sessions. The session performing
 // the change remains valid so the UI can confirm success.
 func (s *Service) ChangePassword(userID, currentToken, currentPassword, newPassword string) error {
-	if len(newPassword) < 12 || len(newPassword) > 256 {
-		return ErrInvalidPassword
-	}
-	if len(currentPassword) > 256 {
-		return ErrInvalidCredentials
-	}
-	s.mu.RLock()
-	username, snapshot, exists := s.storedUserByIDLocked(userID)
-	s.mu.RUnlock()
-	if !exists {
-		return ErrUserNotFound
-	}
-	if snapshot.Source != "" {
-		return ErrExternalIdentity
-	}
-
-	currentHash, err := s.derivePassword(currentPassword, snapshot.PasswordSalt)
-	if err != nil {
-		return err
-	}
-	if subtle.ConstantTimeCompare(currentHash, snapshot.PasswordHash) != 1 {
-		return ErrInvalidCredentials
-	}
-	if currentPassword == newPassword {
-		return ErrPasswordUnchanged
-	}
-
-	newSalt := make([]byte, 16)
-	if _, err := io.ReadFull(rand.Reader, newSalt); err != nil {
-		return fmt.Errorf("generate password salt: %w", err)
-	}
-	newHash, err := s.derivePassword(newPassword, newSalt)
-	if err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	current, exists := s.users[username]
-	if !exists || current.ID != userID || current.AuthGeneration != snapshot.AuthGeneration || !s.externalAllowedLocked(current) {
-		return ErrUserNotFound
-	}
-	if subtle.ConstantTimeCompare(current.PasswordHash, snapshot.PasswordHash) != 1 {
-		return ErrPasswordChanged
-	}
-
-	previousUser := current
-	current.PasswordSalt = newSalt
-	current.PasswordHash = newHash
-	s.users[username] = current
-	if err := s.persistLocked(); err != nil {
-		s.users[username] = previousUser
-		return err
-	}
-
-	previousSessions := s.sessions
-	nextSessions := make(map[[sha256.Size]byte]activeSession, len(previousSessions))
-	var currentTokenHash [sha256.Size]byte
-	keepCurrentSession := currentToken != "" && len(currentToken) <= 128
-	if keepCurrentSession {
-		currentTokenHash = sha256.Sum256([]byte(currentToken))
-	}
-	for hash, session := range previousSessions {
-		if session.user.ID != userID {
-			nextSessions[hash] = session
-			continue
-		}
-		if keepCurrentSession && hash == currentTokenHash {
-			session.user = current.User
-			nextSessions[hash] = session
-		}
-	}
-	s.sessions = nextSessions
-	if err := s.persistSessionsLocked(); err != nil {
-		s.sessions = previousSessions
-		s.users[username] = previousUser
-		rollbackErr := s.persistLocked()
-		return errors.Join(fmt.Errorf("persist revoked login sessions: %w", err), rollbackErr)
-	}
-	return nil
+	return s.changePassword(userID, currentToken, currentPassword, newPassword)
 }
 
 func (s *Service) Authenticate(username, password string) (LoginSession, error) {
@@ -654,7 +620,7 @@ func (s *Service) ValidateToken(token string) (User, bool) {
 	if exists {
 		for _, record := range s.users {
 			if record.ID == session.user.ID {
-				if session.user.AuthGeneration != record.AuthGeneration || !s.externalAllowedLocked(record) || (session.passkeyID != "" && (s.passkeyAllowed == nil || !s.passkeyAllowed(record.ID, session.passkeyID))) {
+				if session.user.AuthGeneration != record.AuthGeneration || !s.credentialUsableLocked(record) || (session.passkeyID != "" && (s.passkeyAllowed == nil || !s.passkeyAllowed(record.ID, session.passkeyID))) {
 					delete(s.sessions, hash)
 					exists = false
 					_ = s.persistSessionsLocked()

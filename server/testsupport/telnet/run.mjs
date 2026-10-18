@@ -22,7 +22,7 @@ function reachable(p){return new Promise(r=>{const c=createConnection({host:'127
 try{
  await execute('go',['run','./testsupport/mysql/cert',certDir],{cwd:resolve(directory,'../..')});
  await buildQAImage(execute,['build','--tag','jms233-telnet-qa:local',directory]);
- const args=['run','--detach','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--publish',`127.0.0.1:${port}:23`,'--publish',`127.0.0.1:${tls}:992`,'--mount',`type=bind,source=${certDir},target=/qa-input,readonly`];
+ const args=['run','--detach','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--label',`com.jumpserver233.qa.workspace=${fileURLToPath(new URL('../../../',import.meta.url))}`,'--publish',`127.0.0.1:${port}:23`,'--publish',`127.0.0.1:${tls}:992`,'--mount',`type=bind,source=${certDir},target=/qa-input,readonly`];
  const network=process.env.JMS_QA_TELNET_NETWORK;if(network){if(!/^[A-Za-z0-9_.-]+$/.test(network))throw new Error('Invalid QA network');args.push('--network',network);}args.push('jms233-telnet-qa:local');await execute('docker',args);
  let ready=false;for(let i=0;i<120;i++){if(await reachable(port)&&await reachable(tls)){ready=true;break;}await new Promise(r=>setTimeout(r,500));}if(!ready)throw new Error('Telnet fixture did not become ready');
  const metadata={ready:true,address:`127.0.0.1:${tls}`,plaintext_address:`127.0.0.1:${port}`,network_address:`${name}:992`,plaintext_network_address:`${name}:23`,container_name:name,owner,username:'telnetqa',server_name:'telnet.synthetic.invalid',root_ca_pem:readFileSync(resolve(certDir,'server.crt'),'utf8')};

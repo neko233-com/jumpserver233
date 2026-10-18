@@ -23,6 +23,8 @@ type Config struct {
 	ShutdownTimeout time.Duration
 	// DataDir contains the encrypted standalone inventory and vault key.
 	DataDir string
+	// WebDir optionally serves a production frontend on the API listener.
+	WebDir string
 	// VaultKey is optional base64-encoded 32-byte key material for shared deployments.
 	VaultKey string
 	// AdminToken protects inventory APIs when the listener is exposed beyond loopback.
@@ -53,6 +55,7 @@ func FromEnv() (*Config, error) {
 		Version:         getEnv("JMS_VERSION", "dev"),
 		ShutdownTimeout: 10 * time.Second,
 		DataDir:         getEnv("JMS_DATA_DIR", filepath.Join(userConfigDir, "JumpServer233")),
+		WebDir:          strings.TrimSpace(getEnv("JMS_WEB_DIR", "")),
 		VaultKey:        getEnv("JMS_VAULT_KEY", ""),
 		AdminToken:      getEnv("JMS_ADMIN_TOKEN", ""),
 		MonitorInterval: time.Minute,

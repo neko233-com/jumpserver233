@@ -1,0 +1,31 @@
+// Native single-node deployment on BuildWorld's builtin macOS executor.
+pipeline {
+    agent any
+    options {
+        disableConcurrentBuilds()
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '3'))
+    }
+    parameters {
+        booleanParam(name: 'DEPLOY', defaultValue: true, description: 'Deploy this project on the current macOS node, retaining data and keys')
+        booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run Go, helper, static and content checks before packaging')
+        string(name: 'JMS_PORT', defaultValue: '8180', description: 'Dedicated intranet HTTP port; refuse a foreign listener')
+    }
+    stages {
+        stage('Preflight') {
+            steps { sh 'python3 scripts/macos_single.py preflight' }
+        }
+        stage('Verify') {
+            steps { sh 'python3 scripts/macos_single.py verify' }
+        }
+        stage('Build and package') {
+            steps {
+                sh 'python3 scripts/macos_single.py package'
+                archiveArtifacts artifacts: 'dist/*.tar.gz,dist/*.sha256,dist/release/manifest.json', fingerprint: true
+            }
+        }
+        stage('Deploy and health check') {
+            steps { sh 'python3 scripts/macos_single.py deploy' }
+        }
+    }
+}

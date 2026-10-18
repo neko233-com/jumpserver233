@@ -1,7 +1,9 @@
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { ownedCompose, removeUnusedQAImages, pruneOwnedQACache, removeLocalBuildHistory, inspectQAContainers } from "./qa-lifecycle.mjs";
 import { createServer } from "node:net";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, createWriteStream } from "node:fs";
+import { mkdirSync, createWriteStream, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -41,6 +43,9 @@ if (![webPort, apiPort].every(p => /^\d+$/.test(p) && Number(p) > 1024 && Number
 const browser = args.includes("--browser");
 if (browser) args.splice(args.indexOf("--browser"), 1);
 if (peerURL && !browser) throw new Error("--peer-url requires --browser");
+const keepData = args.includes("--keep-data");
+if (keepData) args.splice(args.indexOf("--keep-data"), 1);
+if (keepData && command !== "down") throw new Error("--keep-data applies only to explicit debug shutdown");
 if (args.length) throw new Error(`Unknown options: ${args.join(" ")}`);
 const cwd = fileURLToPath(new URL("..", import.meta.url));
 const output = resolve(cwd, ".cache/docker-qa", project);
@@ -48,6 +53,9 @@ mkdirSync(output, { recursive: true });
 const log = createWriteStream(resolve(output, "verify.log"), { flags: "a" });
 const env = { ...process.env, JMS_QA_HOST: host, JMS_QA_WEB_PORT: webPort, JMS_QA_API_PORT: apiPort };
 const compose = ["compose", "-f", "compose.qa.yml", "-p", project];
+const execute = promisify(execFile);
+const existing = (await execute("docker", ["ps", "--all", "--quiet", "--filter", `label=com.docker.compose.project=${project}`])).stdout.trim().split(/\s+/).filter(Boolean);
+if ((await inspectQAContainers(execute, existing)).some(c => !ownedCompose(c, cwd))) throw new Error("QA project belongs to another workspace or configuration");
 function docker(extra) {
   return new Promise((done, reject) => {
     const process = spawn("docker", [...compose, ...extra], { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
@@ -145,18 +153,25 @@ async function browserSmoke() {
 }
 const started = performance.now();
 let built = 0, ready = 0;
+let receipt = { project, webURL, apiURL, success: false, cleaned: false };
 try {
-  if (command === "down") { await docker(["down"]); }
+  if (command === "down") { await docker(["down", ...(keepData ? [] : ["--volumes"]), "--remove-orphans"]); receipt.success = true; receipt.cleaned = !keepData; }
   else {
     console.log(`Docker QA ${project}: building with shared dependency caches`);
     await docker(["build"]); built = performance.now();
     await docker(["up", "--detach", "--wait", "--wait-timeout", "90"]); ready = performance.now();
     await httpSmoke();
     if (browser) await browserSmoke();
-    console.log(JSON.stringify({ project, webURL, apiURL, buildSeconds: +((built-started)/1000).toFixed(2), startupSeconds: +((ready-built)/1000).toFixed(2), smokeSeconds: +((performance.now()-ready)/1000).toFixed(2), browser, parallelBrowser: Boolean(peerURL), retained: command === "up" }));
+    receipt = { ...receipt, success: true, buildSeconds: +((built-started)/1000).toFixed(2), startupSeconds: +((ready-built)/1000).toFixed(2), smokeSeconds: +((performance.now()-ready)/1000).toFixed(2), browser, parallelBrowser: Boolean(peerURL), retained: command === "up" };
+    console.log(JSON.stringify(receipt));
   }
 } finally {
-  // Only verify's newly generated namespace is disposable; debug volumes remain.
-  if (command === "verify") await docker(["down", "--volumes", "--remove-orphans"]);
-  log.end();
+  try {
+    if (command === "verify") { await docker(["down", "--volumes", "--remove-orphans"]); receipt.cleaned = true; }
+    if (command === "verify" || command === "down" && !keepData) { await removeUnusedQAImages(promisify(execFile), [`${project}-api:latest`, `${project}-web:latest`]); receipt.removedBuildHistory = await removeLocalBuildHistory(execute, cwd); receipt.prunedCache = await pruneOwnedQACache(execute); }
+  } finally {
+    writeFileSync(resolve(output, "summary.json"), JSON.stringify(receipt, null, 2));
+    writeFileSync(resolve(output, `summary-${Date.now()}.json`), JSON.stringify(receipt, null, 2));
+    log.end();
+  }
 }

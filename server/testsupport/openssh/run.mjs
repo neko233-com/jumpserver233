@@ -41,7 +41,7 @@ function reachable() { return new Promise((resolveResult) => { const socket = cr
 try {
   process.stdout.write('Building disposable OpenSSH QA image…\n')
   await buildQAImage(execute, ['build', '--tag', 'jms233-openssh-qa:local', directory])
-  const argumentsList = ['run', '--detach', '--name', name, '--label', `com.jumpserver233.qa.owner=${owner}`, '--publish', `127.0.0.1:${sshPort}:22`]
+  const argumentsList = ['run', '--detach', '--name', name, '--label', `com.jumpserver233.qa.owner=${owner}`,'--label',`com.jumpserver233.qa.workspace=${fileURLToPath(new URL('../../../',import.meta.url))}`, '--publish', `127.0.0.1:${sshPort}:22`]
   const protection = process.env.JMS_QA_KEYHOST_PROTECTION === 'true'
   const accountAdmin = process.env.JMS_QA_KEYHOST_ACCOUNT_ADMIN === 'true'
   if (accountAdmin) argumentsList.push('--env','JMS_QA_ACCOUNT_ADMIN=true')

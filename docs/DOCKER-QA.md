@@ -6,6 +6,18 @@
 
 ## 快速验证
 
+测试结束只保留必要摘要和 PNG 证据：浏览器在 `.cache/qa-reports/browser-*/`，Docker 冒烟在 `.cache/docker-qa/<project>/`。不保留含认证请求正文的 trace。自动清理本轮临时数据、协议容器/匿名卷、证书、插件测试缓存和未被其他容器使用的 QA 镜像。开发依赖、共用基础镜像及无法证明归属的共享 BuildKit 缓存不做全局 prune。
+
+历史资源先预览，再清理并重复执行：
+
+```sh
+node scripts/qa-cleanup.mjs --include-legacy-fixtures --test-caches
+node scripts/qa-cleanup.mjs --apply --include-legacy-fixtures --test-caches
+node scripts/qa-cleanup.mjs --apply --include-legacy-fixtures --test-caches
+```
+
+清理核对仓库路径、`compose.qa.yml`、标签和不可变容器 ID；第二次应删除零项。权限/连接错误不能当成不存在。部分清理报告保留归属证据供重试。新夹具带仓库标签；旧夹具需显式 legacy 选项和预设名称/镜像组合。相同密码策略保存无副作用；旧修订重复重置返回冲突，一次性改密票据重放必须拒绝。
+
 完整协议回归可用 `cd web && pnpm test:e2e:production`：一次生产构建后复用静态资源，启动全新临时数据和原有真实协议夹具，结束后校验归属并清理。本命令与快速 Docker 冒烟分别计时，避免每个页面触发开发模块转换；不减少测试范围。
 
 需要 Docker Compose 和 Node 24：
@@ -39,7 +51,7 @@ node scripts/docker-qa.mjs up --project jms233-debug-b --host 127.0.0.3 --web-po
 node scripts/docker-qa.mjs down --project jms233-debug-a
 ```
 
-`down` 保留数据卷。纯 Docker 入口为 `docker compose -f compose.qa.yml -p jms233-debug up --build --detach --wait`，默认网页/API 端口为 15173/18080，可用 `JMS_QA_WEB_PORT`、`JMS_QA_API_PORT` 和 `JMS_QA_HOST` 调整；不同环境使用不同回环地址以隔离 Cookie。
+`down` 默认删除测试数据卷；明确需要后续调试时添加 `--keep-data`。纯 Docker 入口为 `docker compose -f compose.qa.yml -p jms233-debug up --build --detach --wait`，默认网页/API 端口为 15173/18080，可用 `JMS_QA_WEB_PORT`、`JMS_QA_API_PORT` 和 `JMS_QA_HOST` 调整；不同环境使用不同回环地址以隔离 Cookie。
 
 两套环境启动后，可在同一浏览器上下文验证登录互不覆盖：`node scripts/docker-qa.mjs up --project jms233-debug-a --browser --peer-url http://127.0.0.3:15174`。2026-10-16 已实际通过，已有环境复查约 6.5 秒。
 
@@ -52,3 +64,5 @@ Go modules、Go 编译缓存、pnpm store 与 TypeScript 增量缓存由 BuildKi
 2026-10-16 内置浏览器访问独立 Docker 端口的实际截图，空清单来自新数据卷：
 
 ![Docker 中文生产控制台](./images/docker-qa.zh-CN.png)
+
+测试收尾还按 BuildKit 记录描述和不可变 ID 清理可回收的 jms233 编译/依赖缓存；无归属标记的共享层保留。第二次执行核对零新增删除。下次冷构建可能重新下载依赖，耗时与热缓存记录分别报告。

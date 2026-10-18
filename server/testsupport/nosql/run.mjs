@@ -22,7 +22,7 @@ process.on('SIGINT',()=>void stop());process.on('SIGTERM',()=>void stop());
 try{
  await execute('go',['run','./testsupport/mysql/cert',certDir],{cwd:resolve(directory,'../..')});
  const probe=resolve(certDir,process.platform==='win32'?'probe.exe':'probe');await execute('go',['build','-o',probe,'./testsupport/nosql/probe'],{cwd:resolve(directory,'../..')});
- const args=['run','--detach','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--publish',`127.0.0.1:${port}:${internal}`,'--user','0','--mount',`type=bind,source=${certDir},target=/qa-input,readonly`,'--mount',`type=bind,source=${resolve(directory,`${engine}.sh`)},target=/qa-start.sh,readonly`,'--entrypoint','sh'];
+ const args=['run','--detach','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--label',`com.jumpserver233.qa.workspace=${fileURLToPath(new URL('../../../',import.meta.url))}`,'--publish',`127.0.0.1:${port}:${internal}`,'--user','0','--mount',`type=bind,source=${certDir},target=/qa-input,readonly`,'--mount',`type=bind,source=${resolve(directory,`${engine}.sh`)},target=/qa-start.sh,readonly`,'--entrypoint','sh'];
  const network=process.env[`${prefix}_NETWORK`];if(network){if(!/^[A-Za-z0-9_.-]+$/.test(network))throw new Error('Invalid QA network');args.push('--network',network);}
  if(engine==='mongodb')args.push('--env','MONGO_INITDB_ROOT_USERNAME=qadb','--env','MONGO_INITDB_ROOT_PASSWORD=synthetic-mongodb-query-233');
  args.push(engine==='redis'?'redis:8.2-alpine':'mongo:8.0','/qa-start.sh');await execute('docker',args);

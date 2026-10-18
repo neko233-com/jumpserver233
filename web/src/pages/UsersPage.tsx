@@ -1,3 +1,4 @@
+import CredentialRecovery from "../components/CredentialRecovery";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -49,6 +50,7 @@ export default function UsersPage() {
     [epoch, setEpoch] = useState(0);
   const [selected, setSelected] = useState<string[]>([]),
     [editing, setEditing] = useState<User | null>(null);
+  const [recovery,setRecovery]=useState<{user:User;kind:"password"|"mfa"}|null>(null);
   const [expiry, setExpiry] = useState(""),
     [busy, setBusy] = useState(false),
     [loaded, setLoaded] = useState(false);
@@ -277,7 +279,8 @@ export default function UsersPage() {
                     >
                       {t("identityUsers.edit")}
                     </button>
-                    {(u.state === "archived" ? ["restore"] : ["revoke", "archive"]).map((a) => (
+                    {systemAllows("users.credentials.manage") && u.state!=="archived" && ["password","mfa"].filter(k=>k!=="password"||!u.source).map(kind=><button key={kind} disabled={busy||!security(u)} onClick={()=>{setEditing(null);setPending(null);setRecovery({user:u,kind:kind as "password"|"mfa"})}}>{t("passwordSecurity.reset_"+kind)}</button>)}
+ {(u.state === "archived" ? ["restore"] : ["revoke", "archive"]).map((a) => (
                       <button
                         key={a}
                         disabled={busy || !security(u)}
@@ -381,7 +384,8 @@ export default function UsersPage() {
           </button>
         </section>
       )}
-      <h2>{t("identityUsers.audit")}</h2>
+      {recovery && <CredentialRecovery key={recovery.user.id+recovery.kind} user={recovery.user} kind={recovery.kind} done={()=>{setRecovery(null);setEpoch(v=>v+1)}} />}
+ <h2>{t("identityUsers.audit")}</h2>
       <p>{t("identityUsers.auditHint")}</p>
       <div className="users-scroll">
         <table>

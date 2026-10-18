@@ -102,6 +102,7 @@ export default {
     reasons: {
       credentials_rejected: "凭据被拒绝",
       second_factor_required: "需要 MFA",
+      password_change_required: "需要修改密码",
       enrollment_required: "需要注册 MFA",
       second_factor_rejected: "MFA 被拒绝",
       identity_rejected: "身份被拒绝",

@@ -1,5 +1,9 @@
 export default {
   identityUsers: {
+password_change:"修改密码",
+password_reset:"重置密码",
+mfa_reset:"重置 TOTP",
+
     title: "平台用户",
     hint: "跨组织的全局身份。安全状态变更会撤销现有会话和 API 凭证。",
     create: "在系统设置中创建用户",
@@ -55,6 +59,10 @@ export default {
     next: "下一页",
     total: "总计：{{count}}",
     fieldsLabel: {
+password:"密码",
+password_reset_required:"要求改密",
+mfa:"TOTP",
+
       name: "显示名称",
       comment: "备注",
       role: "角色",

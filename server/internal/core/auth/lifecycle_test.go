@@ -210,7 +210,7 @@ func TestUserLifecycleLegacyMigrationAndPersistenceRollback(t *testing.T) {
 	lifecycleChange(t, s, u, a, "update", UserUpdate{Name: &name})
 	raw, e := os.ReadFile(s.path)
 	require.NoError(t, e)
-	assert.Contains(t, string(raw), `"version":2`)
+	assert.Contains(t, string(raw), `"version":3`)
 	oldPath := s.path
 	s.path = t.TempDir()
 	_, e = s.ChangeUsers([]UserChange{{ID: u.ID, Action: "revoke", UserUpdate: UserUpdate{Revision: 2}}}, a)

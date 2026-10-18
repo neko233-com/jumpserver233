@@ -1,3 +1,4 @@
+import {fileURLToPath} from 'node:url';
 import {execFile} from 'node:child_process'
 import {promisify} from 'node:util'
 import {randomUUID} from 'node:crypto'
@@ -5,7 +6,7 @@ import {createServer} from 'node:http'
 import {mkdtempSync, writeFileSync, rmSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {resolve, dirname, basename} from 'node:path'
-import {isMissingDockerResource} from '../docker-qa.mjs'
+import {isMissingDockerResource,buildQAImage} from '../docker-qa.mjs'
 
 const execute=promisify(execFile)
 const port=Number(process.env.JMS_QA_KUBERNETES_PORT||16443)
@@ -32,9 +33,9 @@ async function kubectl(args){return docker(['exec',name,'/bin/kubectl',...args])
 async function ready(args,attempts=180){for(let i=0;i<attempts;i++){try{return await kubectl(args)}catch{const state=await docker(['inspect','--format','{{.State.Running}}',name]);if(state.stdout.trim()!=='true')throw new Error('K3s stopped');await new Promise(r=>setTimeout(r,1000))}}throw new Error('K3s readiness deadline')}
 try{
  const images=['rancher/k3s:v1.37.1-k3s1','busybox:1.37.0','rancher/mirrored-pause:3.6']
- for(const image of images){try{await docker(['image','inspect',image])}catch{await docker(['pull',image])}}
+ for(const image of images){try{await docker(['image','inspect',image])}catch{await buildQAImage(execute,['pull',image],{timeout:180000})}}
  process.stdout.write('Starting owned K3s TLS fixture…\n');stage='API startup'
- const args=['run','--detach','--privileged','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--publish',`127.0.0.1:${port}:6443`,'--tmpfs','/run','--tmpfs','/var/run']
+ const args=['run','--detach','--privileged','--name',name,'--label',`com.jumpserver233.qa.owner=${owner}`,'--label',`com.jumpserver233.qa.workspace=${fileURLToPath(new URL('../../../',import.meta.url))}`,'--publish',`127.0.0.1:${port}:6443`,'--tmpfs','/run','--tmpfs','/var/run']
  const network=process.env.JMS_QA_KUBERNETES_NETWORK;if(network){if(!/^[A-Za-z0-9_.-]+$/.test(network))throw new Error('Invalid network');args.push('--network',network)}
  args.push(images[0],'server','--disable','traefik,servicelb,metrics-server,local-storage','--disable-cloud-controller','--disable-network-policy','--flannel-backend=none','--node-name','qa-node','--pause-image',images[2],'--tls-san','kubernetes.synthetic.invalid')
  await docker(args)

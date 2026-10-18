@@ -123,6 +123,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	if len(dependencies) > 0 {
 		if !dependencies[0].Tenant && dependencies[0].Auth != nil {
 			registerUserLifecycle(mux, dependencies[0])
+			registerPasswordSecurity(mux, dependencies[0])
 		}
 		registerReportRoutes(mux, dependencies[0], accessMu)
 		registerMonitorAlertRoutes(mux, dependencies[0], accessMu)

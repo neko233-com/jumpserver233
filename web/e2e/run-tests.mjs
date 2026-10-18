@@ -1,10 +1,13 @@
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, mkdtempSync, rmSync, mkdirSync, readdirSync, copyFileSync, writeFileSync } from "node:fs";
+import { promisify } from "node:util";
+import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isMissingDockerResource } from "../../server/testsupport/docker-qa.mjs";
 import { stagePluginArtifacts } from "./plugin-artifact-cache.mjs";
+import { removeOwnedTree, removeUnusedQAImages, pruneOwnedQACache, qaFixtureImage, removeLocalBuildHistory, inspectQAContainers } from "../../scripts/qa-lifecycle.mjs";
 
 const webDir = fileURLToPath(new URL("..", import.meta.url));
 const temporaryRoot = resolve(tmpdir());
@@ -17,6 +20,8 @@ const dataDir = cleanupOnly
   : mkdtempSync(resolve(temporaryRoot, "jumpserver233-e2e-"));
 const absoluteDataDir = resolve(dataDir);
 const artifactCache = resolve(webDir, "node_modules/.cache/jumpserver233-plugin-artifacts");
+const reportDir = resolve(webDir, "../.cache/qa-reports", `browser-${Date.now()}`);
+const fixtureImages = new Set();
 let exitCode = 1;
 
 try {
@@ -34,7 +39,7 @@ try {
     : await new Promise((resolveExit) => {
         const playwright = spawn("pnpm exec playwright test", {
           cwd: webDir,
-          env: { ...process.env, JMS_E2E_DATA_DIR: dataDir, JMS_E2E_PRODUCTION:production?"true":"false" },
+          env: { ...process.env, JMS_E2E_DATA_DIR: dataDir, JMS_E2E_REPORT_DIR: reportDir, JMS_E2E_PRODUCTION:production?"true":"false" },
           shell: true,
           stdio: "inherit",
         });
@@ -45,6 +50,8 @@ try {
         playwright.once("exit", (code) => resolveExit(code ?? 1));
       });
 } finally {
+  let cleaned = false;
+  try {
   if (
     dirname(absoluteDataDir).toLowerCase() !== temporaryRoot.toLowerCase() ||
     !basename(absoluteDataDir).startsWith("jumpserver233-e2e-")
@@ -53,11 +60,7 @@ try {
       "Refusing to remove a path outside the Playwright-owned temporary data directory",
     );
   }
-  if (!cleanupOnly) {
-    try { stagePluginArtifacts(resolve(dataDir, "plugin-artifacts"), artifactCache); }
-    catch { process.stderr.write("Public artifact cache could not be retained; owned fixture cleanup continues.\n"); }
-  }
-  let cleaned = true;
+  cleaned = true;
   for (const [filename, prefix] of [
     ["openssh-container.json", "jms233-keyhost-"],
     ["systemdvm-container.json", "jms233-systemdvm-"],
@@ -82,15 +85,14 @@ try {
       resource.owner !== basename(absoluteDataDir)
     )
       throw new Error("Refusing unowned fixture cleanup");
+    const image = qaFixtureImage(filename);
+    if (image) fixtureImages.add(image);
     try {
-      const labels = JSON.parse(
-        execFileSync("docker", ["inspect", "--format", "{{json .Config.Labels}}", resource.name], {
-          encoding: "utf8",
-          stdio: ["ignore", "pipe", "pipe"],
-        }),
-      );
-      if (labels["com.jumpserver233.qa.owner"] !== resource.owner)
+      const [container] = await inspectQAContainers(promisify(execFile), [resource.name]);
+      if (!container) continue;
+      if (container.Config.Labels["com.jumpserver233.qa.owner"] !== resource.owner)
         throw new Error("Fixture owner mismatch");
+      fixtureImages.add(container.Image);
       execFileSync("docker", ["rm", "--force", "--volumes", resource.name], {
         stdio: ["ignore", "pipe", "pipe"],
       });
@@ -127,7 +129,32 @@ try {
       rmSync(cert, { recursive: true, force: true });
     }
   }
-  if (cleaned) rmSync(absoluteDataDir, { recursive: true, force: true });
+  if (cleaned) {
+    await removeUnusedQAImages(promisify(execFile), [...fixtureImages]);
+    await removeLocalBuildHistory(promisify(execFile), resolve(webDir, ".."));
+    await pruneOwnedQACache(promisify(execFile));
+    removeOwnedTree(absoluteDataDir, temporaryRoot, "jumpserver233-e2e-");
+    if (existsSync(artifactCache)) removeOwnedTree(artifactCache, dirname(artifactCache), "jumpserver233-plugin-artifacts");
+  }
+  } catch (error) { cleaned = false; exitCode = 1; throw error; }
+  finally {
+  if (!cleanupOnly) {
+    mkdirSync(reportDir, { recursive: true });
+    const results = resolve(webDir, "test-results");
+    // Only visual evidence is copied; traces and runtime data may hold secrets.
+    function preservePNGs(folder, prefix = "") {
+      for (const entry of readdirSync(folder, { withFileTypes: true })) {
+        if (entry.isSymbolicLink()) continue;
+        const path = resolve(folder, entry.name), name = prefix + entry.name;
+        if (entry.isDirectory()) preservePNGs(path, name + "-");
+        else if (entry.isFile() && entry.name.endsWith(".png")) copyFileSync(path, resolve(reportDir, name));
+      }
+    }
+    if (existsSync(results)) { preservePNGs(results); removeOwnedTree(results, webDir, "test-results"); }
+    writeFileSync(resolve(reportDir, "cleanup.json"), JSON.stringify({ at: new Date().toISOString(), exitCode, cleaned, temporaryDataRemoved: !existsSync(absoluteDataDir), remainingDataDirectory: existsSync(absoluteDataDir) ? absoluteDataDir : undefined }, null, 2));
+    console.log(`QA report: ${reportDir}`);
+  }
+  }
 }
 
 process.exitCode = exitCode;

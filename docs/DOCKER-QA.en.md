@@ -6,6 +6,18 @@ Docker builds the production API and web application from source, with separate 
 
 ## Fast verification
 
+After testing, retain compact summaries and PNG evidence only: browser reports under `.cache/qa-reports/browser-*/`, Docker smoke reports under `.cache/docker-qa/<project>/`. Authentication request traces are disabled. Cleanup removes this run's temporary data, protocol containers/anonymous volumes, certificates, plugin test cache and unused QA images. Development dependencies, shared base images and unscoped shared BuildKit caches are excluded from global pruning.
+
+Preview historical resources, apply cleanup, then repeat:
+
+```sh
+node scripts/qa-cleanup.mjs --include-legacy-fixtures --test-caches
+node scripts/qa-cleanup.mjs --apply --include-legacy-fixtures --test-caches
+node scripts/qa-cleanup.mjs --apply --include-legacy-fixtures --test-caches
+```
+
+Cleanup checks the workspace path, `compose.qa.yml`, labels and immutable container IDs; the second invocation should remove zero resources. Permission/connection errors are not missing resources. Partial-cleanup reports retain ownership evidence for retries. New fixtures carry workspace labels; legacy fixtures require the explicit flag and known name/image combinations. Saving identical password settings has no side effects; stale reset revisions conflict, and one-time password-change capabilities must reject replay.
+
 Run `cd web && pnpm test:e2e:production` for complete protocol regression: build the frontend once, serve static output, and start fresh temporary data with the existing real protocol fixtures. Owned resources are checked and cleaned afterward. This is timed separately from fast Docker smoke and avoids development module transforms without reducing test scope.
 
 Requires Docker Compose and Node 24:
@@ -52,3 +64,5 @@ Acceptance covers Linux amd64 standalone production images and localhost forward
 Actual in-app browser screenshot from the separate Docker port on 2026-10-16. The empty inventory belongs to a fresh data volume:
 
 ![Docker English production console](./images/docker-qa.en.png)
+
+Test cleanup also prunes reclaimable jms233 compilation/dependency cache records by their descriptions and immutable IDs. Unattributed shared layers remain. Repeating cleanup checks for zero additional removals. The next cold build may download dependencies again; report cold and warm durations separately.
