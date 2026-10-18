@@ -45,6 +45,7 @@ import (
 	coreoperations "github.com/neko233-com/jumpserver233/server/internal/core/operations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
+	"github.com/neko233-com/jumpserver233/server/internal/core/radiuslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
@@ -306,6 +307,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	if err != nil {
 		return err
 	}
+	radiusService, err := radiuslogin.Open(filepath.Join(cfg.DataDir, "radius.json"), vaultKey, documents, nil)
+	if err != nil {
+		return err
+	}
+	defer radiusService.Close()
 	casService, err := caslogin.Open(filepath.Join(cfg.DataDir, "cas.json"), vaultKey, documents, cfg.PublicURL, nil)
 	if err != nil {
 		return err
@@ -330,7 +336,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	pluginService := hostplugins.New(func(ctx context.Context, id string) (hostplugins.Transport, error) {
 		return assetService.OpenManagedHost(ctx, id)
 	}, pluginCache)
-	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
+	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, RADIUS: radiusService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
 	root.AccountDiscovery = discoveredAccounts
 	root.AccountRisks = accountRisks
@@ -443,6 +449,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		setReady(false)
 	}
 	cancelNode()
+	radiusService.Close()
 
 	if errors.Is(context.Cause(ctx), cluster.ErrLeaseLost) {
 		// Drop established requests immediately when leadership can no longer be

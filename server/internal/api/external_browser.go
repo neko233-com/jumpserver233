@@ -85,6 +85,10 @@ func completeExternalBrowserLogin(w http.ResponseWriter, r *http.Request, auth *
 	}
 	failures.succeeded(key)
 	clear()
+	if source == "radius" && !browserLoginRequest(r) {
+		writeLoginResult(w, r, 200, session)
+		return
+	}
 	if !setLoginSession(w, r, session, secure) {
 		return
 	}

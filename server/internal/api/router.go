@@ -30,6 +30,7 @@ import (
 	coreoperations "github.com/neko233-com/jumpserver233/server/internal/core/operations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
+	"github.com/neko233-com/jumpserver233/server/internal/core/radiuslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
@@ -91,6 +92,7 @@ type Dependencies struct {
 	CAS            *caslogin.Service
 	SAML           *samllogin.Service
 	Passkeys       *passkeys.Service
+	RADIUS         *radiuslogin.Service
 	PublicURL      string
 }
 
@@ -168,6 +170,11 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		d := dependencies[0]
 		d.Auth.SetExternalSourceAllowed("ldap", d.LDAP.IssuerAllowed)
 		registerLDAPRoutes(mux, d)
+	}
+	if len(dependencies) > 0 && !dependencies[0].Tenant && dependencies[0].RADIUS != nil && dependencies[0].Auth != nil {
+		d := dependencies[0]
+		d.Auth.SetExternalSourceAllowed("radius", d.RADIUS.IssuerAllowed)
+		registerRadiusRoutes(mux, d)
 	}
 	if len(dependencies) > 0 && !dependencies[0].Tenant && dependencies[0].OIDC != nil && dependencies[0].Auth != nil {
 		d := dependencies[0]

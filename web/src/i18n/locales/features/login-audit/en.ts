@@ -63,6 +63,7 @@ export default {
       unavailable: "Platform sign-in audit is temporarily unavailable.",
     },
     methods: {
+      radius: "RADIUS",
       local: "Password",
       ldap: "LDAP",
       oidc: "OIDC",

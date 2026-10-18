@@ -2,6 +2,8 @@
 
 > [中文](./AUTH.md) | English
 
+Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./RADIUS.en.md). Overall Enterprise parity remains in progress.
+
 Authentication steps, audit commit before session delivery, global permissions and independent security notifications: [Platform sign-in audit](./LOGIN-AUDIT.en.md).
 
 On first startup with an empty user store, the server creates default administrator **`root / root`**. Sign-in uses normal local authentication and the password is stored as a scrypt hash. Restarts never reset the password or add this account to an existing user store. Change it in Profile. Set `JMS_DEFAULT_ADMIN_ENABLED=false` to initialize a custom administrator; ordinary account creation and password changes still require 12–256 bytes.

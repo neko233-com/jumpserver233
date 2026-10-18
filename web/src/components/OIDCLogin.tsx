@@ -9,12 +9,14 @@ export default function OIDCLogin({
   onComplete,
   onCancel,
   onReview,
+  onFactor,
   source = "oidc",
 }: {
   onComplete: () => void;
   onCancel: () => void;
   onReview: (pending: LoginReviewPending) => void;
-  source?: "oidc" | "cas" | "saml" | "passkey";
+  onFactor?: () => void;
+  source?: "oidc" | "cas" | "saml" | "passkey" | "radius";
 }) {
   const { t, i18n } = useTranslation();
   const [active, setActive] = useState(false);
@@ -48,10 +50,11 @@ export default function OIDCLogin({
     try {
       const r = await fetch(`/api/v1/authentication/${source}/complete`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-JMS-Browser-Session": "cookie" },
         body: JSON.stringify({ otp, ...(setup ? { setup_token: setup.token } : {}) }),
       });
       const data = (await r.json()) as {
+        radius_factor_required?: boolean;
         login_review_required?: boolean;
         review_id?: string;
         expires_at?: string;
@@ -62,6 +65,10 @@ export default function OIDCLogin({
         setup_token?: string;
         enrollment?: Setup["enrollment"];
       };
+      if (r.status === 202 && data.radius_factor_required && onFactor) {
+        onFactor();
+        return;
+      }
       if (r.status === 202 && data.login_review_required && data.review_id && data.expires_at) {
         onReview({ review_id: data.review_id, expires_at: data.expires_at });
         return;

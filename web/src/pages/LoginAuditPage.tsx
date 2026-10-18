@@ -58,7 +58,7 @@ const initial: Filters = {
   from: "",
   to: "",
 };
-const methods = ["local", "ldap", "oidc", "saml", "cas", "passkey", "unknown"];
+const methods = ["local", "ldap", "oidc", "saml", "cas", "passkey", "radius", "unknown"];
 const outcomes = [
   "succeeded",
   "failed",

@@ -44,6 +44,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "auth" {
+		return runAuthentication(args[1:])
+	}
 	if len(args) > 0 && args[0] == "ops" {
 		return runOperations(args[1:])
 	}
@@ -344,6 +347,19 @@ func run(args []string) error {
 
 func clientFromEnvironment(serverURL string, selected ...string) (*sessionclient.Client, error) {
 	token := os.Getenv("JMS_TOKEN")
+	if stateFile := os.Getenv("JMS_TOKEN_FILE"); stateFile != "" {
+		if token != "" || os.Getenv("JMS_ACCESS_KEY_ID") != "" || os.Getenv("JMS_ACCESS_KEY_SECRET") != "" {
+			return nil, errors.New("use JMS_TOKEN_FILE separately from other platform credentials")
+		}
+		state, e := readAuthState(stateFile, serverURL)
+		if e != nil {
+			return nil, e
+		}
+		if state.Next != "authenticated" || state.Result.AccessToken == "" {
+			return nil, errors.New("platform authentication has not completed")
+		}
+		token = state.Result.AccessToken
+	}
 	keyID := os.Getenv("JMS_ACCESS_KEY_ID")
 	secret := os.Getenv("JMS_ACCESS_KEY_SECRET")
 	if keyID != "" || secret != "" {

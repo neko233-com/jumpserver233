@@ -31,8 +31,10 @@ func auditedLoginStep(r *http.Request) (method, stage string, ok bool) {
 		return "unknown", "session", r.Method == "POST"
 	case "/api/v1/authentication/login-review/cancel":
 		return "unknown", "review", r.Method == "POST"
+	case "/api/v1/authentication/factor/complete", "/api/v1/authentication/factor/cancel", "/api/v1/authentication/radius/challenge":
+		return "radius", "mfa", r.Method == "POST"
 	}
-	for _, source := range []string{"ldap", "oidc", "saml", "cas", "passkey"} {
+	for _, source := range []string{"ldap", "oidc", "saml", "cas", "passkey", "radius"} {
 		prefix := "/api/v1/authentication/" + source + "/"
 		if !strings.HasPrefix(p, prefix) {
 			continue
@@ -109,7 +111,7 @@ func withLoginAudit(next http.Handler, d Dependencies) http.Handler {
 			return
 		}
 		client := "browser"
-		if r.URL.Path == "/api/v1/authentication/auth/" || r.URL.Path == "/api/v1/authentication/bootstrap" || r.URL.Path == "/api/v1/authentication/mfa/setup/confirm" {
+		if r.URL.Path == "/api/v1/authentication/auth/" || r.URL.Path == "/api/v1/authentication/bootstrap" || r.URL.Path == "/api/v1/authentication/mfa/setup/confirm" || strings.HasPrefix(r.URL.Path, radiusCookiePath+"/") || strings.HasPrefix(r.URL.Path, factorCookiePath+"/") {
 			if !browserLoginRequest(r) {
 				client = "api"
 			}

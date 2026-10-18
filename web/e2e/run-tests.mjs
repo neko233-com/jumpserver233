@@ -71,6 +71,7 @@ try {
     ["kubernetes-container.json", "jms233-kubernetes-"],
     ["telnet-container.json", "jms233-telnet-"],
     ["rdp-container.json", "jms233-rdp-"],
+    ["radius-container.json", "jms233-radius-"],
   ]) {
     const resourcePath = resolve(absoluteDataDir, filename);
     if (!existsSync(resourcePath)) continue;

@@ -47,6 +47,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/console/saml", label: t("saml.title"), end: false },
     { to: "/console/passkeys", label: t("passkey.title"), end: false },
     { to: "/console/cas", label: t("cas.title"), end: false },
+    { to: "/console/radius", label: t("nav.radius"), end: false },
   ];
 
   async function signOut() {

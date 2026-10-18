@@ -287,7 +287,11 @@ func hasAction(actions []string, expected string) bool {
 }
 
 func decodeRequestJSON(w http.ResponseWriter, r *http.Request, input any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
+	return decodeRequestJSONLimit(w, r, input, 64*1024)
+}
+
+func decodeRequestJSONLimit(w http.ResponseWriter, r *http.Request, input any, limit int64) error {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(input); err != nil {

@@ -5,9 +5,10 @@ import { defineConfig } from "@playwright/test";
 const webDir = fileURLToPath(new URL(".", import.meta.url));
 const serverDir = resolve(webDir, "../server");
 const testDataDir = process.env.JMS_E2E_DATA_DIR;
-const frontend = process.env.JMS_E2E_PRODUCTION === "true"
-  ? "pnpm exec vite preview --config e2e/preview.vite.config.ts"
-  : "pnpm exec vite";
+const frontend =
+  process.env.JMS_E2E_PRODUCTION === "true"
+    ? "pnpm exec vite preview --config e2e/preview.vite.config.ts"
+    : "pnpm exec vite";
 if (!testDataDir)
   throw new Error(
     "Run browser tests with `pnpm test:e2e` so temporary test data is cleaned safely",
@@ -31,6 +32,19 @@ export default defineConfig({
   },
   webServer: [
     {
+      command: "node ./testsupport/radius/run.mjs",
+      cwd: serverDir,
+      url: "http://127.0.0.1:18514/health",
+      timeout: 300_000,
+      reuseExistingServer: false,
+      env: {
+        JMS_QA_RADIUS_UDP_PORT: "18512",
+        JMS_QA_RADIUS_TLS_PORT: "18513",
+        JMS_QA_RADIUS_HEALTH_PORT: "18514",
+        JMS_QA_RADIUS_NETWORK: "",
+      },
+    },
+    {
       command: "go run ./testsupport/notificationfixture/cmd",
       cwd: serverDir,
       url: "http://127.0.0.1:12604/health",
@@ -43,7 +57,11 @@ export default defineConfig({
       url: "http://127.0.0.1:12326/health",
       timeout: 900_000,
       reuseExistingServer: false,
-      env: { JMS_QA_SYSTEMD_SSH_PORT: "12325", JMS_QA_SYSTEMD_HEALTH_PORT: "12326", JMS_QA_SYSTEMD_NETWORK: "" },
+      env: {
+        JMS_QA_SYSTEMD_SSH_PORT: "12325",
+        JMS_QA_SYSTEMD_HEALTH_PORT: "12326",
+        JMS_QA_SYSTEMD_NETWORK: "",
+      },
     },
     {
       command: "go run ./cmd/server",

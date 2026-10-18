@@ -10,6 +10,9 @@ web/dist/
 web/test-results/
 web/playwright-report/
 web/.auth/
+# Local CLI authentication capabilities and interrupted atomic writes
+*.jms-auth.json
+.jms-auth-*
 
 # Local tooling
 .codely-cli/

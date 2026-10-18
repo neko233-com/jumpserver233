@@ -60,6 +60,7 @@ export default {
       unavailable: "平台登录审计暂不可用。",
     },
     methods: {
+      radius: "RADIUS",
       local: "密码",
       ldap: "LDAP",
       oidc: "OIDC",

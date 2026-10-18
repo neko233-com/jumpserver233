@@ -21,6 +21,8 @@ func browserLoginRequest(r *http.Request) bool {
 	switch r.URL.Path {
 	case "/api/v1/authentication/auth/", "/api/v1/authentication/mfa/setup/confirm", "/api/v1/authentication/bootstrap":
 		return strings.EqualFold(strings.TrimSpace(r.Header.Get(browserSessionHeader)), "cookie")
+	case "/api/v1/authentication/radius/login", "/api/v1/authentication/radius/challenge", "/api/v1/authentication/radius/complete", "/api/v1/authentication/factor/complete":
+		return strings.EqualFold(strings.TrimSpace(r.Header.Get(browserSessionHeader)), "cookie")
 	default:
 		return true
 	}
@@ -32,6 +34,9 @@ func clearReviewCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: reviewCookieName, Value: "", Path: reviewCookiePath, HttpOnly: true, Secure: secureSessionCookie(r), SameSite: http.SameSiteLaxMode, MaxAge: -1, Expires: time.Unix(1, 0)})
 }
 func loginAuthSource(r *http.Request, user coreauth.User) string {
+	if source, _ := r.Context().Value(factorSourceKey{}).(string); source != "" {
+		return source
+	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/authentication/passkey/") {
 		return "passkey"
 	}
@@ -57,6 +62,9 @@ func prepareNewLogin(w http.ResponseWriter, r *http.Request, session coreauth.Lo
 	}
 	if e != nil || !decision.Allowed {
 		fail(e)
+		return false
+	}
+	if !prepareRadiusFactor(w, r, session, secure) {
 		return false
 	}
 	if decision.Action != "review" && decision.Action != "notify" {
@@ -116,6 +124,9 @@ func checkReviewedLogin(d Dependencies, p loginreviews.Payload) error {
 	}
 	user, ok := d.Auth.UserByID(p.UserID)
 	if !ok {
+		return loginreviews.ErrInvalidated
+	}
+	if !radiusProofCurrent(d, p.Proof, user) {
 		return loginreviews.ErrInvalidated
 	}
 	if p.ReviewedBy != "" {

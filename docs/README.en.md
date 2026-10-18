@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./RADIUS.en.md). Overall Enterprise parity remains in progress.
+
 Go native Playbooks provide revisioned workspaces, organization publication, source snapshots, sequential SSH modules, conditions/loops/retries, durable recovery and Web/CLI/SDK. See [Native Playbooks](./PLAYBOOKS.en.md). Full Ansible and Enterprise parity remain in progress.
 
 SSH command plans support five-field cron, explicit timezones, DST, missed-run policies, previews, revisioned editing and change audit, with a complete Ops CLI. See [Calendar schedules](./SCHEDULING.en.md).

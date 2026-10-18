@@ -69,6 +69,7 @@ jobs:
           node server/testsupport/kubernetes/run.mjs > "$RUNNER_TEMP/kubernetes-query.log" 2>&1 &
           node server/testsupport/rdp/run.mjs > "$RUNNER_TEMP/rdp.log" 2>&1 &
           node server/testsupport/telnet/run.mjs > "$RUNNER_TEMP/telnet.log" 2>&1 &
+          node server/testsupport/radius/run.mjs > "$RUNNER_TEMP/radius.log" 2>&1 &
           node server/testsupport/mysql/ci-env.mjs
       - name: Start isolated Debian systemd VM
         run: |

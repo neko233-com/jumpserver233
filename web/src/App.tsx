@@ -29,6 +29,7 @@ const LDAPSettingsPage = lazy(() => import("./pages/LDAPSettingsPage"));
 const SAMLSettingsPage = lazy(() => import("./pages/SAMLSettingsPage"));
 const PasskeySettingsPage = lazy(() => import("./pages/PasskeySettingsPage"));
 const CASSettingsPage = lazy(() => import("./pages/CASSettingsPage"));
+const RadiusSettingsPage = lazy(() => import("./pages/RadiusSettingsPage"));
 const SessionSharePage = lazy(() => import("./pages/SessionSharePage"));
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="saml" element={<SAMLSettingsPage />} />
             <Route path="passkeys" element={<PasskeySettingsPage />} />
             <Route path="cas" element={<CASSettingsPage />} />
+            <Route path="radius" element={<RadiusSettingsPage />} />
           </Route>
           <Route
             path="/audit"

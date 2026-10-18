@@ -56,7 +56,7 @@ func TestActiveSessionIdentityFollowsExternalSourceState(t *testing.T) {
 }
 
 func TestExternalSourcesNeverCrossAuthenticateOrRevokeEachOther(t *testing.T) {
-	for _, source := range []string{"ldap", "cas", "saml"} {
+	for _, source := range []string{"ldap", "cas", "saml", "radius"} {
 		t.Run(source, func(t *testing.T) {
 			s := externalService(t)
 			s.SetExternalSourceAllowed(source, func(issuer string) bool { return issuer == "https://issuer.example.invalid" })
@@ -120,7 +120,7 @@ func TestExternalIdentityDoesNotLinkLocalNamesOrAcceptPasswords(t *testing.T) {
 	assert.Equal(t, user.ID, same.ID)
 }
 func TestExternalLoginEnforcesMFAAndRecentSSOProofForRecovery(t *testing.T) {
-	for _, source := range []string{"oidc", "ldap", "cas", "saml"} {
+	for _, source := range []string{"oidc", "ldap", "cas", "saml", "radius"} {
 		t.Run(source, func(t *testing.T) {
 			s := externalService(t)
 			s.SetExternalSourceAllowed(source, func(issuer string) bool { return issuer == "https://issuer.example.invalid" })
@@ -233,7 +233,7 @@ func TestExternalIdentityAndRecentSessionProofReloadFromPostgres(t *testing.T) {
 }
 
 func TestDirectoryIdentityAndRecentSessionReloadFromPostgres(t *testing.T) {
-	for _, source := range []string{"ldap", "cas", "saml"} {
+	for _, source := range []string{"ldap", "cas", "saml", "radius"} {
 		t.Run(source, func(t *testing.T) {
 			databaseURL := os.Getenv("JMS_TEST_DATABASE_URL")
 			if databaseURL == "" {

@@ -37,6 +37,7 @@ type QuarantinedLogin struct {
 	AuthSource string
 }
 type loginProofData struct {
+	SecondaryStamp   string    `json:"secondary_stamp,omitempty"`
 	Version          int       `json:"version"`
 	UserID           string    `json:"user_id"`
 	CredentialStamp  []byte    `json:"credential_stamp"`
@@ -83,7 +84,7 @@ func (s *Service) QuarantineLogin(token string) (QuarantinedLogin, error) {
 	if session.expiresAt.Before(expires) {
 		expires = session.expiresAt
 	}
-	data := loginProofData{Version: 1, UserID: user.ID, CredentialStamp: loginCredentialStamp(user), AuthenticatedAt: session.authenticatedAt.UTC(), ExpiresAt: expires, SessionExpiresAt: session.expiresAt, PasskeyID: session.passkeyID}
+	data := loginProofData{SecondaryStamp: session.secondaryStamp, Version: 1, UserID: user.ID, CredentialStamp: loginCredentialStamp(user), AuthenticatedAt: session.authenticatedAt.UTC(), ExpiresAt: expires, SessionExpiresAt: session.expiresAt, PasskeyID: session.passkeyID}
 	raw, e := json.Marshal(data)
 	if e != nil {
 		return QuarantinedLogin{}, e
@@ -121,7 +122,10 @@ func (s *Service) openLoginProofLocked(proof string) (loginProofData, storedUser
 	}
 	var data loginProofData
 	now := s.now().UTC()
-	if json.Unmarshal(plain, &data) != nil || data.Version != 1 || data.UserID == "" || data.AuthenticatedAt.IsZero() || now.Before(data.AuthenticatedAt) || !now.Before(data.ExpiresAt) || data.ExpiresAt.After(data.AuthenticatedAt.Add(6*time.Minute)) || !now.Before(data.SessionExpiresAt) || data.SessionExpiresAt.After(data.AuthenticatedAt.Add(SessionTTL)) {
+	if json.Unmarshal(plain, &data) != nil || !validSecondaryStamp(data.SecondaryStamp) {
+		return loginProofData{}, storedUser{}, ErrInvalidLoginProof
+	}
+	if data.Version != 1 || data.UserID == "" || data.AuthenticatedAt.IsZero() || now.Before(data.AuthenticatedAt) || !now.Before(data.ExpiresAt) || data.ExpiresAt.After(data.AuthenticatedAt.Add(6*time.Minute)) || !now.Before(data.SessionExpiresAt) || data.SessionExpiresAt.After(data.AuthenticatedAt.Add(SessionTTL)) {
 		return loginProofData{}, storedUser{}, ErrInvalidLoginProof
 	}
 	_, user, ok := s.storedUserByIDLocked(data.UserID)
@@ -166,7 +170,7 @@ func (s *Service) ResumeLoginProof(proof string) (LoginSession, error) {
 	}
 	token := base64.RawURLEncoding.EncodeToString(raw[:])
 	hash := sha256.Sum256([]byte(token))
-	s.sessions[hash] = activeSession{credentialStamp: loginCredentialStamp(user), user: user.User, expiresAt: data.SessionExpiresAt, authenticatedAt: data.AuthenticatedAt, passkeyID: data.PasskeyID}
+	s.sessions[hash] = activeSession{secondaryStamp: data.SecondaryStamp, credentialStamp: loginCredentialStamp(user), user: user.User, expiresAt: data.SessionExpiresAt, authenticatedAt: data.AuthenticatedAt, passkeyID: data.PasskeyID}
 	if e = s.persistSessionsLocked(); e != nil {
 		delete(s.sessions, hash)
 		return LoginSession{}, e

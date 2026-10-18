@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -9,11 +9,15 @@ import { toggleLang } from "../i18n";
 import { getPasskey, passkeysSupported, type PasskeyRequestOptions } from "../auth/passkeys";
 import OIDCLogin from "../components/OIDCLogin";
 import LoginReviewPanel, { type LoginReviewPending } from "../components/LoginReviewPanel";
+import "../i18n/locales/features/radius/register";
+const RadiusPrimary = lazy(() => import("../components/RadiusPrimary"));
+const RadiusFactor = lazy(() => import("../components/RadiusFactor"));
 
 type Health = { status: string; version: string; time: string };
 type AuthStatus = { bootstrap_required: boolean };
 type MFAEnrollment = { secret: string; provisioning_uri: string; expires_at: string };
 type LoginResult = {
+  radius_factor_required?: boolean;
   login_review_required?: boolean;
   review_id?: string;
   expires_at?: string;
@@ -72,26 +76,36 @@ export default function LoginPage() {
   const [samlEnabled, setSamlEnabled] = useState(false);
   const [casEnabled, setCasEnabled] = useState(false);
   const [directoryEnabled, setDirectoryEnabled] = useState(false);
-  const [authSource, setAuthSource] = useState("local");
+  const [radiusEnabled, setRadiusEnabled] = useState(false);
+  const [factorPending, setFactorPending] = useState(
+    () => new URLSearchParams(location.search).get("factor") === "radius",
+  );
+  const [authSource, setAuthSource] = useState(() =>
+    new URLSearchParams(location.search).get("radius") === "challenge" ? "radius" : "local",
+  );
   const [directoryPending, setDirectoryPending] = useState(false);
-  const [ssoSource, setSsoSource] = useState<"oidc" | "cas" | "saml" | "passkey" | null>(() => {
-    const q = new URLSearchParams(window.location.search);
-    return q.get("passkey") === "continue"
-      ? "passkey"
-      : q.get("saml") === "continue"
-        ? "saml"
-        : q.get("cas") === "continue"
-          ? "cas"
-          : q.get("sso") === "continue"
-            ? "oidc"
-            : null;
-  });
+  const [ssoSource, setSsoSource] = useState<"oidc" | "cas" | "saml" | "passkey" | "radius" | null>(
+    () => {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("radius") === "continue") return "radius";
+      return q.get("passkey") === "continue"
+        ? "passkey"
+        : q.get("saml") === "continue"
+          ? "saml"
+          : q.get("cas") === "continue"
+            ? "cas"
+            : q.get("sso") === "continue"
+              ? "oidc"
+              : null;
+    },
+  );
   const ssoPending = ssoSource !== null;
   const ssoError = new URLSearchParams(window.location.search).has("sso_error");
   const samlError = new URLSearchParams(window.location.search).has("saml_error");
   const casError = new URLSearchParams(window.location.search).has("cas_error");
   const isZh = i18n.language !== "en";
   const waitForReview = useCallback((pending: LoginReviewPending) => {
+    setFactorPending(false);
     setLoginReview(pending);
     setPassword("");
     setOtp("");
@@ -107,6 +121,8 @@ export default function LoginPage() {
     finishNavigation();
   }, [setCookieSession, finishNavigation]);
   const cancelReview = useCallback(() => {
+    setFactorPending(false);
+    setAuthSource("local");
     setLoginReview(null);
     setPassword("");
     setOtp("");
@@ -115,6 +131,28 @@ export default function LoginPage() {
     setDirectoryPending(false);
     setSsoSource(null);
     window.history.replaceState(null, "", "/login");
+  }, []);
+  const waitForFactor = useCallback(() => {
+    setFactorPending(true);
+    setLoginReview(null);
+    setSsoSource(null);
+    setPassword("");
+    setOtp("");
+    setSetupChallenge(null);
+    setDirectoryPending(false);
+    window.history.replaceState(null, "", "/login?factor=radius");
+  }, []);
+  useEffect(() => {
+    const c = new AbortController();
+    void fetch("/api/v1/authentication/radius/status", { signal: c.signal })
+      .then(async (r) => {
+        if (r.ok) {
+          const v = (await r.json()) as { enabled: boolean };
+          if (!c.signal.aborted) setRadiusEnabled(v.enabled);
+        }
+      })
+      .catch(() => {});
+    return () => c.abort();
   }, []);
   useEffect(() => {
     if (!sessionReady || authenticated) return;
@@ -271,6 +309,10 @@ export default function LoginPage() {
         ),
       });
       const result = (await response.json()) as LoginResult;
+      if (response.status === 202 && result.radius_factor_required) {
+        waitForFactor();
+        return;
+      }
       if (
         response.status === 202 &&
         result.login_review_required &&
@@ -339,7 +381,15 @@ export default function LoginPage() {
             <p className="login-hint">{t("login.setupHint")}</p>
           </>
         )}
-        {loginReview ? (
+        {factorPending ? (
+          <Suspense fallback={null}>
+            <RadiusFactor
+              onComplete={completeReview}
+              onCancel={cancelReview}
+              onReview={waitForReview}
+            />
+          </Suspense>
+        ) : loginReview ? (
           <LoginReviewPanel
             key={loginReview.review_id}
             pending={loginReview}
@@ -348,6 +398,7 @@ export default function LoginPage() {
           />
         ) : ssoPending ? (
           <OIDCLogin
+            onFactor={waitForFactor}
             onReview={waitForReview}
             source={ssoSource ?? "oidc"}
             key={ssoSource}
@@ -360,6 +411,16 @@ export default function LoginPage() {
               navigate("/login", { replace: true });
             }}
           />
+        ) : authSource === "radius" ? (
+          <Suspense fallback={null}>
+            <RadiusPrimary
+              onVerified={() => {
+                setSsoSource("radius");
+                window.history.replaceState(null, "", "/login?radius=continue");
+              }}
+              onCancel={cancelReview}
+            />
+          </Suspense>
         ) : (
           <>
             <form
@@ -367,7 +428,7 @@ export default function LoginPage() {
                 void submit(event);
               }}
             >
-              {directoryEnabled && !bootstrapRequired && (
+              {(directoryEnabled || radiusEnabled) && !bootstrapRequired && (
                 <label>
                   {t("ldap.source")}
                   <select
@@ -384,7 +445,8 @@ export default function LoginPage() {
                     }}
                   >
                     <option value="local">{t("ldap.local")}</option>
-                    <option value="ldap">{t("ldap.sourceOption")}</option>
+                    {directoryEnabled && <option value="ldap">{t("ldap.sourceOption")}</option>}
+                    {radiusEnabled && <option value="radius">{t("radius.signIn")}</option>}
                   </select>
                 </label>
               )}

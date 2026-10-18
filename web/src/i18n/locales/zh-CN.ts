@@ -813,6 +813,7 @@ const zhCN = {
       cas: "CAS",
       saml: "SAML",
       passkey: "Passkey",
+      radius: "RADIUS",
     },
     states: {
       pending: "等待审批",
@@ -1329,6 +1330,7 @@ const zhCN = {
     name: "JumpServer233",
   },
   nav: {
+    radius: "RADIUS 认证",
     reports: "概览与报表",
     loginAudit: "登录审计",
     monitoring: "监控告警",

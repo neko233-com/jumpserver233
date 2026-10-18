@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import PasskeysPanel from "../components/PasskeysPanel";
 import { useAuth } from "../auth/AuthContext";
+import "../i18n/locales/features/radius/register";
 
 type Profile = {
   id: string;
@@ -49,15 +50,18 @@ export default function ProfilePage() {
     profile?.source === "oidc" ||
     profile?.source === "ldap" ||
     profile?.source === "cas" ||
-    profile?.source === "saml";
+    profile?.source === "saml" ||
+    profile?.source === "radius";
   const externalNamespace =
-    profile?.source === "saml"
-      ? "saml"
-      : profile?.source === "ldap"
-        ? "ldap"
-        : profile?.source === "cas"
-          ? "cas"
-          : "oidc";
+    profile?.source === "radius"
+      ? "radius"
+      : profile?.source === "saml"
+        ? "saml"
+        : profile?.source === "ldap"
+          ? "ldap"
+          : profile?.source === "cas"
+            ? "cas"
+            : "oidc";
   const newPasswordBytes = new TextEncoder().encode(newPassword).length;
 
   const request = useCallback(

@@ -117,7 +117,7 @@ func TestLoginProofRejectsStaleSessionsAndUnavailableEncryption(t *testing.T) {
 	assert.ErrorIs(t, e, ErrLoginProofUnavailable)
 }
 func TestLoginProofExternalAndPasskeyRevocation(t *testing.T) {
-	for _, source := range []string{"oidc", "ldap", "cas", "saml"} {
+	for _, source := range []string{"oidc", "ldap", "cas", "saml", "radius"} {
 		t.Run(source, func(t *testing.T) {
 			s, _ := proofService(t)
 			enabled := true

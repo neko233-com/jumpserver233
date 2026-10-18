@@ -2,6 +2,12 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## RADIUS and background rendering (2026-10-18)
+
+Authentication views load on demand without new dependencies. The background keeps OGL Program/Renderer and uses one screen triangle instead of Mesh/Plane and scene matrix traversal. Initial JS: 494654 bytes, gzip 159661, main 477495, total JS 1483492. Total JS is 2029 bytes below the preceding Playbook baseline; 500 kB / 1.5 MB budgets remain. Vite took 277 ms, excluding type checks; this is not a device frame rate measurement.
+
+Windows stripped API: 43452928 bytes; CLI: 12759040. The repaired RADIUS Docker browser case took 8.3 seconds. Fresh data/temporary containers with shared build caches passed two-instance isolation in about 19.9 seconds: 3.42 build, 12.16 startup, 4.30 checks; disposable resources were removed. Actual FreeRADIUS runs in a test-only container and adds no production runtime dependency.
+
 ## Native Playbooks (2026-10-18)
 
 Workspace editor and run details load on demand, without frontend dependencies. Initial JS: 494285 bytes, gzip 159545, main 477126, total JS 1485521; existing 500 kB / 1.5 MB budgets pass. Editor is about 10.70 kB and run details 5.22 kB. Vite took 200 ms, excluding type checks. Source digests deduplicate snapshots; files, tasks, loops, retries, run reservations and variables are bounded.

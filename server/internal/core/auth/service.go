@@ -88,6 +88,7 @@ type storedUser struct {
 }
 
 type activeSession struct {
+	secondaryStamp  string
 	credentialStamp []byte
 	user            User
 	expiresAt       time.Time
@@ -96,6 +97,7 @@ type activeSession struct {
 }
 
 type storedSession struct {
+	SecondaryStamp  string    `json:"secondary_stamp,omitempty"`
 	CredentialStamp []byte    `json:"credential_stamp,omitempty"`
 	TokenHash       string    `json:"token_hash"`
 	User            User      `json:"user"`
@@ -737,7 +739,10 @@ func (s *Service) loadSessions() error {
 		if _, duplicate := s.sessions[hash]; duplicate {
 			return ErrSessionStoreCorrupt
 		}
-		s.sessions[hash] = activeSession{credentialStamp: append([]byte(nil), record.CredentialStamp...), user: stored.User, expiresAt: record.ExpiresAt, authenticatedAt: record.AuthenticatedAt, passkeyID: record.PasskeyID}
+		if !validSecondaryStamp(record.SecondaryStamp) {
+			return ErrSessionStoreCorrupt
+		}
+		s.sessions[hash] = activeSession{secondaryStamp: record.SecondaryStamp, credentialStamp: append([]byte(nil), record.CredentialStamp...), user: stored.User, expiresAt: record.ExpiresAt, authenticatedAt: record.AuthenticatedAt, passkeyID: record.PasskeyID}
 	}
 	if len(s.sessions) > maxSessions {
 		return ErrSessionStoreCorrupt
@@ -753,6 +758,7 @@ func (s *Service) persistSessionsLocked() error {
 	for hash, session := range s.sessions {
 		records = append(records, storedSession{
 			CredentialStamp: session.credentialStamp,
+			SecondaryStamp:  session.secondaryStamp,
 			TokenHash:       hex.EncodeToString(hash[:]),
 			User:            session.user,
 			ExpiresAt:       session.expiresAt,

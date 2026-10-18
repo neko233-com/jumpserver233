@@ -15,7 +15,7 @@ var ErrExternalIdentity = errors.New("password is managed by an external identit
 var ErrExternalReauthRequired = errors.New("a recent SSO session is required")
 
 func isExternalSource(source string) bool {
-	return source == "oidc" || source == "ldap" || source == "cas" || source == "saml"
+	return source == "oidc" || source == "ldap" || source == "cas" || source == "saml" || source == "radius"
 }
 
 func (s *Service) SetExternalIssuerAllowed(check func(string) bool) {

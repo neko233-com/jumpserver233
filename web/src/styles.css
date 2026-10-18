@@ -2809,6 +2809,56 @@ a {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.radius-form {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+}
+.radius-form fieldset,
+.radius-form details {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+}
+.radius-form details:not([open]) {
+  display: block;
+}
+.radius-form summary {
+  cursor: pointer;
+}
+.radius-form label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.radius-form label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+}
+.radius-form input:not([type="checkbox"]),
+.radius-form textarea,
+.radius-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #495362;
+  border-radius: 6px;
+  background: #151b23;
+  color: #e6edf3;
+  font: inherit;
+}
+.radius-form textarea {
+  font-family: monospace;
+  resize: vertical;
+}
+.radius-settings > p {
+  overflow-wrap: anywhere;
+}
 .jobs-table-scroll {
   overflow-x: auto;
 }

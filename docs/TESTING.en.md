@@ -2,6 +2,16 @@
 
 > [中文](./TESTING.md) | English
 
+## Native RADIUS validation (2026-10-18)
+
+- Implementation, companion tests and bilingual docs were authored together before verification. Full Go: 69 packages, 1242 passing cases, 35 platform/missing-fixture skips, zero failures, exit 0, using actual OpenSSH, PostgreSQL, RDP and FreeRADIUS.
+- Linux Docker race: seven related packages, 363 passing cases, four missing-fixture skips, zero failures, exit 0, including actual FreeRADIUS UDP/mutual TLS and PostgreSQL. Cases overlap the full Go run and are not added together.
+- Repaired Docker browser case: 1/1 passed, no skips, 8.3 seconds. Coverage includes challenge reload, no platform session before the additional factor, denied permissions, protected CLI state, real authenticated SSH and bilingual desktop/mobile views. The first run found mobile username overflow; wrapping fixed it. The in-app browser also completed actual challenges, sign-in and the RADIUS profile, without captured warnings/errors.
+- Initial native protocol checks found two test/fixture issues: State is discarded on non-Challenge replies, and FreeRADIUS needs its challenge Post-Auth-Type section. Full Go and actual protocol cases passed after repair. Fixture readiness uses a mutual TLS handshake to avoid early Docker port-proxy readiness.
+- A real API container restart preserved a pending factor, which completed before session issuance; capability replay was rejected. Restart plus completion checks took about 1.05 seconds. Dedicated debug instance: `http://127.0.0.41:15200/console/radius`, API 18107, loopback only. Older debug environments remain.
+- Fresh-data Docker two-instance browser isolation passed in about 19.9 seconds, with disposable containers/data removed. Go vet/build, frontend lint, strict application/E2E type checks, production build, bilingual content and ten lifecycle helper tests passed.
+- Full production browser regression: 79/79 passed, no failures/skips, 17.8 minutes, runner exit 0 and temporary data/fixtures removed. All 1007 selected source/test fingerprints stayed unchanged during that run. Subsequent grouped RADIUS transport-field, empty-response challenge and status fixes passed an expanded focused case (1/1, 8.3 seconds) and the final full backend/race reruns above. Production HA, active/active and full Enterprise parity remain unaccepted.
+
 ## Native Playbook verification batch (2026-10-18)
 
 - Implementation, test code and bilingual documentation completed before unified verification. Final full Go: 67 packages, 1190 passing tests, 35 platform/missing-fixture skips, zero failures, exit 0, using real OpenSSH, PostgreSQL and RDP.

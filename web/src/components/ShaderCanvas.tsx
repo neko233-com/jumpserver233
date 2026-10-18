@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Mesh, Plane, Program, Renderer } from "ogl";
+import { Program, Renderer } from "ogl";
 
 const vertexWebGL1 = /* glsl */ `
 precision highp float;
@@ -99,11 +99,12 @@ export default function ShaderCanvas({ className }: { className?: string }) {
     const gl = renderer.gl;
     gl.clearColor(0.05, 0.07, 0.11, 1);
 
-    const geometry = new Plane(gl, { width: 2, height: 2 });
     const webgl2 = renderer.isWebgl2;
     const program = new Program(gl, {
       vertex: webgl2 ? vertexWebGL2 : vertexWebGL1,
       fragment: webgl2 ? fragmentWebGL2 : fragmentWebGL1,
+      depthTest: false,
+      depthWrite: false,
       uniforms: {
         uTime: { value: 0 },
         uResolution: { value: [gl.canvas.width, gl.canvas.height] },
@@ -111,13 +112,36 @@ export default function ShaderCanvas({ className }: { className?: string }) {
     });
     if (!program.uniformLocations || !program.attributeLocations) {
       canvas.style.display = "none";
-      geometry.remove();
       program.remove();
       gl.deleteShader(program.vertexShader);
       gl.deleteShader(program.fragmentShader);
       return;
     }
-    const mesh = new Mesh(gl, { geometry, program });
+    // A screen background needs one triangle, without a scene graph or matrices.
+    const buffer = gl.createBuffer();
+    if (!buffer) {
+      canvas.style.display = "none";
+      program.remove();
+      gl.deleteShader(program.vertexShader);
+      gl.deleteShader(program.fragmentShader);
+      return;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 0, 0, 3, -1, 2, 0, -1, 3, 0, 2]),
+      gl.STATIC_DRAW,
+    );
+    for (const [name, offset] of [
+      ["position", 0],
+      ["uv", 8],
+    ] as const) {
+      const index = gl.getAttribLocation(program.program, name);
+      if (index >= 0) {
+        gl.enableVertexAttribArray(index);
+        gl.vertexAttribPointer(index, 2, gl.FLOAT, false, 16, offset);
+      }
+    }
 
     const resize = () => {
       renderer!.setSize(window.innerWidth, window.innerHeight);
@@ -130,7 +154,10 @@ export default function ShaderCanvas({ className }: { className?: string }) {
     const loop = (now: number) => {
       if (gl.isContextLost()) return;
       program.uniforms.uTime.value = (now - start) / 1000;
-      renderer!.render({ scene: mesh });
+      renderer!.setViewport(gl.canvas.width, gl.canvas.height);
+      program.use();
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
@@ -138,7 +165,7 @@ export default function ShaderCanvas({ className }: { className?: string }) {
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
-      geometry.remove();
+      gl.deleteBuffer(buffer);
       program.remove();
       gl.deleteShader(program.vertexShader);
       gl.deleteShader(program.fragmentShader);

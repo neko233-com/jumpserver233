@@ -879,6 +879,7 @@ const en = {
       cas: "CAS",
       saml: "SAML",
       passkey: "Passkey",
+      radius: "RADIUS",
     },
     states: {
       pending: "Waiting for approval",
@@ -1433,6 +1434,7 @@ const en = {
     name: "JumpServer233",
   },
   nav: {
+    radius: "RADIUS authentication",
     reports: "Overview & reports",
     loginAudit: "Sign-in audit",
     monitoring: "Monitoring alerts",

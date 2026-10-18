@@ -50,7 +50,7 @@ func TestPasskeyPrimaryEnforcesMFAAndTaggedSetup(t *testing.T) {
 	assert.Error(t, s.VerifyPasskeyManagement(user.ID, "", code, login.AccessToken))
 }
 func TestPasskeyExternalSourcesRemainControlledAndRequireSSOForManagement(t *testing.T) {
-	for _, source := range []string{"oidc", "ldap", "cas", "saml"} {
+	for _, source := range []string{"oidc", "ldap", "cas", "saml", "radius"} {
 		t.Run(source, func(t *testing.T) {
 			s := externalService(t)
 			issuer := "https://idp.example.invalid"

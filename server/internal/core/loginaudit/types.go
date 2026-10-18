@@ -28,7 +28,7 @@ const (
 
 var idPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9_@.+-]{1,128}$`)
-var methods = []string{"local", "ldap", "oidc", "saml", "cas", "passkey", "unknown"}
+var methods = []string{"local", "ldap", "oidc", "saml", "cas", "passkey", "radius", "unknown"}
 var outcomes = []string{"succeeded", "failed", "denied", "throttled", "challenge", "external_verified", "cancelled", "service_error", "invalid_request", "review_pending", "review_approved", "review_denied", "review_expired", "review_cancelled", "review_consumed", "review_invalidated", "policy_notified", "started", "exported"}
 var stages = []string{"primary", "mfa", "external", "session", "review", "logout", "export"}
 var reasons = []string{"", "credentials_rejected", "second_factor_required", "enrollment_required", "second_factor_rejected", "identity_rejected", "flow_rejected", "origin_rejected", "source_policy", "attempt_limit", "authentication_unavailable", "request_invalid", "session_issued", "review_required", "review_completed", "user_cancelled", "external_identity_verified"}
