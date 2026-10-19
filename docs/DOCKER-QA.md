@@ -10,7 +10,7 @@ Buildx 元数据只读查询遇到 RPC Unavailable/EOF 时最多尝试 3 次；�
 
 ## 快速验证
 
-CI 前端 runner 固定为 `ubuntu-22.04` 并记录 `uname -r`，继续运行真实 MongoDB 8.0 夹具。上一轮 `ubuntu-latest` 的 MongoDB 被其内核保护检查拒绝启动；MongoDB 官方说明特定内核与 TCMalloc 不兼容，Docker 也共享宿主内核。选择依据为 [MongoDB 生产说明](https://www.mongodb.com/docs/manual/administration/production-notes/)和 [GitHub Ubuntu 22.04 runner 清单](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md)中的 6.8 内核；未关闭数据库保护或跳过 MongoDB 用例。新的远端 CI 结果需按具体提交核对。
+CI 前后端 runner 固定为 `ubuntu-22.04` 并记录 `uname -r`，继续运行真实 MongoDB 8.0 夹具。前端修正后，后端 `verify` 也确认遇到相同的 MongoDB 内核保护拒绝，现同步修复。上一轮 `ubuntu-latest` 的 MongoDB 被其内核保护检查拒绝启动；MongoDB 官方说明特定内核与 TCMalloc 不兼容，Docker 也共享宿主内核。选择依据为 [MongoDB 生产说明](https://www.mongodb.com/docs/manual/administration/production-notes/)和 [GitHub Ubuntu 22.04 runner 清单](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md)中的 6.8 内核；未关闭数据库保护或跳过 MongoDB 用例。新的远端 CI 结果需按具体提交核对。
 
 生产浏览器构建使用本轮受控临时根下的 `web-dist/`，预览与体积检查读取同一目录，结束后随本轮数据一起回收。独立 `pnpm build` 继续输出到 `web/dist/`，可并行验证。
 
