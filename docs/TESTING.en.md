@@ -2,7 +2,22 @@
 
 > [中文](./TESTING.md) | English
 
-## Native SSH execution workspaces (2026-10-20)
+## Repository artifacts and historical cleanup (2026-10-20)
+
+- `.gitignore` / `.dockerignore` now cover local Node/Go/Vite caches, browser screenshots and temporary output directories. Product images, source, lockfiles and environment templates remain visible; no tracked files are hidden by the new rules.
+- All 45 QA/publication helper tests passed, covering the three-run limit, bilingual PNG/JPEG/WebP pairs, repeated cleanup, active/child PIDs, incomplete/malformed receipts, links/traversal/changed files and product-image references. Content checks passed for 146 bilingual documents, 3464 keys per locale, 1334 relative links and 85 product images.
+- Actual cleanup removed one 61713-byte old read-only preview; the repeat removed zero files. Two Docker previews selected no resources and created or changed no reports. Native package/race runners now compact their current batch automatically. Historical feature reports, failure diagnostics, application data, dependencies and shared caches follow the documented preservation boundaries. Compact evidence is in ignored `.cache/qa-reports/repository-hygiene/`; this change adds no product screenshots.
+
+## Native confined SFTP (2026-10-20)
+
+- Business source `edf46ad`: full Go/Testify 1575 passed, 109 external-fixture/platform skips, zero failures; 75.5 seconds. Go vet passed. Isolated Linux/PostgreSQL race: 13 packages, 143 passed, zero skips/failures; 71.3 seconds. Coverage includes production helpers, virtual-root paths, traversal/symlinks, 350 directory entries, 1.5 MB transfer, atomic no-overwrite and explicit replacement, concurrent directory swaps, forged handoff refusal and control-cache overlap refusal.
+- An initial final race run exposed intermittent EOF during multi-hop SFTP shutdown; 60 Linux race repetitions reproduced it. The fix normalizes only local channel EOF after intentional SSH shutdown, preserving file-operation errors. Deterministic EOF, repeated-close and cancellation cases passed; both Windows close tests passed 60 repetitions each. The final full/race results above passed; a compact cause receipt remains.
+- Six native platforms, real OpenSSH/CLI/Web PTY, REST SFTP and bilingual Playwright browser acceptance passed: upload, exact-byte download, mkdir, implicit overwrite refusal, repeated explicit replacement, traversal/symlink refusal and denial of file access for a view-only operator. Both file-manager screenshots were visually inspected, with zero application warnings/errors or unexpected HTTP failures. Real upgrade/fault rollback/forward recovery remains covered; injected versions of the same source are not historical-release migration evidence.
+- Production web JS: initial 499421 bytes, gzip 161450, total 1601821, largest chunk 482262. Existing budgets remain, with no new dependencies. Earlier batch lint and app/E2E type checks passed. The complete page suite was not rerun; 86/86 remains the previous baseline. Owned native/race containers, networks, temporary data/programs/archives, SSH images and build records were removed with repeated cleanup. Only structured results and two bilingual screenshots remain in ignored `.cache/qa-reports/confined-sftp/`.
+
+SFTP login permits still authorize a user, asset and account; each new channel applies the current workspace policy. They do not attest directory inodes or directory-specific approval. Exact/regex directory command rules, quotas, automatic installation scheduling and historical-version migration remain open. No intranet deployment, tag or formal Release.
+
+## Native SSH execution workspaces (2026-10-20, historical batch)
 
 - Final full Go/Testify: 1566 passed, 109 external-fixture/platform skips, zero failures; 73.3 seconds. Go vet passed. Isolated Linux/PostgreSQL race: 12 packages, 128 passed, zero skips/failures; 67.4 seconds. Generated production helpers actually verified inside access, nested shells, outside reads/writes/cwd, symlinks, cross-boundary hard links/moves, truncation, mode/time changes, clean environment, inherited-FD closure, zero capabilities and raw syscall denial for networking/injection/namespaces/io_uring. Unsupported-kernel skips were not accepted as success.
 - All six native packages built and passed complete verification. Real OpenSSH, native `jms exec` and browser PTY ran in the configured directory from isolated read-only Linux containers. Inside writes succeeded, outside reads/writes failed and the external sentinel survived. Tests cover administrator-only configuration, account inheritance, omission/disable/reload, stale approval/connection bindings and SFTP/gateway refusal.
@@ -10,7 +25,7 @@
 - Production build, lint, app/E2E types, six renderer/cache tests, 41 QA/publication helpers and macOS helpers (eight passed, two platform skips) passed. Content checks covered 146 bilingual documents, 3463 keys per locale, 1332 relative links and 85 referenced images. Initial JS stayed 499421 bytes; total was 1601699, up 1329, without new dependencies or relaxed budgets. This batch used targeted real-candidate browser acceptance; the complete page suite was not rerun and the prior 86/86 remains a historical baseline.
 - All four native attempts and both race runs removed owned containers, networks, data/archives, temporary executables, SSH images and build records with repeated cleanup. Shared base caches remain. Only compact reports, failure summaries and two bilingual screenshots remain in ignored `.cache/qa-reports/workspaces/`. Upgrade/rollback regressions still use same-source injected versions and synthetic fault programs rather than historical-version migration. No intranet deployment or formal Release.
 
-Workspaces optionally grant a whole subtree with read-only OS runtime exceptions and separately authorized management channels. They are not full containers. Exact/regex directory command policies, confined SFTP, quotas and automatic installation scheduling remain pending. See [workspaces](./SSH-WORKSPACES.en.md).
+Workspaces optionally grant a whole subtree with read-only OS runtime exceptions and separately authorized management channels. They are not full containers. Exact/regex directory command policies, quotas and automatic installation scheduling remain pending. Confined SFTP acceptance follows in the batch above. See [workspaces](./SSH-WORKSPACES.en.md).
 
 ## First-start acceptance and business release boundary (2026-10-20)
 
