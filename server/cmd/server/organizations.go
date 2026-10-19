@@ -61,6 +61,7 @@ type organizationRuntimes struct {
 	closed     bool
 	privileged sync.Map
 	passwords  *coreassets.PasswordCoordinator
+	suspended  bool
 }
 
 func (r *organizationRuntimes) assetStore(id string) (*coreassets.Store, error) {
@@ -410,25 +411,11 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		d.AssetDiscovery = assetdiscovery.NewService(store, assetdiscovery.Hooks{})
 	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
-	if id != organizations.DefaultID && !r.cfg.CheckData {
-		ctx, cancel := context.WithCancel(r.ctx)
-		runtime.cancel = cancel
-		runtime.done = make(chan struct{})
-		if e := d.AssetDiscovery.Start(ctx); e != nil {
-			cancel()
-			runtime.done = nil
+	if id != organizations.DefaultID && !r.suspended {
+		if e := r.start(runtime); e != nil {
 			r.stop(runtime, false)
 			return nil, e
 		}
-		d.DatabaseQueries.BindOwner(ctx)
-		d.AgentEvents.BindOwner(ctx)
-		d.AccountDiscovery.BindOwner(ctx)
-		d.AccountRisks.Start(ctx)
-		d.RotationPlans.Start(ctx)
-		d.Tickets.Start(ctx)
-		d.Notifications.Start(ctx)
-		d.MonitorAlerts.Start(ctx)
-		go func() { defer close(runtime.done); d.Assets.Run(ctx, r.cfg.MonitorInterval) }()
 	}
 	r.items[id] = runtime
 	r.privileged.Store(id, runtime)
@@ -538,6 +525,7 @@ func (r *organizationRuntimes) close(abandon bool) {
 	}
 }
 func (r *organizationRuntimes) initialize() error {
+	r.suspended = r.cfg.CheckData || r.cfg.ActivationID != ""
 	var e error
 	r.passwords, e = coreassets.OpenPasswordCoordinator(filepath.Join(r.cfg.DataDir, "shared-passwords.json"), r.key, r.documents)
 	if e != nil {
@@ -556,7 +544,7 @@ func (r *organizationRuntimes) initialize() error {
 			}
 		}
 	}
-	if !r.cfg.CheckData {
+	if !r.suspended {
 		r.passwords.Recover(r.ctx)
 	}
 	for _, o := range r.store.List(false) {
@@ -568,6 +556,59 @@ func (r *organizationRuntimes) initialize() error {
 			return errors.Join(errors.New("initialize organization runtime"), e)
 		}
 	}
+	return nil
+}
+
+// start is called while the runtime map is owned by its initialization/mutex.
+func (r *organizationRuntimes) start(runtime *organizationRuntime) error {
+	if runtime.done != nil {
+		return nil
+	}
+	d := runtime.d
+	ctx, cancel := context.WithCancel(r.ctx)
+	runtime.cancel = cancel
+	runtime.done = make(chan struct{})
+	if e := d.AssetDiscovery.Start(ctx); e != nil {
+		cancel()
+		runtime.done = nil
+		return e
+	}
+	d.DatabaseQueries.BindOwner(ctx)
+	d.AgentEvents.BindOwner(ctx)
+	d.AccountDiscovery.BindOwner(ctx)
+	d.AccountRisks.Start(ctx)
+	d.RotationPlans.Start(ctx)
+	d.Tickets.Start(ctx)
+	d.Notifications.Start(ctx)
+	d.MonitorAlerts.Start(ctx)
+	go func() { defer close(runtime.done); d.Assets.Run(ctx, r.cfg.MonitorInterval) }()
+	return nil
+}
+func (r *organizationRuntimes) activate() error {
+	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		return context.Canceled
+	}
+	if !r.suspended {
+		r.mu.Unlock()
+		return nil
+	}
+	r.mu.Unlock()
+	r.passwords.Recover(r.ctx)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return context.Canceled
+	}
+	for id, runtime := range r.items {
+		if id != organizations.DefaultID {
+			if e := r.start(runtime); e != nil {
+				return e
+			}
+		}
+	}
+	r.suspended = false
 	return nil
 }
 

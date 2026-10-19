@@ -31,6 +31,7 @@ func fixture(t *testing.T, kind string) (string, string) {
 		m.Platform = runtime.GOOS
 		m.Architecture = runtime.GOARCH
 		m.PreflightProtocol = 1
+		m.ActivationProtocol = 1
 		if strings.HasPrefix(kind, "install-v") {
 			m.Version = strings.TrimPrefix(kind, "install-")
 		}

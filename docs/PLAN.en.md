@@ -4,7 +4,7 @@
 
 ## Current priority: stable SSH release (user change, 2026-10-19)
 
-Added [published-release checks and native artifacts](./UPDATES.en.md): Web/CLI/SDK checks, optional automatic checks, revisions/idempotent receipts, download/archive verification, six-platform packaging and candidate staging. [Standalone installation transactions](./INSTALLATION.en.md) add encrypted checkpoints, offline preflight, version selection, data guards and failure/interruption recovery. Live health-failure rollback, automatic installation scheduling and genuine cross-version business migration acceptance remain pending; these foundations do not complete the general updater.
+Added [published-release checks and native artifacts](./UPDATES.en.md): Web/CLI/SDK checks, optional automatic checks, revisions/idempotent receipts, archive verification, six-platform packaging and staging. [Standalone installation transactions](./INSTALLATION.en.md) add encrypted checkpoints, offline preflight, first-start health/traffic gates, rollback before release and old-service resumption. After release, new data is preserved. Automatic installation scheduling and historical-version migration acceptance remain pending; the general updater is incomplete.
 
 This batch's [encrypted standalone backup/recovery](./BACKUP.en.md) passed unified verification: native `jms backup`, process exclusion, external-key fingerprint checks, format/path/integrity preflight, Docker mount-point recovery and idempotent restore/rollback journals. Go/Testify: 1,523 passed; Linux race: 745 passed; production browser: 85/85; Docker: 7/7. See [verification](./TESTING.en.md).
 

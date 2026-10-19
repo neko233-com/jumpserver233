@@ -25,6 +25,9 @@ var ErrInstallConflict = errors.New("installation revision, request or data bind
 var ErrPreflightRolledBack = errors.New("target preflight failed; the original data checkpoint and version were restored")
 var ErrUpgradeAborted = errors.New("upgrade preparation was aborted without running the target")
 var ErrInstallPending = errors.New("upgrade recovery required; use jms update install-recover before restarting")
+var ErrActivationRolledBack = errors.New("candidate startup was not accepted; the original data checkpoint and version were restored")
+var ErrActivationKeyRequired = errors.New("first startup requires the upgrade checkpoint passphrase via --passphrase-file or protected terminal input")
+var ErrActivationCommitted = errors.New("candidate failed after activation committed; selected version and new data were retained")
 
 type Selection struct {
 	ArchiveSHA256 string `json:"archive_sha256"`
@@ -44,15 +47,17 @@ type InstallResult struct {
 	BackupFile       string             `json:"backup_file,omitempty"`
 	PreviousDataDir  string             `json:"previous_data_dir,omitempty"`
 	Unchanged        bool               `json:"unchanged"`
+	FailureCode      string             `json:"failure_code,omitempty"`
 }
 type Installation struct {
-	Schema         int             `json:"schema"`
-	RootID         string          `json:"root_id"`
-	Revision       int             `json:"revision"`
-	DataDir        string          `json:"data_dir"`
-	Current        Selection       `json:"current"`
-	Receipts       []InstallResult `json:"receipts"`
-	PendingUpgrade string          `json:"pending_upgrade,omitempty"`
+	Schema          int             `json:"schema"`
+	RootID          string          `json:"root_id"`
+	Revision        int             `json:"revision"`
+	DataDir         string          `json:"data_dir"`
+	Current         Selection       `json:"current"`
+	Receipts        []InstallResult `json:"receipts"`
+	PendingUpgrade  string          `json:"pending_upgrade,omitempty"`
+	ActivationState string          `json:"activation_state,omitempty"`
 }
 type InstallOptions struct {
 	Root, DataDir, ArchiveSHA256, RequestID, SourceVersion, ExternalVaultKey string
@@ -69,6 +74,7 @@ type upgradeJournal struct {
 	BeforeGuard *maintenance.UpgradeGuard `json:"before_guard,omitempty"`
 	Guard       maintenance.UpgradeGuard  `json:"guard"`
 	Result      InstallResult             `json:"result"`
+	Attempt     string                    `json:"activation_attempt,omitempty"`
 }
 type dataChecker func(context.Context, string, string, string, string) error
 
@@ -76,7 +82,7 @@ func (s Selection) valid() bool {
 	return digest.MatchString(s.ArchiveSHA256) && version.MatchString(s.Version) && commit.MatchString(s.Commit)
 }
 func (s *stagingRoot) validInstallation(v Installation) bool {
-	if v.Schema != 1 || v.RootID != s.owner.ID || v.PendingUpgrade != "" || v.Revision < 0 || len(v.Receipts) > 100 || v.Current != (Selection{}) && !v.Current.valid() || v.Revision > 0 && !v.Current.valid() {
+	if v.Schema != 1 || v.RootID != s.owner.ID || v.PendingUpgrade != "" || v.ActivationState != "" || v.Revision < 0 || len(v.Receipts) > 100 || v.Current != (Selection{}) && !v.Current.valid() {
 		return false
 	}
 	if v.DataDir != "" && !filepath.IsAbs(v.DataDir) {
@@ -138,6 +144,9 @@ func receiptState(v Installation, r InstallResult) Installation {
 }
 func resultError(r InstallResult) error {
 	if r.Status == "rolled_back" {
+		if r.FailureCode == "activation_failed" || r.FailureCode == "activation_cancelled" {
+			return ErrActivationRolledBack
+		}
 		return ErrPreflightRolledBack
 	}
 	if r.Status == "aborted" {
@@ -227,8 +236,11 @@ func install(ctx context.Context, opt InstallOptions, check dataChecker) (result
 		return result, e
 	}
 	defer s.close()
-	if _, e = s.root.Lstat(upgradeJournalFile); !errors.Is(e, os.ErrNotExist) {
-		return result, ErrInstallPending
+	pending := false
+	if _, e = s.readUpgrade(); e == nil {
+		pending = true
+	} else if !errors.Is(e, os.ErrNotExist) {
+		return result, e
 	}
 	data, e := canonicalData(s, opt.DataDir)
 	if e != nil {
@@ -253,11 +265,14 @@ func install(ctx context.Context, opt InstallOptions, check dataChecker) (result
 	if before.Revision != opt.Revision {
 		return result, ErrInstallConflict
 	}
+	if pending {
+		return result, ErrInstallPending
+	}
 	m, e := s.inspect(ctx, "releases/"+opt.ArchiveSHA256, opt.ArchiveSHA256)
 	if e != nil {
 		return result, e
 	}
-	if m.PreflightProtocol != 1 {
+	if m.PreflightProtocol != 1 || m.ActivationProtocol != 1 {
 		return result, ErrInvalid
 	}
 	if before.Current.ArchiveSHA256 == opt.ArchiveSHA256 {
@@ -311,7 +326,7 @@ func install(ctx context.Context, opt InstallOptions, check dataChecker) (result
 		return result, e
 	}
 	result = InstallResult{ID: id, RequestID: opt.RequestID, ExpectedRevision: opt.Revision, Revision: before.Revision, DataDir: data, Current: before.Current, Target: Selection{opt.ArchiveSHA256, m.Version, m.Commit}, Status: "preparing", BackupFile: filepath.Join(s.path, "backups", id+".jmsbackup")}
-	j := upgradeJournal{Schema: 1, RootID: s.owner.ID, ID: id, Phase: "preparing", Before: before, BeforeGuard: oldGuard, Guard: maintenance.UpgradeGuard{Schema: 1, RootID: s.owner.ID, ID: id, BinarySHA256: m.Files[nativeExecutable(m)].SHA256, Phase: "pending"}, Result: result}
+	j := upgradeJournal{Schema: 2, RootID: s.owner.ID, ID: id, Phase: "preparing", Before: before, BeforeGuard: oldGuard, Guard: maintenance.UpgradeGuard{Schema: 1, RootID: s.owner.ID, ID: id, BinarySHA256: m.Files[nativeExecutable(m)].SHA256, Phase: "pending"}, Result: result}
 	if e = s.saveUpgrade(j); e != nil {
 		return result, e
 	}
@@ -358,14 +373,23 @@ func install(ctx context.Context, opt InstallOptions, check dataChecker) (result
 	j.After = receiptState(before, j.Result)
 	j.After.Current = j.Result.Target
 	j.After.Revision = j.Result.Revision
-	j.Phase = "committing"
+	j.Phase = "selecting"
 	if e = s.saveUpgrade(j); e != nil {
 		return j.Result, e
 	}
 	if e = s.saveInstallation(j.After); e != nil {
 		return j.Result, e
 	}
-	return s.commitInstall(j, lock)
+	g := j.Guard
+	g.Phase = "selected"
+	if e = maintenance.SetUpgradeGuard(lock, g); e != nil {
+		return j.Result, ErrInstallPending
+	}
+	j.Phase = "awaiting_start"
+	if e = s.saveUpgrade(j); e != nil {
+		return j.Result, e
+	}
+	return j.Result, nil
 }
 func mServerDigest(ctx context.Context, s *stagingRoot, selected Selection) string {
 	m, e := s.inspect(ctx, "releases/"+selected.ArchiveSHA256, selected.ArchiveSHA256)
@@ -396,6 +420,22 @@ func (s *stagingRoot) commitInstall(j upgradeJournal, lock *maintenance.Lock) (I
 }
 func (s *stagingRoot) rollbackInstall(ctx context.Context, j upgradeJournal, lock *maintenance.Lock, password []byte) (InstallResult, error) {
 	r := j.Result
+	current, e := s.installation()
+	if e != nil {
+		return r, e
+	}
+	selected := j.Schema == 2 && j.After.Schema != 0 && reflect.DeepEqual(current, j.After)
+	if selected && r.FailureCode == "" {
+		r.FailureCode = "activation_failed"
+		j.Result = r
+	}
+	guard, guardErr := maintenance.ReadUpgradeGuard(lock.DataDir)
+	if guardErr != nil {
+		return r, guardErr
+	}
+	if guard.Phase == "active" && guard.ID == j.ID {
+		return r, ErrInstallConflict
+	}
 	if j.Phase != "preparing" {
 		j.Phase = "rolling_back"
 		if e := s.saveUpgrade(j); e != nil {
@@ -426,7 +466,10 @@ func (s *stagingRoot) rollbackInstall(ctx context.Context, j upgradeJournal, loc
 	}
 	r.Current = j.Before.Current
 	r.Revision = j.Before.Revision
-	if e := s.saveInstallation(receiptState(j.Before, r)); e != nil {
+	if selected {
+		r.Revision = j.After.Revision + 1
+	}
+	if e := s.saveInstallation(rollbackState(j.Before, r)); e != nil {
 		return r, e
 	}
 	if e := maintenance.RestoreUpgradeGuard(lock, s.owner.ID, j.ID, j.BeforeGuard); e != nil {
@@ -437,20 +480,31 @@ func (s *stagingRoot) rollbackInstall(ctx context.Context, j upgradeJournal, loc
 	}
 	return r, resultError(r)
 }
+func rollbackState(before Installation, r InstallResult) Installation {
+	v := receiptState(before, r)
+	v.Revision = r.Revision
+	v.Current = r.Current
+	return v
+}
 
 func (s *stagingRoot) readUpgrade() (upgradeJournal, error) {
 	var j upgradeJournal
 	if e := readStageJSON(s.root, upgradeJournalFile, &j); e != nil {
 		return j, e
 	}
-	if j.Schema != 1 || j.RootID != s.owner.ID || !validID(j.ID) || j.Result.ID != j.ID || !s.validInstallation(j.Before) || !j.Result.Target.valid() || !installRequestID.MatchString(j.Result.RequestID) || j.Result.ExpectedRevision != j.Before.Revision || j.Guard.ID != j.ID || j.Guard.RootID != s.owner.ID || j.Guard.Phase != "pending" || !digest.MatchString(j.Guard.BinarySHA256) || j.Result.BackupFile != filepath.Join(s.path, "backups", j.ID+".jmsbackup") || j.Phase != "preparing" && j.Phase != "checking" && j.Phase != "committing" && j.Phase != "rolling_back" {
+	validPhase := j.Phase == "preparing" || j.Phase == "checking" || j.Phase == "rolling_back" || j.Schema == 1 && j.Phase == "committing" || j.Schema == 2 && (j.Phase == "selecting" || j.Phase == "awaiting_start" || j.Phase == "starting" || j.Phase == "activating")
+	if j.Schema != 1 && j.Schema != 2 || !validPhase || j.RootID != s.owner.ID || !validID(j.ID) || j.Result.ID != j.ID || !s.validInstallation(j.Before) || !j.Result.Target.valid() || !installRequestID.MatchString(j.Result.RequestID) || j.Result.ExpectedRevision != j.Before.Revision || j.Guard.ID != j.ID || j.Guard.RootID != s.owner.ID || j.Guard.Phase != "pending" || j.Guard.Attempt != "" || !digest.MatchString(j.Guard.BinarySHA256) || j.Result.BackupFile != filepath.Join(s.path, "backups", j.ID+".jmsbackup") {
 		return j, ErrInstallConflict
 	}
 	data, e := canonicalData(s, j.Result.DataDir)
 	if e != nil || data != j.Result.DataDir || j.Before.DataDir != "" && data != j.Before.DataDir {
 		return j, ErrInstallConflict
 	}
-	if j.Phase == "committing" && (!s.validInstallation(j.After) || j.After.Current != j.Result.Target || j.After.Revision != j.Before.Revision+1) {
+	requiresAfter := j.Phase == "committing" || j.Phase == "selecting" || j.Phase == "awaiting_start" || j.Phase == "starting" || j.Phase == "activating" || j.After.Schema != 0
+	if requiresAfter && (!s.validInstallation(j.After) || j.After.Current != j.Result.Target || j.After.Revision != j.Before.Revision+1) {
+		return j, ErrInstallConflict
+	}
+	if j.Attempt != "" && !validID(j.Attempt) || (j.Phase == "starting" || j.Phase == "activating") && !validID(j.Attempt) {
 		return j, ErrInstallConflict
 	}
 	if j.BeforeGuard != nil && (j.BeforeGuard.Schema != 1 || j.BeforeGuard.RootID != s.owner.ID || j.BeforeGuard.Phase != "active" || !validID(j.BeforeGuard.ID) || !digest.MatchString(j.BeforeGuard.BinarySHA256)) {
@@ -491,12 +545,21 @@ func RecoverInstallation(ctx context.Context, path string, password []byte) (Ins
 	if j.Phase == "committing" && reflect.DeepEqual(current, j.After) {
 		return s.commitInstall(j, lock)
 	}
+	if j.Schema == 2 && j.After.Schema != 0 && reflect.DeepEqual(current, j.After) {
+		g, e := maintenance.ReadUpgradeGuard(lock.DataDir)
+		if e == nil && activationGuardMatches(g, j) && g.Phase == "active" {
+			if e = s.finishInstallJournal(); e != nil {
+				return j.Result, e
+			}
+			return j.Result, nil
+		}
+	}
 	for _, r := range current.Receipts {
 		if r.ID == j.ID && (r.Status == "rolled_back" || r.Status == "aborted") {
-			if r.RequestID != j.Result.RequestID || r.Target != j.Result.Target || !reflect.DeepEqual(current, receiptState(j.Before, r)) {
+			if r.RequestID != j.Result.RequestID || r.Target != j.Result.Target || !reflect.DeepEqual(current, rollbackState(j.Before, r)) {
 				return r, ErrInstallConflict
 			}
-			if g, e := maintenance.ReadUpgradeGuard(lock.DataDir); e == nil && g.ID == j.ID && g == j.Guard {
+			if g, e := maintenance.ReadUpgradeGuard(lock.DataDir); e == nil && g.ID == j.ID && (g == j.Guard || j.Schema == 2 && activationGuardMatches(g, j) && g.Phase != "active") {
 				if e = maintenance.RestoreUpgradeGuard(lock, s.owner.ID, j.ID, j.BeforeGuard); e != nil {
 					return r, e
 				}
@@ -516,21 +579,23 @@ func RecoverInstallation(ctx context.Context, path string, password []byte) (Ins
 			return r, nil
 		}
 	}
-	if !reflect.DeepEqual(current, j.Before) {
+	if !reflect.DeepEqual(current, j.Before) && !(j.Schema == 2 && reflect.DeepEqual(current, j.After)) {
 		return result, ErrInstallConflict
 	}
 	guard, guardErr := maintenance.ReadUpgradeGuard(lock.DataDir)
-	if j.Phase != "preparing" && (guardErr != nil || guard != j.Guard) {
+	if j.Phase != "preparing" && (guardErr != nil || guard != j.Guard && !(j.Schema == 2 && activationGuardMatches(guard, j) && guard.Phase != "active")) {
 		return result, ErrInstallConflict
 	}
 	if j.Phase == "preparing" && guardErr != nil && (!errors.Is(guardErr, os.ErrNotExist) || j.BeforeGuard != nil) {
 		return result, ErrInstallConflict
 	}
-	if e = maintenance.SetUpgradeGuard(lock, j.Guard); e != nil {
-		return result, e
+	if guardErr != nil || guard.Phase == "active" {
+		if e = maintenance.SetUpgradeGuard(lock, j.Guard); e != nil {
+			return result, e
+		}
 	}
 	r, rollbackErr := s.rollbackInstall(ctx, j, lock, password)
-	if errors.Is(rollbackErr, ErrPreflightRolledBack) || errors.Is(rollbackErr, ErrUpgradeAborted) {
+	if errors.Is(rollbackErr, ErrPreflightRolledBack) || errors.Is(rollbackErr, ErrUpgradeAborted) || errors.Is(rollbackErr, ErrActivationRolledBack) {
 		return r, nil
 	}
 	return r, rollbackErr
@@ -553,6 +618,16 @@ func InstallationStatus(ctx context.Context, path string) (Installation, error) 
 	} else if !errors.Is(e, os.ErrNotExist) {
 		return v, e
 	}
+	if v.DataDir != "" {
+		if g, e := maintenance.ReadUpgradeGuard(v.DataDir); e == nil {
+			if g.RootID != s.owner.ID {
+				return v, ErrInstallConflict
+			}
+			v.ActivationState = g.Phase
+		} else if !errors.Is(e, os.ErrNotExist) || v.Current.valid() {
+			return v, ErrInstallConflict
+		}
+	}
 	return v, nil
 }
 
@@ -560,70 +635,5 @@ func InstallationStatus(ctx context.Context, path string) (Installation, error) 
 // paths. The persistent data guard prevents a racing old binary from opening
 // data migrated by another version after this metadata lock is released.
 func RunInstalled(ctx context.Context, path string, stdout, stderr io.Writer) error {
-	s, e := openStagingRoot(path, runtime.GOOS, runtime.GOARCH, false)
-	if e != nil {
-		return e
-	}
-	if _, e = s.root.Lstat(upgradeJournalFile); !errors.Is(e, os.ErrNotExist) {
-		s.close()
-		return ErrInstallPending
-	}
-	v, e := s.installation()
-	if e != nil || !v.Current.valid() {
-		s.close()
-		return ErrInstallConflict
-	}
-	data, e := canonicalData(s, v.DataDir)
-	if e != nil {
-		s.close()
-		return e
-	}
-	m, e := s.inspect(ctx, "releases/"+v.Current.ArchiveSHA256, v.Current.ArchiveSHA256)
-	if e != nil {
-		s.close()
-		return e
-	}
-	g, e := maintenance.ReadUpgradeGuard(data)
-	if e != nil || v.Current != (Selection{v.Current.ArchiveSHA256, m.Version, m.Commit}) || g.RootID != s.owner.ID || g.Phase != "active" || g.BinarySHA256 != m.Files[nativeExecutable(m)].SHA256 {
-		s.close()
-		return ErrInstallConflict
-	}
-	dir := filepath.Join(s.path, "releases", v.Current.ArchiveSHA256)
-	cmd := exec.Command(filepath.Join(dir, nativeExecutable(m)))
-	cmd.Env = runtimeEnvironment(data, filepath.Join(dir, "web"))
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if e = ctx.Err(); e != nil {
-		s.close()
-		return e
-	}
-	if e = cmd.Start(); e != nil {
-		s.close()
-		return e
-	}
-	s.close()
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	select {
-	case e = <-done:
-		return e
-	case <-ctx.Done():
-	}
-	_ = cmd.Process.Signal(os.Interrupt)
-	timer := time.NewTimer(12 * time.Second)
-	defer timer.Stop()
-	select {
-	case <-done:
-		if errors.Is(ctx.Err(), context.Canceled) {
-			return nil
-		}
-		return ctx.Err()
-	case <-timer.C:
-		_ = cmd.Process.Kill()
-		<-done
-		if errors.Is(ctx.Err(), context.Canceled) {
-			return nil
-		}
-		return ctx.Err()
-	}
+	return RunInstalledWithPassphrase(ctx, path, nil, stdout, stderr)
 }

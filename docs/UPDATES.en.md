@@ -2,7 +2,7 @@
 
 > [中文](./UPDATES.md) | English
 
-System settings → Security → Software updates shows the running version, published stable releases, optional automatic checks, native packages/checksums and recent activity. External checks are disabled by default. Enable a 1–168-hour interval, default 24 hours. Checks/downloads/staging never execute archived programs or replace business data. Explicit installation uses the [standalone transaction](./INSTALLATION.en.md), including encrypted checkpoints, target-binary offline preflight, version selection and failure recovery. Live health checks and automatic installation scheduling remain pending; this is not the complete general updater.
+System settings → Security → Software updates shows versions, stable releases, optional automatic checks, native packages/checksums and activity. External checks default off; enabled intervals are 1–168 hours, default 24. Checks/downloads/staging never execute archived programs or replace data. The [standalone transaction](./INSTALLATION.en.md) adds encrypted checkpoints, offline preflight, first-start health/traffic gates, rollback before release and old-service resumption. After release, new data is preserved. Automatic installation scheduling remains pending.
 
 ## Source and permissions
 
@@ -47,7 +47,7 @@ An identical retry returns `unchanged=true` after rechecking the archive and eve
 
 Staging automatically cleans interrupted directories with verified ownership. `stage-clean` can also be retried independently. Only `.jms233-stage-*` names with matching root ownership receipts are removed. Links/unproven ownership refuse cleanup; published candidates and unknown files remain. A crash before the ownership receipt is complete retains the directory and reports a conflict for manual inspection rather than guessing ownership from its name. Neither archives nor candidate trees contain application data; previous candidates are not automatically expired.
 
-A staged result does not establish a successful application upgrade. The [installation transaction](./INSTALLATION.en.md) can checkpoint/preflight/select a version while stopped and restore local data on failure. Live health-failure rollback, automatic installation scheduling, active-session handling and genuine cross-version business migration acceptance remain pending. Never simply point an old binary at data already rewritten by a new binary.
+A staged result does not establish upgrade success. The [installation transaction](./INSTALLATION.en.md) checkpoints/preflights while stopped, then performs first-start acceptance. Failure before release restores the checkpoint/old version; after release it preserves new data for forward repair. Automatic installation scheduling, active-session handling and historical-version migration acceptance remain pending. Never simply point an old binary at data already rewritten by a new binary.
 
 ## Publication
 

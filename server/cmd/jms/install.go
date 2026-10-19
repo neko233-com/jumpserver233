@@ -16,7 +16,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/releasebundle"
 )
 
-const installUsage = "usage: jms update install --root ROOT --data-dir DATA --sha256 SHA --revision N --request-id ID [--passphrase-file FILE|-] [--source-version VERSION] | install-recover --root ROOT [--passphrase-file FILE|-] | install-status --root ROOT | run --root ROOT; stop the standalone service before install/recover; protect the checkpoint passphrase; run starts the selected server"
+const installUsage = "usage: jms update install --root ROOT --data-dir DATA --sha256 SHA --revision N --request-id ID [--passphrase-file FILE|-] [--source-version VERSION] | install-recover --root ROOT [--passphrase-file FILE|-] | install-status --root ROOT | run --root ROOT [--passphrase-file FILE|-]; first startup validates the candidate before business traffic; protect the checkpoint passphrase"
 
 func executeInstallation(ctx context.Context, args []string, input io.Reader, output, diagnostic io.Writer, prompt func(bool) ([]byte, error)) error {
 	if len(args) == 0 {
@@ -38,7 +38,7 @@ func executeInstallation(ctx context.Context, args []string, input io.Reader, ou
 	flags.Visit(func(f *flag.Flag) { visited[f.Name] = true })
 	if args[0] != "install" {
 		for name := range visited {
-			if name != "root" && !(args[0] == "install-recover" && name == "passphrase-file") {
+			if name != "root" && !((args[0] == "install-recover" || args[0] == "run") && name == "passphrase-file") {
 				return errors.New(installUsage)
 			}
 		}
@@ -61,7 +61,19 @@ func executeInstallation(ctx context.Context, args []string, input io.Reader, ou
 		return json.NewEncoder(output).Encode(status)
 	}
 	if args[0] == "run" {
-		return releasebundle.RunInstalled(ctx, *root, output, diagnostic)
+		status, e := releasebundle.InstallationStatus(ctx, *root)
+		if e != nil {
+			return e
+		}
+		var password []byte
+		if status.PendingUpgrade != "" && status.ActivationState != "active" {
+			password, e = readInstallPassphrase(input, *passwordFile, prompt, false)
+			if e != nil {
+				return e
+			}
+			defer clear(password)
+		}
+		return releasebundle.RunInstalledWithPassphrase(ctx, *root, password, output, diagnostic)
 	}
 	if args[0] == "install" && (*data == "" || *sha == "" || *revision < 0 || *id == "") {
 		return errors.New(installUsage)

@@ -21,11 +21,12 @@ type UpgradeGuard struct {
 	ID           string `json:"transaction_id"`
 	BinarySHA256 string `json:"binary_sha256"`
 	Phase        string `json:"phase"`
+	Attempt      string `json:"activation_attempt,omitempty"`
 }
 
 func upgradeGuardPath(data string) string { return filepath.Join(controlDir(data), "upgrade.json") }
 func (g UpgradeGuard) valid() bool {
-	return g.Schema == 1 && upgradeID.MatchString(g.RootID) && upgradeID.MatchString(g.ID) && upgradeDigest.MatchString(g.BinarySHA256) && (g.Phase == "pending" || g.Phase == "active")
+	return g.Schema == 1 && upgradeID.MatchString(g.RootID) && upgradeID.MatchString(g.ID) && upgradeDigest.MatchString(g.BinarySHA256) && (g.Phase == "pending" || g.Phase == "selected" || g.Phase == "trial" || g.Phase == "active") && (g.Attempt == "" || upgradeID.MatchString(g.Attempt)) && (g.Phase != "trial" || g.Attempt != "") && (g.Phase != "pending" && g.Phase != "selected" || g.Attempt == "")
 }
 func ReadUpgradeGuard(data string) (UpgradeGuard, error) {
 	var g UpgradeGuard
@@ -53,7 +54,7 @@ func CheckUpgradeGuard(data, id, binarySHA string) error {
 	if e != nil {
 		return e
 	}
-	if g.BinarySHA256 != binarySHA || g.Phase == "pending" && (id == "" || g.ID != id) || g.Phase == "active" && id != "" {
+	if g.BinarySHA256 != binarySHA || g.Phase != "pending" && g.Phase != "active" || g.Phase == "pending" && (id == "" || g.ID != id) || g.Phase == "active" && id != "" {
 		return ErrUpgradePending
 	}
 	return nil
@@ -83,6 +84,9 @@ func SetUpgradeGuard(lock *Lock, g UpgradeGuard) error {
 			return nil
 		}
 		if old.RootID != g.RootID || old.Phase != "active" && old.ID != g.ID {
+			return ErrConflict
+		}
+		if old.ID == g.ID && (old.BinarySHA256 != g.BinarySHA256 || old.Phase == "active" || old.Phase == "trial" && g.Phase == "active" && old.Attempt != g.Attempt) {
 			return ErrConflict
 		}
 	} else if !errors.Is(e, os.ErrNotExist) {

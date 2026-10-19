@@ -133,7 +133,7 @@ func RestoreUpgradeCheckpoint(ctx context.Context, opt Options, lock *Lock, root
 	if e != nil {
 		return Result{}, e
 	}
-	if g.RootID != rootID || g.ID != id || g.Phase != "pending" {
+	if g.RootID != rootID || g.ID != id || g.Phase != "pending" && g.Phase != "selected" && g.Phase != "trial" {
 		return Result{}, ErrConflict
 	}
 	return restoreLocked(ctx, opt, lock, true)

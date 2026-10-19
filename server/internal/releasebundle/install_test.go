@@ -39,6 +39,29 @@ func installRoot(t *testing.T, path string) *stagingRoot {
 	return s
 }
 
+// Model the durable activation point in transaction-only tests. Actual child
+// startup/HTTP gating is covered by server tests and native-package QA.
+func acceptInstallFixture(t *testing.T, opt InstallOptions) {
+	t.Helper()
+	s := installRoot(t, opt.Root)
+	defer s.close()
+	j, e := s.readUpgrade()
+	require.NoError(t, e)
+	lock, e := maintenance.Acquire(opt.DataDir)
+	require.NoError(t, e)
+	defer lock.Close()
+	j.Attempt = strings.Repeat("d", 32)
+	j.Phase = "activating"
+	require.NoError(t, s.saveUpgrade(j))
+	g := j.Guard
+	g.Phase = "trial"
+	g.Attempt = j.Attempt
+	require.NoError(t, maintenance.SetUpgradeGuard(lock, g))
+	g.Phase = "active"
+	require.NoError(t, maintenance.SetUpgradeGuard(lock, g))
+	require.NoError(t, s.finishInstallJournal())
+}
+
 func TestNativeInstallCheckpointSelectionIdempotenceAndRevision(t *testing.T) {
 	opt := installFixture(t)
 	calls := 0
@@ -61,8 +84,8 @@ func TestNativeInstallCheckpointSelectionIdempotenceAndRevision(t *testing.T) {
 	assert.FileExists(t, r.BackupFile)
 	g, e := maintenance.ReadUpgradeGuard(opt.DataDir)
 	require.NoError(t, e)
-	assert.Equal(t, "active", g.Phase)
-	assert.NoError(t, maintenance.CheckUpgradeGuard(opt.DataDir, "", g.BinarySHA256))
+	assert.Equal(t, "selected", g.Phase)
+	assert.ErrorIs(t, maintenance.CheckUpgradeGuard(opt.DataDir, "", g.BinarySHA256), maintenance.ErrUpgradePending)
 	assert.ErrorIs(t, maintenance.CheckUpgradeGuard(opt.DataDir, r.ID, g.BinarySHA256), maintenance.ErrUpgradePending)
 	again, e := install(context.Background(), opt, check)
 	require.NoError(t, e)
@@ -79,6 +102,9 @@ func TestNativeInstallCheckpointSelectionIdempotenceAndRevision(t *testing.T) {
 	_, e = install(context.Background(), changed, check)
 	assert.ErrorIs(t, e, ErrInstallConflict)
 	changed.Revision = 1
+	_, e = install(context.Background(), changed, check)
+	require.ErrorIs(t, e, ErrInstallPending)
+	acceptInstallFixture(t, opt)
 	noOp, e := install(context.Background(), changed, check)
 	require.NoError(t, e)
 	assert.True(t, noOp.Unchanged)
@@ -170,6 +196,7 @@ func TestNativeInstallUpgradeKeepsGuardAndRejectsDowngradeOrSameVersionRebuild(t
 	initialOpt := opt
 	first, e := install(context.Background(), opt, successfulChecker)
 	require.NoError(t, e)
+	acceptInstallFixture(t, opt)
 	archive, sha := fixture(t, "install-v1.2.4")
 	_, e = Stage(context.Background(), archive, sha, runtime.GOOS, runtime.GOARCH, opt.Root)
 	require.NoError(t, e)
@@ -185,6 +212,7 @@ func TestNativeInstallUpgradeKeepsGuardAndRejectsDowngradeOrSameVersionRebuild(t
 	opt.RequestID = "install-request-next2"
 	r, e = install(context.Background(), opt, successfulChecker)
 	require.NoError(t, e)
+	acceptInstallFixture(t, opt)
 	assert.Equal(t, 2, r.Revision)
 	assert.Equal(t, "v1.2.3", r.Backup.Version)
 	opt.Revision = 2

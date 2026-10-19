@@ -82,7 +82,9 @@ func main() {
 	flags := flag.NewFlagSet("jms233-server", flag.ContinueOnError)
 	flags.BoolVar(&cfg.CheckData, "check-data", false, "validate standalone data without listeners or external work")
 	flags.StringVar(&cfg.UpgradeID, "upgrade-id", "", "offline upgrade transaction identifier")
-	if flags.Parse(os.Args[1:]) != nil || flags.NArg() != 0 || cfg.UpgradeID != "" && !cfg.CheckData || cfg.CheckData && cfg.ClusterMode {
+	flags.StringVar(&cfg.ActivationID, "activation-id", "", "gated startup transaction identifier")
+	flags.StringVar(&cfg.ActivationAttempt, "activation-attempt", "", "gated startup attempt identifier")
+	if flags.Parse(os.Args[1:]) != nil || flags.NArg() != 0 || cfg.UpgradeID != "" && !cfg.CheckData || (cfg.CheckData || cfg.ActivationID != "") && cfg.ClusterMode || cfg.ActivationID != "" && cfg.CheckData || (cfg.ActivationID == "") != (cfg.ActivationAttempt == "") {
 		slog.Error("invalid offline preflight arguments")
 		os.Exit(1)
 	}
@@ -101,15 +103,18 @@ func main() {
 }
 
 func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error {
-	if cfg.CheckData && cfg.ClusterMode {
+	if (cfg.CheckData || cfg.ActivationID != "") && cfg.ClusterMode {
 		return maintenance.ErrCluster
 	}
+	var dataLock *maintenance.Lock
+	var activationGuard maintenance.UpgradeGuard
 	if !cfg.ClusterMode {
 		lock, err := maintenance.Acquire(cfg.DataDir)
 		if err != nil {
 			return err
 		}
 		defer lock.Close()
+		dataLock = lock
 		local := *cfg
 		local.DataDir = lock.DataDir
 		cfg = &local
@@ -120,7 +125,12 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 				return err
 			}
 		}
-		if err = maintenance.CheckUpgradeGuard(cfg.DataDir, cfg.UpgradeID, binarySHA); err != nil {
+		if cfg.ActivationID != "" {
+			activationGuard, err = maintenance.CheckActivationGuard(cfg.DataDir, cfg.ActivationID, cfg.ActivationAttempt, binarySHA)
+		} else {
+			err = maintenance.CheckUpgradeGuard(cfg.DataDir, cfg.UpgradeID, binarySHA)
+		}
+		if err != nil {
 			return err
 		}
 		if err = maintenance.Recover(ctx, cfg.DataDir); err != nil {
@@ -468,10 +478,35 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	if cfg.CheckData {
 		return ctx.Err()
 	}
+	var activationReady atomic.Bool
+	if cfg.ActivationID != "" {
+		handler = gatedStartup(handler, cfg.ActivationAttempt, &activationReady)
+	}
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	listener, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {
 		return err
+	}
+	defer listener.Close()
+	defer srv.Close()
+	serverDone := make(chan error, 1)
+	trialCtx, cancelTrial := context.WithCancel(ctx)
+	defer cancelTrial()
+	serve := func() { go func() { serverDone <- srv.Serve(listener); cancelTrial() }() }
+	if cfg.ActivationID != "" {
+		defer func() { _ = maintenance.ClearActivation(dataLock, activationGuard) }()
+		record, e := maintenance.PublishActivation(dataLock, activationGuard, listener.Addr().String(), cfg.Version, "trial")
+		if e != nil {
+			return e
+		}
+		serve()
+		activationGuard, e = maintenance.AwaitActivation(trialCtx, dataLock, activationGuard, record)
+		if e != nil {
+			return e
+		}
+		if e = runtimes.activate(); e != nil {
+			return e
+		}
 	}
 
 	nodeCtx, cancelNode := context.WithCancel(ctx)
@@ -495,8 +530,14 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		assetService.Run(nodeCtx, cfg.MonitorInterval)
 	}()
 
-	serverDone := make(chan error, 1)
-	go func() { serverDone <- srv.Serve(listener) }()
+	if cfg.ActivationID != "" {
+		if _, err = maintenance.PublishActivation(dataLock, activationGuard, listener.Addr().String(), cfg.Version, "active"); err != nil {
+			return err
+		}
+		activationReady.Store(true)
+	} else {
+		serve()
+	}
 	var stateStoreErr <-chan error
 	if documents != nil {
 		checkDone := make(chan error, 1)

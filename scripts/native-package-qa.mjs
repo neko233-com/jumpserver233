@@ -15,7 +15,7 @@ import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
-const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/installation");
+const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/activation");
 mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
@@ -105,6 +105,18 @@ try {
   report.upgradeVersion = "v0.0.1";
   await run("go", ["run", "./cmd/jms-package", "--version", report.upgradeVersion, "--commit", report.commit, "--built-at", report.builtAt, "--target", `linux/${linuxArch}`, "--out", packages, "--web-dir", nativeWeb], { cwd: resolve(root, "server") });
   const upgradeArchive = resolve(packages, `jumpserver233-${report.upgradeVersion}-linux-${linuxArch}.tar.gz`), upgradeSHA = createHash("sha256").update(readFileSync(upgradeArchive)).digest("hex");
+  // These failure candidates are local fixtures, never release artifacts.
+  const linuxBase = resolve(temporary, "linux-base"); mkdirSync(linuxBase); await run("tar", ["-xzf", archive, "-C", linuxBase]);
+  const synthetic = [];
+  for (const [mode, version] of [["before", "v0.0.2"], ["after", "v0.0.3"]]) {
+    const binary = resolve(temporary, "fixture-" + mode), fixtureArchive = resolve(packages, "fixture-" + mode + ".tar.gz");
+    await run("go", ["build", "-trimpath", "-buildvcs=false", "-ldflags", `-s -w -X main.failureMode=${mode} -X main.version=${version}`, "-o", binary, "./testsupport/activationfixture"], { cwd: resolve(root, "server"), env: { ...process.env, GOOS: "linux", GOARCH: linuxArch, CGO_ENABLED: "0" } });
+    await run("go", ["run", "./testsupport/releasefixture", "--base-dir", linuxBase, "--server-binary", binary, "--out", fixtureArchive, "--version", version], { cwd: resolve(root, "server") });
+    synthetic.push({ mode, version, path: fixtureArchive, sha: createHash("sha256").update(readFileSync(fixtureArchive)).digest("hex") });
+  }
+  report.recoveryVersion = "v0.0.4";
+  await run("go", ["run", "./cmd/jms-package", "--version", report.recoveryVersion, "--commit", report.commit, "--built-at", report.builtAt, "--target", `linux/${linuxArch}`, "--out", packages, "--web-dir", nativeWeb], { cwd: resolve(root, "server") });
+  const recoveryArchive = resolve(packages, `jumpserver233-${report.recoveryVersion}-linux-${linuxArch}.tar.gz`), recoverySHA = createHash("sha256").update(readFileSync(recoveryArchive)).digest("hex");
   const labels = ["--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`];
   await run("docker", ["network", "create", ...labels, owner]);
   await buildQAImage(run, ["build", "--tag", sshImage, ...labels, resolve(root, "server/testsupport/openssh")]);
@@ -118,6 +130,8 @@ try {
     "--read-only", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=512m", "--publish", `127.0.0.10:${selectedPort}:8080`,
     "--mount", `type=bind,source=${archive},target=/artifact/package.tar.gz,readonly`,
     "--mount", `type=bind,source=${upgradeArchive},target=/artifact/upgrade.tar.gz,readonly`,
+    ...synthetic.flatMap(f => ["--mount", `type=bind,source=${f.path},target=/artifact/${f.mode}.tar.gz,readonly`]),
+    "--mount", `type=bind,source=${recoveryArchive},target=/artifact/recovery.tar.gz,readonly`,
     "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", "JMS_WEB_DIR=/tmp/native/web", "--env", `JMS_PUBLIC_URL=http://127.0.0.10:${selectedPort}`, "--env", `JMS_QA_PACKAGE_SHA=${linuxSHA}`,
     "golang:1.27-bookworm", "sh", "-ceu", 'mkdir /tmp/native; tar -xzf /artifact/package.tar.gz -C /tmp/native; /tmp/native/jms233-server --check-data; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; exec sleep infinity']);
   const url = `http://127.0.0.10:${selectedPort}`;
@@ -127,8 +141,10 @@ try {
   for (let attempt = 0; ; attempt++) { try { await inContainer(["update", "stage-status", "--root", "/tmp/releases", "--sha256", linuxSHA]); break; } catch { if (attempt === 99) throw new Error("Native bootstrap did not complete"); await delay(100); } }
   const initial = JSON.parse((await inContainer(installArgs(linuxSHA, 0, "native-linux-initial"), password)).stdout);
   if (initial.status !== "selected") throw new Error("Native Linux initial selection failed");
+  await runInput("docker", ["exec", "-i", owner, "sh", "-ceu", "umask 077; cat > /tmp/checkpoint-passphrase"], password);
   const waitHealthy = async version => { for (let attempt = 0; attempt < 100; attempt++) { try { const response = await fetch(url + "/api/health", { signal: AbortSignal.timeout(1000) }); if (response.ok && (await response.json()).version === version) return; } catch { /* bounded readiness */ } await delay(100); } throw new Error("Selected native server did not become healthy"); };
-  const startSelected = async version => { await run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; exec /tmp/native/jms update run --root /tmp/releases']); await waitHealthy(version); };
+  const launchSelected = async () => run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; exec /tmp/native/jms update run --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']);
+  const startSelected = async version => { await launchSelected(); await waitHealthy(version); };
   const stopSelected = async () => { await run("docker", ["exec", owner, "sh", "-ceu", 'pid=$(cat /tmp/launcher.pid); case "$pid" in ""|*[!0-9]*) exit 1;; esac; kill -INT "$pid"']); for (let attempt = 0; attempt < 150; attempt++) { try { await run("docker", ["exec", owner, "sh", "-ceu", 'pid=$(cat /tmp/launcher.pid); kill -0 "$pid"']); } catch { return; } await delay(100); } throw new Error("Native launcher did not stop"); };
   await startSelected(report.testVersion);
   const api = async (method, path, body, bearer, status = 200) => { const response = await fetch(url + path, { method, headers: { "Content-Type": "application/json", ...(bearer ? { Authorization: "Bearer " + bearer } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000) }); if (response.status !== status) throw new Error("Native installation API status differs at " + path); return response.json(); };
@@ -161,6 +177,35 @@ try {
   const operatorAfter = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword });
   if (operatorAfter.user.id !== operatorBefore.user.id) throw new Error("Native operator identity changed");
   await viewOnly(operatorAfter.access_token);
+  // Before-commit failure must restore the checkpoint and keep the old service.
+  await stopSelected();
+  await inContainer(["update", "stage", "--root", "/tmp/releases", "--file", "/artifact/before.tar.gz", "--sha256", synthetic[0].sha]);
+  await inContainer(installArgs(synthetic[0].sha, 2, "native-activation-before"), password);
+  await launchSelected(); await waitHealthy(report.upgradeVersion);
+  let state = JSON.parse((await inContainer(["update", "install-status", "--root", "/tmp/releases"])).stdout);
+  if (state.revision !== 4 || state.current.version !== report.upgradeVersion || !state.receipts.some(r => r.request_id === "native-activation-before" && r.failure_code === "activation_failed" && r.status === "rolled_back")) throw new Error("First-start failure did not roll back with a monotonic revision");
+  let trialWriteAbsent = false; try { await run("docker", ["exec", owner, "test", "!", "-e", "/tmp/data/trial-target-only"]); trialWriteAbsent = true; } catch { /* fail below */ }
+  if (!trialWriteAbsent) throw new Error("Failed trial data remained live");
+  const fallbackLogin = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
+  await execSSH(fallbackLogin.access_token, "native-after-activation-rollback");
+  // After the durable active guard, a failed process must never restore old data.
+  await stopSelected();
+  await inContainer(["update", "stage", "--root", "/tmp/releases", "--file", "/artifact/after.tar.gz", "--sha256", synthetic[1].sha]);
+  await inContainer(installArgs(synthetic[1].sha, 4, "native-activation-after"), password);
+  await launchSelected();
+  for (let attempt = 0; ; attempt++) { try { await run("docker", ["exec", owner, "sh", "-ceu", 'pid=$(cat /tmp/launcher.pid); kill -0 "$pid"']); } catch { break; } if (attempt === 199) throw new Error("Post-commit failure launcher did not terminate"); await delay(100); }
+  state = JSON.parse((await inContainer(["update", "install-status", "--root", "/tmp/releases"])).stdout);
+  if (state.revision !== 5 || state.current.version !== synthetic[1].version || state.activation_state !== "active" || (await run("docker", ["exec", owner, "cat", "/tmp/data/post-active-data"])).stdout !== "preserve post-activation write") throw new Error("Post-commit failure rolled back new data");
+  await inContainer(["update", "install-recover", "--root", "/tmp/releases", "--passphrase-file", "-"], password);
+  await inContainer(["update", "stage", "--root", "/tmp/releases", "--file", "/artifact/recovery.tar.gz", "--sha256", recoverySHA]);
+  await inContainer(installArgs(recoverySHA, 5, "native-activation-recovery"), password);
+  await startSelected(report.recoveryVersion);
+  if ((await run("docker", ["exec", owner, "cat", "/tmp/data/post-active-data"])).stdout !== "preserve post-activation write") throw new Error("Forward recovery lost committed data");
+  const recoveredLogin = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
+  if (recoveredLogin.user.id !== loginBefore.user.id || (await api("GET", "/api/v1/ops/jobs/" + originalJob, undefined, recoveredLogin.access_token)).state !== "succeeded") throw new Error("Forward recovery lost identity or audit");
+  await execSSH(recoveredLogin.access_token, "native-after-forward-recovery");
+  const recoveredOperator = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword }); await viewOnly(recoveredOperator.access_token);
+  report.activation = { privateReadinessAndHTTPProbe: true, businessGateBeforeCommit: true, preCommitFailureRolledBack: true, oldServiceAutomaticallyResumed: true, failedTrialWriteRemoved: trialWriteAbsent, monotonicRollbackRevision: 4, postCommitFailurePreservedVersionAndData: true, forwardRecoveryVersion: report.recoveryVersion, finalRevision: 6, realSSHAfterRollbackAndForwardRecovery: true };
   report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true, operatorViewGrantPreserved: true, operatorConnectDeniedBeforeAndAfter: true };
   const html = await (await fetch(url + "/console/settings")).text();
   if (!html.includes("JumpServer233") || (await fetch(url + "/api/v1/assets")).status !== 401) throw new Error("Native web/auth isolation failed");
@@ -188,7 +233,7 @@ try {
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     const card = page.locator(".update-settings-card");
     await expect(card.getByRole("heading", { name: "Software updates", exact: true })).toBeVisible();
-    await expect(card.getByText(report.upgradeVersion, { exact: true })).toBeVisible();
+    await expect(card.getByText(report.recoveryVersion, { exact: true })).toBeVisible();
     const screenshots = output;
     await card.screenshot({ path: resolve(screenshots, "native-stage.en.png") });
     await page.getByRole("button", { name: "中文", exact: true }).click();
@@ -198,7 +243,7 @@ try {
       report.browserDiagnostics = errors.slice(-10).map(message => fixtureDiagnostic(message));
       throw new Error("Staged candidate browser reported runtime warnings or errors");
     }
-    report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.upgradeVersion, applicationWarningsOrErrors: errors.length, expectedBrowserDiagnostics: diagnostics, fromInstalledCandidate: true };
+    report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.recoveryVersion, applicationWarningsOrErrors: errors.length, expectedBrowserDiagnostics: diagnostics, fromInstalledCandidate: true };
   } finally { await browser.close(); }
   // Repeating package creation must refuse replacement of an existing archive.
   let conflict = false;

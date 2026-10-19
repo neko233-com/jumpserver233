@@ -11,7 +11,7 @@ import { inspectQAContainers, inspectQANetworks } from "./qa-lifecycle.mjs";
 const execute = promisify(execFile), root = fileURLToPath(new URL("..", import.meta.url));
 const id = randomUUID(), owner = `jms233-updates-race-${id}`, db = `${owner}-db`, runner = `${owner}-go`, password = randomUUID();
 const labels = ["--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`];
-const output = resolve(root, ".cache/qa-reports/installation/linux-race.json"); mkdirSync(resolve(output, ".."), { recursive: true });
+const output = resolve(root, ".cache/qa-reports/activation/linux-race.json"); mkdirSync(resolve(output, ".."), { recursive: true });
 const report = { at: new Date().toISOString(), pid: process.pid, owner, network: owner, database: db, runner, status: "preparing", tests: [], packages: [], cleanup: {} };
 const save = () => writeFileSync(output, JSON.stringify(report, null, 2));
 const run = (command, args) => execute(command, args, { cwd: root, windowsHide: true, maxBuffer: 2 * 1024 * 1024 });
@@ -31,7 +31,7 @@ try {
   const args = ["run", "--rm", "--name", runner, ...labels, "--network", owner,
     "--mount", `type=bind,source=${root},target=/work,readonly`, "--mount", `type=bind,source=${modules},target=/gomod,readonly`,
     "--workdir", "/work/server", "--env", "GOMODCACHE=/gomod", "--env", "GOFLAGS=-buildvcs=false", "--env", `JMS_TEST_DATABASE_URL=postgres://jumpserver:${password}@${db}:5432/jumpserver_test?sslmode=disable`,
-    "golang:1.27-bookworm", "go", "test", "-race", "-json", "-timeout", "10m", "-run", "Update|StableVersions|ReleaseMetadata|VerifiedDownload|DefaultTransport|FailedChecks|AutomaticChecking|NativeArchive|NativeStage|NativeInstall|OfflinePreflight|UpgradeGuard|UpgradeLocked|PortableRelease|Packager|StandaloneBackup",
+    "golang:1.27-bookworm", "go", "test", "-race", "-json", "-timeout", "10m", "-run", "Update|StableVersions|ReleaseMetadata|VerifiedDownload|DefaultTransport|FailedChecks|AutomaticChecking|NativeArchive|NativeStage|NativeInstall|Activation|GatedStartup|OfflinePreflight|UpgradeGuard|UpgradeLocked|PortableRelease|Packager|StandaloneBackup",
     "./internal/core/updates", "./internal/releasebundle", "./internal/maintenance", "./internal/api", "./internal/sessionclient", "./cmd/jms", "./cmd/jms-package", "./cmd/server"];
   const started = performance.now();
   report.code = await new Promise((done, reject) => {

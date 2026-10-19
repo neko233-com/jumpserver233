@@ -30,14 +30,15 @@ type File struct {
 	Executable bool   `json:"executable"`
 }
 type Manifest struct {
-	Schema            int             `json:"schema"`
-	Version           string          `json:"version"`
-	Commit            string          `json:"commit"`
-	BuiltAt           time.Time       `json:"built_at"`
-	Platform          string          `json:"platform"`
-	Architecture      string          `json:"architecture"`
-	PreflightProtocol int             `json:"preflight_protocol,omitempty"`
-	Files             map[string]File `json:"files"`
+	Schema             int             `json:"schema"`
+	Version            string          `json:"version"`
+	Commit             string          `json:"commit"`
+	BuiltAt            time.Time       `json:"built_at"`
+	Platform           string          `json:"platform"`
+	Architecture       string          `json:"architecture"`
+	PreflightProtocol  int             `json:"preflight_protocol,omitempty"`
+	ActivationProtocol int             `json:"activation_protocol,omitempty"`
+	Files              map[string]File `json:"files"`
 }
 
 func ValidPath(name string) bool {
@@ -56,7 +57,7 @@ func ValidPath(name string) bool {
 	return true
 }
 func (m Manifest) Valid() bool {
-	if m.Schema != 1 || m.PreflightProtocol < 0 || m.PreflightProtocol > 1 || !version.MatchString(m.Version) || !commit.MatchString(m.Commit) || m.BuiltAt.IsZero() || len(m.Files) < 3 || len(m.Files) > 20000 || (m.Platform != "linux" && m.Platform != "darwin" && m.Platform != "windows") || (m.Architecture != "amd64" && m.Architecture != "arm64") {
+	if m.Schema != 1 || m.PreflightProtocol < 0 || m.PreflightProtocol > 1 || m.ActivationProtocol < 0 || m.ActivationProtocol > 1 || !version.MatchString(m.Version) || !commit.MatchString(m.Commit) || m.BuiltAt.IsZero() || len(m.Files) < 3 || len(m.Files) > 20000 || (m.Platform != "linux" && m.Platform != "darwin" && m.Platform != "windows") || (m.Architecture != "amd64" && m.Architecture != "arm64") {
 		return false
 	}
 	suffix := ""
