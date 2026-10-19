@@ -142,6 +142,11 @@ func TestDeleteSessionRouteStopsActiveSession(t *testing.T) {
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("DELETE session status = %d, want 204: %s", response.Code, response.Body.String())
 	}
+	response = httptest.NewRecorder()
+	NewRouter("test", Dependencies{Sessions: broker}).ServeHTTP(response, request.Clone(context.Background()))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("repeated DELETE status = %d, want 204", response.Code)
+	}
 	rows, total, activeTotal, err := broker.ListSessions(0, 10)
 	if err != nil {
 		t.Fatalf("list stopped session: %v", err)

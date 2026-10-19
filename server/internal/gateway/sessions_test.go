@@ -27,6 +27,33 @@ type echoTerminal struct {
 	resized chan [2]int
 }
 
+func TestCloseSessionIdempotentAfterTeardownAndRestartPreservesOwnerGate(t *testing.T) {
+	dir, key := t.TempDir(), []byte("0123456789abcdef0123456789abcdef")
+	open := func(_ context.Context, assetID string, _, _ int) (AssetInfo, Terminal, error) {
+		return AssetInfo{ID: assetID, Name: assetID, Username: "ops"}, newEchoTerminal(), nil
+	}
+	b := NewBroker(dir, key, open)
+	t.Cleanup(b.CloseAll)
+	created, e := b.Create(context.Background(), CreateRequest{AssetID: "close-owned", Cols: 80, Rows: 24, OperatorID: "owner", Operator: "operator"})
+	require.NoError(t, e)
+	require.NoError(t, b.Close(created.SessionID))
+	before, e := os.ReadFile(b.auditPath)
+	require.NoError(t, e)
+	for range 2 {
+		require.NoError(t, b.CloseForOperator(created.SessionID, "owner"))
+		require.NoError(t, b.Close(created.SessionID))
+	}
+	require.ErrorIs(t, b.CloseForOperator(created.SessionID, "other"), ErrSessionNotFound)
+	require.ErrorIs(t, b.Close("unknown"), ErrSessionNotFound)
+	after, e := os.ReadFile(b.auditPath)
+	require.NoError(t, e)
+	assert.Equal(t, before, after)
+	restarted := NewBroker(dir, key, open)
+	t.Cleanup(restarted.CloseAll)
+	require.NoError(t, restarted.CloseForOperator(created.SessionID, "owner"))
+	require.ErrorIs(t, restarted.CloseForOperator(created.SessionID, "other"), ErrSessionNotFound)
+}
+
 func TestTerminalCloseReason(t *testing.T) {
 	tests := []struct {
 		name string

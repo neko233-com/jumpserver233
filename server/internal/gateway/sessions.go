@@ -268,17 +268,31 @@ func (b *Broker) Create(ctx context.Context, request CreateRequest) (CreatedSess
 }
 
 func (b *Broker) Close(id string) error {
+	if !validSessionID(id) {
+		return ErrSessionNotFound
+	}
 	b.mu.Lock()
 	session := b.sessions[id]
 	b.mu.Unlock()
 	if session == nil {
+		// WebSocket teardown can finish before the client's DELETE arrives.
+		// A durable known session is already closed; never append another end.
+		records, err := b.readSessionRecords()
+		if err != nil {
+			return err
+		}
+		for _, record := range records {
+			if record.SessionID == id {
+				return nil
+			}
+		}
 		return ErrSessionNotFound
 	}
 	b.closeSession(session, "closed_by_client")
 	return nil
 }
 
-// CloseForOperator closes a live session only when the authenticated operator
+// CloseForOperator closes or acknowledges a session only when the authenticated operator
 // owns it. Missing and foreign sessions deliberately share the same error.
 func (b *Broker) CloseForOperator(id, operatorID string) error {
 	if err := b.requireSessionOperator(id, operatorID); err != nil {

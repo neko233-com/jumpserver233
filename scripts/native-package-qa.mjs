@@ -238,7 +238,8 @@ try {
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext({ locale: "en-US", viewport: { width: 1280, height: 900 } });
-    const page = await context.newPage(), errors = [], diagnostics = { anonymous_session_probe: 0, headless_gpu_readback: 0 };
+    const page = await context.newPage(), errors = [], httpFailures = [], diagnostics = { anonymous_session_probe: 0, headless_gpu_readback: 0 };
+	page.on("response", response => { if(response.status()>=400) { const path=new URL(response.url()).pathname; if (!(response.status()===401 && path==="/api/v1/authentication/session/" && report.browserLoginStatus!==200)) httpFailures.push({method:response.request().method(),path,status:response.status()}); } });
     page.on("pageerror", e => errors.push(e.message));
     page.on("console", message => {
       if (!["warning", "error"].includes(message.type())) return;
@@ -262,7 +263,9 @@ try {
 	await terminal.locator(".xterm-helper-textarea").pressSequentially("printf '\\167\\157\\162\\153\\163\\160\\141\\143\\145\\055\\160\\164\\171\\055\\157\\153\\012'");
 	await page.keyboard.press("Enter");
 	await expect.poll(() => terminalOutput).toContain("workspace-pty-ok");
+	const deletedSession = page.waitForResponse(response => response.request().method() === "DELETE" && /\/api\/v1\/sessions\/[^/]+$/.test(new URL(response.url()).pathname));
 	await terminal.getByRole("button", { name: "Close terminal", exact: true }).click();
+	if ((await deletedSession).status()!==204) throw new Error("Closing the browser session was not idempotent");
 	report.workspace.browserPTY = true;
 	await row.getByRole("button", { name: "Edit", exact: true }).click();
 	await expect(page.getByRole("textbox", { name: "SSH execution workspace (optional)", exact: true })).toHaveValue(workspace);
@@ -281,8 +284,9 @@ try {
     await expect(card.getByText(report.recoveryVersion, { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(card.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
-    if (errors.length) {
+    if (errors.length || httpFailures.length) {
       report.browserDiagnostics = errors.slice(-10).map(message => fixtureDiagnostic(message));
+	  report.browserHTTPFailures = httpFailures.slice(-10);
       throw new Error("Staged candidate browser reported runtime warnings or errors");
     }
     report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.recoveryVersion, applicationWarningsOrErrors: errors.length, expectedBrowserDiagnostics: diagnostics, fromInstalledCandidate: true };
