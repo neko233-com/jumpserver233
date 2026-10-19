@@ -21,9 +21,15 @@ web/.auth/
 /screenshots/
 /artifacts/
 web/e2e/screenshots/
+web/e2e/artifacts/
 web/screenshots/
 web/artifacts/
+web/playwright/screenshots/
 web/playwright/.cache/
+scripts/screenshots/
+scripts/artifacts/
+server/testsupport/screenshots/
+server/testsupport/artifacts/
 # Local CLI authentication capabilities and interrupted atomic writes
 *.jms-auth.json
 .jms-auth-*
@@ -66,9 +72,7 @@ vault.key
 
 # Additional build / test outputs
 /dist/
-/coverage/
-/web/coverage/
-/server/coverage/
+coverage/
 /server/coverage.out
 /server/coverage.html
 /server/coverage-*.out
@@ -91,6 +95,8 @@ vault.key
 
 # Logs / OS
 *.log
+*.pid
+*.pid.lock
 npm-debug.log*
 pnpm-debug.log*
 .DS_Store

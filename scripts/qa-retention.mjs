@@ -8,7 +8,10 @@ const dockerName = /^jms233-[a-z0-9][a-z0-9-]{0,48}$/;
 const legacyHelper = /^(?:branding|discovery|migration|monitor-history)(?:-[\w-]+\.mjs|\.playwright\.config\.mjs)$/;
 const terminal = new Set(["passed", "failed", "interrupted", "timedout"]);
 const screenshot = /\.(?:png|jpe?g|webp)$/i;
-const disposableArtifact = /\.(?:log|zip|tar(?:\.(?:gz|zst))?|tgz|html?|har|webm|mp4|exe|test|prof|cpuprofile|heapprofile|heapsnapshot|dmp)$/i;
+const disposableArtifact = /\.(?:log|pid(?:\.lock)?|zip|tar(?:\.(?:gz|zst))?|tgz|html?|har|webm|mp4|exe|test|prof|cpuprofile|heapprofile|heapsnapshot|dmp|[cm]?js|tsx?|sh|ps1|py|cmd|bat)$/i;
+const disposableProgram = /^(?:jms|jms-agent|jms233-server)(?:-(?:linux|darwin|windows)-(?:amd64|arm64))?$/;
+const disposableSidecar = new Set(["error-context.md", ".last-run.json"]);
+const pidArtifact = /\.pid(?:\.lock)?$/i;
 const receiptNames = ["lifecycle.json", "native-packages.json", "linux-race.json", "summary.json", "report.json", "cleanup.json"];
 const identity = s => `${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}`;
 const alive = pid => { if (!Number.isSafeInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; } };
@@ -55,8 +58,27 @@ function evidence(rows) {
   return kept;
 }
 
+// No-op applied sweeps carry no resource ownership or recovery evidence.
+// Keep mutating, failed and unfamiliar receipts for explicit review.
+function emptyCleanup(report, root) {
+  const fields = new Set(["root", "at", "applied", "before", "after", "composeEvidence", "containers", "volumes", "networks", "removed", "removedBuildHistory", "prunedCache"]);
+  if (!report || Object.keys(report).some(key => !fields.has(key)) || typeof report.root !== "string" || resolve(report.root) !== root || report.applied !== true || typeof report.after !== "string") return false;
+  if (!["composeEvidence", "containers", "volumes", "networks"].every(key => Array.isArray(report[key]) && report[key].length === 0)) return false;
+  if (!["removedBuildHistory", "prunedCache"].every(key => report[key] === undefined || Array.isArray(report[key]) && report[key].length === 0)) return false;
+  return report.removed && Object.keys(report.removed).sort().join(",") === "containers,images,networks,volumes" && Object.values(report.removed).every(n => n === 0);
+}
+
+const disposable = name => disposableArtifact.test(name) || disposableProgram.test(name) || disposableSidecar.has(name);
+
+function filePID(file) {
+  if (file.size > 24) return null;
+  const value = readFileSync(file.path, "utf8").trim();
+  const pid = /^\d+$/.test(value) ? Number(value) : NaN;
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
+}
+
 function runnerGuard(root, folder, current, items) {
-  return { folder, current, receipts: receiptNames.map(name => {
+  return { folder, current, pidFiles: items.filter(file => pidArtifact.test(file.path)), receipts: receiptNames.map(name => {
     const path = checked(root, resolve(folder, name));
     return { path, identity: items.find(file => file.path === path)?.identity || null };
   }) };
@@ -65,6 +87,13 @@ function runnerGuard(root, folder, current, items) {
 function validateRunner(root, guard, isAlive, removed = new Set()) {
   checked(root, guard.folder);
   if (!existsSync(guard.folder)) return;
+  const pids = files(root, guard.folder).filter(file => pidArtifact.test(file.path));
+  const expected = (guard.pidFiles || []).filter(file => !removed.has(file.path));
+  if (pids.length !== expected.length || pids.some(file => !expected.some(old => old.path === file.path && old.identity === file.identity))) throw new Error("Runner PID files changed since preview; rerun retention");
+  for (const file of pids) {
+    const pid = filePID(file);
+    if (!pid || isAlive(pid)) throw new Error("Runner PID file is active or unreadable; rerun retention");
+  }
   for (const file of guard.receipts) {
     const path = checked(root, file.path);
     const actual = existsSync(path) ? identity(lstatSync(path)) : null;
@@ -101,6 +130,13 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
           plan.skipped.push({ name: row.name, reason: "unreadable runner receipt" }); continue;
         }
         const states = [lifecycle, native, race].filter(Boolean);
+        const pids = items.filter(file => pidArtifact.test(file.path)).map(filePID);
+        if (pids.some(pid => !pid)) {
+          plan.skipped.push({ name: row.name, reason: "unreadable PID file" }); continue;
+        }
+        if (pids.some(pid => isAlive(pid))) {
+          liveRun = true; plan.skipped.push({ name: row.name, reason: "active PID file" }); continue;
+        }
         if (states.some(state => [state.pid, state.buildPID, state.playwrightPID, state.childPID].some(pid => isAlive(pid) && !(current && pid === process.pid && terminal.has(state.status))))) {
           liveRun = true; plan.skipped.push({ name: row.name, reason: "active process" }); continue;
         }
@@ -128,8 +164,8 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
     }
   }
   for (const type of ["browser", "docker"]) {
-    const disposable = buckets.filter(b => b.type === type && b.expire).sort((a, b) => b.time - a.time);
-    for (const b of disposable.slice(3)) {
+    const disposableRuns = buckets.filter(b => b.type === type && b.expire).sort((a, b) => b.time - a.time);
+    for (const b of disposableRuns.slice(3)) {
       if (currentRun && resolve(currentRun) === b.folder) continue;
       b.items.forEach(select); plan.directories.push(b.folder); b.expired = true;
     }
@@ -138,24 +174,26 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
     const kept = evidence(b.items);
     for (const f of b.items) {
       const name = basename(f.path);
-      if (screenshot.test(name) && !kept.has(f.path) || b.type === "browser" && !["summary.json", "cleanup.json", "lifecycle.json"].includes(name) && !kept.has(f.path) || b.type === "docker" && (/^summary-\d+\.json$/.test(name) || disposableArtifact.test(name) && b.success === true) || b.type === "named" && disposableArtifact.test(name)) select(f);
+      if (screenshot.test(name) && !kept.has(f.path) || b.type === "browser" && !["summary.json", "cleanup.json", "lifecycle.json"].includes(name) && !kept.has(f.path) || b.type === "docker" && (/^summary-\d+\.json$/.test(name) || disposable(name) && b.success === true) || b.type === "named" && disposable(name)) select(f);
     }
   }
   for (const b of buckets) if (plan.directories.includes(b.folder) || plan.selected.some(f => f.path.startsWith(b.folder + sep))) {
     plan.guards.push(runnerGuard(root, b.folder, currentRun === b.folder, b.items));
   }
-  // Old read-only Docker previews contain no recovery evidence. Applied and
-  // failed receipts remain intact because later cleanup may need ownership.
+  // Bound previews and completed no-op sweeps separately. Applied recovery
+  // receipts remain intact when any resource, mutation or error is recorded.
   if (existsSync(reportRoot)) {
-    const previews = [];
+    const previews = [], noops = [];
     for (const row of readdirSync(checked(root, reportRoot), { withFileTypes: true })) {
       if (!row.isFile() || !/^cleanup-\d+\.json$/.test(row.name)) continue;
       const path = checked(root, resolve(reportRoot, row.name)), report = json(path);
-      if (!report || typeof report.root !== "string" || resolve(report.root) !== root || report.applied !== false || report.error || typeof report.after !== "string" || !report.removed || Object.values(report.removed).some(n => n !== 0)) continue;
+      if (!report || typeof report.root !== "string" || resolve(report.root) !== root) continue;
+      const preview = report.applied === false && !report.error && typeof report.after === "string" && report.removed && Object.values(report.removed).every(n => n === 0);
+      if (!preview && !emptyCleanup(report, root)) continue;
       const info = lstatSync(path);
-      previews.push({ path, size: info.size, modified: info.mtimeMs, identity: identity(info) });
+      (preview ? previews : noops).push({ path, size: info.size, modified: info.mtimeMs, identity: identity(info) });
     }
-    previews.sort((a, b) => b.modified - a.modified || b.path.localeCompare(a.path)).slice(3).forEach(select);
+    for (const group of [previews, noops]) group.sort((a, b) => b.modified - a.modified || b.path.localeCompare(a.path)).slice(3).forEach(select);
   }
   const cache = resolve(root, ".cache");
   if (legacy && !liveRun && existsSync(cache)) for (const row of readdirSync(checked(root, cache), { withFileTypes: true })) {

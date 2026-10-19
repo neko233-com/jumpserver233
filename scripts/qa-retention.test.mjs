@@ -195,8 +195,8 @@ test("cleaned historical native batches automatically discard raw artifacts but 
   const { root, put } = fixture(t), folder = ".cache/qa-reports/completed-native";
   put(`${folder}/native-packages.json`, { status: "passed", cleanup: { removed: true, idempotent: true, temporaryArtifactsRemoved: true } });
   put(`${folder}/linux-race.json`, { status: "passed", cleanup: { removed: true, idempotent: true } });
-  const kept = ["backend.json", "diagnostic.txt", "approval.en.png", "approval.zh-CN.png"].map(name => put(`${folder}/${name}`));
-  const raw = ["extra.png", "trace.zip", "recording.webm", "recording.mp4", "report.html", "network.har", "package.tar.gz", "bundle.tar.zst", "package.tgz", "temporary.exe", "cpu.cpuprofile"].map(name => put(`${folder}/${name}`));
+  const kept = ["backend.json", "diagnostic.txt", "investigation.md", "approval.en.png", "approval.zh-CN.png"].map(name => put(`${folder}/${name}`));
+  const raw = ["extra.png", "trace.zip", "recording.webm", "recording.mp4", "report.html", "network.har", "package.tar.gz", "bundle.tar.zst", "package.tgz", "temporary.exe", "cpu.cpuprofile", "temporary.mjs", "temporary.cjs", "temporary.js", "temporary.ts", "temporary.tsx", "temporary.sh", "temporary.ps1", "temporary.py", "temporary.cmd", "temporary.bat", "jms", "jms-agent-linux-amd64", "jms233-server-darwin-arm64", "error-context.md", ".last-run.json"].map(name => put(`${folder}/${name}`));
   const failed = put(".cache/qa-reports/failed-native/native-packages.json", { status: "failed", cleanup: { removed: true } });
   const failureTrace = put(".cache/qa-reports/failed-native/trace.zip");
   const result = retainQAArtifacts(root);
@@ -204,6 +204,74 @@ test("cleaned historical native batches automatically discard raw artifacts but 
   raw.forEach(path => assert.equal(existsSync(path), false));
   [...kept, failed, failureTrace].forEach(path => assert.ok(existsSync(path)));
   assert.equal(retainQAArtifacts(root).removedFiles, 0);
+});
+
+test("successful batches clean dead PID files while live, malformed and changed PID files protect their batch", t => {
+  const { root, put } = fixture(t), folder = ".cache/qa-reports/pid-files";
+  put(`${folder}/summary.json`, { status: "passed" });
+  const pid = put(`${folder}/runner.pid`, "12345\n"), lock = put(`${folder}/runner.pid.lock`, "12345\n");
+  const helper = put(`${folder}/temporary.mjs`);
+  const options = { legacy: true, isAlive: () => false };
+  let plan = planRetention(root, { ...options, isAlive: n => n === 12345 });
+  assert.equal(plan.selected.length, 0); assert.match(plan.skipped[0].reason, /active PID/);
+  writeFileSync(pid, "unknown");
+  plan = planRetention(root, options);
+  assert.equal(plan.selected.length, 0); assert.match(plan.skipped[0].reason, /unreadable PID/);
+  writeFileSync(pid, "12345\n");
+  plan = planRetention(root, options);
+  assert.equal(plan.selected.length, 3);
+  assert.throws(() => applyRetention(plan, { isAlive: n => n === 12345 }), /PID file is active/);
+  const newer = put(`${folder}/new.pid`, "23456");
+  assert.throws(() => applyRetention(plan, options), /PID files changed/);
+  [pid, lock, helper, newer].forEach(path => assert.ok(existsSync(path)));
+  assert.equal(retainQAArtifacts(root, options).removedFiles, 4);
+  assert.equal(retainQAArtifacts(root, options).removedFiles, 0);
+});
+
+test("only three successful applied no-op sweeps survive; ownership, mutation and unfamiliar receipts remain", t => {
+  const { root, put } = fixture(t);
+  const base = { root: root + "/", at: new Date().toISOString(), applied: true, before: "synthetic disk summary", after: "synthetic disk summary", composeEvidence: [], containers: [], volumes: [], networks: [], removed: { containers: 0, volumes: 0, networks: 0, images: 0 }, removedBuildHistory: [], prunedCache: [] };
+  const noops = Array.from({ length: 5 }, (_, i) => {
+    const path = put(`.cache/qa-reports/cleanup-${1792500000000 + i}.json`, base);
+    utimesSync(path, new Date(1000 + i), new Date(1000 + i)); return path;
+  });
+  const keep = [
+    { ...base, composeEvidence: [{ ownership: "needed for retry" }] },
+    { ...base, containers: ["remaining container"] },
+    { ...base, volumes: ["remaining volume"] },
+    { ...base, networks: ["remaining network"] },
+    { ...base, removed: { ...base.removed, images: 1 } },
+    { ...base, removedBuildHistory: ["actual deletion"] },
+    { ...base, prunedCache: ["actual deletion"] },
+    { ...base, error: "daemon unavailable" },
+    { ...base, retentionError: "cleanup incomplete" },
+    { ...base, unknown: [] },
+    { ...base, removed: {} },
+    { ...base, after: undefined },
+    { ...base, containers: undefined },
+    { ...base, root: resolve(root, "foreign") },
+  ].map((value, i) => put(`.cache/qa-reports/cleanup-${1792500000100 + i}.json`, value));
+  const plan = planRetention(root);
+  assert.equal(plan.selected.length, 2);
+  // A no-op that changes into a recovery receipt after preview must survive.
+  writeFileSync(noops[0], JSON.stringify({ ...base, volumes: ["new evidence"] }));
+  assert.throws(() => applyRetention(plan), /Artifact changed/);
+  noops.forEach(path => assert.ok(existsSync(path)));
+  writeFileSync(noops[0], JSON.stringify(base)); utimesSync(noops[0], new Date(1000), new Date(1000));
+  assert.equal(retainQAArtifacts(root).removedFiles, 2);
+  noops.slice(0, 2).forEach(path => assert.equal(existsSync(path), false));
+  [...noops.slice(2), ...keep].forEach(path => assert.ok(existsSync(path)));
+  assert.equal(retainQAArtifacts(root).removedFiles, 0);
+});
+
+test("failed and incomplete named batches preserve temporary programs and error contexts", t => {
+  const { root, put } = fixture(t);
+  for (const [name, status] of [["failed", "failed"], ["running", "running"]]) {
+    put(`.cache/qa-reports/${name}/summary.json`, { status });
+    const files = ["temporary.mjs", "jms", "error-context.md", ".last-run.json"].map(file => put(`.cache/qa-reports/${name}/${file}`));
+    assert.equal(retainQAArtifacts(root, { legacy: true }).removedFiles, 0);
+    files.forEach(path => assert.ok(existsSync(path)));
+  }
 });
 
 test("new runner receipts and cleanup changes after preview protect the complete batch", t => {
@@ -259,6 +327,10 @@ test("Git excludes generated evidence and secrets while keeping product screensh
   for (const path of ["scripts/test-results/run.json", "server/testsupport/playwright-report/index.html", "web/e2e/blob-report/run.zip"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 0, `${path} must be ignored even from a nested runner`);
+  }
+  for (const path of ["scripts/screenshots/qa.png", "scripts/artifacts/report.json", "server/testsupport/screenshots/qa.png", "server/testsupport/artifacts/trace.zip", "web/e2e/artifacts/result.json", "web/playwright/screenshots/run.png", "web/e2e/coverage/lcov.info", "scripts/coverage/index.html", "scripts/runner.pid", "server/testsupport/runner.pid.lock"]) {
+    const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
+    assert.equal(result.status, 0, `${path} must be ignored`);
   }
   for (const path of ["docs/images/inventory.en.png", "web/src/main.tsx", "scripts/qa-retention.mjs", "web/.env.example", "web/src/components/icon.png", "server/testsupport/fixture.json", "release-please-config.json", "web/pnpm-lock.yaml"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
