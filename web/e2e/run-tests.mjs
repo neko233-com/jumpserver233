@@ -37,6 +37,7 @@ const dataDir = cleanupOnly
   : mkdtempSync(resolve(temporaryRoot, "jumpserver233-e2e-"));
 const absoluteDataDir = resolve(dataDir);
 const goTemporaryDir = resolve(absoluteDataDir, "go-tmp");
+const productionWebDir = resolve(absoluteDataDir, "web-dist");
 const artifactCache = resolve(webDir, "node_modules/.cache/jumpserver233-plugin-artifacts");
 const reportDir = resolve(webDir, "../.cache/qa-reports", `browser-${Date.now()}`);
 const fixtureImages = new Set();
@@ -66,7 +67,7 @@ try {
   }
   if (production) {
     await new Promise((done, reject) => {
-      const build = spawn("pnpm build", { cwd: webDir, shell: true, stdio: "inherit" });
+      const build = spawn("pnpm build", { cwd: webDir, env: { ...process.env, JMS_E2E_WEB_DIR: productionWebDir }, shell: true, stdio: "inherit" });
       recordLifecycle("building", { buildPID: build.pid });
       build.once("error", reject);
       build.once("exit", (code) =>
@@ -90,6 +91,7 @@ try {
             JMS_E2E_DATA_DIR: dataDir,
             JMS_E2E_REPORT_DIR: reportDir,
             JMS_E2E_PRODUCTION: production ? "true" : "false",
+            JMS_E2E_WEB_DIR: production ? productionWebDir : "",
           },
           shell: true,
           stdio: "inherit",

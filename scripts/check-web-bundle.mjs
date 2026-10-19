@@ -7,7 +7,8 @@ import { gzipSync } from "node:zlib";
 
 const args=process.argv.slice(2);
 if(args.length && (args.length!==2||args[0]!=="--dir"||!args[1]))throw new Error("Use [--dir PRODUCTION_OUTPUT]");
-const root = args.length ? pathToFileURL(resolve(args[1])+sep) : new URL("../web/dist/", import.meta.url);
+const output = args.length ? args[1] : process.env.JMS_E2E_WEB_DIR;
+const root = output ? pathToFileURL(resolve(output)+sep) : new URL("../web/dist/", import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL(".vite/manifest.json", root), "utf8"));
 const initial = new Set();
 function visit(key) {

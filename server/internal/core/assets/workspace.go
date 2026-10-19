@@ -52,7 +52,7 @@ func prepareWorkspace(ctx context.Context, h *sshclient.ManagedHost, directory s
 	check := func(script string) (string, error) {
 		out, e := h.Run(ctx, "set -eu; umask 077; "+script)
 		if e != nil || out.ExitCode != 0 || out.Truncated {
-			return "", "", hostagent.ErrWorkspaceUnavailable
+			return "", hostagent.ErrWorkspaceUnavailable
 		}
 		return strings.TrimSpace(out.Stdout), nil
 	}
