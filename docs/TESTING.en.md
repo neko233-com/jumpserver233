@@ -2,6 +2,16 @@
 
 > [中文](./TESTING.md) | English
 
+## Branding verification (2026-10-19)
+
+- Full Go/Testify: 1300 passed, 48 skipped for unavailable protocol fixtures/platforms, zero failures across 70 tested packages and 29 packages without tests; 75.0 seconds. A real isolated PostgreSQL fixture covers shared state, uncertain write acknowledgement recovery and leader takeover.
+- Linux Docker race: six affected packages, 307 passed, 5 skipped, zero failures; 335.9 seconds. These overlap the native tests and must not be added. Tests cover raster bounds/metadata stripping, four image slots, all text fields, safe links, palettes/contrast, revisions, identical retries, concurrent writers, failed persistence, retained audit, current global permission/revocation, CLI/SDK and takeover.
+- Final complete production browser suite: 82/82 passed, no failures/skips, 18.7 minutes. The final changed source fingerprints match the versions recorded during the run; their modification times precede launch. Includes bilingual names/titles/footers, four uploads, cached PNG, independent browser icon/terminal mark, cross-tab refresh, real Web SSH, CLI and current management denial. The separate Docker production branding case also passed in 4.3 seconds.
+- An earlier test used the wrong close-button name; it now selects “Close terminal”. Its full runner was interrupted without a completion report and does not count as acceptance. The final complete suite above ran after this correction.
+- In-app browser saved/reloaded bilingual settings, switched languages and checked public sign-in after sign-out; no captured warning/error logs. Standalone API restart preserved all four image digests and both audit entries, including an identical retry without duplicate audit, in 1.12 seconds.
+- Go vet, frontend lint, strict application/E2E types, production build, QA lifecycle tests and all bilingual/content checks pass. Initial JS 498,714 bytes, gzip 161,277; total JS 1,541,734. Branding management/translations remain lazy; initial and individual chunk budgets stay 500,000.
+- Native/race temporary resources, review containers/volume/network and final browser data/fixtures were removed. Repeated cleanup passed for native/race/review resources; future browser Go temporary executables live under the run-owned root. Compact reports and key screenshots are under ignored .cache/qa-reports/branding/. Earlier denied historical cleanup paths remain untouched. Automatic approval also rejected removal of nine new helper scripts and one raw log, reporting only blocked by policy; these ignored files remain, with their sizes/paths recorded in this batch summary.json and no alternate deletion attempt. No intranet deployment or Release was performed; complete Enterprise parity remains in progress.
+
 ## SSH monitoring history verification (2026-10-18)
 
 - Complete production browser regression: 81/81 passed, no failures/skips, 18.2 minutes; runner exit 0 with temporary data and protocol fixtures removed. The final chart corrections also have an independent targeted Docker result below.

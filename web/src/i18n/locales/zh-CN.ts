@@ -1218,6 +1218,7 @@ const zhCN = {
       assets_connect_all: "连接当前组织内所有资产并执行支持的命令",
       assets_sftp_all: "访问所有 SFTP 主机文件",
       security_manage: "管理全局 MFA 策略",
+      branding_manage: "管理全局品牌外观",
       command_filters_manage: "管理命令策略",
       access_policies_manage: "管理访问策略",
       reviews_platform_login_manage: "审批平台登录",
@@ -1331,6 +1332,7 @@ const zhCN = {
     name: "JumpServer233",
   },
   nav: {
+    branding: "品牌外观",
     users: "平台用户",
     radius: "RADIUS 认证",
     reports: "概览与报表",

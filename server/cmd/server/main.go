@@ -26,6 +26,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
+	"github.com/neko233-com/jumpserver233/server/internal/core/branding"
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	corecommandfilters "github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
@@ -344,8 +345,13 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	pluginService := hostplugins.New(func(ctx context.Context, id string) (hostplugins.Transport, error) {
 		return assetService.OpenManagedHost(ctx, id)
 	}, pluginCache)
+	brandStore, err := branding.Open(filepath.Join(cfg.DataDir, "branding.json"), documents)
+	if err != nil {
+		return err
+	}
 	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, RADIUS: radiusService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
+	root.Branding = brandStore
 	root.AccountDiscovery = discoveredAccounts
 	root.AccountRisks = accountRisks
 	root.RotationPlans = credentialPlans

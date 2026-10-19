@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
+import {BrandMark} from "../branding/BrandingContext";
 import { createDesktopFrameRenderer } from "./desktopFrameRenderer";
 import "./rdp.css";
 
@@ -290,6 +291,7 @@ export default function RDPDesktopDialog({ assetId, assetName, accessToken, onCl
         aria-labelledby="rdp-title"
       >
         <header className="ssh-terminal-header">
+          <BrandMark compact/>
           <div>
             <h2 id="rdp-title">
               {assetName} · {t("rdp.name")}

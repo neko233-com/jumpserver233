@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Branding](./docs/BRANDING.en.md) provides bilingual site/sign-in titles, themes, logos/icons/sign-in illustrations and footers, managed through global permissions and revision audit.
+
 SSH hosts support [seven-day monitoring history](./docs/MONITOR-HISTORY.en.md): encrypted minute records, current asset permissions, Web charts and CLI, with distinct offline, missing and genuine zero values.
 
 Default BuildWorld intranet macOS pipeline: [Jenkinsfile_mac_single](./Jenkinsfile_mac_single), with unified checks, native packaging, persistence, idempotent activation and failure recovery. See [deployment](./docs/BUILDWORLD.en.md).

@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[品牌外观](./BRANDING.md)：中英标题、主题、LOGO/图标/登录图片、页脚、全局权限及审计、CLI 和 HA 持久化。
+
 [SSH 监控历史](./MONITOR-HISTORY.md)：加密小时分段、七天分钟记录、当前绑定与授权、Web 曲线和原生 CLI。
 
 [BuildWorld 内网 macOS 单机部署](./BUILDWORLD.md)：默认 `Jenkinsfile_mac_single`、同端口静态网页、launchd、健康检查和回滚。

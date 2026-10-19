@@ -68,3 +68,5 @@ Actual in-app browser screenshot from the separate Docker port on 2026-10-16. Th
 ![Docker English production console](./images/docker-qa.en.png)
 
 Test cleanup also prunes reclaimable jms233 compilation/dependency cache records by their descriptions and immutable IDs. Unattributed shared layers remain. Repeating cleanup checks for zero additional removals. The next cold build may download dependencies again; report cold and warm durations separately.
+
+Browser runs place `GOTMPDIR` inside their owned temporary root, so cleanup also removes Go run executables. Shared Go compilation and dependency caches remain reusable.

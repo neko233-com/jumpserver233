@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import {BrandMark} from "../branding/BrandingContext";
 import "./database.css";
 
 export type DatabaseResult = {
@@ -334,7 +335,7 @@ export default function DatabaseConsoleDialog({
         aria-label={t("database.consoleTitle", { name: assetName, engine })}
       >
         <div className="database-heading">
-          <h2>{t("database.consoleTitle", { name: assetName, engine })}</h2>
+          <BrandMark compact/><h2>{t("database.consoleTitle", { name: assetName, engine })}</h2>
           <button type="button" className="button-secondary" onClick={onClose}>
             {t("database.close")}
           </button>

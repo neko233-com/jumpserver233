@@ -38,7 +38,11 @@ for (const entry of ["src/pages/PasswordChangePage.tsx", "src/components/Passwor
 }
 const history = "src/components/MonitorHistoryDialog.tsx";
 if (!manifest[history]?.isDynamicEntry || initial.has(history)) throw new Error("Monitoring history charts and feature locales must remain lazy");
+const branding="src/pages/BrandingPage.tsx";
+if(!manifest[branding]?.isDynamicEntry||initial.has(branding))throw new Error("Branding management and feature locales must remain lazy");
 // Allocate 25 kB for required password security screens and shared resources.
 // Keep counting every chunk and retain the existing initial/single-chunk limits.
-if (largest > 500_000 || initialBytes > 500_000 || total > 1_525_000) throw new Error("Production JavaScript exceeds the recorded size budget");
+// Allocate 20 kB for global branding bootstrap, safe image/appearance controls,
+// bilingual editor and audit. Preserve the initial and individual chunk limits.
+if (largest > 500_000 || initialBytes > 500_000 || total > 1_545_000) throw new Error("Production JavaScript exceeds the recorded size budget");
 console.log(JSON.stringify({ initialJavaScriptBytes: initialBytes, initialGzipBytes: initialGzip, totalJavaScriptBytes: total, largestChunkBytes: largest, lazyLogin: true }));

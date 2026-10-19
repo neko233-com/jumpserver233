@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 7 adds [branding](./BRANDING.en.md): bilingual site/sign-in titles, five themes, four image slots, registration footers, global permission/audit, CLI/SDK and PostgreSQL single-active takeover. See [unified verification](./TESTING.en.md). Overall Enterprise parity remains in progress.
+
 Phase 3/5 adds [SSH monitoring history](./MONITOR-HISTORY.en.md): encrypted hourly segments, seven-day minute records, missing/offline distinctions, current binding and asset-view authorization, native Web charts and CLI/SDK, with PostgreSQL single-active takeover reads. Overall Enterprise parity remains in progress.
 
 Added the BuildWorld intranet `builtin` macOS deployment entry and default `Jenkinsfile_mac_single`, with persistent data, same-port frontend, idempotent activation and recovery. See [deployment](./BUILDWORLD.en.md) for acceptance boundaries. Enterprise parity and production HA continue through the phased roadmap.

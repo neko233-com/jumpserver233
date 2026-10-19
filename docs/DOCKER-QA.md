@@ -68,3 +68,5 @@ Go modules、Go 编译缓存、pnpm store 与 TypeScript 增量缓存由 BuildKi
 ![Docker 中文生产控制台](./images/docker-qa.zh-CN.png)
 
 测试收尾还按 BuildKit 记录描述和不可变 ID 清理可回收的 jms233 编译/依赖缓存；无归属标记的共享层保留。第二次执行核对零新增删除。下次冷构建可能重新下载依赖，耗时与热缓存记录分别报告。
+
+浏览器验证将 `GOTMPDIR` 放在本轮自有临时目录，清理时同时移除 Go run 可执行文件；共享 Go 编译和依赖缓存继续复用。

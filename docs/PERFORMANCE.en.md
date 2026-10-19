@@ -2,6 +2,10 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Branding (2026-10-19)
+
+Branding checkpoint, 2026-10-19: initial JavaScript 498,714 bytes (gzip 161,277), largest chunk 481,555, total JavaScript 1,541,734. Branding management and feature translations are lazy; public identity/theme bootstrap is shared. The total budget allocates another 20,000 bytes to these features (1,525,000 to 1,545,000); initial and individual chunk limits remain 500,000 bytes. This is an explicit feature allocation, not a size reduction. No dependency was added. This Docker production build took 34.87 seconds, startup 11.97 seconds and browser smoke 3.26 seconds; these observations do not establish a cold/warm speed comparison. Run-owned Go temporary directories are removed with test data, preserving shared native Go compilation and dependency caches.
+
 ## SSH monitoring history (2026-10-18)
 
 Six SVG charts and feature translations load on demand with no new dependency. Final initial JavaScript is 494,346 bytes, gzip 159,510, largest chunk 477,187 and all JavaScript 1,520,506. Existing initial/single-chunk limits of 500,000 bytes and total limit of 1,525,000 remain unchanged. The build check now requires the history dialog to remain a dynamic entry. The Vite stage took 170 ms, excluding type checking.
@@ -137,7 +141,7 @@ Login is a separate lazy route. Motion uses `LazyMotion`, `domAnimation` and the
 
 `pnpm build` retains strict type checks. TypeScript and E2E use separate incremental caches under `node_modules/.cache/`. Local Vite bundling took approximately 160–253 ms; the complete command also includes type checking and budget verification. These warm-cache observations do not describe cold builds or other machines.
 
-Builds run `scripts/check-web-bundle.mjs`, enforcing 500,000 bytes for each JS chunk and the complete initial static graph, 1,525,000 bytes for all JavaScript, and a lazy login route. The default Vite chunk warning limit is unchanged. Terminals, protocol dialogs and administration pages remain loaded on demand.
+Builds run `scripts/check-web-bundle.mjs`, enforcing 500,000 bytes for each JS chunk and the complete initial static graph, 1,545,000 bytes for all JavaScript, and a lazy login route. The default Vite chunk warning limit is unchanged. Terminals, protocol dialogs and administration pages remain loaded on demand.
 
 `make build` produces the server, platform CLI and web application. Go delivery binaries use `-trimpath -ldflags="-s -w"`. The native Linux generator reuses verified artifacts when the source digest is unchanged. [Docker verification](./DOCKER-QA.en.md) also reuses Go/pnpm/TypeScript caches. Builds with different cache states were not used to claim a speed improvement.
 

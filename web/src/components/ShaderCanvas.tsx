@@ -34,9 +34,9 @@ const fragmentBody = /* glsl */ `
   field += sin(length(uv - 0.5) * 10.0 - t * 2.0);
   field /= 4.0;
 
-  vec3 deep = vec3(0.05, 0.07, 0.11);
-  vec3 blue = vec3(0.12, 0.29, 0.55);
-  vec3 violet = vec3(0.35, 0.20, 0.55);
+  vec3 deep = uBase;
+  vec3 blue = uAccent;
+  vec3 violet = uHighlight;
 
   float m = smoothstep(-1.0, 1.0, field);
   vec3 color = mix(deep, blue, m);
@@ -52,6 +52,9 @@ precision highp float;
 varying vec2 vUv;
 uniform float uTime;
 uniform vec2 uResolution;
+uniform vec3 uBase;
+uniform vec3 uAccent;
+uniform vec3 uHighlight;
 void main() {
 ${fragmentBody}
   gl_FragColor = vec4(color, 1.0);
@@ -63,6 +66,9 @@ precision highp float;
 in vec2 vUv;
 uniform float uTime;
 uniform vec2 uResolution;
+uniform vec3 uBase;
+uniform vec3 uAccent;
+uniform vec3 uHighlight;
 out vec4 fragColor;
 void main() {
 ${fragmentBody}
@@ -74,7 +80,15 @@ ${fragmentBody}
  * Fullscreen WebGL shader background rendered with ogl.
  * Degrades to a plain dark background when WebGL is unavailable.
  */
-export default function ShaderCanvas({ className }: { className?: string }) {
+export default function ShaderCanvas({
+  className,
+  background = "#0d1117",
+  accent = "#2f81f7",
+}: {
+  className?: string;
+  background?: string;
+  accent?: string;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -100,6 +114,9 @@ export default function ShaderCanvas({ className }: { className?: string }) {
     gl.clearColor(0.05, 0.07, 0.11, 1);
 
     const webgl2 = renderer.isWebgl2;
+    const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const original = background === "#0d1117" && accent === "#2f81f7";
+    const tint = rgb(accent);
     const program = new Program(gl, {
       vertex: webgl2 ? vertexWebGL2 : vertexWebGL1,
       fragment: webgl2 ? fragmentWebGL2 : fragmentWebGL1,
@@ -108,6 +125,9 @@ export default function ShaderCanvas({ className }: { className?: string }) {
       uniforms: {
         uTime: { value: 0 },
         uResolution: { value: [gl.canvas.width, gl.canvas.height] },
+        uBase: { value: original ? [0.05, 0.07, 0.11] : rgb(background) },
+        uAccent: { value: original ? [0.12, 0.29, 0.55] : tint.map((v) => v * 0.55) },
+        uHighlight: { value: original ? [0.35, 0.2, 0.55] : tint.map((v) => v * 0.7 + 0.05) },
       },
     });
     if (!program.uniformLocations || !program.attributeLocations) {
@@ -170,7 +190,7 @@ export default function ShaderCanvas({ className }: { className?: string }) {
       gl.deleteShader(program.vertexShader);
       gl.deleteShader(program.fragmentShader);
     };
-  }, []);
+  }, [background, accent]);
 
   return <canvas ref={canvasRef} className={className} aria-hidden />;
 }

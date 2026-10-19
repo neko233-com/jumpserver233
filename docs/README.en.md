@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Branding](./BRANDING.en.md): bilingual titles, themes, logos/icons/sign-in illustrations, footers, global permission/audit, CLI and HA persistence.
+
 [SSH monitoring history](./MONITOR-HISTORY.en.md): encrypted hourly segments, seven-day minute records, current bindings/permissions, Web charts and native CLI.
 
 [BuildWorld intranet macOS deployment](./BUILDWORLD.en.md): default `Jenkinsfile_mac_single`, same-port frontend, launchd, health checks and recovery.

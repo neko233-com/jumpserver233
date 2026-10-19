@@ -11,6 +11,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
+	"github.com/neko233-com/jumpserver233/server/internal/core/branding"
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	corecommandfilters "github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
@@ -42,6 +43,7 @@ import (
 )
 
 type Dependencies struct {
+	Branding              *branding.Store
 	Reports               *reporting.Store
 	PlatformNotifications bool
 	LoginAudit            *loginaudit.Store
@@ -117,6 +119,11 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	}
 
 	mux.HandleFunc("GET /api/health", HealthHandler(version))
+	if len(dependencies) > 0 {
+		registerBrandingRoutes(mux, dependencies[0])
+	} else {
+		registerBrandingRoutes(mux, Dependencies{})
+	}
 	if len(dependencies) > 0 && dependencies[0].CommandAlerts != nil && dependencies[0].Sessions != nil {
 		dependencies[0].Sessions.SetCommandAlerts(dependencies[0].CommandAlerts.Publish)
 	}

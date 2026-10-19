@@ -5,6 +5,7 @@ import OrganizationSwitcher from "../components/OrganizationSwitcher";
 import NotificationBell from "../components/NotificationBell";
 import { usePermissions } from "../auth/usePermissions";
 import { toggleLang } from "../i18n";
+import { BrandFooter, BrandMark } from "../branding/BrandingContext";
 
 export default function ConsoleLayout({ title }: { title: string }) {
   const { t, i18n } = useTranslation();
@@ -39,6 +40,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/console/organization-roles", label: t("organization.rolesTitle"), end: false },
     { to: "/console", label: t("assets.title"), end: true },
     { to: "/console/settings", label: t("nav.systemSettings"), end: false },
+    ...(systemAllows("branding.manage")
+      ? [{ to: "/console/branding", label: t("nav.branding"), end: false }]
+      : []),
     { to: "/console/roles", label: t("rbac.title"), end: false },
     ...(systemAllows("users.manage")
       ? [{ to: "/console/users", label: t("nav.users"), end: false }]
@@ -65,7 +69,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
   return (
     <div className="layout">
       <header className="layout-header">
-        <span className="brand">{t("app.name")}</span>
+        <span className="brand">
+          <BrandMark />
+        </span>
         <nav className="view-switch">
           {views.map((v) => (
             <NavLink
@@ -116,6 +122,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
           <Outlet />
         </main>
       </div>
+      <BrandFooter />
     </div>
   );
 }

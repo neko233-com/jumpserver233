@@ -3,8 +3,10 @@ import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import ConsoleLayout from "./layouts/ConsoleLayout";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { BrandingProvider } from "./branding/BrandingContext";
 
-const PasswordChangePage = lazy(()=>import("./pages/PasswordChangePage"));
+const PasswordChangePage = lazy(() => import("./pages/PasswordChangePage"));
+const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const AgentAuditPage = lazy(() => import("./pages/AgentAuditPage"));
@@ -48,100 +50,105 @@ export default function App() {
   const { t } = useTranslation();
 
   return (
-    <AuthProvider>
-      <Suspense fallback={<div className="placeholder">{t("placeholder.skeleton")}</div>}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
- <Route path="/password-change" element={<PasswordChangePage />} />
-          <Route
-            path="/share/:shareID"
-            element={
-              <RequireAuth>
-                <SessionSharePage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/console"
-            element={
-              <RequireAuth>
-                <ConsoleLayout title={t("nav.console")} />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<ConsolePage />} />
-            <Route path="agent-audit" element={<AgentAuditPage />} />
-            <Route path="account-risks" element={<AccountRisksPage />} />
-            <Route path="rotation-plans" element={<RotationPlansPage />} />
-            <Route path="access-tickets" element={<AccessTicketsPage />} />
-            <Route path="notifications" element={<NotificationsPage key="organization" />} />
+    <BrandingProvider>
+      <AuthProvider>
+        <Suspense fallback={<div className="placeholder">{t("placeholder.skeleton")}</div>}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/password-change" element={<PasswordChangePage />} />
             <Route
-              path="platform-notifications"
-              element={<NotificationsPage key="platform" platform />}
-            />
-            <Route path="login-audit" element={<LoginAuditPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="dashboard" element={<ReportsPage />} />
-            <Route path="monitoring" element={<MonitoringPage />} />
-            <Route path="notification-sources/:kind/:id" element={<NotificationSourcePage />} />
-            <Route path="database-audit" element={<DatabaseAuditPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="roles" element={<RolesPage />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="organizations" element={<OrganizationsPage />} />
-            <Route path="organization-roles" element={<RolesPage organization />} />
-            <Route path="access-policies" element={<AccessPoliciesPage />} />
-            <Route path="login-reviews" element={<LoginReviewsPage />} />
-            <Route path="identity" element={<OIDCSettingsPage />} />
-            <Route path="directory" element={<LDAPSettingsPage />} />
-            <Route path="saml" element={<SAMLSettingsPage />} />
-            <Route path="passkeys" element={<PasskeySettingsPage />} />
-            <Route path="cas" element={<CASSettingsPage />} />
-            <Route path="radius" element={<RadiusSettingsPage />} />
-          </Route>
-          <Route
-            path="/audit"
-            element={
-              <RequireAuth>
-                <ConsoleLayout title={t("nav.audit")} />
-              </RequireAuth>
-            }
-          >
-            <Route
-              index
+              path="/share/:shareID"
               element={
-                <Suspense fallback={<div className="placeholder">{t("placeholder.skeleton")}</div>}>
-                  <AuditPage />
-                </Suspense>
+                <RequireAuth>
+                  <SessionSharePage />
+                </RequireAuth>
               }
             />
-            <Route path="reports" element={<ReportsPage />} />
-          </Route>
-          <Route
-            path="/workbench"
-            element={
-              <RequireAuth>
-                <ConsoleLayout title={t("nav.workbench")} />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<WorkbenchPage />} />
-          </Route>
-          <Route path="/settings" element={<Navigate to="/console/settings" replace />} />
-          <Route
-            path="/profile"
-            element={
-              <RequireAuth>
-                <ConsoleLayout title={t("nav.profile")} />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<ProfilePage />} />
-          </Route>
-          <Route path="/" element={<Navigate to="/console" replace />} />
-          <Route path="*" element={<Navigate to="/console" replace />} />
-        </Routes>
-      </Suspense>
-    </AuthProvider>
+            <Route
+              path="/console"
+              element={
+                <RequireAuth>
+                  <ConsoleLayout title={t("nav.console")} />
+                </RequireAuth>
+              }
+            >
+              <Route index element={<ConsolePage />} />
+              <Route path="agent-audit" element={<AgentAuditPage />} />
+              <Route path="account-risks" element={<AccountRisksPage />} />
+              <Route path="rotation-plans" element={<RotationPlansPage />} />
+              <Route path="access-tickets" element={<AccessTicketsPage />} />
+              <Route path="notifications" element={<NotificationsPage key="organization" />} />
+              <Route
+                path="platform-notifications"
+                element={<NotificationsPage key="platform" platform />}
+              />
+              <Route path="login-audit" element={<LoginAuditPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="dashboard" element={<ReportsPage />} />
+              <Route path="monitoring" element={<MonitoringPage />} />
+              <Route path="notification-sources/:kind/:id" element={<NotificationSourcePage />} />
+              <Route path="database-audit" element={<DatabaseAuditPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="branding" element={<BrandingPage />} />
+              <Route path="roles" element={<RolesPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="organizations" element={<OrganizationsPage />} />
+              <Route path="organization-roles" element={<RolesPage organization />} />
+              <Route path="access-policies" element={<AccessPoliciesPage />} />
+              <Route path="login-reviews" element={<LoginReviewsPage />} />
+              <Route path="identity" element={<OIDCSettingsPage />} />
+              <Route path="directory" element={<LDAPSettingsPage />} />
+              <Route path="saml" element={<SAMLSettingsPage />} />
+              <Route path="passkeys" element={<PasskeySettingsPage />} />
+              <Route path="cas" element={<CASSettingsPage />} />
+              <Route path="radius" element={<RadiusSettingsPage />} />
+            </Route>
+            <Route
+              path="/audit"
+              element={
+                <RequireAuth>
+                  <ConsoleLayout title={t("nav.audit")} />
+                </RequireAuth>
+              }
+            >
+              <Route
+                index
+                element={
+                  <Suspense
+                    fallback={<div className="placeholder">{t("placeholder.skeleton")}</div>}
+                  >
+                    <AuditPage />
+                  </Suspense>
+                }
+              />
+              <Route path="reports" element={<ReportsPage />} />
+            </Route>
+            <Route
+              path="/workbench"
+              element={
+                <RequireAuth>
+                  <ConsoleLayout title={t("nav.workbench")} />
+                </RequireAuth>
+              }
+            >
+              <Route index element={<WorkbenchPage />} />
+            </Route>
+            <Route path="/settings" element={<Navigate to="/console/settings" replace />} />
+            <Route
+              path="/profile"
+              element={
+                <RequireAuth>
+                  <ConsoleLayout title={t("nav.profile")} />
+                </RequireAuth>
+              }
+            >
+              <Route index element={<ProfilePage />} />
+            </Route>
+            <Route path="/" element={<Navigate to="/console" replace />} />
+            <Route path="*" element={<Navigate to="/console" replace />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
+    </BrandingProvider>
   );
 }

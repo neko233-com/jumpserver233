@@ -1318,6 +1318,7 @@ const en = {
         "Connect to all assets and run supported commands in the current organization",
       assets_sftp_all: "Access files on all SFTP hosts",
       security_manage: "Manage global MFA policy",
+      branding_manage: "Manage global branding",
       command_filters_manage: "Manage command policies",
       access_policies_manage: "Manage access policies",
       reviews_platform_login_manage: "Review platform sign-ins",
@@ -1435,6 +1436,7 @@ const en = {
     name: "JumpServer233",
   },
   nav: {
+    branding: "Branding",
     users: "Platform users",
     radius: "RADIUS authentication",
     reports: "Overview & reports",

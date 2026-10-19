@@ -1,4 +1,5 @@
 import { passwordRedirect } from "../auth/passwordRedirect";
+import { BrandFooter, BrandMark, useBranding } from "../branding/BrandingContext";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -18,7 +19,7 @@ type Health = { status: string; version: string; time: string };
 type AuthStatus = { bootstrap_required: boolean };
 type MFAEnrollment = { secret: string; provisioning_uri: string; expires_at: string };
 type LoginResult = {
- password_change_required?: boolean;
+  password_change_required?: boolean;
   radius_factor_required?: boolean;
   login_review_required?: boolean;
   review_id?: string;
@@ -46,6 +47,7 @@ function useHealth() {
 }
 
 export default function LoginPage() {
+  const brand = useBranding();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [destination] = useState(loginReturnPath);
@@ -311,7 +313,7 @@ export default function LoginPage() {
         ),
       });
       const result = (await response.json()) as LoginResult;
- if(passwordRedirect(result))return;
+      if (passwordRedirect(result)) return;
       if (response.status === 202 && result.radius_factor_required) {
         waitForFactor();
         return;
@@ -373,276 +375,310 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <ShaderCanvas className="login-shader" />
-      <div className="login-card">
-        <h1 aria-label="JumpServer233">
-          <BlurText text="JumpServer233" animateBy="letters" delay={60} />
-        </h1>
-        {statusLoaded && bootstrapRequired && (
-          <>
-            <h2>{t("login.setupTitle")}</h2>
-            <p className="login-hint">{t("login.setupHint")}</p>
-          </>
-        )}
-        {factorPending ? (
-          <Suspense fallback={null}>
-            <RadiusFactor
+      <ShaderCanvas
+        className="login-shader"
+        background={brand.settings.colors.bg}
+        accent={brand.settings.colors.accent}
+      />
+      <div className="login-content">
+        <div className="login-card">
+          <h1
+            aria-label={
+              (isZh ? brand.settings.login_title_zh : brand.settings.login_title_en) || brand.name
+            }
+          >
+            <BrandMark>
+              <BlurText
+                key={brand.name + brand.settings.login_title_en + brand.settings.login_title_zh}
+                text={
+                  (isZh ? brand.settings.login_title_zh : brand.settings.login_title_en) ||
+                  brand.name
+                }
+                animateBy="letters"
+                delay={60}
+              />
+            </BrandMark>
+          </h1>
+          {brand.settings.logo_digest &&
+            (isZh ? brand.settings.login_title_zh : brand.settings.login_title_en) && (
+              <p className="login-brand-title">
+                {isZh ? brand.settings.login_title_zh : brand.settings.login_title_en}
+              </p>
+            )}
+          {statusLoaded && bootstrapRequired && (
+            <>
+              <h2>{t("login.setupTitle")}</h2>
+              <p className="login-hint">{t("login.setupHint")}</p>
+            </>
+          )}
+          {factorPending ? (
+            <Suspense fallback={null}>
+              <RadiusFactor
+                onComplete={completeReview}
+                onCancel={cancelReview}
+                onReview={waitForReview}
+              />
+            </Suspense>
+          ) : loginReview ? (
+            <LoginReviewPanel
+              key={loginReview.review_id}
+              pending={loginReview}
               onComplete={completeReview}
               onCancel={cancelReview}
+            />
+          ) : ssoPending ? (
+            <OIDCLogin
+              onFactor={waitForFactor}
               onReview={waitForReview}
-            />
-          </Suspense>
-        ) : loginReview ? (
-          <LoginReviewPanel
-            key={loginReview.review_id}
-            pending={loginReview}
-            onComplete={completeReview}
-            onCancel={cancelReview}
-          />
-        ) : ssoPending ? (
-          <OIDCLogin
-            onFactor={waitForFactor}
-            onReview={waitForReview}
-            source={ssoSource ?? "oidc"}
-            key={ssoSource}
-            onComplete={() => {
-              setCookieSession();
-              finishNavigation();
-            }}
-            onCancel={() => {
-              setSsoSource(null);
-              navigate("/login", { replace: true });
-            }}
-          />
-        ) : authSource === "radius" ? (
-          <Suspense fallback={null}>
-            <RadiusPrimary
-              onVerified={() => {
-                setSsoSource("radius");
-                window.history.replaceState(null, "", "/login?radius=continue");
+              source={ssoSource ?? "oidc"}
+              key={ssoSource}
+              onComplete={() => {
+                setCookieSession();
+                finishNavigation();
               }}
-              onCancel={cancelReview}
-            />
-          </Suspense>
-        ) : (
-          <>
-            <form
-              onSubmit={(event) => {
-                void submit(event);
+              onCancel={() => {
+                setSsoSource(null);
+                navigate("/login", { replace: true });
               }}
-            >
-              {(directoryEnabled || radiusEnabled) && !bootstrapRequired && (
+            />
+          ) : authSource === "radius" ? (
+            <Suspense fallback={null}>
+              <RadiusPrimary
+                onVerified={() => {
+                  setSsoSource("radius");
+                  window.history.replaceState(null, "", "/login?radius=continue");
+                }}
+                onCancel={cancelReview}
+              />
+            </Suspense>
+          ) : (
+            <>
+              <form
+                onSubmit={(event) => {
+                  void submit(event);
+                }}
+              >
+                {(directoryEnabled || radiusEnabled) && !bootstrapRequired && (
+                  <label>
+                    {t("ldap.source")}
+                    <select
+                      aria-label={t("ldap.source")}
+                      value={authSource}
+                      disabled={submitting || directoryPending}
+                      onChange={(e) => {
+                        setAuthSource(e.target.value);
+                        setPassword("");
+                        setOtp("");
+                        setOtpRequired(false);
+                        setSetupChallenge(null);
+                        setAuthError(false);
+                      }}
+                    >
+                      <option value="local">{t("ldap.local")}</option>
+                      {directoryEnabled && <option value="ldap">{t("ldap.sourceOption")}</option>}
+                      {radiusEnabled && <option value="radius">{t("radius.signIn")}</option>}
+                    </select>
+                  </label>
+                )}
                 <label>
-                  {t("ldap.source")}
-                  <select
-                    aria-label={t("ldap.source")}
-                    value={authSource}
-                    disabled={submitting || directoryPending}
-                    onChange={(e) => {
-                      setAuthSource(e.target.value);
-                      setPassword("");
-                      setOtp("");
+                  {t("login.username")}
+                  <input
+                    name="username"
+                    autoComplete="username"
+                    required
+                    minLength={authSource === "ldap" ? 1 : 3}
+                    maxLength={authSource === "ldap" ? 256 : 64}
+                    disabled={directoryPending}
+                    value={username}
+                    onChange={(event) => {
+                      setUsername(event.target.value);
                       setOtpRequired(false);
                       setSetupChallenge(null);
+                      setOtp("");
+                    }}
+                  />
+                </label>
+                <label>
+                  {t("login.password")}
+                  <input
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    disabled={directoryPending}
+                    minLength={bootstrapRequired ? 12 : undefined}
+                    maxLength={authSource === "ldap" ? 4096 : 256}
+                    value={password}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      setOtpRequired(false);
+                      setSetupChallenge(null);
+                      setOtp("");
+                    }}
+                  />
+                </label>
+                {setupChallenge && (
+                  <div className="login-mfa-setup">
+                    <p>{t("login.mfaSetupHint")}</p>
+                    <p>
+                      {t("login.mfaSecret")} <code>{setupChallenge.enrollment.secret}</code>
+                    </p>
+                    <details>
+                      <summary>{t("login.mfaShowURI")}</summary>
+                      <code>{setupChallenge.enrollment.provisioning_uri}</code>
+                    </details>
+                    <small>
+                      {t("login.mfaExpires", {
+                        time: new Date(setupChallenge.enrollment.expires_at).toLocaleTimeString(
+                          i18n.language,
+                        ),
+                      })}
+                    </small>
+                  </div>
+                )}
+                {(otpRequired || setupChallenge) && (
+                  <label>
+                    {t(setupChallenge ? "login.otp" : "login.otpOrRecoveryCode")}
+                    <input
+                      name="otp"
+                      type="text"
+                      inputMode="text"
+                      autoComplete="one-time-code"
+                      required
+                      minLength={6}
+                      maxLength={32}
+                      value={otp}
+                      onChange={(event) => setOtp(event.target.value.toUpperCase().slice(0, 32))}
+                    />
+                  </label>
+                )}
+                {statusLoaded && bootstrapRequired && (
+                  <label>
+                    {t("login.bootstrapToken")}
+                    <input
+                      name="bootstrap-token"
+                      type="password"
+                      autoComplete="off"
+                      value={bootstrapToken}
+                      onChange={(event) => setBootstrapToken(event.target.value)}
+                    />
+                  </label>
+                )}
+                {authError && (
+                  <p className="login-error" role="alert">
+                    {t(
+                      policyDenied
+                        ? "acl.loginDenied"
+                        : setupChallenge
+                          ? "login.mfaSetupError"
+                          : bootstrapRequired
+                            ? "login.bootstrapError"
+                            : otpRequired
+                              ? "login.otpOrRecoveryCodeError"
+                              : "login.authError",
+                    )}
+                  </p>
+                )}
+                <button type="submit" disabled={!statusLoaded || submitting}>
+                  {submitting
+                    ? t("login.signingIn")
+                    : t(
+                        setupChallenge
+                          ? "login.mfaEnableAndSignIn"
+                          : bootstrapRequired
+                            ? "login.bootstrap"
+                            : "login.submit",
+                      )}
+                </button>
+                {directoryPending && (
+                  <button
+                    type="button"
+                    className="oidc-cancel"
+                    disabled={submitting}
+                    onClick={() => {
+                      void fetch("/api/v1/authentication/ldap/pending", { method: "DELETE" });
+                      setDirectoryPending(false);
+                      setSetupChallenge(null);
+                      setOtpRequired(false);
+                      setOtp("");
+                      setPassword("");
                       setAuthError(false);
                     }}
                   >
-                    <option value="local">{t("ldap.local")}</option>
-                    {directoryEnabled && <option value="ldap">{t("ldap.sourceOption")}</option>}
-                    {radiusEnabled && <option value="radius">{t("radius.signIn")}</option>}
-                  </select>
-                </label>
+                    {t("ldap.cancel")}
+                  </button>
+                )}
+              </form>
+              {passkeyError && (
+                <p role="alert" className="login-error">
+                  {t("passkey.loginError")}
+                </p>
               )}
-              <label>
-                {t("login.username")}
-                <input
-                  name="username"
-                  autoComplete="username"
-                  required
-                  minLength={authSource === "ldap" ? 1 : 3}
-                  maxLength={authSource === "ldap" ? 256 : 64}
-                  disabled={directoryPending}
-                  value={username}
-                  onChange={(event) => {
-                    setUsername(event.target.value);
-                    setOtpRequired(false);
-                    setSetupChallenge(null);
-                    setOtp("");
+              {passkeyEnabled && !bootstrapRequired && !setupChallenge && (
+                <button
+                  type="button"
+                  className="oidc-sign-in"
+                  disabled={passkeyBusy || submitting || !passkeysSupported()}
+                  onClick={() => {
+                    void signInWithPasskey();
                   }}
-                />
-              </label>
-              <label>
-                {t("login.password")}
-                <input
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  disabled={directoryPending}
-                  minLength={bootstrapRequired ? 12 : undefined}
-                  maxLength={authSource === "ldap" ? 4096 : 256}
-                  value={password}
-                  onChange={(event) => {
-                    setPassword(event.target.value);
-                    setOtpRequired(false);
-                    setSetupChallenge(null);
-                    setOtp("");
-                  }}
-                />
-              </label>
-              {setupChallenge && (
-                <div className="login-mfa-setup">
-                  <p>{t("login.mfaSetupHint")}</p>
-                  <p>
-                    {t("login.mfaSecret")} <code>{setupChallenge.enrollment.secret}</code>
-                  </p>
-                  <details>
-                    <summary>{t("login.mfaShowURI")}</summary>
-                    <code>{setupChallenge.enrollment.provisioning_uri}</code>
-                  </details>
-                  <small>
-                    {t("login.mfaExpires", {
-                      time: new Date(setupChallenge.enrollment.expires_at).toLocaleTimeString(
-                        i18n.language,
-                      ),
-                    })}
-                  </small>
-                </div>
+                >
+                  {t("passkey.signIn")}
+                </button>
               )}
-              {(otpRequired || setupChallenge) && (
-                <label>
-                  {t(setupChallenge ? "login.otp" : "login.otpOrRecoveryCode")}
-                  <input
-                    name="otp"
-                    type="text"
-                    inputMode="text"
-                    autoComplete="one-time-code"
-                    required
-                    minLength={6}
-                    maxLength={32}
-                    value={otp}
-                    onChange={(event) => setOtp(event.target.value.toUpperCase().slice(0, 32))}
-                  />
-                </label>
+              {passkeyBusy && (
+                <button type="button" onClick={() => passkeyOperation.current?.abort()}>
+                  {t("passkey.cancel")}
+                </button>
               )}
-              {statusLoaded && bootstrapRequired && (
-                <label>
-                  {t("login.bootstrapToken")}
-                  <input
-                    name="bootstrap-token"
-                    type="password"
-                    autoComplete="off"
-                    value={bootstrapToken}
-                    onChange={(event) => setBootstrapToken(event.target.value)}
-                  />
-                </label>
-              )}
-              {authError && (
-                <p className="login-error" role="alert">
+              {(ssoError || casError || samlError) && (
+                <p role="alert" className="login-error">
                   {t(
-                    policyDenied
-                      ? "acl.loginDenied"
-                      : setupChallenge
-                        ? "login.mfaSetupError"
-                        : bootstrapRequired
-                          ? "login.bootstrapError"
-                          : otpRequired
-                            ? "login.otpOrRecoveryCodeError"
-                            : "login.authError",
+                    samlError ? "saml.loginError" : casError ? "cas.loginError" : "oidc.loginError",
                   )}
                 </p>
               )}
-              <button type="submit" disabled={!statusLoaded || submitting}>
-                {submitting
-                  ? t("login.signingIn")
-                  : t(
-                      setupChallenge
-                        ? "login.mfaEnableAndSignIn"
-                        : bootstrapRequired
-                          ? "login.bootstrap"
-                          : "login.submit",
-                    )}
-              </button>
-              {directoryPending && (
-                <button
-                  type="button"
-                  className="oidc-cancel"
-                  disabled={submitting}
-                  onClick={() => {
-                    void fetch("/api/v1/authentication/ldap/pending", { method: "DELETE" });
-                    setDirectoryPending(false);
-                    setSetupChallenge(null);
-                    setOtpRequired(false);
-                    setOtp("");
-                    setPassword("");
-                    setAuthError(false);
-                  }}
-                >
-                  {t("ldap.cancel")}
-                </button>
+              {ssoEnabled && !bootstrapRequired && (
+                <a className="oidc-sign-in" href="/api/v1/authentication/oidc/start">
+                  {t("oidc.signIn")}
+                </a>
               )}
-            </form>
-            {passkeyError && (
-              <p role="alert" className="login-error">
-                {t("passkey.loginError")}
-              </p>
-            )}
-            {passkeyEnabled && !bootstrapRequired && !setupChallenge && (
-              <button
-                type="button"
-                className="oidc-sign-in"
-                disabled={passkeyBusy || submitting || !passkeysSupported()}
-                onClick={() => {
-                  void signInWithPasskey();
-                }}
-              >
-                {t("passkey.signIn")}
-              </button>
-            )}
-            {passkeyBusy && (
-              <button type="button" onClick={() => passkeyOperation.current?.abort()}>
-                {t("passkey.cancel")}
-              </button>
-            )}
-            {(ssoError || casError || samlError) && (
-              <p role="alert" className="login-error">
-                {t(samlError ? "saml.loginError" : casError ? "cas.loginError" : "oidc.loginError")}
-              </p>
-            )}
-            {ssoEnabled && !bootstrapRequired && (
-              <a className="oidc-sign-in" href="/api/v1/authentication/oidc/start">
-                {t("oidc.signIn")}
-              </a>
-            )}
-            {samlEnabled && !bootstrapRequired && (
-              <a className="oidc-sign-in" href="/api/v1/authentication/saml/start">
-                {t("saml.signIn")}
-              </a>
-            )}
-            {casEnabled && !bootstrapRequired && (
-              <a className="oidc-sign-in" href="/api/v1/authentication/cas/start">
-                {t("cas.signIn")}
-              </a>
-            )}
-          </>
+              {samlEnabled && !bootstrapRequired && (
+                <a className="oidc-sign-in" href="/api/v1/authentication/saml/start">
+                  {t("saml.signIn")}
+                </a>
+              )}
+              {casEnabled && !bootstrapRequired && (
+                <a className="oidc-sign-in" href="/api/v1/authentication/cas/start">
+                  {t("cas.signIn")}
+                </a>
+              )}
+            </>
+          )}
+          <p className="health-line">
+            {t("login.api")}
+            {healthError
+              ? t("login.apiDown")
+              : health
+                ? t("login.apiOk", { version: health.version })
+                : t("login.apiChecking")}
+          </p>
+          <button
+            type="button"
+            className="lang-switch login-lang"
+            onClick={toggleLang}
+            title="中文 / English"
+          >
+            {isZh ? "EN" : "中文"}
+          </button>
+        </div>
+        {brand.settings.login_digest && (
+          <aside className="login-illustration">
+            <img src={`/api/v1/branding/images/${brand.settings.login_digest}`} alt="" />
+          </aside>
         )}
-        <p className="health-line">
-          {t("login.api")}
-          {healthError
-            ? t("login.apiDown")
-            : health
-              ? t("login.apiOk", { version: health.version })
-              : t("login.apiChecking")}
-        </p>
-        <button
-          type="button"
-          className="lang-switch login-lang"
-          onClick={toggleLang}
-          title="中文 / English"
-        >
-          {isZh ? "EN" : "中文"}
-        </button>
       </div>
+      <BrandFooter />
     </div>
   );
 }

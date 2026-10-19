@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+Phase 7 已补齐[品牌外观](./BRANDING.md)：双语站点/登录标题、五种主题、四类图片、页脚备案、全局权限与审计、CLI/SDK 和 PostgreSQL 单活接管；统一验证结果见[自动化验证](./TESTING.md)。企业版整体仍在进行。
+
 Phase 3/5 新增[SSH 监控历史](./MONITOR-HISTORY.md)：加密小时分段、七天分钟数据、缺失/离线区分、当前绑定与资产查看授权、Web 原生曲线和 CLI/SDK，支持 PostgreSQL 单活接管读取。企业版整体目标继续推进。
 
 新增 BuildWorld 内网 `builtin` macOS 单机部署入口和默认 `Jenkinsfile_mac_single`，使用持久化数据、同端口前端、幂等激活与失败回滚。部署验收边界见[说明](./BUILDWORLD.md)；整体企业版和生产 HA 目标继续按阶段推进。

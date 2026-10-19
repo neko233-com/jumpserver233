@@ -34,7 +34,7 @@ var catalog = []string{
 	"organizations.manage", "organizations.members.manage",
 	"roles.manage", "users.manage", "users.credentials.manage", "groups.manage", "grants.manage", "nodes.manage",
 	"assets.manage", "assets.probe", "assets.rotate", "assets.backups", "assets.view_all", "assets.connect_all", "assets.sftp_all",
-	"security.manage", "command_filters.manage", "access_policies.manage", "reviews.login.manage", "reviews.platform_login.manage", "reviews.command.manage", "login_review.bypass",
+	"security.manage", "branding.manage", "command_filters.manage", "access_policies.manage", "reviews.login.manage", "reviews.platform_login.manage", "reviews.command.manage", "login_review.bypass",
 	"audit.sessions.view_all", "audit.sessions.monitor_all", "audit.desktops.monitor_all", "audit.sessions.terminate_all", "audit.replays.view_all", "audit.commands.view_all", "audit.files.view_all", "audit.agents.view_all",
 	"jobs.view_all", "jobs.cancel_all", "jobs.review", "plans.view_all", "plans.manage_all",
 	"playbooks.publish",
@@ -111,7 +111,7 @@ type Store struct {
 func OrganizationCatalog() []string {
 	out := []string{}
 	for _, p := range Catalog() {
-		if !slices.Contains([]string{"users.manage", "security.manage", "organizations.manage", "reviews.platform_login.manage", "audit.logins.view_all", "audit.logins.export"}, p) {
+		if !slices.Contains([]string{"users.manage", "security.manage", "branding.manage", "organizations.manage", "reviews.platform_login.manage", "audit.logins.view_all", "audit.logins.export"}, p) {
 			out = append(out, p)
 		}
 	}

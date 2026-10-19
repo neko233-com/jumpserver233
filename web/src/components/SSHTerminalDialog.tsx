@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { BrandMark } from "../branding/BrandingContext";
 import { Terminal } from "@xterm/xterm";
 import { useTranslation } from "react-i18next";
 import { toggleLang } from "../i18n";
@@ -305,6 +306,7 @@ export default function SSHTerminalDialog({
         aria-labelledby="ssh-terminal-title"
       >
         <header className="ssh-terminal-header">
+          <BrandMark compact />
           <div>
             <h2 id="ssh-terminal-title">{assetName}</h2>
             <span className={`ssh-terminal-status ${state}`}>
