@@ -322,7 +322,10 @@ try {
     for (let attempt = 0; attempt < 150; attempt++) {
       const job = await api("GET", "/api/v1/ops/jobs/" + id, undefined, recoveredLogin.access_token);
       if (["succeeded", "failed", "denied", "interrupted", "timed_out"].includes(job.state)) {
-        if (job.state !== expected) throw new Error("Controlled directory job did not reach expected state");
+        if (job.state !== expected) {
+          report.executionDirectoryFailure = { expected, actual: job.state, errorCode: job.error_code, exitCode: job.exit_code, requestedDirectory: job.working_directory, executionDirectory: job.execution_directory, stderr: fixtureDiagnostic((job.stderr || "").slice(0, 600)) };
+          throw new Error("Controlled directory job did not reach expected state");
+        }
         return job;
       }
       await delay(100);
