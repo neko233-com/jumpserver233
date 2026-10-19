@@ -159,7 +159,7 @@ export default function InstallationSchedule() {
   }
   const phase = status?.plan?.phase || "";
   return (
-    <div className="installation-schedule service-maintenance">
+    <div className="installation-schedule">
       <h4>{t("updates.installation.title")}</h4>
       <p className="settings-help">{t("updates.installation.description")}</p>
       {error && (
