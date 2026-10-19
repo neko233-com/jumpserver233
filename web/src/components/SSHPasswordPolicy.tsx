@@ -75,7 +75,10 @@ export default function SSHPasswordPolicy({ view, manage }: { view: boolean; man
   useEffect(() => {
     const controller = new AbortController();
     lifetime.current = controller;
-    if (view) void load();
+    if (view)
+      queueMicrotask(() => {
+        if (!controller.signal.aborted) void load();
+      });
     return () => controller.abort();
   }, [load, view]);
   async function save(event: FormEvent) {
