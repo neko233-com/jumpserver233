@@ -6,6 +6,7 @@ import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 
 export async function verifyScheduledInstallation({ run, owner, url, root, output, api, admin, operator, refreshOperator, sshHost, fingerprint, candidate, failedCandidate, stopSelected, waitHealthy, chromium, expect, report }) {
   const endpoint = "/api/v1/settings/security/updates/installation", maintenance = "/api/v1/settings/security/maintenance";
+  report.scheduledInstallationStep = "startup";
   const local = args => run("docker", ["exec", owner, "/tmp/native/jms", ...args]);
   const supervise = () => run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 exec /tmp/native/jms update supervise --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']);
   const status = async () => {
@@ -50,29 +51,36 @@ export async function verifyScheduledInstallation({ run, owner, url, root, outpu
     const [created] = await Promise.all([page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname === endpoint), panel.getByRole("button", { name: "Schedule installation", exact: true }).click()]);
     if (created.status() !== 200) throw new Error("Browser could not schedule verified package");
     const original = created.request().postDataJSON();
+    report.scheduledInstallationStep = "browser_schedule_replay";
     const first = await status(); await expect(panel.getByRole("status")).toContainText("Scheduled"); await expect(panel.getByRole("status")).toContainText(candidate.version);
     const repeated = await api("POST", endpoint, original, admin); if (repeated.plan.id !== first.plan.id || repeated.revision !== first.revision) throw new Error("Schedule replay mutated state");
     await api("POST", endpoint, { ...original, request_id: randomUUID() }, admin, 409);
     await api("POST", endpoint, original, operator, 403);
     await panel.screenshot({ path: resolve(output, "installation.en.png") });
     await panel.getByRole("button", { name: "Cancel installation", exact: true }).click(); await expect(panel.getByRole("status")).toContainText("Installation cancelled");
+    report.scheduledInstallationStep = "browser_cancel_replay";
     const replayAfterCancel = await api("POST", endpoint, original, admin); if (replayAfterCancel.plan.phase !== "cancelled") throw new Error("Replayed schedule restarted cancelled plan");
     if (errors.length) throw new Error("Scheduled installation browser diagnostics before restart");
   } finally { await browser.close(); }
   // A real admitted SSH operation outlives the drain timeout; no kill/restart.
+  report.scheduledInstallationStep = "timeout";
   const timeoutJob = await command("sleep 8; printf scheduled_timeout_continued"); await queue(candidate, 5); await waitPlan("draining");
   await api("POST", "/api/v1/sessions", { asset_id: asset.id, cols: 80, rows: 24 }, admin, 503);
   const timed = await waitPlan("failed"); if (timed.plan.error !== "drain_timeout") throw new Error("Drain wait did not time out safely"); await waitOpen(); await waitJob(timeoutJob.id, "scheduled_timeout_continued");
   const ticket = await api("POST", "/api/v1/sessions", { asset_id: asset.id, cols: 80, rows: 24 }, admin, 201);
+  report.scheduledInstallationStep = "cancel_drain";
   await queue(candidate); const draining = await waitPlan("draining"); await api("POST", endpoint + "/cancel", { revision: draining.revision, request_id: randomUUID(), plan_id: draining.plan.id }, admin); await waitOpen(); await api("DELETE", "/api/v1/sessions/" + ticket.session_id, undefined, admin, 204);
   const persistedJob = await command("sleep 4; printf scheduled_upgrade_continued");
+  report.scheduledInstallationStep = "cli_install";
   const before = await status(), installationBefore = JSON.parse((await local(["update", "install-status", "--root", "/tmp/releases"])).stdout);
   const cli = ["update", "schedule", "--root", "/tmp/releases", "--sha256", candidate.sha, "--revision", String(before.revision), "--installation-revision", String(before.installation_revision), "--request-id", "native-scheduled-install", "--at", new Date(Date.now() + 750).toISOString(), "--drain-timeout", "30s"];
   await local(cli); await waitHealthy(candidate.version); const accepted = await waitPlan("succeeded"); await waitJob(persistedJob.id, "scheduled_upgrade_continued");
+  report.scheduledInstallationStep = "accepted";
   const installationAfter = JSON.parse((await local(["update", "install-status", "--root", "/tmp/releases"])).stdout);
   if (installationAfter.revision !== installationBefore.revision + 1 || installationAfter.current.archive_sha256 !== candidate.sha || installationAfter.pending_upgrade) throw new Error("Scheduled candidate activation not committed once");
   await local(cli); if ((await status()).plan.id !== accepted.plan.id) throw new Error("CLI replay repeated completed install");
   await stopSelected(); await supervise(); await waitHealthy(candidate.version); if ((await status()).plan.phase !== "succeeded") throw new Error("Supervisor restart replayed completed plan");
+  report.scheduledInstallationStep = "startup_rollback";
   // Candidate trial failure must restore the old service and its current data.
   await queue(failedCandidate); const failed = await waitPlan("failed"); if (failed.plan.error !== "activation_rolled_back") throw new Error("Scheduled first-start failure did not report rollback"); await waitHealthy(candidate.version); await waitJob(persistedJob.id, "scheduled_upgrade_continued");
   const endBrowser = await chromium.launch({ headless: true });
