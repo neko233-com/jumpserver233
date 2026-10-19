@@ -12,20 +12,17 @@ node_modules/
 .vite-temp/
 .nyc_output/
 web/dist/
-web/test-results/
-web/playwright-report/
+# Test runners can start from the root, web, or nested fixture directories.
+test-results/
+playwright-report/
+blob-report/
 web/.auth/
 # Generated browser evidence belongs in .cache/qa-reports, never beside source.
-/test-results/
-/playwright-report/
-/blob-report/
 /screenshots/
 /artifacts/
-web/blob-report/
 web/e2e/screenshots/
 web/screenshots/
 web/artifacts/
-server/test-results/
 web/playwright/.cache/
 # Local CLI authentication capabilities and interrupted atomic writes
 *.jms-auth.json

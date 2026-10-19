@@ -8,6 +8,8 @@ const dockerName = /^jms233-[a-z0-9][a-z0-9-]{0,48}$/;
 const legacyHelper = /^(?:branding|discovery|migration|monitor-history)(?:-[\w-]+\.mjs|\.playwright\.config\.mjs)$/;
 const terminal = new Set(["passed", "failed", "interrupted", "timedout"]);
 const screenshot = /\.(?:png|jpe?g|webp)$/i;
+const disposableArtifact = /\.(?:log|zip|tar(?:\.(?:gz|zst))?|tgz|html?|har|webm|mp4|exe|test|prof|cpuprofile|heapprofile|heapsnapshot|dmp)$/i;
+const receiptNames = ["lifecycle.json", "native-packages.json", "linux-race.json", "summary.json", "report.json", "cleanup.json"];
 const identity = s => `${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}`;
 const alive = pid => { if (!Number.isSafeInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; } };
 
@@ -53,11 +55,35 @@ function evidence(rows) {
   return kept;
 }
 
+function runnerGuard(root, folder, current, items) {
+  return { folder, current, receipts: receiptNames.map(name => {
+    const path = checked(root, resolve(folder, name));
+    return { path, identity: items.find(file => file.path === path)?.identity || null };
+  }) };
+}
+
+function validateRunner(root, guard, isAlive, removed = new Set()) {
+  checked(root, guard.folder);
+  if (!existsSync(guard.folder)) return;
+  for (const file of guard.receipts) {
+    const path = checked(root, file.path);
+    const actual = existsSync(path) ? identity(lstatSync(path)) : null;
+    if (actual === null && removed.has(path)) continue;
+    if (actual !== file.identity) throw new Error("Runner receipt changed since preview; rerun retention");
+  }
+  for (const name of receiptNames.slice(0, 3)) {
+    const state = json(resolve(guard.folder, name));
+    if (state && [state.pid, state.buildPID, state.playwrightPID, state.childPID].some(pid => isAlive(pid) && !(guard.current && pid === process.pid && terminal.has(state.status)))) {
+      throw new Error("Runner became active since preview; rerun retention");
+    }
+  }
+}
+
 export function planRetention(root = workspace, { legacy = false, currentRun, now = Date.now(), isAlive = alive } = {}) {
   root = realpathSync(root);
   if (currentRun) currentRun = realpathSync(currentRun);
   const reportRoot = resolve(root, ".cache/qa-reports"), dockerRoot = resolve(root, ".cache/docker-qa");
-  const plan = { root, selected: [], skipped: [], directories: [] }, seen = new Set();
+  const plan = { root, selected: [], skipped: [], directories: [], guards: [] }, seen = new Set();
   const select = f => { if (!seen.has(f.path)) { seen.add(f.path); plan.selected.push(f); } };
   const buckets = [];
   let liveRun = false;
@@ -89,7 +115,7 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
             plan.skipped.push({ name: row.name, reason: "retained environment or incomplete cleanup" }); continue;
           }
           buckets.push({ folder, items, type, success: summary.success, time: lstatSync(resolve(folder, "summary.json")).mtimeMs, expire: /^jms233-qa-[a-f0-9-]{36}$/.test(row.name) });
-        } else if (legacy || current) {
+        } else if (legacy || current || native || race) {
           // Named historical evidence is not a disposable run: keep all JSON receipts.
           const passed = summary?.status === "passed" || summary?.success === true || summary?.browser?.passed > 0 && summary.browser.failed === 0;
           if (!passed || summary.status && summary.status !== "passed" || summary.success === false || summary.browser?.failed > 0) continue;
@@ -112,8 +138,11 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
     const kept = evidence(b.items);
     for (const f of b.items) {
       const name = basename(f.path);
-      if (screenshot.test(name) && !kept.has(f.path) || b.type === "browser" && !["summary.json", "cleanup.json", "lifecycle.json"].includes(name) && !kept.has(f.path) || b.type === "docker" && (/^summary-\d+\.json$/.test(name) || name === "verify.log" && b.success === true) || b.type === "named" && /\.log$/i.test(name)) select(f);
+      if (screenshot.test(name) && !kept.has(f.path) || b.type === "browser" && !["summary.json", "cleanup.json", "lifecycle.json"].includes(name) && !kept.has(f.path) || b.type === "docker" && (/^summary-\d+\.json$/.test(name) || disposableArtifact.test(name) && b.success === true) || b.type === "named" && disposableArtifact.test(name)) select(f);
     }
+  }
+  for (const b of buckets) if (plan.directories.includes(b.folder) || plan.selected.some(f => f.path.startsWith(b.folder + sep))) {
+    plan.guards.push(runnerGuard(root, b.folder, currentRun === b.folder, b.items));
   }
   // Old read-only Docker previews contain no recovery evidence. Applied and
   // failed receipts remain intact because later cleanup may need ownership.
@@ -137,17 +166,30 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
   return plan;
 }
 
-export function applyRetention(plan) {
-  const root = realpathSync(plan.root), removed = [];
+export function applyRetention(plan, { isAlive = alive } = {}) {
+  const root = realpathSync(plan.root), removed = [], removedPaths = new Set();
   const receipt = () => ({ at: new Date().toISOString(), removedFiles: removed.length, removedBytes: removed.reduce((n, f) => n + f.bytes, 0), removed, skipped: plan.skipped });
   try {
-    for (const file of plan.selected) {
+    // Revalidate the entire batch before the first unlink, then recheck its
+    // runner immediately before each deletion. A new/restarted run wins.
+    const guards = plan.guards || [];
+    guards.forEach(guard => validateRunner(root, guard, isAlive));
+    function validateFile(file) {
       const path = checked(root, file.path), rel = relative(root, path).replaceAll("\\", "/");
       if (!rel.startsWith(".cache/qa-reports/") && !rel.startsWith(".cache/docker-qa/") && !(dirname(path) === resolve(root, ".cache") && legacyHelper.test(basename(path)))) throw new Error("Unowned artifact deletion rejected");
-      if (!existsSync(path)) continue;
+      if (!existsSync(path)) return null;
       const info = lstatSync(path);
       if (!info.isFile() || identity(info) !== file.identity) throw new Error("Artifact changed since preview; rerun retention");
-      unlinkSync(path); removed.push({ path: rel, bytes: file.size });
+      return { path, rel };
+    }
+    plan.selected.forEach(validateFile);
+    for (const file of plan.selected) {
+      const guard = guards.find(g => file.path.startsWith(g.folder + sep));
+      if (guard) validateRunner(root, guard, isAlive, removedPaths);
+      const valid = validateFile(file);
+      if (!valid) continue;
+      const { path, rel } = valid;
+      unlinkSync(path); removedPaths.add(path); removed.push({ path: rel, bytes: file.size });
     }
     function empty(folder) {
       checked(root, folder);
@@ -172,7 +214,7 @@ export function retainQAArtifacts(root = workspace, options = {}) {
   mkdirSync(parent, { recursive: true });
   const output = checked(plan.root, resolve(parent, "retention.json"));
   let report;
-  try { report = applyRetention(plan); }
+  try { report = applyRetention(plan, options); }
   catch (e) { writeFileSync(output, JSON.stringify(e.retention, null, 2) + "\n", { mode: 0o600 }); throw e; }
   writeFileSync(output, JSON.stringify(report, null, 2) + "\n", { mode: 0o600 });
   return report;

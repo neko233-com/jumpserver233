@@ -191,6 +191,48 @@ test("partially written runner receipts preserve their batch until a complete re
   assert.equal(retainQAArtifacts(root, options).removedFiles, 0);
 });
 
+test("cleaned historical native batches automatically discard raw artifacts but retain compact reports", t => {
+  const { root, put } = fixture(t), folder = ".cache/qa-reports/completed-native";
+  put(`${folder}/native-packages.json`, { status: "passed", cleanup: { removed: true, idempotent: true, temporaryArtifactsRemoved: true } });
+  put(`${folder}/linux-race.json`, { status: "passed", cleanup: { removed: true, idempotent: true } });
+  const kept = ["backend.json", "diagnostic.txt", "approval.en.png", "approval.zh-CN.png"].map(name => put(`${folder}/${name}`));
+  const raw = ["extra.png", "trace.zip", "recording.webm", "recording.mp4", "report.html", "network.har", "package.tar.gz", "bundle.tar.zst", "package.tgz", "temporary.exe", "cpu.cpuprofile"].map(name => put(`${folder}/${name}`));
+  const failed = put(".cache/qa-reports/failed-native/native-packages.json", { status: "failed", cleanup: { removed: true } });
+  const failureTrace = put(".cache/qa-reports/failed-native/trace.zip");
+  const result = retainQAArtifacts(root);
+  assert.equal(result.removedFiles, raw.length);
+  raw.forEach(path => assert.equal(existsSync(path), false));
+  [...kept, failed, failureTrace].forEach(path => assert.ok(existsSync(path)));
+  assert.equal(retainQAArtifacts(root).removedFiles, 0);
+});
+
+test("new runner receipts and cleanup changes after preview protect the complete batch", t => {
+  for (const [file, value] of [["lifecycle.json", { status: "running", pid: process.pid }], ["cleanup.json", { cleaned: false, temporaryDataRemoved: false }], ["native-packages.json", { status: "running", childPID: process.pid }]]) {
+    const { root, browser, put } = fixture(t), folder = browser(0), plan = planRetention(root);
+    put(`${folder}/${file}`, value);
+    assert.throws(() => applyRetention(plan), e => /Runner receipt changed/.test(e.message) && e.retention.removedFiles === 0);
+    plan.selected.forEach(f => assert.ok(existsSync(f.path)));
+  }
+});
+
+test("unchanged runner PID becoming active after preview also cancels deletion", t => {
+  const { root, browser, put } = fixture(t), folder = browser(0);
+  put(`${folder}/lifecycle.json`, { status: "passed", pid: 12345 });
+  const plan = planRetention(root, { isAlive: () => false });
+  assert.ok(plan.selected.length > 0);
+  assert.throws(() => applyRetention(plan, { isAlive: pid => pid === 12345 }), e => /became active/.test(e.message) && e.retention.removedFiles === 0);
+  plan.selected.forEach(f => assert.ok(existsSync(f.path)));
+});
+
+test("a later changed artifact is found before any file is removed", t => {
+  const { root, browser } = fixture(t);
+  browser(0);
+  const plan = planRetention(root);
+  writeFileSync(plan.selected.at(-1).path, "changed after preview, even if it sorts last");
+  assert.throws(() => applyRetention(plan), e => /Artifact changed/.test(e.message) && e.retention.removedFiles === 0);
+  plan.selected.forEach(f => assert.ok(existsSync(f.path)));
+});
+
 test("linked output receipts cannot overwrite another file", t => {
   const { root, put } = fixture(t), outside = put("important.txt", "keep");
   mkdirSync(resolve(root, ".cache/qa-reports"), { recursive: true });
@@ -213,6 +255,10 @@ test("Git excludes generated evidence and secrets while keeping product screensh
   for (const path of ["scripts/node_modules/local/index.js", "web/.vite-temp/config.mjs", "web/.vite/cache.js", ".pnpm-store/package", ".npm/_cacache/index", "server/.gocache/entry", ".gomodcache/cache", "web/.nyc_output/unit.json", "server/coverage/index.html", "web/screenshots/qa.jpeg", "web/artifacts/report.json", "server/test-results/run.json", "pnpm-debug.log.1", "Desktop.ini"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 0, `${path} must be ignored`);
+  }
+  for (const path of ["scripts/test-results/run.json", "server/testsupport/playwright-report/index.html", "web/e2e/blob-report/run.zip"]) {
+    const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
+    assert.equal(result.status, 0, `${path} must be ignored even from a nested runner`);
   }
   for (const path of ["docs/images/inventory.en.png", "web/src/main.tsx", "scripts/qa-retention.mjs", "web/.env.example", "web/src/components/icon.png", "server/testsupport/fixture.json", "release-please-config.json", "web/pnpm-lock.yaml"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });

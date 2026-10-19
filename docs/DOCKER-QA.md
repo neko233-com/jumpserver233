@@ -14,7 +14,7 @@ CI 前端 runner 固定为 `ubuntu-22.04` 并记录 `uname -r`，继续运行真
 
 生产浏览器构建使用本轮受控临时根下的 `web-dist/`，预览与体积检查读取同一目录，结束后随本轮数据一起回收。独立 `pnpm build` 继续输出到 `web/dist/`，可并行验证。
 
-浏览器与 Docker runner 在结束时自动执行文件保留策略：各保留最近三次已完成并清理成功的独立验证，每次最多两张截图（PNG/JPEG/WebP），优先各一张中英文截图。原生包与 Linux race runner 也会自动精简当前成功批次，须两者结果与清理均成功；检查 runner 和子进程 PID，避免并行运行时误删。失败结果仍保留精简摘要；Docker 失败日志保留既有 16,000 字符诊断。活动 PID、清理未完成的夹具与刻意保留的调试环境会跳过。被淘汰的独立验证目录会删除；具名专题的 JSON 报告继续保留。
+浏览器与 Docker runner 在结束时自动执行文件保留策略：各保留最近三次已完成并清理成功的独立验证，每次最多两张截图（PNG/JPEG/WebP），优先各一张中英文截图。原生包与 Linux race 的当前及历史批次，有有效 runner 回执且结果与清理均成功时也自动精简；检查 runner 和子进程 PID，避免并行运行时误删。成功专题和 Docker 批次还删除原始 trace/ZIP/TAR、视频、HTML/HAR、性能分析和临时测试程序，继续保留 JSON 报告及其他未识别文件。失败结果仍保留精简摘要；Docker 失败日志保留既有 16,000 字符诊断。活动 PID、清理未完成的夹具与刻意保留的调试环境会跳过。被淘汰的独立验证目录会删除；具名专题的 JSON 报告继续保留。
 
 手动预览和清理历史文件：
 
@@ -24,11 +24,11 @@ node scripts/qa-retention.mjs --apply --legacy
 node scripts/qa-retention.mjs --apply --legacy
 ```
 
-`--legacy` 额外缩减已有成功专题的截图和日志，并清理 `.cache/` 根目录中 branding/discovery/migration/monitor-history 前缀、超过一小时且无已记录活动验证的临时脚本；不碰未知工具。默认自动策略只处理已证明结束的浏览器/Docker 验证目录。每个候选文件检查仓库边界、所有父目录、链接与预览后的文件身份；遇到变化拒绝删除。回执固定写入 `.cache/qa-reports/retention.json`，不会自我累积。重复执行应删除零项。
+`--legacy` 额外精简没有 runner 回执的已有成功专题，并清理 `.cache/` 根目录中 branding/discovery/migration/monitor-history 前缀、超过一小时且无已记录活动验证的临时脚本；不碰未知工具。默认自动策略只处理已证明结束的浏览器/Docker 验证目录，以及有有效原生/race 回执的成功批次。每个候选文件检查仓库边界、所有父目录、链接与预览后的文件身份。删除前统一复核所有候选文件和 runner 回执，每次删除前再次检查所属 runner；预览后新增/修改回执或进程恢复活动时拒绝删除。回执固定写入 `.cache/qa-reports/retention.json`，不会自我累积。重复执行应删除零项。
 
-文件入口也可用 `make qa-preview` / `make qa-clean`，或在 `web/` 下执行 `pnpm qa:preview` / `pnpm qa:clean`。Docker 资源预览不再写入文件；旧的成功只读快照最多保留三份。已执行、失败或未完成的回执以及后续清理依赖的归属证据保留。原生验证只精简自己的当前批次，历史专题仍需显式 `--legacy`。
+文件入口也可用 `make qa-preview` / `make qa-clean`，或在 `web/` 下执行 `pnpm qa:preview` / `pnpm qa:clean`。Docker 资源预览不再写入文件；旧的成功只读快照最多保留三份。已执行、失败或未完成的回执以及后续清理依赖的归属证据保留。缺少原生/race 回执的历史专题仍需显式 `--legacy`。
 
-`.gitignore` 与 `.dockerignore` 同步排除备份/密钥、浏览器输出、性能分析、临时构建和 QA 证据，以及 Node/Go/Vite 本地缓存；不全局忽略图片或归档。忽略规则不会自动删除文件。正式产品截图保存在被文档引用的 `docs/images/`，文件清理器不会访问该目录。复用工具提交到 `scripts/`；临时内容集中放在忽略目录。资源清理与文件保留分开，下面的 Docker 资源清理命令仍按归属检查容器与卷。
+`.gitignore` 与 `.dockerignore` 同步排除备份/密钥、浏览器输出、性能分析、临时构建和 QA 证据，以及 Node/Go/Vite 本地缓存；任意层级的 `test-results/`、`playwright-report/`、`blob-report/` 都被忽略，不全局忽略图片或归档。忽略规则不会自动删除文件。正式产品截图保存在被文档引用的 `docs/images/`，文件清理器不会访问该目录。复用工具提交到 `scripts/`；临时内容集中放在忽略目录。资源清理与文件保留分开，下面的 Docker 资源清理命令仍按归属检查容器与卷。
 
 测试结束只保留必要摘要和 PNG 证据：浏览器在 `.cache/qa-reports/browser-*/`，Docker 冒烟在 `.cache/docker-qa/<project>/`。不保留含认证请求正文的 trace。自动清理本轮临时数据、协议容器/匿名卷、证书、插件测试缓存和未被其他容器使用的 QA 镜像。开发依赖、共用基础镜像及无法证明归属的共享 BuildKit 缓存不做全局 prune。
 
