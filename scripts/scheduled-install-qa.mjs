@@ -34,7 +34,7 @@ export async function verifyScheduledInstallation({ run, owner, url, root, outpu
     const panel = page.locator(".installation-schedule");
     await panel.locator("summary").filter({ hasText: "Schedule a staged version" }).click();
     await panel.getByRole("button", { name: "Refresh verified candidates", exact: true }).click();
-    await panel.getByLabel("Target version and digest", { exact: true }).selectOption(candidate.sha);
+    await panel.getByRole("combobox", { name: "Target version and digest", exact: true }).selectOption(candidate.sha);
     const at = new Date(Date.now() + 600_000); const localAt = new Date(at.getTime() - at.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
     await panel.getByLabel("Install after (local time)", { exact: true }).fill(localAt);
     const [created] = await Promise.all([page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname === endpoint), panel.getByRole("button", { name: "Schedule installation", exact: true }).click()]);
