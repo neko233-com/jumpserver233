@@ -181,7 +181,7 @@ func registerAssetDiscoveryRoutes(mux *http.ServeMux, d Dependencies) {
 			}
 			inputs := make([]assets.DiscoverySyncRow, len(rows))
 			for i, r := range rows {
-				inputs[i] = assets.DiscoverySyncRow{FindingID: r.Finding.ID, Input: r.Input, Update: policy.UpdateExisting, Missing: r.Missing, Options: assets.DiscoverySyncOptions{PolicyID: policy.ID, Overwrite: policy.OverwriteManualChanges}}
+				inputs[i] = assets.DiscoverySyncRow{FindingID: r.Finding.ID, Input: r.Input, Update: policy.UpdateExisting, Missing: r.Missing, Options: assetdiscovery.AssetSyncOptions(source, policy, r.Finding)}
 			}
 			native, e := d.Assets.SyncDiscoveryBatch(ctx, source.ID, inputs, time.Now().UTC())
 			if e != nil {
@@ -214,7 +214,7 @@ func registerAssetDiscoveryRoutes(mux *http.ServeMux, d Dependencies) {
 					return "", "", assetdiscovery.ErrConflict
 				}
 			}
-			a, state, e := d.Assets.SyncDiscovery(source.ID, finding.ID, in, policy.UpdateExisting, missing, time.Now().UTC(), assets.DiscoverySyncOptions{PolicyID: policy.ID, Overwrite: policy.OverwriteManualChanges})
+			a, state, e := d.Assets.SyncDiscovery(source.ID, finding.ID, in, policy.UpdateExisting, missing, time.Now().UTC(), assetdiscovery.AssetSyncOptions(source, policy, finding))
 			return a.ID, state, e
 		},
 		Gateway: func(ctx context.Context, actor assetdiscovery.Actor, source assetdiscovery.Source, runID string) (assetdiscovery.Gateway, error) {

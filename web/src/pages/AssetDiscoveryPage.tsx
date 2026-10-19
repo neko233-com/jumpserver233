@@ -59,6 +59,7 @@ type Policy = {
   group: string;
   match_cidrs: string[];
   update_existing: boolean;
+  migrate_cloud_ssh_address: boolean;
   overwrite_manual_changes: boolean;
   auto_import: boolean;
   trust_new_ssh_keys: boolean;
@@ -397,7 +398,15 @@ export default function AssetDiscoveryPage() {
     setDraft(null);
     setPolicyDraft(
       policy
-        ? { ...policy, source_revision: source.revision, request_id: crypto.randomUUID() }
+        ? {
+            ...policy,
+            source_revision: source.revision,
+            request_id: crypto.randomUUID(),
+            migrate_cloud_ssh_address:
+              source.provider !== "lan" &&
+              source.template.protocol === "ssh" &&
+              policy.migrate_cloud_ssh_address,
+          }
         : {
             revision: 0,
             source_id: source.id,
@@ -409,6 +418,7 @@ export default function AssetDiscoveryPage() {
             group: "",
             match_cidrs: [],
             update_existing: false,
+            migrate_cloud_ssh_address: false,
             overwrite_manual_changes: false,
             auto_import: false,
             trust_new_ssh_keys: false,
@@ -496,6 +506,7 @@ export default function AssetDiscoveryPage() {
           node_id: input.node_id,
           match_cidrs: input.match_cidrs.map((v) => v.trim()).filter(Boolean),
           update_existing: input.update_existing,
+          migrate_cloud_ssh_address: input.migrate_cloud_ssh_address,
           overwrite_manual_changes: input.overwrite_manual_changes,
           auto_import: input.auto_import,
           trust_new_ssh_keys: input.trust_new_ssh_keys,
@@ -1496,12 +1507,27 @@ export default function AssetDiscoveryPage() {
               setPolicyDraft({
                 ...policyDraft,
                 update_existing: v,
+                migrate_cloud_ssh_address: v && policyDraft.migrate_cloud_ssh_address,
                 overwrite_manual_changes: v && policyDraft.overwrite_manual_changes,
               }),
             )}
             {policyDraft.update_existing &&
               check("overwrite", policyDraft.overwrite_manual_changes, (v) =>
                 setPolicyDraft({ ...policyDraft, overwrite_manual_changes: v }),
+              )}
+            {policyDraft.update_existing &&
+              sources.some(
+                (source) =>
+                  source.id === policyDraft.source_id &&
+                  source.provider !== "lan" &&
+                  source.template.protocol === "ssh",
+              ) && (
+                <>
+                  {check("migrateCloudSSHAddress", policyDraft.migrate_cloud_ssh_address, (value) =>
+                    setPolicyDraft({ ...policyDraft, migrate_cloud_ssh_address: value }),
+                  )}
+                  <p>{label("migrateCloudSSHAddressHint")}</p>
+                </>
               )}
             {check("autoImport", policyDraft.auto_import, (v) =>
               setPolicyDraft({ ...policyDraft, auto_import: v }),

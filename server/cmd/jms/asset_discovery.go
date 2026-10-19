@@ -9,6 +9,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
 	"io"
 	"os"
+	"slices"
 )
 
 const assetDiscoveryUsage = "usage: jms discover sources|policies|runs|findings|audit [--source ID --offset 0 --limit 100] | source|policy save [ID] --file CONFIG.json | source show ID | source|policy delete ID --revision N | run start --file RUN.json | run show|cancel ID | preview|import --file INPUT.json | export --source ID"
@@ -80,9 +81,23 @@ func executeAssetDiscovery(ctx context.Context, c *sessionclient.Client, args []
 	}
 	switch command {
 	case "sources":
-		return emit(c.DiscoverySources(ctx))
+		page, e := c.DiscoverySources(ctx)
+		if e != nil {
+			return e
+		}
+		if *source != "" {
+			page.Results = slices.DeleteFunc(page.Results, func(row assetdiscovery.Source) bool { return row.ID != *source })
+		}
+		return emit(discoveryCLIPage(page.Results, *offset, *limit), nil)
 	case "policies":
-		return emit(c.DiscoveryPolicies(ctx))
+		page, e := c.DiscoveryPolicies(ctx)
+		if e != nil {
+			return e
+		}
+		if *source != "" {
+			page.Results = slices.DeleteFunc(page.Results, func(row assetdiscovery.Policy) bool { return row.SourceID != *source })
+		}
+		return emit(discoveryCLIPage(page.Results, *offset, *limit), nil)
 	case "runs":
 		return emit(c.DiscoveryRuns(ctx, *source, *offset, *limit))
 	case "findings":
@@ -161,4 +176,10 @@ func executeAssetDiscovery(ctx context.Context, c *sessionclient.Client, args []
 		return emit(c.ImportDiscoveryAssets(ctx, in))
 	}
 	return errors.New(assetDiscoveryUsage)
+}
+
+func discoveryCLIPage[T any](rows []T, offset, limit int) sessionclient.DiscoveryPage[T] {
+	start := min(offset, len(rows))
+	end := min(start+limit, len(rows))
+	return sessionclient.DiscoveryPage[T]{Results: append([]T{}, rows[start:end]...), Total: len(rows)}
 }

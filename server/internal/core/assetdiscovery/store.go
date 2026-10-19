@@ -198,7 +198,7 @@ func validateState(v state) error {
 		}
 	}
 	for id, p := range v.Policies {
-		if p.ID != id || !validID(id, "policy") || !validID(p.SourceID, "source") || p.Revision < 1 || !validActor(p.Owner) {
+		if p.ID != id || !validID(id, "policy") || !validID(p.SourceID, "source") || p.Revision < 1 || !validActor(p.Owner) || p.MigrateCloudSSHAddress && !p.UpdateExisting {
 			return ErrInvalid
 		}
 	}

@@ -1,5 +1,8 @@
 export default {
   assetDiscovery: {
+    migrateCloudSSHAddress: "自动迁移云主机 SSH IP",
+    migrateCloudSSHAddressHint:
+      "显式开启后，仅在同一云实例观察到的 SSH 主机密钥与已有信任一致时迁移。凭据、端口、账号和网关保持固定；待确定的凭据操作或人工修改需先核对处理，活动连接需要重新建立。",
     provider: "提供商",
     scope: "发现范围",
     cloudLimits: "最多 32 个地域、8,192 个实例/端点。只有完整成功的云清单才能累计资源缺失。",
@@ -165,10 +168,11 @@ export default {
     sourceChangeHint: "修改来源会暂停其策略。请重新扫描、核对来源，并保存策略以确认新版本。",
     pinnedSource: "确认的来源版本：",
     policyHint:
-      "缺失处理只影响本次实际扫描的来源托管资产；移除范围会保留原有资产。现有凭据、用户名、端点地址与 SSH 主机密钥不会被覆盖。",
+      "缺失处理只影响本次实际扫描的来源托管资产；移除范围会保留原有资产。凭据、用户名与 SSH 主机密钥不会被覆盖；云主机 IP 迁移需单独显式开启。",
     verifyTLS: "验证 TLS 证书及主机名",
     disableTLS: "停用 TLS",
     states: {
+      address_updated: "IP 地址已迁移",
       cloud_running: "运行中",
       cloud_failed: "创建失败",
       cloud_unknown: "需核对提供商状态",

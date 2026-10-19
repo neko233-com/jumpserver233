@@ -87,6 +87,7 @@ type PolicyInput struct {
 	Group                  string               `json:"group"`
 	MatchCIDRs             []string             `json:"match_cidrs"`
 	UpdateExisting         bool                 `json:"update_existing"`
+	MigrateCloudSSHAddress bool                 `json:"migrate_cloud_ssh_address"`
 	AutoImport             bool                 `json:"auto_import"`
 	TrustNewSSHKeys        bool                 `json:"trust_new_ssh_keys"`
 	MissingAction          string               `json:"missing_action"`

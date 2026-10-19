@@ -27,9 +27,21 @@
 
 发现结果记录稳定的提供商/账号/地域/实例身份、名称、状态、地址和标签。运行中且存在所选 IP 的实例继续执行现有的不认证 SSH 指纹观察或 TCP 探测，可经固定密钥的 SSH 网关。停机或缺少所选 IP 的实例仍显示，不计缺失；只有完整成功清单中消失、且位于当前地域和端口范围内的实例才累计缺失。移除地域会保留旧资产。沿用现有阈值停用、一次性预览与纳管流程。
 
-实例 IP 变化仍保持相同发现和资产 ID。本批对既有端点或 SSH 指纹变化返回冲突，保留原生凭据和信任；自动迁移 IP、多节点映射仍待完成。此类变化需在资产清单中明确核对处理，再确认来源和策略。实例名称更新遵守现有元数据归属保护。没有真实 AWS 账号时，不宣称真实云账号验收；签名协议夹具与 API/浏览器验证分别记录。
+实例 IP 变化保持相同发现和资产 ID，SSH 可按下节显式开启自动迁移。默认仍对端点变化返回冲突，SSH 指纹变化始终冲突。实例名称更新遵守现有元数据归属保护。其他协议地址迁移、多节点映射仍待完成。没有真实云账号时，不宣称真实云账号验收；签名协议夹具与 API/浏览器验证分别记录。
 
 Web、SDK 与 `jms discover source save --file -` 共用 `provider`、`cloud`（`account_id`、`regions`、`address_mode`）及仅写的 `cloud_credential`（`access_key_id`、`secret_access_key`、`session_token`）字段。通过受保护的标准输入传入凭据，不放到命令参数或提交的配置中。`jms discover source show` 只返回公开设置和凭据配置状态。
+
+## 云主机 SSH IP 自动迁移
+
+同步策略的 `migrate_cloud_ssh_address` 默认关闭，仅适用于云来源的 SSH 模板，并要求 `update_existing=true`。Web 在“更新来源拥有的资产元数据”下提供开关；CLI/SDK 使用同一字段。关闭元数据更新会同时关闭迁移，LAN 和其它协议不提供此开关。
+
+仅迁移本来源、本策略拥有的同一提供商/账号/地域/实例与端口。新地址必须是字面 IPv4 或 IPv6，实例运行中且本轮实际观察到的 SSH 指纹与资产既有信任一致。端口、用户名、协议、网关和主机密钥均不能随迁移改变。指纹观察不发送目标凭据，后续登录仍由原生 SSH 固定主机密钥校验。
+
+人工改过元数据、目标端点被其它资产占用、策略归属不同、父/子账号正在轮换或远端账号操作待确定时，保留原地址并报告冲突。元数据覆盖开关不能绕过迁移时的人工修改或策略归属检查。跨组织共享凭据和新目标上的待确定操作沿用统一协调器校验。与人工资产端点匹配不代表来源拥有该资产；关闭自动纳管后不会因其地址变化意外创建资产。
+
+迁移保留资产与托管账号 ID、凭据密文及修订、备份历史和轮换时间；子账号继承新地址，旧账号收集绑定清除。资产的 `discovery.last_address_change` 保存前后地址、策略 ID 和时间，发现结果标为 `address_updated` 并计入更新数量。相同地址重试不产生第二次迁移或改写回执时间。批次取消、持久化确认不明确和进程恢复沿用原子暂存及权威存储复核。
+
+SSH 连接绑定包含地址。迁移后的持续授权检查会关闭旧 SSH 连接，持有旧路由绑定的待执行任务需重新发起。登录复核和临时 SFTP 会话继续使用平台既有的用户、资产、账号及动作绑定规则；同一云实例的身份未改变。固定 SSH 网关本身保持不变。缺失清单、停机、无地址、失败探测或变更密钥不能触发迁移。
 
 ## 使用
 
@@ -45,7 +57,7 @@ Web、SDK 与 `jms discover source save --file -` 共用 `provider`、`cloud`（
 
 - LAN 资产 ID 由来源和端点确定；云资产由来源、提供商/账号/地域/实例、协议和端口确定。重试和进程重启不重复创建。
 - 不接管人工资产或其他来源资产。单一已有端点标记为已存在，多项匹配报告冲突。
-- 策略只更新名称、节点、分组和备注。人工修改或策略归属不同默认冲突；显式覆盖可接管元数据，不能覆盖端点、用户名、凭据或已有 SSH 主机密钥。
+- 策略更新名称、节点、分组和备注；SSH 云 IP 迁移另需显式开关及上述连续信任检查。人工修改或策略归属不同默认冲突；显式覆盖可接管元数据，不能覆盖用户名、凭据或已有 SSH 主机密钥。
 - 缺失默认保留；可在连续缺失 1–10 次后停用本来源资产。只有本次实际扫描范围参与计数，移除范围不会删除旧资产。同步停用的主机恢复可达后重新启用，人工修改受到保护。
 - LAN 最多 1,024 个地址、16 个端口、8,192 个端点。各来源探测并发 1–32，超时 100–5,000 毫秒。每来源一个活动任务，组织最多四个。
 - 每批最多 500 台，在内存暂存后统一持久化；发现结果按批次写入。
@@ -68,6 +80,8 @@ Web、SDK 与 `jms discover source save --file -` 共用 `provider`、`cloud`（
 前缀 `/api/v1/asset-discovery`：`sources`、`policies` 提供列表、创建、详情、更新和带 revision 的删除；`runs` 提供创建、列表、详情和 `/{id}/cancel`；`findings`、`findings.csv` 必填 source_id；`import-preview`、`import` 使用一次性能力及稳定 request_id；`audit` 返回脱敏配置快照；`schedules/preview` 计算计划时间。列表采用 offset/limit。
 
 `jms discover sources|policies|runs|findings|audit` 查看数据。`source save [ID] --file CONFIG.json`、`policy save [ID] --file CONFIG.json` 保存配置；`run start --file RUN.json` 扫描；`source|policy delete ID --revision N` 删除配置；`run show|cancel ID` 查询或取消；`preview|import --file INPUT.json` 纳管；`export --source ID` 导出。`--file -` 从标准输入读取，复用现有认证与 `JMS_ORG_ID`。重试保持 request_id 不变。
+
+`sources`、`policies` 支持 `--source`、`--offset` 和 `--limit`；来源列表按 ID、策略列表按来源 ID 筛选，`total` 表示分页前筛选后的总量。
 
 SDK：`server/internal/sessionclient/asset_discovery.go`。来源 template 不允许内联凭据，使用独立 credential；省略保留，空对象清除。更新需 revision，策略需 source_revision。
 

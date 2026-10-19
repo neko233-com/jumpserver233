@@ -2,6 +2,7 @@ package assetdiscovery
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	"strconv"
@@ -31,6 +32,21 @@ func discoveryInput(source sourceRecord, policy Policy, f Finding) assets.Input 
 	gateway := source.Input.GatewayID
 	in.GatewayID = &gateway
 	return in
+}
+
+func AssetSyncOptions(source Source, policy Policy, finding Finding) assets.DiscoverySyncOptions {
+	option := assets.DiscoverySyncOptions{PolicyID: policy.ID, Overwrite: policy.OverwriteManualChanges}
+	var template struct {
+		Protocol string `json:"protocol"`
+	}
+	if json.Unmarshal(source.Template, &template) != nil {
+		return option
+	}
+	if cloud := finding.Cloud; cloud != nil && policy.MigrateCloudSSHAddress && policy.UpdateExisting && source.Provider != "lan" && template.Protocol == "ssh" && finding.Protocol == "ssh" && finding.SSHVerified && finding.Open && !cloud.Missing && cloud.State == "running" {
+		option.MigrateCloudSSHAddress = true
+		option.CloudResourceKey = cloud.ResourceKey()
+	}
+	return option
 }
 func (s *Service) applyRows(ctx context.Context, actor Actor, source sourceRecord, policy Policy, findings []Finding, missing []bool) ([]Finding, error) {
 	if e := s.authorize(ctx, actor, publicSource(source), "import"); e != nil {

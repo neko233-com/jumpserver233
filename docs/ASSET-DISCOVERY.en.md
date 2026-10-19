@@ -27,9 +27,21 @@ Inventory is published only after all selected regions/pages succeed. Failures, 
 
 Findings include stable provider/account/region/instance identity, name, state, addresses and tags. Running instances with the selected address receive the existing credential-free SSH key observation or TCP probe, optionally through the pinned SSH gateway. Stopped instances and instances without the selected address remain visible and do not count as missing. Only a complete successful inventory increments misses for absent instances in the currently selected regions/ports. Removing a region retains its earlier assets. The existing threshold/disable policy and one-use preview/import flow apply.
 
-Instance identity keeps the same finding/asset ID across IP changes. This batch deliberately reports existing endpoint or SSH pin changes as conflicts and preserves native credentials and trust; automatic IP migration and multi-node mapping remain open. Resolve such moves explicitly in inventory and reconfirm the source/policy. Instance name updates use the existing metadata ownership protection. No real AWS account acceptance is claimed without a real cloud account; signed connector fixtures and API/browser contracts are separate evidence.
+Instance IP changes retain stable finding and asset IDs. SSH supports explicit opt-in migration below; endpoint changes still conflict by default and changed SSH fingerprints always conflict. Instance name updates use existing metadata ownership protection. Other protocol address migration and multi-node mapping remain open. No real cloud account acceptance is claimed without a real account; signed connector fixtures and API/browser contracts are separate evidence.
 
 Web, SDK and `jms discover source save --file -` use the same `provider`, `cloud` (`account_id`, `regions`, `address_mode`) and write-only `cloud_credential` (`access_key_id`, `secret_access_key`, `session_token`) fields. Supply credentials through protected standard input, never shell arguments or a committed config. `jms discover source show` returns only public settings and credential-configured flags.
+
+## Cloud SSH IP migration
+
+Policy field `migrate_cloud_ssh_address` defaults to false, applies only to cloud SSH templates and requires `update_existing=true`. Web exposes it beneath source-owned metadata updates; CLI/SDK use the same field. Disabling metadata updates also disables migration. LAN and other protocols do not expose this option.
+
+Only the same provider/account/region/instance and port owned by the source and policy can move. The new address must be literal IPv4 or IPv6; the instance must be running and this scan's observed SSH key must match existing trust. Port, username, protocol, gateway and host key stay fixed. Discovery sends no target credential; subsequent native SSH logins still enforce the pinned key.
+
+Manual metadata edits, another asset occupying the destination, different policy ownership, parent/child rotation or pending remote-account operations retain the original address and report conflicts. Metadata overwrite cannot bypass migration's manual-edit or ownership checks. Cross-organization credential aliases and pending operations at the new target use the shared coordinator. Matching a manual asset's endpoint does not establish source ownership; with automatic import off, its address change cannot accidentally create an asset.
+
+Migration preserves asset/account IDs, encrypted credentials and revisions, backup history and rotation timestamps. Child accounts inherit the new address and old account-discovery bindings are cleared. Public asset field `discovery.last_address_change` records previous/current addresses, policy ID and time; the finding state becomes `address_updated` and contributes to updated counts. Same-address retries do not create another migration or change its receipt time. Batch cancellation, uncertain persistence and restart recovery use existing atomic staging and authoritative-store reconciliation.
+
+SSH connection bindings include addresses. Continued authorization closes old SSH connections after migration; pending tasks with old route bindings must restart. Login reviews and temporary SFTP sessions retain the platform's existing user/asset/account/action binding rules: the cloud instance identity has not changed. The pinned SSH gateway stays fixed. Missing inventory, stopped instances, absent addresses, failed probes or changed keys cannot initiate migration.
 
 ## Workflow
 
@@ -45,7 +57,7 @@ Source changes pause referencing policies. Scan again and save each policy to co
 
 - LAN asset IDs derive from source and endpoint. Cloud asset IDs derive from source, provider/account/region/instance, protocol and port. Retries and process restarts do not duplicate them.
 - Manual assets and other sources' assets are not adopted. One existing endpoint is reported as existing; ambiguous matches conflict.
-- Policies update name, node, group and remark. Manual edits or different policy ownership conflict by default. Explicit overwrite can reclaim metadata but cannot replace endpoints, usernames, credentials or existing SSH pins.
+- Policies update name, node, group and remark; cloud SSH IP migration additionally requires its explicit option and continuity checks above. Manual edits or different policy ownership conflict by default. Explicit overwrite can reclaim metadata but cannot replace usernames, credentials or existing SSH pins.
 - Missing hosts remain by default. A source can disable its own assets after 1–10 consecutive misses. Only endpoints actually scanned are counted; removing ranges retains earlier assets. Returning hosts disabled by sync are re-enabled, while manual edits remain protected.
 - LAN limits: 1,024 addresses, 16 ports and 8,192 endpoints. All probes use 1–32 workers and 100–5,000 ms timeouts. One active run per source, four per organization.
 - Up to 500 assets are staged and persisted together. Findings are written in batches.
@@ -68,6 +80,8 @@ Retention: 32 sources, 128 policies, 16,384 findings, 200 runs, 128 previews, 20
 Prefix `/api/v1/asset-discovery`: sources and policies support list/create/detail/update and revision-checked deletion. Runs support create/list/detail and `/{id}/cancel`. Findings and findings.csv require source_id. Import-preview/import use a one-use capability and stable request_id. Audit returns sanitized snapshots; schedules/preview calculates execution instants. Lists use offset/limit.
 
 Use `jms discover sources|policies|runs|findings|audit` to read data; `source save [ID] --file CONFIG.json` and `policy save [ID] --file CONFIG.json` to save; `run start --file RUN.json` to scan; `source|policy delete ID --revision N` to delete configuration; `run show|cancel ID` to query/cancel; `preview|import --file INPUT.json` to import; `export --source ID` to export. `--file -` reads stdin. Existing authentication and `JMS_ORG_ID` apply. Keep request_id unchanged across retries.
+
+`sources` and `policies` support `--source`, `--offset` and `--limit`. Source lists filter by ID; policy lists filter by source ID. `total` is the filtered count before pagination.
 
 SDK: `server/internal/sessionclient/asset_discovery.go`. Templates reject inline secrets. Omit credential to preserve it; an empty object clears it. Updates require revision; policies require source_revision.
 

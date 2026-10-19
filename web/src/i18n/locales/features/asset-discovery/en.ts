@@ -1,5 +1,8 @@
 export default {
   assetDiscovery: {
+    migrateCloudSSHAddress: "Migrate cloud SSH IP addresses",
+    migrateCloudSSHAddressHint:
+      "Opt in to move the same cloud instance only when its observed SSH host key matches existing trust. Credentials, port, account and gateway remain fixed. Pending credential operations or manual changes require reconciliation; active connections must reconnect.",
     provider: "Provider",
     scope: "Discovery scope",
     cloudLimits:
@@ -167,10 +170,11 @@ export default {
       "Changing a source pauses its policies. Re-scan, review the updated source and save each policy to confirm its new revision.",
     pinnedSource: "Confirmed source revision:",
     policyHint:
-      "Missing-host actions only affect source-owned assets actually scanned in this run. Removing an IP range retains earlier assets. Credentials, usernames, endpoint addresses and existing SSH pins are never overwritten.",
+      "Missing-host actions only affect source-owned assets actually scanned in this run. Removing an IP range retains earlier assets. Credentials, usernames and existing SSH pins are never overwritten; cloud SSH IP migration requires its separate opt-in.",
     verifyTLS: "Verify TLS certificate and hostname",
     disableTLS: "Disable TLS",
     states: {
+      address_updated: "IP address migrated",
       cloud_running: "Running",
       cloud_failed: "Launch failed",
       cloud_unknown: "Provider state requires review",

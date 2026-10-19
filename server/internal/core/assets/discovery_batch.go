@@ -38,6 +38,8 @@ func (s *Service) SyncDiscoveryBatch(ctx context.Context, source string, rows []
 		defer c.mu.Unlock()
 		defer c.refreshSharedLocked()
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
 	if e := s.store.refreshDiscoveryLocked(); e != nil {
@@ -55,12 +57,30 @@ func (s *Service) SyncDiscoveryBatch(ctx context.Context, source string, rows []
 	worker := NewService(private, nil)
 	out := make([]DiscoverySyncResult, len(rows))
 	prepared := []importPrepared{}
+	migrated := map[string]bool{}
 	for i, row := range rows {
 		if e := ctx.Err(); e != nil {
 			return nil, e
 		}
+		id := DiscoveryAssetID(source, row.FindingID)
+		if row.Options.MigrateCloudSSHAddress && original[id].Host != row.Input.Host {
+			blocked := false
+			for _, record := range original {
+				if (record.ID == id || record.ParentAssetID == id) && (s.rotationRunning[record.ID] || s.passwordCoordinator != nil && s.passwordCoordinator.blocked(s.passwordScope, record.ID)) {
+					blocked = true
+					break
+				}
+			}
+			if blocked {
+				out[i] = DiscoverySyncResult{Err: ErrRotationPending}
+				continue
+			}
+		}
 		a, state, e := worker.SyncDiscovery(source, row.FindingID, row.Input, row.Update, row.Missing, now, row.Options)
 		out[i] = DiscoverySyncResult{a, state, e}
+		if e == nil && state == "address_updated" {
+			migrated[a.ID] = true
+		}
 		if e == nil && state == "created" {
 			_, _, credential, ce := inputCredential(row.Input, nil)
 			if ce != nil {
@@ -69,11 +89,20 @@ func (s *Service) SyncDiscoveryBatch(ctx context.Context, source string, rows []
 			prepared = append(prepared, importPrepared{asset: a, replacement: credential})
 		}
 	}
+	for id, record := range private.assets {
+		if migrated[id] || migrated[record.ParentAssetID] {
+			current := original[id]
+			prepared = append(prepared, importPrepared{asset: record.Asset, current: &current})
+		}
+	}
 	if e := ctx.Err(); e != nil {
 		return nil, e
 	}
 	// The coordinator is held before either store. This checks all final aliases,
 	// including accounts in other organizations, in one pass.
+	if e := s.validateDiscoveryMigrationOperationsLocked(prepared); e != nil {
+		return nil, e
+	}
 	if e := s.validateAccountImportAliasesLocked(prepared); e != nil {
 		return nil, e
 	}

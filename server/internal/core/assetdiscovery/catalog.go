@@ -88,7 +88,7 @@ func (s *Store) DeleteSource(id string, revision int, actor Actor, now time.Time
 	return s.saveLocked(next)
 }
 func normalizePolicy(in PolicyInput, now time.Time) (PolicyInput, error) {
-	if in.OverwriteManualChanges && !in.UpdateExisting {
+	if (in.OverwriteManualChanges || in.MigrateCloudSSHAddress) && !in.UpdateExisting {
 		return in, ErrInvalid
 	}
 	in.RequestID = ""
@@ -163,6 +163,9 @@ func (s *Store) SavePolicy(id string, in PolicyInput, actor Actor, now time.Time
 	}
 	if source.Input.Revision != in.SourceRevision {
 		return Policy{}, ErrConflict
+	}
+	if normalized.MigrateCloudSSHAddress && (source.Input.Provider == "lan" || source.Input.Template.Protocol != "ssh") {
+		return Policy{}, ErrInvalid
 	}
 	if _, e = sourceFrom(s.data, in.SourceID); e != nil {
 		return Policy{}, e

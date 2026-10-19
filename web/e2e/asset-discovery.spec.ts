@@ -195,6 +195,37 @@ test("cloud sources keep AWS, Alibaba and Tencent credentials write-only across 
   }
 });
 
+test("cloud SSH migration policies are explicit, durable and bilingual while LAN remains separate", async ({browser},info)=>{
+  const context=await browser.newContext({locale:"en-US",viewport:{width:1440,height:1000}}),page=await context.newPage();
+  let api=await request.newContext({baseURL:base});
+  const sources:string[]=[],policies:string[]=[],errors:string[]=[];
+  page.on("pageerror",error=>errors.push(error.message));
+  try {
+    const credentials={username:process.env.JMS_DISCOVERY_QA_USERNAME||"e2e.admin",password:process.env.JMS_DISCOVERY_QA_PASSWORD||"synthetic-e2e-admin-password-2468"};
+    let login=await api.post("/api/v1/authentication/auth/",{data:credentials});
+    if(!login.ok()){await api.post("/api/v1/authentication/register/",{data:credentials});login=await api.post("/api/v1/authentication/auth/",{data:credentials})}
+    expect(login.ok()).toBeTruthy();const token=(await login.json()).access_token,storage=await api.storageState();await context.addCookies(storage.cookies);await api.dispose();api=await request.newContext({baseURL:base,storageState:storage,extraHTTPHeaders:{Authorization:`Bearer ${token}`}});
+    const name=`Migration policy ${randomUUID()}`;
+    const created=await api.post("/api/v1/asset-discovery/sources",{data:{request_id:randomUUID(),name,provider:"aws",enabled:true,ports:[22],template:{protocol:"ssh",username:"qa"},cloud:{account_id:"123456789012",regions:["us-east-1"],address_mode:"private"},cloud_credential:{access_key_id:"AKIAIOSFODNN7EXAMPLE",secret_access_key:"synthetic-browser-migration-secret"}}});
+    expect(created.status()).toBe(201);const source=await created.json();sources.push(source.id);
+    await page.goto(ui+"/console/asset-discovery");await page.getByRole("combobox",{name:"Source",exact:true}).selectOption(source.id);
+    await page.getByRole("button",{name:"Sync policies",exact:true}).click();await page.getByRole("button",{name:"Add policy",exact:true}).click();
+    const form=page.locator("form.discovery-editor"),update=form.getByRole("checkbox",{name:"Update source-owned asset metadata",exact:true}),migration=form.getByRole("checkbox",{name:"Migrate cloud SSH IP addresses",exact:true});
+    await form.getByLabel("Name",{exact:true}).fill(name);await expect(migration).toHaveCount(0);await update.check();await expect(migration).not.toBeChecked();await migration.check();
+    const submitted=page.waitForResponse(r=>r.url().endsWith("/asset-discovery/policies")&&r.request().method()==="POST");await form.getByRole("button",{name:"Save",exact:true}).click();const response=await submitted;expect(response.status()).toBe(201);const policy=await response.json();policies.push(policy.id);expect(policy.migrate_cloud_ssh_address).toBe(true);expect(policy.update_existing).toBe(true);await expect(form).toHaveCount(0);
+    const row=page.getByRole("row").filter({hasText:name});await row.getByRole("button",{name:"Edit",exact:true}).click();await expect(migration).toBeChecked();
+    await page.screenshot({path:info.outputPath("cloud-migration.en.png"),fullPage:true});await page.getByRole("button",{name:"中文",exact:true}).click();await expect(form.getByRole("checkbox",{name:"自动迁移云主机 SSH IP",exact:true})).toBeChecked();await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();await page.screenshot({path:info.outputPath("cloud-migration.zh.png"),fullPage:true});
+    await page.getByRole("button",{name:"EN",exact:true}).click();await update.uncheck();await expect(migration).toHaveCount(0);await form.getByRole("button",{name:"Save",exact:true}).click();await expect(form).toHaveCount(0);
+    const read=await api.get(`/api/v1/asset-discovery/policies/${policy.id}`);expect(read.ok()).toBeTruthy();const saved=await read.json();expect(saved.migrate_cloud_ssh_address).toBe(false);expect(saved.update_existing).toBe(false);
+    const lan=await api.post("/api/v1/asset-discovery/sources",{data:{request_id:randomUUID(),name:`LAN ${randomUUID()}`,enabled:true,provider:"lan",targets:["192.0.2.1"],ports:[22],template:{protocol:"ssh",username:"qa"}}});expect(lan.status()).toBe(201);const lanSource=await lan.json();sources.push(lanSource.id);
+    await page.getByRole("button",{name:"Refresh",exact:true}).click();await page.getByRole("combobox",{name:"Source",exact:true}).selectOption(lanSource.id);await page.getByRole("button",{name:"Add policy",exact:true}).click();await update.check();await expect(migration).toHaveCount(0);await form.getByRole("button",{name:"Close",exact:true}).click();expect(errors).toEqual([]);
+  } finally {
+    for(const id of policies){const response=await api.get(`/api/v1/asset-discovery/policies/${id}`);if(response.ok())await api.delete(`/api/v1/asset-discovery/policies/${id}?revision=${(await response.json()).revision}`)}
+    for(const id of sources){const response=await api.get(`/api/v1/asset-discovery/sources/${id}`);if(response.ok())await api.delete(`/api/v1/asset-discovery/sources/${id}?revision=${(await response.json()).revision}`)}
+    await page.close();await context.close();await api.dispose();
+  }
+});
+
 test("LAN discovery imports a real SSH fixture with bilingual UI, exact retries, scheduling, CLI and Web SSH", async ({
   browser,
 }, info) => {

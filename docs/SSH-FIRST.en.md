@@ -1,0 +1,34 @@
+# Stable SSH bastion release
+
+> [中文](./SSH-FIRST.md) | English
+
+On 2026-10-19 the user prioritized a practical, stable enterprise SSH bastion with few deployment dependencies. [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html) remains the competitor and long-term reference. Other protocols, cloud providers and complex Enterprise features are no longer prerequisites for this stable release. This document changes delivery order; it does not claim that pending capabilities are implemented.
+
+## Default deployment
+
+Prefer a single machine. The current default uses local persistent files and a Vault key under `JMS_DATA_DIR`, without an external database, Redis or a resident Node process. Go serves static pages, API and WebSocket on one port through `JMS_WEB_DIR`. Preserve existing file compatibility. Any later SQLite adoption must include verified, recoverable, idempotent migration without asking users to recreate assets or credentials.
+
+PostgreSQL is an explicitly enabled option for single-active cluster failover; see [cluster HA](./CLUSTER-HA.en.md) for configuration and production limits. Cluster support must not make PostgreSQL a standalone installation requirement.
+
+## Stable release acceptance
+
+| Priority | Capability | Current state and completion criteria |
+|---|---|---|
+| P0 | SSH access and usability | Web SSH, `jms ssh` / `jms exec`, pinned host keys, multiple gateways, SFTP, grants and session replay exist. Verify real SSH connections, reconnects, revoked access and bilingual UI |
+| P0 | Update checks and data preservation | General version checks, configurable automatic checks and controlled upgrades remain pending. Formal Releases produce updates and changelogs. Require consistent pre-upgrade backup, artifact verification, migration validation and health checks; preserve original data and diagnostics on failure. Automatic installation requires opt-in and handling active SSH sessions |
+| P0 | Full export and import | Pending. Include assets, organizations, users, policies, credential Vault, audit, recordings and required recovery keys. Encrypt backups and include a format version, integrity manifest and preflight checks. Wrong keys, damaged archives or incompatible versions must not mutate existing data; repeat imports must not duplicate assets or damage identities |
+| P0 | Upgrade and recovery rehearsal | Verify fresh restoration, old-version upgrade, repeat upgrade, failure recovery and restart, then prove real SSH, permissions, working credentials and readable audit. The macOS deploy script has stopped-state snapshots and failure recovery; this does not establish a general updater or full backup product |
+| P0 | Sensitive command audit and review | Encrypted command audit, exact/contains/RE2 rules, allow/deny/manual review, timeout rejection and a shared Web/CLI gateway exist. Verify parameter redaction, approval linkage and that rejected commands never execute |
+| P0 | Directory rules | Exact-directory, directory-tree and regex-directory restrictions are not fully implemented. Distinguish command text, trusted working directory and resolved paths. Inferring typed `cd` commands does not prove remote working directory; command regex does not establish filesystem isolation |
+| P1 | Daily SSH operations | Preserve monitoring, account/credential rotation, plugin detection/installation and Agent audit. Prioritize defects affecting core SSH use |
+| Later | Complex Enterprise expansion | Add protocols, cloud providers, multi-active operation and integrations as needed; they do not block this SSH release |
+
+## Data and command boundaries
+
+Restore the Vault key together with encrypted `JMS_DATA_DIR` contents. An external `JMS_VAULT_KEY` must be retained separately with the same value. Existing [credential history backups](./PASSWORD-ROTATION.en.md) recover remote accounts; they are not full-site exports. Copying a live directory does not prove snapshot consistency.
+
+Existing [PTY command filtering](./COMMAND-FILTERS.en.md) audits and blocks common interactive input. Arbitrary shells, aliases, scripts, symlinks, command substitution and root privileges affect directory semantics. Strong directory restrictions need a trusted Agent or controlled execution channel, combined with remote account permissions or isolation. A visible prompt, `PWD` variable or command string cannot be the sole authority. Clearly identify uncovered channels rather than silently allowing them while claiming protection.
+
+## Delivery discipline
+
+Complete each implementation batch before unified Go/Testify, race, production-browser and isolated-Docker verification. Cover idempotency, revision conflicts, restart and recovery. Keep essential reports; clean attributable test resources and prove repeated cleanup is safe. Maintain Chinese/English introductions, docs and automatic language detection. Do not deploy to the intranet; publish one formal release after this scope passes acceptance.

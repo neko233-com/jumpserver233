@@ -2,7 +2,9 @@
 
 > [中文](./README.md) | English
 
-[Asset discovery and sync](./docs/ASSET-DISCOVERY.en.md) supports LAN, AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory, pinned SSH gateways, fingerprint preview/import, native schedules, idempotent receipts and organization isolation. Sync preserves rotated credentials; cloud keys are write-only. Other clouds, automatic IP migration and overall Enterprise parity remain in progress.
+An enterprise SSH bastion for daily operations, prioritizing standalone local persistence, few dependencies, Web SSH and a native CLI. The [stable SSH release scope](./docs/SSH-FIRST.en.md) prioritizes data-preserving updates, full backup/recovery, sensitive command audit/review and directory rules. Verify outstanding gaps individually; add complex Enterprise features as needed later.
+
+[Asset discovery and sync](./docs/ASSET-DISCOVERY.en.md) supports LAN, AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory, pinned SSH gateways, fingerprint preview/import, native schedules, idempotent receipts and organization isolation. Sync preserves rotated credentials; cloud keys are write-only. SSH IP migration for the same cloud instance requires explicit opt-in and continuity of existing host-key trust. Add other clouds and Enterprise extensions as needed later.
 
 [Branding](./docs/BRANDING.en.md) provides bilingual site/sign-in titles, themes, logos/icons/sign-in illustrations and footers, managed through global permissions and revision audit.
 

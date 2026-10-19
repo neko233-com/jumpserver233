@@ -51,7 +51,7 @@ func fixture(t *testing.T, h Hooks) (*Store, *Service, Source, *assets.Service) 
 		h.ApplyBatch = func(ctx context.Context, _ Actor, source Source, p Policy, rows []ApplyRow) ([]ApplyResult, error) {
 			rr := make([]assets.DiscoverySyncRow, len(rows))
 			for i, r := range rows {
-				rr[i] = assets.DiscoverySyncRow{FindingID: r.Finding.ID, Input: r.Input, Update: p.UpdateExisting, Missing: r.Missing, Options: assets.DiscoverySyncOptions{PolicyID: p.ID, Overwrite: p.OverwriteManualChanges}}
+				rr[i] = assets.DiscoverySyncRow{FindingID: r.Finding.ID, Input: r.Input, Update: p.UpdateExisting, Missing: r.Missing, Options: AssetSyncOptions(source, p, r.Finding)}
 			}
 			native, e := a.SyncDiscoveryBatch(ctx, source.ID, rr, time.Now())
 			out := []ApplyResult{}

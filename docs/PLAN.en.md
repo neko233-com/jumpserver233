@@ -2,7 +2,13 @@
 
 > [中文](./PLAN.md) | English
 
-Phase 7 delivers [LAN asset discovery and sync](./ASSET-DISCOVERY.en.md): sources/policies, bounded scans, pinned SSH gateways, one-use import, metadata sync, missing-host handling, native scheduling, organization permissions and bilingual Web/CLI/SDK. See [verification stages](./TESTING.en.md). AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory adapters passed signed-fixture, Go/race, isolated Docker and complete production-browser verification. Real cloud-account acceptance, other clouds, automatic IP migration, multi-node mapping and other Enterprise features remain open. Intranet deployment was cancelled; publish once after overall acceptance.
+## Current priority: stable SSH release (user change, 2026-10-19)
+
+Deliver a [practical, stable SSH bastion with few dependencies](./SSH-FIRST.en.md) first: standalone local persistence, Web/CLI SSH, update checks and data-preserving upgrades, full export/import, sensitive command audit/review and trusted directory rules. Overall Enterprise parity remains a long-term reference. Other protocols, cloud providers and complex integrations follow actual need and do not gate this release. Full-site backups, a general updater and strong directory restrictions remain incomplete; credential history, macOS deployment recovery and command regex cannot substitute for acceptance.
+
+This batch's [cloud SSH IP migration](./ASSET-DISCOVERY.en.md) passed unified verification: stable instance identity and existing host-key trust, preserved parent/child credentials, pending-operation isolation, invalidated old SSH connection bindings, migration receipts and bilingual Web/CLI/SDK. Real OpenSSH/gateway, full Go, Linux race, 85 production-browser cases and Docker restart evidence appear in [verification](./TESTING.en.md). No intranet deployment or formal Release.
+
+Phase 7 delivers [LAN asset discovery and sync](./ASSET-DISCOVERY.en.md): sources/policies, bounded scans, pinned SSH gateways, one-use import, metadata sync, missing-host handling, native scheduling, organization permissions and bilingual Web/CLI/SDK. See [verification stages](./TESTING.en.md). AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory adapters passed signed-fixture, Go/race, isolated Docker and complete production-browser verification. Real cloud-account acceptance, other clouds, multi-node mapping and other Enterprise features follow actual need. Intranet deployment was cancelled; publish once after stable SSH acceptance.
 
 Phase 7 adds [branding](./BRANDING.en.md): bilingual site/sign-in titles, five themes, four image slots, registration footers, global permission/audit, CLI/SDK and PostgreSQL single-active takeover. See [unified verification](./TESTING.en.md). Overall Enterprise parity remains in progress.
 

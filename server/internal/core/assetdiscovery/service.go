@@ -542,7 +542,7 @@ func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy,
 				if f.SyncState == "created" {
 					run.Imported++
 				}
-				if f.SyncState == "updated" {
+				if f.SyncState == "updated" || f.SyncState == "address_updated" {
 					run.Updated++
 				}
 			}
@@ -565,9 +565,13 @@ func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy,
 			if !eligible(f) && !missing {
 				continue
 			}
-			bound := f.AssetID != ""
-			if !bound && s.hooks.Bound != nil {
-				f.AssetID, bound = s.hooks.Bound(source.ID, f.ID)
+			bound := f.AssetID == assets.DiscoveryAssetID(source.ID, f.ID)
+			if s.hooks.Bound != nil {
+				ownedID, owned := s.hooks.Bound(source.ID, f.ID)
+				bound = owned
+				if owned {
+					f.AssetID = ownedID
+				}
 			}
 			if !bound && !policy.AutoImport {
 				continue

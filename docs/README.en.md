@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Stable SSH release scope](./SSH-FIRST.en.md): standalone deployment, few dependencies, SSH first, data-preserving updates, full backup/recovery, sensitive command review and directory restrictions. Distinguishes existing capabilities from acceptance gaps; complex extensions follow actual need.
+
 [Asset discovery and sync](./ASSET-DISCOVERY.en.md): LAN, AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory, write-only cloud credentials, sync policies, SSH fingerprint preview/import, scheduling and organization permissions. See the document for basic HA and remaining cloud boundaries.
 
 [Branding](./BRANDING.en.md): bilingual titles, themes, logos/icons/sign-in illustrations, footers, global permission/audit, CLI and HA persistence.

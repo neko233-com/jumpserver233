@@ -188,7 +188,7 @@ func (s *Service) Import(ctx context.Context, in ImportInput, actor Actor) (Impo
 		}
 		if receipt.Planned[i].AssetID == "" && f.AssetID == assets.DiscoveryAssetID(source.ID, f.ID) {
 			result.Imported++
-		} else if f.SyncState == "updated" {
+		} else if f.SyncState == "updated" || f.SyncState == "address_updated" {
 			result.Updated++
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -19,12 +20,20 @@ import (
 // DiscoveryOrigin tracks only metadata owned by a sync source. Secret changes
 // are deliberately outside ManagedHash and never get overwritten by a sync.
 type DiscoveryOrigin struct {
-	SourceID       string    `json:"source_id"`
-	PolicyID       string    `json:"policy_id,omitempty"`
-	FindingID      string    `json:"finding_id"`
-	ManagedHash    string    `json:"managed_hash"`
-	LastSynced     time.Time `json:"last_synced"`
-	DisabledBySync bool      `json:"disabled_by_sync,omitempty"`
+	SourceID          string                  `json:"source_id"`
+	PolicyID          string                  `json:"policy_id,omitempty"`
+	FindingID         string                  `json:"finding_id"`
+	ManagedHash       string                  `json:"managed_hash"`
+	LastSynced        time.Time               `json:"last_synced"`
+	DisabledBySync    bool                    `json:"disabled_by_sync,omitempty"`
+	LastAddressChange *DiscoveryAddressChange `json:"last_address_change,omitempty"`
+}
+
+type DiscoveryAddressChange struct {
+	PolicyID string    `json:"policy_id"`
+	From     string    `json:"from"`
+	To       string    `json:"to"`
+	At       time.Time `json:"at"`
 }
 
 var ErrDiscoveryUncertain = errors.New("asset sync persistence requires reconciliation")
@@ -148,8 +157,10 @@ func DiscoveryAssetID(source, finding string) string {
 // SyncDiscovery never adopts another source's asset and refuses to overwrite
 // metadata edited independently since the preceding successful sync.
 type DiscoverySyncOptions struct {
-	PolicyID  string
-	Overwrite bool
+	PolicyID               string
+	Overwrite              bool
+	MigrateCloudSSHAddress bool
+	CloudResourceKey       string
 }
 
 func (s *Service) SyncDiscovery(source, finding string, in Input, update, missing bool, now time.Time, options ...DiscoverySyncOptions) (Asset, string, error) {
@@ -174,6 +185,8 @@ func (s *Service) SyncDiscovery(source, finding string, in Input, update, missin
 		defer s.passwordCoordinator.mu.Unlock()
 		defer s.passwordCoordinator.refreshSharedLocked()
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.store.mu.Lock()
 	e := s.store.refreshDiscoveryLocked()
 	s.store.mu.Unlock()
@@ -246,12 +259,20 @@ func (s *Service) SyncDiscovery(source, finding string, in Input, update, missin
 			return Asset{}, "", ErrCredentialChanged
 		}
 		if old.Host != desired.Host || old.Port != desired.Port || Protocol(old.Asset) != Protocol(desired) || old.HostKeyFingerprint != desired.HostKeyFingerprint || old.Username != desired.Username || old.GatewayID != desired.GatewayID {
-			return Asset{}, "", ErrCredentialChanged
+			if e := s.validateDiscoveryAddressMigrationLocked(old, desired, source, finding, option, update, missing); e != nil {
+				return Asset{}, "", e
+			}
 		}
+		migrated := old.Host != desired.Host
+		nextHost := desired.Host
 		if !update && !missing && !origin.DisabledBySync {
 			return cloneAsset(old.Asset), "unchanged", nil
 		}
 		desired = cloneAsset(old.Asset)
+		if migrated {
+			desired.Host = nextHost
+			desired.AccountDiscoveryID = ""
+		}
 		if update {
 			desired.Name = in.Name
 			desired.NodeID = in.NodeID
@@ -274,27 +295,51 @@ func (s *Service) SyncDiscovery(source, finding string, in Input, update, missin
 		copyOrigin.ManagedHash = discoveryManagedHash(desired)
 		copyOrigin.LastSynced = now
 		copyOrigin.DisabledBySync = missing
+		state := "updated"
+		if migrated {
+			state = "address_updated"
+			copyOrigin.LastAddressChange = &DiscoveryAddressChange{PolicyID: option.PolicyID, From: old.Host, To: nextHost, At: now}
+		}
 		desired.Discovery = &copyOrigin
 		desired.UpdatedAt = now
 		next := old
 		next.Asset = desired
+		previousChildren := map[string]storedAsset{}
+		if migrated {
+			for childID, child := range s.store.assets {
+				if child.ParentAssetID != id {
+					continue
+				}
+				previousChildren[childID] = child
+				child.Asset = cloneAsset(child.Asset)
+				child.AccountDiscoveryID = ""
+				child.UpdatedAt = now
+				s.store.assets[childID] = child
+			}
+		}
+		rollback := func() {
+			s.store.assets[id] = old
+			for childID, child := range previousChildren {
+				s.store.assets[childID] = child
+			}
+		}
 		s.store.assets[id] = next
 		if e = s.store.materializeAccountsLocked(); e != nil {
-			s.store.assets[id] = old
+			rollback()
 			return Asset{}, "", e
 		}
 		if e = s.store.persistDiscoveryLocked(); e != nil {
 			if !s.store.discoveryUncertain {
 				if restored, ok := s.store.assets[id]; ok && restored.Discovery != nil && restored.Discovery.ManagedHash == copyOrigin.ManagedHash {
-					return cloneAsset(restored.Asset), "updated", nil
+					return cloneAsset(restored.Asset), state, nil
 				}
 			}
 			if s.store.discoveryUncertain {
-				s.store.assets[id] = old
+				rollback()
 			}
 			return Asset{}, "", e
 		}
-		return cloneAsset(desired), "updated", nil
+		return cloneAsset(desired), state, nil
 	}
 	if missing {
 		return Asset{}, "", ErrNotFound
@@ -407,6 +452,13 @@ func validateDiscoveryOrigin(a Asset) error {
 		return nil
 	}
 	d := a.Discovery
+	if change := d.LastAddressChange; change != nil {
+		from, e1 := netip.ParseAddr(change.From)
+		to, e2 := netip.ParseAddr(change.To)
+		if e1 != nil || e2 != nil || from == to || !from.IsGlobalUnicast() || !to.IsGlobalUnicast() || from.Is4In6() || to.Is4In6() || from.Zone() != "" || to.Zone() != "" || change.At.IsZero() || !strings.HasPrefix(change.PolicyID, "policy-") || len(change.PolicyID) != 39 {
+			return ErrInvalidInput
+		}
+	}
 	if d.PolicyID != "" {
 		if !strings.HasPrefix(d.PolicyID, "policy-") || len(d.PolicyID) != 39 {
 			return ErrInvalidInput
