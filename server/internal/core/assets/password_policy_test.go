@@ -28,7 +28,7 @@ func TestConfiguredPasswordPolicyAppliesToManualAndAutomaticRotations(t *testing
 		t.Run(map[bool]string{false: "manual", true: "automatic"}[automatic], func(t *testing.T) {
 			service, store, asset, _ := newRotationServiceTest(t)
 			if automatic {
-				a, _ := store.Get(asset.ID)
+				a := asset
 				a.PasswordRotatedAt = time.Now().UTC().Add(-8 * 24 * time.Hour)
 				store.mu.Lock()
 				v := store.assets[a.ID]
