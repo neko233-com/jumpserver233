@@ -1817,14 +1817,16 @@ export default function AssetInventoryPage() {
               </label>
               {isSSHProtocol(form.protocol) && (
                 <label className="asset-form-wide">
-                  <span>{t("assets.workspace")}</span>
+                  <span id="ssh-workspace-label">{t("assets.workspace")}</span>
                   <input
+                    aria-labelledby="ssh-workspace-label"
+                    aria-describedby="ssh-workspace-hint"
                     value={form.ssh_workspace}
                     onChange={(event) => setForm({ ...form, ssh_workspace: event.target.value })}
                     placeholder="/srv/workspace"
                     maxLength={1024}
                   />
-                  <small>{t("assets.workspaceHint")}</small>
+                  <small id="ssh-workspace-hint">{t("assets.workspaceHint")}</small>
                 </label>
               )}
               {isSSHProtocol(form.protocol) && (
