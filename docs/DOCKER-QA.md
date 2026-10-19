@@ -6,6 +6,8 @@ Buildx 元数据只读查询遇到 RPC Unavailable/EOF 时最多尝试 3 次；�
 
 生产 API 和网页都在 Docker 中从源码构建，运行时使用独立网络、命名数据卷和本机端口。构建不读取宿主 Go、Node、`node_modules` 或已有原生组件。镜像仅保留运行程序和网页产物；API、Nginx 以普通账号运行，根文件系统只读。
 
+跨源码原生升级另用 `node scripts/native-package-qa.mjs --historical`，详见[安装事务](./INSTALLATION.md)。固定历史服务及网页分别从历史提交构建，当前 CLI 独立执行快照、预检及首次启动；继续验证真实 SSH、身份/授权、七天轮换时间与历史审计保留。它复用原生六平台、故障恢复、目录控制及双语浏览器流程，不属于快速 Docker smoke 的耗时预算。
+
 幂等 QA 镜像准备对 Windows Docker context `meta.json` 的共享占用错误最多尝试三次；普通文件占用、权限错误不重试，不重放容器创建或远端命令。
 
 清理身份包含流式 SHA-256，64 KiB 缓冲区不会随归档体积增长；同长度、同修改时间的内容变更也会拒绝删除。每次删除前重查 runner 时只扫描 PID 文件及必要回执，避免重复读取其他大型产物。

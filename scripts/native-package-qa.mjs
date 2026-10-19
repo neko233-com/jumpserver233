@@ -16,10 +16,13 @@ import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 import { retainQAArtifacts } from "./qa-retention.mjs";
 import { verifyScheduledInstallation } from "./scheduled-install-qa.mjs";
 import { verifyAutomaticInstallation } from "./automatic-install-qa.mjs";
+import { historicalBaseline, prepareHistoricalPackage, verifyHistoricalManifests } from "./historical-source.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
-const batch = process.argv.length===2 ? "execution-directories" : process.argv.length===4 && process.argv[2]==="--batch" && /^[a-z][a-z0-9-]{0,63}$/.test(process.argv[3]) ? process.argv[3] : null;
-if (!batch) throw new Error("Use [--batch lowercase-name]");
+const options = process.argv.slice(2), historical = options.includes("--historical");
+if (historical) options.splice(options.indexOf("--historical"), 1);
+const batch = options.length===0 ? (historical ? "historical-upgrade" : "execution-directories") : options.length===2 && options[0]==="--batch" && /^[a-z][a-z0-9-]{0,63}$/.test(options[1]) ? options[1] : null;
+if (!batch) throw new Error("Use [--batch lowercase-name] [--historical]");
 const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/"+batch);
 mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
@@ -105,11 +108,19 @@ try {
   const arch = (await run("docker", ["info", "--format", "{{.Architecture}}"])).stdout.trim();
   const linuxArch = arch === "x86_64" ? "amd64" : arch === "aarch64" ? "arm64" : arch;
   if (!["amd64", "arm64"].includes(linuxArch)) throw new Error("Unsupported Docker host architecture");
-  const archive = resolve(packages, `jumpserver233-${report.testVersion}-linux-${linuxArch}.tar.gz`), selectedPort = await port();
+  const controllerArchive = resolve(packages, `jumpserver233-${report.testVersion}-linux-${linuxArch}.tar.gz`);
+  const old = historical ? await prepareHistoricalPackage({ temporary, architecture: linuxArch, run, phase: value => { report.phase=value; save(); } }) : null;
+  const archive = old?.archive || controllerArchive, selectedPort = await port();
   const linuxSHA = createHash("sha256").update(readFileSync(archive)).digest("hex");
   report.upgradeVersion = "v0.0.1";
   await run("go", ["run", "./cmd/jms-package", "--version", report.upgradeVersion, "--commit", report.commit, "--built-at", report.builtAt, "--target", `linux/${linuxArch}`, "--out", packages, "--web-dir", nativeWeb], { cwd: resolve(root, "server") });
   const upgradeArchive = resolve(packages, `jumpserver233-${report.upgradeVersion}-linux-${linuxArch}.tar.gz`), upgradeSHA = createHash("sha256").update(readFileSync(upgradeArchive)).digest("hex");
+  if (old) {
+    const targetManifest = JSON.parse((await run("tar", ["-xOf", upgradeArchive, "manifest.json"])).stdout);
+    report.historical = { ...verifyHistoricalManifests(old.manifest, targetManifest, report.commit), sourceTreeArchiveSHA256: old.sourceSHA256, sourcePackageSHA256: old.archiveSHA256, targetPackageSHA256: upgradeSHA, status: "built" };
+    save();
+  }
+  report.phase = "native_fixtures"; save();
   // These failure candidates are local fixtures, never release artifacts.
   const linuxBase = resolve(temporary, "linux-base"); mkdirSync(linuxBase); await run("tar", ["-xzf", archive, "-C", linuxBase]);
   const synthetic = [];
@@ -150,6 +161,7 @@ try {
     "--add-host",`api.github.com:${feedIP}`,"--add-host",`github.com:${feedIP}`,
     "--read-only", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=768m", "--publish", `127.0.0.10:${selectedPort}:8080`,
     "--mount", `type=bind,source=${archive},target=/artifact/package.tar.gz,readonly`,
+    "--mount", `type=bind,source=${controllerArchive},target=/artifact/controller.tar.gz,readonly`,
     "--mount", `type=bind,source=${upgradeArchive},target=/artifact/upgrade.tar.gz,readonly`,
     ...synthetic.flatMap(f => ["--mount", `type=bind,source=${f.path},target=/artifact/${f.mode}.tar.gz,readonly`]),
     "--mount", `type=bind,source=${recoveryArchive},target=/artifact/recovery.tar.gz,readonly`,
@@ -157,9 +169,9 @@ try {
     "--mount", `type=bind,source=${failedScheduledArchive},target=/artifact/scheduled-before.tar.gz,readonly`,
     "--mount",`type=bind,source=${feedDirectory},target=/artifact/feed-certs,readonly`,"--env","SSL_CERT_FILE=/artifact/feed-certs/ca.pem",
     "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", "JMS_WEB_DIR=/tmp/native/web", "--env", `JMS_PUBLIC_URL=http://127.0.0.10:${selectedPort}`, "--env", `JMS_QA_PACKAGE_SHA=${linuxSHA}`,
-    "golang:1.27-bookworm", "sh", "-ceu", 'mkdir /tmp/native; tar -xzf /artifact/package.tar.gz -C /tmp/native; /tmp/native/jms233-server --check-data; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; exec sleep infinity']);
+    "golang:1.27-bookworm", "sh", "-ceu", 'mkdir /tmp/native /tmp/controller; tar -xzf /artifact/package.tar.gz -C /tmp/native; tar -xzf /artifact/controller.tar.gz -C /tmp/controller jms; /tmp/native/jms233-server --check-data; /tmp/controller/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; exec sleep infinity']);
   const url = `http://127.0.0.10:${selectedPort}`;
-  const inContainer = (args, input) => input === undefined ? run("docker", ["exec", owner, "/tmp/native/jms", ...args]) : runInput("docker", ["exec", "-i", owner, "/tmp/native/jms", ...args], input);
+  const inContainer = (args, input) => input === undefined ? run("docker", ["exec", owner, "/tmp/controller/jms", ...args]) : runInput("docker", ["exec", "-i", owner, "/tmp/controller/jms", ...args], input);
   const installArgs = (sha, revision, id) => ["update", "install", "--root", "/tmp/releases", "--data-dir", "/tmp/data", "--sha256", sha, "--revision", String(revision), "--request-id", id, "--passphrase-file", "-"];
   // The container's bounded bootstrap must finish before invoking its CLI.
   for (let attempt = 0; ; attempt++) { try { await inContainer(["update", "stage-status", "--root", "/tmp/releases", "--sha256", linuxSHA]); break; } catch { if (attempt === 99) throw new Error("Native bootstrap did not complete"); await delay(100); } }
@@ -167,10 +179,13 @@ try {
   if (initial.status !== "selected") throw new Error("Native Linux initial selection failed");
   await runInput("docker", ["exec", "-i", owner, "sh", "-ceu", "umask 077; cat > /tmp/checkpoint-passphrase"], password);
   const waitHealthy = async version => { for (let attempt = 0; attempt < 300; attempt++) { try { const response = await fetch(url + "/api/health", { signal: AbortSignal.timeout(1000) }); const health = await response.json(); if (response.ok && health.version === version && response.headers.get("X-JMS-Activation-Phase") !== "trial") return; } catch { /* bounded readiness */ } await delay(100); } throw new Error("Selected native server did not open business traffic"); };
-  const launchSelected = async () => run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; exec /tmp/native/jms update run --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']);
+  const launchSelected = async () => run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; exec /tmp/controller/jms update run --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']);
   const startSelected = async version => { await launchSelected(); await waitHealthy(version); };
   const stopSelected = async () => { await run("docker", ["exec", owner, "sh", "-ceu", 'pid=$(cat /tmp/launcher.pid); case "$pid" in ""|*[!0-9]*) exit 1;; esac; kill -INT "$pid"']); for (let attempt = 0; attempt < 150; attempt++) { try { await run("docker", ["exec", owner, "sh", "-ceu", 'pid=$(cat /tmp/launcher.pid); kill -0 "$pid"']); } catch { return; } await delay(100); } throw new Error("Native launcher did not stop"); };
   await startSelected(report.testVersion);
+  report.phase = "native_upgrade"; save();
+  if (old && JSON.parse((await run("docker", ["exec", owner, "/tmp/native/jms", "--version"])).stdout).commit !== historicalBaseline) throw new Error("Running baseline artifact identity differs");
+  const vaultBefore = (await run("docker", ["exec", owner, "sha256sum", "/tmp/data/vault.key"])).stdout.split(/\s+/)[0];
   const api = async (method, path, body, bearer, status = 200) => { const response = await fetch(url + path, { method, headers: { "Content-Type": "application/json", ...(bearer ? { Authorization: "Bearer " + bearer } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000) }); if (response.status !== status) { const body=await response.json().catch(()=>({})); const code=typeof body.error_code==="string" && /^[a-z_]{1,80}$/.test(body.error_code) ? body.error_code : "unspecified"; throw new Error("Native installation API status " + response.status + " differs from " + status + " at " + method + " " + path + " (" + code + ")"); } return status === 204 ? null : response.json(); };
   const loginBefore = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
   const asset = await api("POST", "/api/v1/assets", { name: "Native upgrade SSH", host: owner + "-ssh", port: 22, username: "keyqa", password: "synthetic-keyhost-password-233", host_key_fingerprint: fingerprint }, loginBefore.access_token, 201);
@@ -183,6 +198,8 @@ try {
   await viewOnly(operatorBefore.access_token);
   const execSSH = async (bearer, text) => { const job = await api("POST", "/api/v1/ops/jobs", { asset_id: asset.id, command: "printf " + text, timeout_seconds: 10, request_id: randomUUID() }, bearer, 201); for (let attempt = 0; attempt < 100; attempt++) { const state = await api("GET", "/api/v1/ops/jobs/" + job.id, undefined, bearer); if (state.state === "succeeded" && state.stdout === text) return job.id; if (["failed", "interrupted", "denied"].includes(state.state)) throw new Error("Native installation real SSH failed"); await delay(100); } throw new Error("Native installation SSH timed out"); };
   const originalJob = await execSSH(loginBefore.access_token, "native-before-upgrade");
+  const rotationBefore = (await api("GET", "/api/v1/assets", undefined, loginBefore.access_token)).find(a => a.id === asset.id)?.password_rotation;
+  if (!rotationBefore || Date.parse(rotationBefore.next_rotation_at) - Date.parse(rotationBefore.last_rotated_at) !== 7 * 86400000) throw new Error("Baseline seven-day SSH rotation schedule is unavailable");
   await inContainer(["update", "stage", "--root", "/tmp/releases", "--file", "/artifact/upgrade.tar.gz", "--sha256", upgradeSHA]);
   let busy = false; try { await inContainer(installArgs(upgradeSHA, 1, "native-linux-busy"), password); } catch (e) { busy = String(e.stderr).includes("data directory is in use"); } if (!busy) throw new Error("Running data was not protected from upgrade");
   await stopSelected();
@@ -201,6 +218,14 @@ try {
   const operatorAfter = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword });
   if (operatorAfter.user.id !== operatorBefore.user.id) throw new Error("Native operator identity changed");
   await viewOnly(operatorAfter.access_token);
+  const rotationAfter = (await api("GET", "/api/v1/assets", undefined, loginAfter.access_token)).find(a => a.id === asset.id)?.password_rotation;
+  if (rotationAfter?.last_rotated_at !== rotationBefore.last_rotated_at || rotationAfter?.next_rotation_at !== rotationBefore.next_rotation_at) throw new Error("Native upgrade reset the SSH rotation schedule");
+  if ((await run("docker", ["exec", owner, "sha256sum", "/tmp/data/vault.key"])).stdout.split(/\s+/)[0] !== vaultBefore) throw new Error("Native upgrade replaced the Vault key");
+  if (old) {
+    const target = JSON.parse((await run("docker", ["exec", owner, `/tmp/releases/releases/${upgradeSHA}/jms`, "--version"])).stdout);
+    if (target.commit !== report.commit) throw new Error("Activated target artifact identity differs");
+    report.historical = { ...report.historical, status: "passed", baselineCLIIdentity: true, targetCLIIdentity: true, vaultKeyPreserved: true, weeklyRotationSchedulePreserved: true, userAndGrantPreserved: true, realSSHBeforeAndAfter: true, oldExecutionAuditPreserved: true, installReplayUnchanged: true }; save();
+  }
   // Before-commit failure must restore the checkpoint and keep the old service.
   await stopSelected();
   await inContainer(["update", "stage", "--root", "/tmp/releases", "--file", "/artifact/before.tar.gz", "--sha256", synthetic[0].sha]);
@@ -268,7 +293,7 @@ try {
 	await workspaceJob("printf must-not-run > workspace/overlap-executed",false);
 	await run("docker",["exec",owner+"-ssh","test","!","-e","/home/keyqa/workspace/overlap-executed"]);
 	await api("PUT", "/api/v1/assets/"+asset.id,{name:asset.name,host:asset.host,port:asset.port,username:asset.username,host_key_fingerprint:fingerprint,ssh_workspace:workspace},recoveredLogin.access_token);
-	const nativeExec = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/native/jms exec "$1" --json -- pwd', "sh", asset.id])).stdout);
+	const nativeExec = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/controller/jms exec "$1" --json -- pwd', "sh", asset.id])).stdout);
 	if (nativeExec.state !== "succeeded" || nativeExec.stdout.trim() !== workspace) throw new Error("Native CLI workspace execution failed");
 	if ((await run("docker", ["exec", owner + "-ssh", "cat", "/home/keyqa/protected/sentinel"])).stdout !== "preserve") throw new Error("Workspace modified protected content");
 	report.workspace = { directory: workspace, realSSH: true, realCLI: true, trustedCwd: true, insideWrite: true, outsideReadAndWriteRefused: true, confinedSFTP: true, sftpNoOverwriteAndRepeatedReplacement: true, sftpSymlinkAndTraversalRefused: true, helperOverlapRefusedBeforeExecution: true, protectedDataPreserved: true };
@@ -404,7 +429,7 @@ try {
     await api("POST", "/api/v1/ops/jobs", { ...successfulDirectoryInput, working_directory: siblingDirectory }, recoveredLogin.access_token, 409);
     if (duplicate.id !== approvedDirectoryJob.id || performance.now() - started > 2500) throw new Error("Receipt retry attempted a new SSH probe");
   } finally { await run("docker", ["unpause", owner + "-ssh"]); }
-  const cwdCLI = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/native/jms exec "$1" --directory "$2" --json -- pwd -P', "sh", asset.id, deployDirectory])).stdout);
+  const cwdCLI = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/controller/jms exec "$1" --directory "$2" --json -- pwd -P', "sh", asset.id, deployDirectory])).stdout);
   if (cwdCLI.state !== "succeeded" || cwdCLI.stdout.trim() !== deployDirectory) throw new Error("Native CLI did not select actual cwd");
   report.executionDirectories = { exactTreeAndRegex: true, deniedCommandsNeverCreatedFiles: true, pathBoundaryPreserved: true, symlinkAndOutsideRefused: true, loginReviewReplacementCreatesNewApproval: true, loginRetryIdempotent: true, commandReviewReplacementRefused: true, sameNamePolicyReplacementRefused: true, approvedCwdVerified: true, retryWithoutLiveSSH: true, changedDirectoryRetryConflict: true, nativeCLI: true };
   report.activation = { privateReadinessAndHTTPProbe: true, businessGateBeforeCommit: true, preCommitFailureRolledBack: true, oldServiceAutomaticallyResumed: true, failedTrialWriteRemoved: trialWriteAbsent, monotonicRollbackRevision: 4, postCommitFailurePreservedVersionAndData: true, forwardRecoveryVersion: report.recoveryVersion, finalRevision: 6, realSSHAfterRollbackAndForwardRecovery: true };

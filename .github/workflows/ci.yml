@@ -46,7 +46,7 @@ jobs:
         with:
           version: 12.9.1
       - name: Test owned fixture lifecycle helpers
-        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs
+        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs scripts/historical-source.test.mjs
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"

@@ -1,4 +1,7 @@
-.PHONY: prepare-agents test test-content test-fixtures test-server test-e2e lint lint-server lint-web build build-server build-cli build-web verify run-server run-web qa-preview qa-clean
+.PHONY: prepare-agents test test-content test-fixtures test-server test-e2e lint lint-server lint-web build build-server build-cli build-web verify run-server run-web qa-preview qa-clean qa-native-history
+
+qa-native-history:
+	node scripts/native-package-qa.mjs --historical
 
 qa-preview:
 	node scripts/qa-retention.mjs --legacy
@@ -17,7 +20,7 @@ test-content:
 test-fixtures:
 	python3 -B -m unittest discover -s scripts -p macos_single_test.py
 	node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs
-	node --test scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs
+	node --test scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs scripts/historical-source.test.mjs
 
 test-server: prepare-agents
 	cd server && go test -timeout 20m ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
