@@ -2,6 +2,17 @@
 
 > [中文](./TESTING.md) | English
 
+## Native upgrade from pinned historical source to current source (2026-10-20)
+
+- `c183143` adds `--historical`; `3f70a84` fixes subsequent QA controller paths. Actual historical commit `4367285202054181344e386096b89e8ea3059703` was exported with `git archive`; its agents, locked frontend dependencies, frontend and Linux native service were built independently. Target: `3f70a846f06098a81f343267075fa6ad4f327a47`. Manifest commits and server digests differ; this does not rename identical source into a historical upgrade.
+- Linux/amd64 actually switched the historical service between injected local versions `v0.0.0 → v0.0.1`, including encrypted checkpoint, offline preflight and first-start gating/acceptance. Vault key, user identities, operator view grant/connect denial, seven-day rotation timestamps and prior execution audit survived. Real OpenSSH worked before/after; request replay did not reinstall.
+- Current archives passed all six platforms plus Windows CLI/preflight execution. The complete existing native rehearsal then passed pre-commit rollback/old-service recovery, post-commit retained writes/forward repair, workspace/SFTP/trusted directories, command review, scheduling and automatic preparation/window installation. English/Chinese browser checks, 390px and zero page/unexpected console errors passed; two final screenshots were retained and visually inspected.
+- **All 60 helper checks passed**, alongside frontend lint, script syntax and content checks (154 bilingual documents, 3584 keys/locale, 85 formal images). This batch changes no business source under `server/` or `web/`. Prior full Go/Testify, race and 87-test production browser evidence for the same business source remains applicable below; this batch adds the actual cross-source native/browser verification above.
+- The first historical/business checks passed, then later scheduled QA invoked the historical CLI incorrectly. Supervision, scheduling and automatic checks now use the independent current `/tmp/controller/jms`, with a regression constraint. The complete rerun passed. Compact initial failure/final evidence lives in ignored `.cache/qa-reports/historical-upgrade/`.
+- Cleanup passed twice, removing temporary historical source, dependencies, executables, archives, certificates and owned containers/networks/images. Resource preview found no remaining candidates; repeated artifact retention removed zero files.
+
+This proves compatibility/data retention between two pinned source commits. Versions are injected local rehearsal identities; no official Release, tag or intranet deployment was created. Earlier formats, official-release migration, cluster upgrades and complete Enterprise parity remain pending.
+
 ## Repository artifacts and historical evidence retention (2026-10-20)
 
 - `01fc998`: Git/Docker exclude test screenshots at every depth, nested protocol-fixture artifacts and editor leftovers. Docker additionally excludes local scheduled/automatic update state. Formal `docs/images/` assets and source remain visible; no tracked files are hidden by the new rules.

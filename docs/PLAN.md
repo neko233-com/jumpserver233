@@ -6,7 +6,7 @@
 
 新增[受控 SSH 执行目录](./EXECUTION-DIRECTORIES.md)：单命令 Web/CLI 可选择工作区内的真实起始目录，审批绑定根/目录对象与命令策略，支持精确、子树与整路径 RE2 规则。Go/Testify 1598、Linux race 171、完整生产回归 86/86、六平台原生及新布局的中英桌面/窄屏验收通过；从源码 Docker 构建和浏览器冒烟也通过，见[测试记录](./TESTING.md)。既有[SSH/SFTP 登录复核](./ACCESS-REVIEWS.md)继续绑定连接/网关与工作区根对象。完整交互式 cwd、任意 shell 语义和完整 Enterprise 仍在进行。
 
-新增[正式发布检查与原生制品](./UPDATES.md)：Web/CLI/SDK 检查、可选自动检查、修订与幂等回执、归档校验、六平台打包与暂存；[单机安装事务](./INSTALLATION.md)接通加密快照、离线预检、首次启动健康与业务门禁、放行前回滚和旧服务恢复。放行后保留新数据；新增[单机定时安装](./INSTALLATION-SCHEDULE.md)连接固定候选、排空、停机、快照和首次启动；新增[自动准备与窗口安装](./AUTOMATIC-UPDATES.md)，默认关闭、官方摘要绑定、策略修订与一次尝试回执；真实历史版本迁移验收仍待完成，新增[升级前排空](./SERVICE-MAINTENANCE.md)，支持单机 Web/CLI、跨组织活动计数及进程实例绑定；通用更新器尚未完成。
+新增[正式发布检查与原生制品](./UPDATES.md)：Web/CLI/SDK 检查、可选自动检查、修订与幂等回执、归档校验、六平台打包与暂存；[单机安装事务](./INSTALLATION.md)接通加密快照、离线预检、首次启动健康与业务门禁、放行前回滚和旧服务恢复。放行后保留新数据；新增[单机定时安装](./INSTALLATION-SCHEDULE.md)连接固定候选、排空、停机、快照和首次启动；新增[自动准备与窗口安装](./AUTOMATIC-UPDATES.md)，默认关闭、官方摘要绑定、策略修订与一次尝试回执；固定历史源码到当前源码的保数演练已通过；正式历史 Release/更早格式迁移仍待完成，新增[升级前排空](./SERVICE-MAINTENANCE.md)，支持单机 Web/CLI、跨组织活动计数及进程实例绑定；通用更新器尚未完成。
 
 本批[单机整站加密备份与恢复](./BACKUP.md)已通过统一验证：原生 `jms backup`、服务互斥、外部 key 指纹校验、格式/路径/完整性预检、Docker 挂载点恢复及幂等恢复/回滚日志。Go/Testify 1,523 项、Linux race 745 项、生产浏览器 85/85 和 Docker 7/7 通过，详见[验证记录](./TESTING.md)。
 

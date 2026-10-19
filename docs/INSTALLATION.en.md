@@ -6,6 +6,8 @@ The native CLI binds a staged version to fixed data, verifies an encrypted check
 
 ## Prerequisites
 
+Historical rehearsal requires the pinned commit and its ancestry locally; shallow checkouts must fetch that history first. It never substitutes source downloaded from an unconfirmed remote.
+
 Run historical-source data-retention rehearsal with `node scripts/native-package-qa.mjs --historical` (or `make qa-native-history`). It exports pinned commit `4367285202054181344e386096b89e8ea3059703` with `git archive`, generates its agents, installs locked dependencies and builds its original frontend/native server before upgrading that actual historical service to current source. Commit identities and server digests must differ; the current CLI is a separate controller and never overwrites the historical package. The complete existing native/browser rehearsal then continues. Source, dependency directories and archives remain inside this run's owned temporary directory and are cleaned twice, retaining at most two screenshots and compact reports. Injected versions are local rehearsal identities; no tag, Release or intranet deployment is created. This does not prove every earlier format or arbitrary official-release migration. See [verification records](./TESTING.en.md) for terminal results.
 
 - Standalone local persistence requires no external database. PostgreSQL clusters are unsupported; disabling cluster configuration must not expose stale local files to this workflow.
