@@ -57,7 +57,7 @@ docs/     PLAN / BASELINE / 约定（中英双语）
 
 ## 5. 约定
 
-生成的验证证据统一放在忽略的 `.cache/qa-reports/`，可复用 QA 入口放在 `scripts/`。浏览器与 Docker runner 自动保留最近三次已完成的独立验证，每次最多两张截图。原生包/race 的已完成且清理成功批次也自动精简，包括有有效 runner 回执的历史批次。成功批次删除原始 trace、视频、归档、临时脚本/程序、已退出进程的 PID 文件及已知浏览器附属文件；PID 活动或无法读取时保护整个批次。活动进程、失败诊断及未完成清理受保护。没有 runner 回执的旧专题报告和已结束的已知临时脚本使用 `make qa-preview` / `make qa-clean`（或 `cd web && pnpm qa:preview` / `pnpm qa:clean`）。Docker 资源预览不写报告，旧只读快照和成功的零变更执行回执分别最多保留三份；实际变更、失败、未知格式及恢复所需回执继续保留。Agent 优先读取当前源码与最终摘要，不把忽略目录里的历史诊断当作实现依据；只有具体未解问题才搜索忽略证据。保留被引用的 `docs/images/` 资源。
+生成的验证证据统一放在忽略的 `.cache/qa-reports/`，可复用 QA 入口放在 `scripts/`。浏览器与 Docker runner 自动保留最近三次成功且清理完成的独立验证，每次最多两张截图；失败摘要与必要诊断不过期。原生包/race 的已完成且清理成功批次也自动精简，包括有有效 runner 回执的历史批次。成功批次删除原始 trace、视频、归档、临时脚本/程序、已退出进程的 PID 文件及已知浏览器附属文件；PID 活动或无法读取时保护整个批次。活动进程、失败诊断及未完成清理受保护。没有 runner 回执的旧专题报告和已结束的已知临时脚本（含 web/.cache QA 配置白名单）使用 `make qa-preview` / `make qa-clean`（或 `cd web && pnpm qa:preview` / `pnpm qa:clean`）。Docker 资源预览不写报告，旧只读快照和成功的零变更执行回执分别最多保留三份；实际变更、失败、未知格式及恢复所需回执继续保留。Agent 优先读取当前源码与最终摘要，不把忽略目录里的历史诊断当作实现依据；只有具体未解问题才搜索忽略证据。保留被引用的 `docs/images/` 资源。
 
 **Go（server/）**
 - Go 1.27，模块 `github.com/neko233-com/jumpserver233/server`，优先标准库；依赖确有必要才引入。

@@ -32,6 +32,7 @@ web/artifacts
 web/e2e/artifacts
 scripts/artifacts
 server/testsupport/artifacts
+server/testsupport/**/artifacts
 **/__pycache__
 **/*.pyc
 **/*.prof
@@ -72,6 +73,12 @@ server/testsupport/artifacts
 **/.jms233-stage-*
 **/.jms233-installation.json
 **/.jms233-upgrade.json
+**/.jms233-schedule.json
+**/.jms233-automatic.json
+**/.idea
+**/*.swp
+**/*.swo
+**/*~
 docs/images
 docs
 server/testsupport

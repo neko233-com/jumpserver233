@@ -18,18 +18,15 @@ playwright-report/
 blob-report/
 web/.auth/
 # Generated browser evidence belongs in .cache/qa-reports, never beside source.
-/screenshots/
+# Match nested/ad hoc runners too; product images remain in docs/images/.
+screenshots/
 /artifacts/
-web/e2e/screenshots/
 web/e2e/artifacts/
-web/screenshots/
 web/artifacts/
-web/playwright/screenshots/
 web/playwright/.cache/
-scripts/screenshots/
 scripts/artifacts/
-server/testsupport/screenshots/
 server/testsupport/artifacts/
+server/testsupport/**/artifacts/
 # Local CLI authentication capabilities and interrupted atomic writes
 *.jms-auth.json
 .jms-auth-*
@@ -105,3 +102,7 @@ pnpm-debug.log*
 ._*
 Thumbs.db
 Desktop.ini
+# Interrupted editor writes
+*.swp
+*.swo
+*~

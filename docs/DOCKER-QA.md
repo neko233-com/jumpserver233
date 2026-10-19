@@ -32,6 +32,8 @@ node scripts/qa-retention.mjs --apply --legacy
 
 `--legacy` 额外精简没有 runner 回执的已有成功专题，并清理 `.cache/` 根目录中 branding/discovery/migration/monitor-history 前缀、超过一小时且无已记录活动验证的临时脚本；不碰未知工具。默认自动策略只处理已证明结束的浏览器/Docker 验证目录，以及有有效原生/race 回执的成功批次。每个候选文件检查仓库边界、所有父目录、链接与预览后的文件身份。删除前统一复核所有候选文件和 runner 回执，每次删除前再次检查所属 runner；预览后新增/修改回执或进程恢复活动时拒绝删除。回执固定写入 `.cache/qa-reports/retention.json`，不会自我累积。重复执行应删除零项。
 
+最近三次的限额仅统计成功批次；失败浏览器/Docker 批次的摘要和必要诊断不会因后续成功运行而过期。`--legacy` 也清理 `web/.cache/` 内固定白名单中的历史 QA 配置及 `run-security-production-full.mjs`，同样要求超过一小时且无已记录活动验证；未知配置与历史结果目录保留。任意层级的 `screenshots/`、协议夹具嵌套 `artifacts/`、编辑器交换/备份文件均被 Git 忽略；Docker 另外排除自动更新/窗口安装的本地状态。
+
 成功批次的临时 JS/TS、Shell/PowerShell/Python、CMD/BAT 脚本、已知无扩展名的 jms 程序和浏览器 `error-context.md` / `.last-run.json` 也自动回收。可复用脚本必须放在 `scripts/`。PID 文件仅在内容为有效进程号且进程已退出时清理；活动或无法读取的 PID 文件保护整个批次。删除前再次核对 PID 文件集合与内容身份，防止预览后新任务启动。其他 Markdown、TXT 和 JSON 证据继续保留。
 
 文件入口也可用 `make qa-preview` / `make qa-clean`，或在 `web/` 下执行 `pnpm qa:preview` / `pnpm qa:clean`。Docker 资源预览不再写入文件；旧的成功只读快照最多保留三份。成功且无资源候选、无变更的执行回执也单独最多保留三份。实际删除、归属信息、剩余资源、失败、未完成或未知字段的回执继续保留，供恢复与核对。缺少原生/race 回执的历史专题仍需显式 `--legacy`。

@@ -52,6 +52,60 @@ test("live PIDs and incomplete cleanup preserve artifacts", t => {
   assert.ok(existsSync(resolve(incomplete, "trace.zip")));
 });
 
+test("expired successful runs never evict failed browser or Docker receipts", t => {
+  const { root, browser, put } = fixture(t);
+  const failedBrowser = browser(0);
+  put(`${failedBrowser}/summary.json`, { status: "failed", failures: ["sanitized failure"] });
+  for (let i = 1; i <= 5; i++) browser(i);
+  const docker = index => `.cache/docker-qa/jms233-qa-00000000-0000-0000-0000-${String(index).padStart(12, "0")}`;
+  for (let i = 0; i <= 5; i++) {
+    const folder = docker(i);
+    const path = put(`${folder}/summary.json`, { project: folder.split("/").at(-1), cleaned: true, success: i !== 0 });
+    utimesSync(path, new Date(i * 1000), new Date(i * 1000));
+    put(`${folder}/verify.log`, "bounded failure diagnostic");
+  }
+  retainQAArtifacts(root);
+  assert.ok(existsSync(resolve(failedBrowser, "summary.json")));
+  assert.ok(existsSync(resolve(root, docker(0), "summary.json")));
+  assert.ok(existsSync(resolve(root, docker(0), "verify.log")));
+  assert.equal(existsSync(resolve(root, docker(1))), false);
+  for (let i = 3; i <= 5; i++) assert.ok(existsSync(resolve(root, docker(i), "summary.json")));
+  assert.equal(retainQAArtifacts(root).removedFiles, 0);
+});
+
+test("a failed final lifecycle protects an otherwise passing browser summary", t => {
+  const { root, browser, put } = fixture(t), folder = browser(0);
+  put(`${folder}/lifecycle.json`, { status: "failed", artifactRetentionFailed: true });
+  for (let i = 1; i <= 5; i++) browser(i);
+  retainQAArtifacts(root);
+  assert.ok(existsSync(resolve(folder, "summary.json")));
+  assert.equal(JSON.parse(readFileSync(resolve(folder, "lifecycle.json"))).status, "failed");
+});
+
+test("legacy Web helpers use a fixed allowlist, age limit and active-run protection", t => {
+  const { root, put } = fixture(t);
+  const old = put("web/.cache/risk-qa.config.mjs"), fresh = put("web/.cache/ticket-qa.config.mjs");
+  const keep = [put("web/.cache/custom-qa.config.mjs"), put("web/src/risk-qa.config.mjs"), put("web/.cache/account-risks-results/risk-result.json")];
+  utimesSync(old, new Date(0), new Date(0));
+  assert.equal(planRetention(root).selected.length, 0);
+  const receipt = put(".cache/qa-reports/current/lifecycle.json", { pid: 12345, status: "running" });
+  assert.equal(planRetention(root, { legacy: true, isAlive: pid => pid === 12345 }).selected.length, 0);
+  unlinkSync(receipt);
+  assert.equal(retainQAArtifacts(root, { legacy: true, isAlive: () => false }).removedFiles, 1);
+  assert.ok(existsSync(fresh)); keep.forEach(path => assert.ok(existsSync(path)));
+  assert.equal(retainQAArtifacts(root, { legacy: true }).removedFiles, 0);
+});
+
+test("a new run after legacy preview protects helpers before any deletion", t => {
+  const { root, put } = fixture(t), helper = put("web/.cache/risk-qa.config.mjs");
+  utimesSync(helper, new Date(0), new Date(0));
+  const plan = planRetention(root, { legacy: true });
+  assert.equal(plan.selected.length, 1);
+  put(".cache/qa-reports/new-run/lifecycle.json", { pid: process.pid, status: "running" });
+  assert.throws(() => applyRetention(plan), /activity changed/);
+  assert.ok(existsSync(helper));
+});
+
 test("terminal current run can be retained while its runner process is still alive", t => {
   const { root, browser, put } = fixture(t), folder = browser(0);
   put(`${folder}/lifecycle.json`, { pid: process.pid, status: "passed" });
@@ -332,7 +386,7 @@ test("Git excludes generated evidence and secrets while keeping product screensh
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 0, `${path} must be ignored even from a nested runner`);
   }
-  for (const path of ["scripts/screenshots/qa.png", "scripts/artifacts/report.json", "server/testsupport/screenshots/qa.png", "server/testsupport/artifacts/trace.zip", "web/e2e/artifacts/result.json", "web/playwright/screenshots/run.png", "web/e2e/coverage/lcov.info", "scripts/coverage/index.html", "scripts/runner.pid", "server/testsupport/runner.pid.lock"]) {
+  for (const path of ["scripts/screenshots/qa.png", "scripts/artifacts/report.json", "server/testsupport/screenshots/qa.png", "server/testsupport/artifacts/trace.zip", "web/e2e/artifacts/result.json", "web/playwright/screenshots/run.png", "web/e2e/coverage/lcov.info", "scripts/coverage/index.html", "scripts/runner.pid", "server/testsupport/runner.pid.lock", "web/e2e/nested/screenshots/run.png", "server/testsupport/openssh/artifacts/temp.zip", "web/src/App.tsx.swp", "docs/PLAN.md~"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 0, `${path} must be ignored`);
   }
@@ -342,6 +396,8 @@ test("Git excludes generated evidence and secrets while keeping product screensh
   }
   const tracked = spawnSync("git", ["ls-files", "-ci", "--exclude-standard"], { cwd: root, encoding: "utf8" });
   assert.equal(tracked.status, 0); assert.equal(tracked.stdout.trim(), "", "Ignore rules must not hide tracked source");
+  const dockerIgnore = readFileSync(resolve(root, ".dockerignore"), "utf8").split(/\r?\n/);
+  for (const rule of ["**/screenshots", "**/.jms233-schedule.json", "**/.jms233-automatic.json", "server/testsupport/**/artifacts"]) assert.ok(dockerIgnore.includes(rule), `Build context must exclude ${rule}`);
 });
 
 test("content checks reject newly orphaned product images and the negative fixture is removed", () => {
