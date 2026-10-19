@@ -267,7 +267,9 @@ try {
 	await row.getByRole("button", { name: "Edit", exact: true }).click();
 	await expect(page.getByRole("textbox", { name: "SSH execution workspace (optional)", exact: true })).toHaveValue(workspace);
 	await page.getByRole("dialog").screenshot({ path: resolve(output, "workspace.en.png") });
+	await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
 	await page.getByRole("button", { name: "中文", exact: true }).click();
+	await row.getByRole("button", { name: "编辑", exact: true }).click();
 	await expect(page.getByRole("textbox", { name: "SSH 执行工作区（可选）", exact: true })).toHaveValue(workspace);
 	await page.getByRole("dialog").screenshot({ path: resolve(output, "workspace.zh.png") });
 	await page.getByRole("button", { name: "取消", exact: true }).click();
@@ -277,7 +279,6 @@ try {
     const card = page.locator(".update-settings-card");
     await expect(card.getByRole("heading", { name: "Software updates", exact: true })).toBeVisible();
     await expect(card.getByText(report.recoveryVersion, { exact: true })).toBeVisible();
-    const screenshots = output;
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(card.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
     if (errors.length) {
