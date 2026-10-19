@@ -69,7 +69,7 @@ Web URLs are `http://127.0.0.2:15173` and `http://127.0.0.3:15174`; APIs use `ht
 node scripts/docker-qa.mjs down --project jms233-debug-a
 ```
 
-`down` retains the data volume. Docker-only startup is `docker compose -f compose.qa.yml -p jms233-debug up --build --detach --wait`. Default web/API ports are 15173/18080; override with `JMS_QA_WEB_PORT`, `JMS_QA_API_PORT` and `JMS_QA_HOST`. Use different loopback addresses to isolate cookies.
+`down` removes this QA project's data volume by default; pass `--keep-data` explicitly to retain it. Docker-only startup is `docker compose -f compose.qa.yml -p jms233-debug up --build --detach --wait`. Default web/API ports are 15173/18080; override with `JMS_QA_WEB_PORT`, `JMS_QA_API_PORT` and `JMS_QA_HOST`. Use different loopback addresses to isolate cookies.
 
 After starting both environments, verify that login does not overwrite the other session in a shared browser context: `node scripts/docker-qa.mjs up --project jms233-debug-a --browser --peer-url http://127.0.0.3:15174`. This passed on 2026-10-16; checking existing environments took approximately 6.5 seconds.
 

@@ -12,7 +12,7 @@ const execute = promisify(execFile), root = fileURLToPath(new URL("..", import.m
 const id = randomUUID(), owner = `jms233-updates-race-${id}`, db = `${owner}-db`, runner = `${owner}-go`, password = randomUUID();
 const labels = ["--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`];
 const output = resolve(root, ".cache/qa-reports/updates/linux-race.json"); mkdirSync(resolve(output, ".."), { recursive: true });
-const report = { at: new Date().toISOString(), pid: process.pid, status: "preparing", tests: [], packages: [], cleanup: {} };
+const report = { at: new Date().toISOString(), pid: process.pid, owner, network: owner, database: db, runner, status: "preparing", tests: [], packages: [], cleanup: {} };
 const save = () => writeFileSync(output, JSON.stringify(report, null, 2));
 const run = (command, args) => execute(command, args, { cwd: root, windowsHide: true, maxBuffer: 2 * 1024 * 1024 });
 const owned = labels => labels?.["com.jumpserver233.qa.owner"] === owner && labels?.["com.jumpserver233.qa.workspace"] === root;
@@ -52,6 +52,7 @@ try {
   if (report.code !== 0) process.exitCode = 1;
 } catch { report.status = "failed"; report.error = "Isolated update race verification failed"; process.exitCode = 1; }
 finally {
-  for (let round = 0; round < 2; round++) { try { await cleanup(); report.cleanup[round ? "idempotent" : "removed"] = true; } catch { report.cleanup.error = "Owned QA cleanup incomplete"; process.exitCode = 1; } }
+  report.testStatus = report.status;
+  for (let round = 0; round < 2; round++) { try { await cleanup(); report.cleanup[round ? "idempotent" : "removed"] = true; } catch { report.cleanup.error = "Owned QA cleanup incomplete"; report.status = "cleanup_failed"; process.exitCode = 1; } }
   save(); console.log(JSON.stringify({ status: report.status, code: report.code, passed: report.tests.filter(t => t.status === "pass").length, failed: report.tests.filter(t => t.status === "fail").length, skipped: report.tests.filter(t => t.status === "skip").length, durationMs: report.durationMs, cleanup: report.cleanup }));
 }

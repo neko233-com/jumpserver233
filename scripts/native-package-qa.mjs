@@ -16,7 +16,7 @@ const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/updat
 mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
-const report = { at: new Date().toISOString(), pid: process.pid, status: "running", packages: [], cleanup: {} };
+const report = { at: new Date().toISOString(), pid: process.pid, owner, temporaryDirectory: temporary, status: "running", packages: [], cleanup: {} };
 const save = () => writeFileSync(resolve(output, "native-packages.json"), JSON.stringify(report, null, 2));
 const run = (command, args, options = {}) => execute(command, args, { cwd: root, windowsHide: true, maxBuffer: 2 * 1024 * 1024, ...options });
 const accept = c => c.Config?.Labels?.["com.jumpserver233.qa.owner"] === owner && c.Config?.Labels?.["com.jumpserver233.qa.workspace"] === root;
@@ -96,7 +96,7 @@ try {
 } finally {
   for (let round = 0; round < 2; round++) {
     try { await cleanup(); report.cleanup[round ? "idempotent" : "removed"] = true; }
-    catch { report.cleanup.error = "Owned native QA cleanup incomplete"; process.exitCode = 1; }
+    catch { report.cleanup.error = "Owned native QA cleanup incomplete"; report.status = "cleanup_failed"; process.exitCode = 1; }
   }
   report.cleanup.temporaryArtifactsRemoved = !existsSync(temporary); save();
   console.log(JSON.stringify(report));

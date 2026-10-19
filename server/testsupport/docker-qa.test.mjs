@@ -2,8 +2,8 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {isMissingDockerResource,buildQAImage} from './docker-qa.mjs';
 test('missing Docker resource errors are case independent and fail closed',()=>{
- for(const stderr of ['error: no such object: qa','Error: No such container: qa'])assert.equal(isMissingDockerResource({stderr}),true);
- for(const stderr of ['EOF','permission denied','Docker daemon unavailable'])assert.equal(isMissingDockerResource({stderr}),false);
+ for(const stderr of ['error: no such object: qa','Error: No such container: qa','Error: No such container: jms233-unauthorized','Error: No such container: jms233-eof','Error response from daemon: network jms233-qa-123 not found\n'])assert.equal(isMissingDockerResource({stderr}),true);
+ for(const stderr of ['EOF','permission denied','Docker daemon unavailable','No such object: permission denied','Error response from daemon: network qa not found: permission denied'])assert.equal(isMissingDockerResource({stderr}),false);
 });
 test('QA image build retries a transient read failure and returns the original success',async()=>{
  let calls=0;const success={stdout:'built'};assert.equal(await buildQAImage(async()=>{if(++calls===1)throw Object.assign(new Error('registry'),{stderr:'Head https://registry.invalid: EOF'});return success;},['build']),success);assert.equal(calls,2);

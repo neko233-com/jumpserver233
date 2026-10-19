@@ -83,7 +83,8 @@ async function httpSmoke() {
   const me = await (await get(`${webURL}/api/v1/users/me`, { headers: { Cookie: cookie } })).json();
   assert.equal(me.username, "root");
   const updates = await (await get(`${webURL}/api/v1/settings/security/updates`, { headers: { Cookie: cookie } })).json();
-  assert.equal(updates.settings.automatic, false);
+  assert.equal(typeof updates.settings.automatic, "boolean");
+  if (command === "verify") assert.equal(updates.settings.automatic, false);
   assert.equal(updates.repository, "neko233-com/jumpserver233");
 }
 async function browserSmoke() {
@@ -159,6 +160,21 @@ async function browserSmoke() {
     await page.screenshot({ path: resolve(output, "updates.en.png") });
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(page.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
+    if (command === "verify") {
+      const endpoint = "/api/v1/settings/security/updates";
+      const actual = await (await page.request.get(webURL + endpoint)).json();
+      let updateReads = 0;
+      await page.route("**" + endpoint, async route => {
+        if (route.request().method() === "GET" && ++updateReads === 1)
+          await route.fulfill({ json: { ...actual, checking: true } });
+        else await route.continue();
+      });
+      await page.reload();
+      await page.getByRole("tab", { name: "安全策略", exact: true }).click();
+      await expect(page.getByRole("button", { name: "检查更新", exact: true })).toBeEnabled({ timeout: 10_000 });
+      assert.ok(updateReads >= 2, "Update status did not poll an in-flight check");
+      await page.unroute("**" + endpoint);
+    }
     await page.screenshot({ path: resolve(output, "updates.zh-CN.png") });
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }

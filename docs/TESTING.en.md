@@ -2,6 +2,17 @@
 
 > [中文](./TESTING.md) | English
 
+## Published-release checks and native artifacts (2026-10-19)
+
+- Full native Go/Testify: 1497 passed, 106 external-fixture/platform skips, zero failures, 79 passing packages, 75.7 seconds. Seven affected Linux packages also passed race checks against isolated Docker PostgreSQL: 36 passed, no skips/failures, 54.1 seconds, including shared-state takeover, request replay, permissions, backup startup exclusion and real archive validation. The initial tests passed but repeated cleanup misclassified Docker's `network … not found`; strict missing-resource/error cases were added and both cleanup rounds then passed.
+- Both executables, web output and manifests were actually built for Linux/macOS/Windows × amd64/arm64 and checked for full SHA-256, exact files and ELF/Mach-O/PE architecture. The Windows amd64 CLI executed with matching version/commit. The Linux amd64 package served web and protected API on one port in a read-only container. Repeated packaging refused replacement and preserved bytes. No real macOS/other-architecture device execution or formal Release upload was performed.
+- Complete production Playwright: 86/86 passed, no failures/skips, 19.5 minutes, runner exit zero and successful fixture/temporary-data cleanup. Subsequent style/in-flight-refresh corrections received targeted production-Docker/manual-browser checks without repeating the entire suite. Final Docker smoke includes pending-check polling: build/startup/checks 7.74/11.97/7.22 seconds, passed and automatically cleaned.
+- Actual CLI/browser requests to the official release endpoint returned no published stable release, without pretending to be up to date. Manual browser evidence covers existing-account login, check persistence after container recreation, policy saving, unchanged audit count on repeated save, English/Chinese and zero console warnings/errors. Polling/error branches use explicitly controlled responses and do not prove installation of a real published package.
+- Passed: 38 QA/publication helpers, six renderer/cache tests, Go vet, lint, application/E2E types, macOS deployment helpers and bilingual content checks. Initial JS stays 499421 bytes and largest chunk 482262; new UI/locales remain lazy. Total JS is 1600370 bytes, an increase of 9093. A measured 9 kB feature allocation updates the total budget while initial/single-chunk 500 kB limits remain unchanged, with a new lazy-update-page gate. Content: 142 documents, 3461 keys per language and 85 referenced product images.
+- Native QA archives, runtime data, containers and temporary directories were removed with repeated checks; complete-browser/Docker fixtures were also cleaned. Compact receipts and two manual screenshots are in ignored `.cache/qa-reports/updates/`. Actual publication awaits the first formal Release. Controlled installation, migration/failure rollback and strong directory rules remain pending; this does not complete the general updater or Enterprise parity.
+
+See [Software updates](./UPDATES.en.md) for behavior and commands.
+
 ## Artifact hygiene and automatic retention (2026-10-19)
 
 - Git/Docker exclusions cover browser screenshots/reports, profiles, temporary directories, backups and recovery state without globally hiding images. Browser and Docker runners retain three successfully cleaned disposable runs with at most two bilingual screenshots per run, skipping active processes, incomplete cleanup and retained debug environments. Named historical features keep JSON evidence.

@@ -69,7 +69,7 @@ node scripts/docker-qa.mjs up --project jms233-debug-b --host 127.0.0.3 --web-po
 node scripts/docker-qa.mjs down --project jms233-debug-a
 ```
 
-`down` 默认删除测试数据卷；明确需要后续调试时添加 `--keep-data`。纯 Docker 入口为 `docker compose -f compose.qa.yml -p jms233-debug up --build --detach --wait`，默认网页/API 端口为 15173/18080，可用 `JMS_QA_WEB_PORT`、`JMS_QA_API_PORT` 和 `JMS_QA_HOST` 调整；不同环境使用不同回环地址以隔离 Cookie。
+`down` 默认删除该 QA 项目的数据卷；需要保留后续调试数据时显式添加 `--keep-data`。纯 Docker 入口为 `docker compose -f compose.qa.yml -p jms233-debug up --build --detach --wait`，默认网页/API 端口为 15173/18080，可用 `JMS_QA_WEB_PORT`、`JMS_QA_API_PORT` 和 `JMS_QA_HOST` 调整；不同环境使用不同回环地址以隔离 Cookie。
 
 两套环境启动后，可在同一浏览器上下文验证登录互不覆盖：`node scripts/docker-qa.mjs up --project jms233-debug-a --browser --peer-url http://127.0.0.3:15174`。2026-10-16 已实际通过，已有环境复查约 6.5 秒。
 
