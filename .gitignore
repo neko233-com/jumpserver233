@@ -50,6 +50,10 @@ vault.key
 .jms233-write-*
 .jms233-update-*
 .jms233-package-*
+# Managed native candidates belong outside source; exclude accidental local roots.
+.jms233-releases.json
+.jms233-release.json
+.jms233-stage-*
 
 # Additional build / test outputs
 /dist/

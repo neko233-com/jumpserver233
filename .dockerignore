@@ -48,6 +48,9 @@ web/.auth
 **/.jms233-write-*
 **/.jms233-update-*
 **/.jms233-package-*
+**/.jms233-releases.json
+**/.jms233-release.json
+**/.jms233-stage-*
 docs/images
 docs
 server/testsupport

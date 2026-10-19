@@ -31,7 +31,7 @@ try {
   const args = ["run", "--rm", "--name", runner, ...labels, "--network", owner,
     "--mount", `type=bind,source=${root},target=/work,readonly`, "--mount", `type=bind,source=${modules},target=/gomod,readonly`,
     "--workdir", "/work/server", "--env", "GOMODCACHE=/gomod", "--env", "GOFLAGS=-buildvcs=false", "--env", `JMS_TEST_DATABASE_URL=postgres://jumpserver:${password}@${db}:5432/jumpserver_test?sslmode=disable`,
-    "golang:1.27-bookworm", "go", "test", "-race", "-json", "-timeout", "10m", "-run", "Update|StableVersions|ReleaseMetadata|VerifiedDownload|DefaultTransport|FailedChecks|AutomaticChecking|NativeArchive|PortableRelease|Packager|StandaloneBackup",
+    "golang:1.27-bookworm", "go", "test", "-race", "-json", "-timeout", "10m", "-run", "Update|StableVersions|ReleaseMetadata|VerifiedDownload|DefaultTransport|FailedChecks|AutomaticChecking|NativeArchive|NativeStage|PortableRelease|Packager|StandaloneBackup",
     "./internal/core/updates", "./internal/releasebundle", "./internal/api", "./internal/sessionclient", "./cmd/jms", "./cmd/jms-package", "./cmd/server"];
   const started = performance.now();
   report.code = await new Promise((done, reject) => {

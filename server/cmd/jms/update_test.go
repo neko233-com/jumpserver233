@@ -27,3 +27,11 @@ func TestUpdateCLIRejectsInvalidArgumentsBeforeNetworking(t *testing.T) {
 	require.NoError(t, printBuildVersion(&out))
 	assert.Contains(t, out.String(), `"version":`)
 }
+
+func TestUpdateStagingCLIRequiresExplicitRootAndExactActionArguments(t *testing.T) {
+	for _, args := range [][]string{{}, {"stage"}, {"stage", "--root", "x", "--file", "x"}, {"stage-status", "--root", "x"}, {"stage-clean", "--root", "x", "--sha256", "x"}, {"stage-status", "--root", "x", "--file", "x", "--sha256", "x"}, {"stage-clean", "--root", "x", "--os", "unknown"}, {"install", "--root", "x"}} {
+		var out bytes.Buffer
+		require.Error(t, executeStage(context.Background(), args, &out))
+		assert.Empty(t, out.String())
+	}
+}

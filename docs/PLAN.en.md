@@ -4,7 +4,7 @@
 
 ## Current priority: stable SSH release (user change, 2026-10-19)
 
-Added [published-release checks and native artifacts](./UPDATES.en.md): Web/CLI/SDK checks, optional automatic checks, revisions/idempotent receipts, download/archive integrity checks and six-platform release packaging. Controlled installation, migration, failure recovery and real cross-version SSH rehearsal remain pending; these foundations do not complete the general updater.
+Added [published-release checks and native artifacts](./UPDATES.en.md): Web/CLI/SDK checks, optional automatic checks, revisions/idempotent receipts, download/archive integrity checks, six-platform release packaging and controlled candidate staging/inspection/interruption cleanup. Version switching, migration, failure recovery and real cross-version SSH rehearsal remain pending; these foundations do not complete the general updater.
 
 This batch's [encrypted standalone backup/recovery](./BACKUP.en.md) passed unified verification: native `jms backup`, process exclusion, external-key fingerprint checks, format/path/integrity preflight, Docker mount-point recovery and idempotent restore/rollback journals. Go/Testify: 1,523 passed; Linux race: 745 passed; production browser: 85/85; Docker: 7/7. See [verification](./TESTING.en.md).
 

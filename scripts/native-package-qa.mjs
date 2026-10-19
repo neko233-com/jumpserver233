@@ -59,17 +59,35 @@ try {
   const info = JSON.parse((await run(cli, ["--version"])).stdout);
   if (info.version !== report.testVersion || info.commit !== report.commit || info.os !== hostOS || info.arch !== hostArch) throw new Error("Native CLI build identity differs");
   report.hostExecution = { os: hostOS, arch: hostArch, version: info.version, commit: info.commit };
+  // Bootstrap with a test-only tar tool, then exercise the production confined
+  // staging CLI. The candidate never activates itself or opens application data.
+  const stageRoot = resolve(temporary, "releases"), hostSHA = createHash("sha256").update(readFileSync(hostArchive)).digest("hex");
+  const sentinel = resolve(temporary, "data-sentinel"); writeFileSync(sentinel, "preserve-application-data");
+  const stageArgs = ["update", "stage", "--root", stageRoot, "--file", hostArchive, "--sha256", hostSHA];
+  const staged = JSON.parse((await run(cli, stageArgs)).stdout);
+  const repeated = JSON.parse((await run(cli, stageArgs)).stdout);
+  const inspected = JSON.parse((await run(cli, ["update", "stage-status", "--root", stageRoot, "--sha256", hostSHA])).stdout);
+  const stageClean = JSON.parse((await run(cli, ["update", "stage-clean", "--root", stageRoot])).stdout);
+  if (staged.unchanged || !repeated.unchanged || inspected.manifest.commit !== report.commit || stageClean.cleaned_stages !== 0) throw new Error("Native staging identity or idempotence failed");
+  const stagedCLI = resolve(staged.directory, process.platform === "win32" ? "jms.exe" : "jms");
+  if (JSON.parse((await run(stagedCLI, ["--version"])).stdout).commit !== report.commit) throw new Error("Staged native CLI identity differs");
+  writeFileSync(resolve(staged.directory, "web/index.html"), "tampered-qa-candidate");
+  let stageConflict = false;
+  try { await run(cli, stageArgs); } catch (e) { stageConflict = String(e.stderr).includes("release staging directory is unmanaged, changed or incompatible"); }
+  if (!stageConflict || readFileSync(sentinel, "utf8") !== "preserve-application-data") throw new Error("Native staging replaced changed files or application data");
+  report.hostStaging = { verified: true, idempotent: true, changedCandidateRefused: true, candidateCLIExecuted: true, dataSentinelUnchanged: true, noOrphanStages: true };
   const arch = (await run("docker", ["info", "--format", "{{.Architecture}}"])).stdout.trim();
   const linuxArch = arch === "x86_64" ? "amd64" : arch === "aarch64" ? "arm64" : arch;
   if (!["amd64", "arm64"].includes(linuxArch)) throw new Error("Unsupported Docker host architecture");
   const archive = resolve(packages, `jumpserver233-${report.testVersion}-linux-${linuxArch}.tar.gz`), selectedPort = await port();
+  const linuxSHA = createHash("sha256").update(readFileSync(archive)).digest("hex");
   const token = randomUUID() + randomUUID();
   await run("docker", ["run", "--detach", "--pull", "missing", "--name", owner,
     "--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`,
-    "--read-only", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=256m", "--publish", `127.0.0.10:${selectedPort}:8080`,
+    "--read-only", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=512m", "--publish", `127.0.0.10:${selectedPort}:8080`,
     "--mount", `type=bind,source=${archive},target=/artifact/package.tar.gz,readonly`,
-    "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", "JMS_WEB_DIR=/tmp/native/web",
-    "golang:1.27-bookworm", "sh", "-ceu", "mkdir /tmp/native; tar -xzf /artifact/package.tar.gz -C /tmp/native; exec /tmp/native/jms233-server"]);
+    "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", `JMS_QA_PACKAGE_SHA=${linuxSHA}`,
+    "golang:1.27-bookworm", "sh", "-ceu", 'mkdir /tmp/native; tar -xzf /artifact/package.tar.gz -C /tmp/native; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; /tmp/native/jms update stage-status --root /tmp/releases --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; export JMS_WEB_DIR="/tmp/releases/releases/$JMS_QA_PACKAGE_SHA/web"; exec "/tmp/releases/releases/$JMS_QA_PACKAGE_SHA/jms233-server"']);
   const url = `http://127.0.0.10:${selectedPort}`;
   let healthy = false;
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -80,7 +98,7 @@ try {
   if (!healthy) throw new Error("Native single-port server not healthy");
   const html = await (await fetch(url + "/console/settings")).text();
   if (!html.includes("JumpServer233") || (await fetch(url + "/api/v1/assets")).status !== 401) throw new Error("Native web/auth isolation failed");
-  report.linuxExecution = { arch: linuxArch, singlePort: true, protectedAPI: true, web: true, readOnlyRoot: true };
+  report.linuxExecution = { arch: linuxArch, singlePort: true, protectedAPI: true, web: true, readOnlyRoot: true, stagedCandidate: true };
   // Repeating package creation must refuse replacement of an existing archive.
   let conflict = false;
   const repeatedArchive = resolve(packages, `jumpserver233-${report.testVersion}-linux-amd64.tar.gz`);
