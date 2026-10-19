@@ -177,8 +177,15 @@ func validateState(v state) error {
 		if id != r.ID || !validID(id, "source") || r.Input.Revision < 1 || r.CreatedAt.IsZero() || r.UpdatedAt.IsZero() {
 			return ErrInvalid
 		}
-		if _, e := Addresses(r.Input.Targets, r.Input.Exclude); e != nil {
-			return e
+		if r.Input.Provider == "lan" {
+			if _, e := Addresses(r.Input.Targets, r.Input.Exclude); e != nil {
+				return e
+			}
+		} else {
+			check := copyJSON(r.Input)
+			if e := normalizeCloudSource(&check, nil); e != nil {
+				return e
+			}
 		}
 		if _, e := normalizePorts(r.Input.Ports); e != nil {
 			return e
@@ -329,14 +336,14 @@ func publicSource(r sourceRecord) Source {
 	}
 	template, _ := json.Marshal(fields)
 	addresses, _ := Addresses(in.Targets, in.Exclude)
-	return Source{Provider: in.Provider, ID: r.ID, Revision: in.Revision, Name: in.Name, Description: in.Description, Enabled: in.Enabled, Targets: slices.Clone(in.Targets), Exclude: slices.Clone(in.Exclude), Ports: slices.Clone(in.Ports), AddressCount: len(addresses), TimeoutMS: in.TimeoutMS, Concurrency: in.Concurrency, GatewayID: in.GatewayID, Template: template, CredentialConfigured: in.Template.Password != "" || in.Template.PrivateKey != "", KeyFingerprint: r.KeyFingerprint, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return Source{Cloud: copyJSON(in.Cloud), CloudCredentialConfigured: in.CloudCredential != nil, Provider: in.Provider, ID: r.ID, Revision: in.Revision, Name: in.Name, Description: in.Description, Enabled: in.Enabled, Targets: slices.Clone(in.Targets), Exclude: slices.Clone(in.Exclude), Ports: slices.Clone(in.Ports), AddressCount: len(addresses), TimeoutMS: in.TimeoutMS, Concurrency: in.Concurrency, GatewayID: in.GatewayID, Template: template, CredentialConfigured: in.Template.Password != "" || in.Template.PrivateKey != "", KeyFingerprint: r.KeyFingerprint, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 func normalizeSource(in SourceInput, old *sourceRecord) (SourceInput, string, error) {
 	in.RequestID = ""
 	if in.Provider == "" {
 		in.Provider = "lan"
 	}
-	if in.Provider != "lan" {
+	if e := normalizeCloudSource(&in, old); e != nil {
 		return in, "", ErrInvalid
 	}
 	in.Name = strings.TrimSpace(in.Name)
@@ -368,9 +375,13 @@ func normalizeSource(in SourceInput, old *sourceRecord) (SourceInput, string, er
 	if in.Exclude == nil {
 		in.Exclude = []string{}
 	}
-	addresses, e := Addresses(in.Targets, in.Exclude)
-	if e != nil {
-		return in, "", e
+	var addresses []string
+	var e error
+	if in.Provider == "lan" {
+		addresses, e = Addresses(in.Targets, in.Exclude)
+		if e != nil {
+			return in, "", e
+		}
 	}
 	in.Ports, e = normalizePorts(in.Ports)
 	if e != nil {
@@ -480,7 +491,7 @@ func (s *Store) SaveSource(id string, in SourceInput, actor Actor, now time.Time
 			}
 		}
 	}
-	audit(&next, Audit{At: now, Actor: actor, Action: "source_saved", SourceID: id, Revision: normalized.Revision, CredentialChanged: in.Credential != nil, Before: snapshot(publicSource(old), exists), After: snapshot(publicSource(record), true)})
+	audit(&next, Audit{At: now, Actor: actor, Action: "source_saved", SourceID: id, Revision: normalized.Revision, CredentialChanged: in.Credential != nil || in.CloudCredential != nil, Before: snapshot(publicSource(old), exists), After: snapshot(publicSource(record), true)})
 	if e = s.saveLocked(next); e != nil {
 		return Source{}, e
 	}

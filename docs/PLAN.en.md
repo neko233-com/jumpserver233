@@ -2,7 +2,7 @@
 
 > [中文](./PLAN.md) | English
 
-Phase 7 delivers [LAN asset discovery and sync](./ASSET-DISCOVERY.en.md): sources/policies, bounded scans, pinned SSH gateways, one-use import, metadata sync, missing-host handling, native scheduling, organization permissions and bilingual Web/CLI/SDK. See [verification stages](./TESTING.en.md). Cloud adapters and other enterprise features remain open. Intranet deployment was cancelled; publish once after overall acceptance.
+Phase 7 delivers [LAN asset discovery and sync](./ASSET-DISCOVERY.en.md): sources/policies, bounded scans, pinned SSH gateways, one-use import, metadata sync, missing-host handling, native scheduling, organization permissions and bilingual Web/CLI/SDK. See [verification stages](./TESTING.en.md). AWS international/China inventory adapters passed layered signed-fixture and isolated Docker validation. Real cloud-account acceptance, other clouds, automatic IP migration, multi-node mapping and other Enterprise features remain open. Intranet deployment was cancelled; publish once after overall acceptance.
 
 Phase 7 adds [branding](./BRANDING.en.md): bilingual site/sign-in titles, five themes, four image slots, registration footers, global permission/audit, CLI/SDK and PostgreSQL single-active takeover. See [unified verification](./TESTING.en.md). Overall Enterprise parity remains in progress.
 

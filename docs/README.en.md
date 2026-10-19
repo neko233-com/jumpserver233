@@ -2,7 +2,7 @@
 
 > [中文](./README.md) | English
 
-[LAN asset discovery](./ASSET-DISCOVERY.en.md): sources, sync policies, SSH fingerprint preview/import, scheduling, organization permissions and HA recovery.
+[Asset discovery and sync](./ASSET-DISCOVERY.en.md): LAN, AWS international/China inventory, write-only cloud credentials, sync policies, SSH fingerprint preview/import, scheduling and organization permissions. See the document for basic HA and remaining cloud boundaries.
 
 [Branding](./BRANDING.en.md): bilingual titles, themes, logos/icons/sign-in illustrations, footers, global permission/audit, CLI and HA persistence.
 

@@ -20,6 +20,9 @@ func syncError(e error) string {
 func discoveryInput(source sourceRecord, policy Policy, f Finding) assets.Input {
 	in := copyJSON(source.Input.Template)
 	in.Name = policy.NamePrefix + f.Host + "-" + strconv.Itoa(f.Port)
+	if f.Cloud != nil {
+		in.Name = policy.NamePrefix + f.Cloud.DisplayName(f.Port)
+	}
 	in.Host = f.Host
 	in.Port = f.Port
 	in.HostKeyFingerprint = f.HostKeyFingerprint

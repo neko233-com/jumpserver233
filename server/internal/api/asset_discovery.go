@@ -641,9 +641,13 @@ func registerAssetDiscoveryRoutes(mux *http.ServeMux, d Dependencies) {
 		w.Header().Set("Content-Disposition", `attachment; filename="asset-discovery.csv"`)
 		writer := csv.NewWriter(w)
 		defer writer.Flush()
-		_ = writer.Write([]string{"source_id", "host", "port", "protocol", "open", "ssh_verified", "host_key_fingerprint", "last_seen", "asset_id", "sync_state", "error_code"})
+		_ = writer.Write([]string{"source_id", "host", "port", "protocol", "open", "ssh_verified", "host_key_fingerprint", "last_seen", "asset_id", "sync_state", "error_code", "cloud_provider", "cloud_account", "cloud_region", "cloud_instance_id"})
 		for _, f := range rows {
-			_ = writer.Write([]string{f.SourceID, f.Host, strconv.Itoa(f.Port), f.Protocol, strconv.FormatBool(f.Open), strconv.FormatBool(f.SSHVerified), f.HostKeyFingerprint, f.LastSeen.Format(time.RFC3339), f.AssetID, f.SyncState, strings.TrimSpace(f.SyncError)})
+			cloud := []string{"", "", "", ""}
+			if f.Cloud != nil {
+				cloud = []string{f.Cloud.Provider, f.Cloud.AccountID, f.Cloud.Region, f.Cloud.ID}
+			}
+			_ = writer.Write(append([]string{f.SourceID, f.Host, strconv.Itoa(f.Port), f.Protocol, strconv.FormatBool(f.Open), strconv.FormatBool(f.SSHVerified), f.HostKeyFingerprint, f.LastSeen.Format(time.RFC3339), f.AssetID, f.SyncState, strings.TrimSpace(f.SyncError)}, cloud...))
 		}
 	}))
 }

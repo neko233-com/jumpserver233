@@ -12,6 +12,119 @@ if (!/^http:\/\/127\.0\.0\.\d+:\d+$/.test(base))
   throw Error("Discovery QA requires loopback isolation");
 test.use({ locale: "en-US", trace: "off" });
 
+test("AWS international and China sources keep cloud credentials write-only across bilingual edits", async ({
+  browser,
+}, info) => {
+  const context = await browser.newContext({
+    locale: "en-US",
+    viewport: { width: 1440, height: 1000 },
+  });
+  const page = await context.newPage();
+  let api = await request.newContext({ baseURL: base });
+  const ids: string[] = [],
+    errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  try {
+    const credentials = {
+      username: process.env.JMS_DISCOVERY_QA_USERNAME || "e2e.admin",
+      password: process.env.JMS_DISCOVERY_QA_PASSWORD || "synthetic-e2e-admin-password-2468",
+    };
+    let login = await api.post("/api/v1/authentication/auth/", { data: credentials });
+    if (!login.ok()) {
+      await api.post("/api/v1/authentication/register/", { data: credentials });
+      login = await api.post("/api/v1/authentication/auth/", { data: credentials });
+    }
+    expect(login.ok()).toBeTruthy();
+    const token = (await login.json()).access_token,
+      storage = await api.storageState();
+    await context.addCookies(storage.cookies);
+    await api.dispose();
+    api = await request.newContext({
+      baseURL: base,
+      storageState: storage,
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+    });
+    await page.goto(ui + "/console/asset-discovery");
+    for (const provider of ["aws", "aws_cn"]) {
+      const sourceName = `AWS QA ${provider} ${randomUUID()}`;
+      await page.getByRole("button", { name: "Add source", exact: true }).click();
+      const form = page.locator("form.discovery-editor");
+      await form.getByRole("combobox", { name: "Provider", exact: true }).selectOption(provider);
+      await expect(form.getByLabel("IP ranges", { exact: true })).toHaveCount(0);
+      await form.getByLabel("Name", { exact: true }).fill(sourceName);
+      await form.getByLabel("AWS account ID (12 digits)", { exact: true }).fill("123456789012");
+      await form
+        .getByLabel("AWS regions, one per line", { exact: true })
+        .fill(provider === "aws" ? "us-east-1\n\n" : "cn-north-1\n");
+      await form.getByLabel("AWS access key ID", { exact: true }).fill("AKIAIOSFODNN7EXAMPLE");
+      await form
+        .getByLabel("AWS secret access key", { exact: true })
+        .fill("synthetic-browser-cloud-secret");
+      await form
+        .getByLabel("AWS session token (optional)", { exact: true })
+        .fill("synthetic-browser-cloud-token");
+      await expect(form.getByLabel("AWS secret access key", { exact: true })).toHaveAttribute(
+        "type",
+        "password",
+      );
+      await expect(
+        form.getByLabel("AWS session token (optional)", { exact: true }),
+      ).toHaveAttribute("type", "password");
+      const savedResponse = page.waitForResponse(
+        (r) => r.url().endsWith("/asset-discovery/sources") && r.request().method() === "POST",
+      );
+      await form.getByRole("button", { name: "Save", exact: true }).click();
+      const response = await savedResponse;
+      expect(response.status()).toBe(201);
+      const saved = await response.json();
+      ids.push(saved.id);
+      expect(saved.provider).toBe(provider);
+      expect(saved.targets).toEqual([]);
+      expect(saved.cloud.regions).toHaveLength(1);
+      expect(saved.cloud_credential_configured).toBe(true);
+      expect(JSON.stringify(saved)).not.toContain("synthetic-browser-cloud");
+      expect(JSON.stringify(saved)).not.toContain("AKIAIOSFODNN7EXAMPLE");
+      await expect(form).toHaveCount(0);
+      const row = page.getByRole("row").filter({ hasText: sourceName });
+      await row.getByRole("button", { name: "Edit", exact: true }).click();
+      await expect(form.getByRole("combobox", { name: "Provider", exact: true })).toBeDisabled();
+      await expect(form.getByLabel("AWS account ID (12 digits)", { exact: true })).toBeDisabled();
+      await expect(form.getByLabel("AWS secret access key", { exact: true })).toHaveCount(0);
+      await form
+        .getByLabel("Description", { exact: true })
+        .fill("Cloud credential preserved by edit");
+      await form.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(form).toHaveCount(0);
+      const read = await api.get(`/api/v1/asset-discovery/sources/${saved.id}`);
+      expect(read.ok()).toBeTruthy();
+      expect((await read.json()).cloud_credential_configured).toBe(true);
+    }
+    await page.screenshot({ path: info.outputPath("cloud-discovery.en.png"), fullPage: true });
+    await page.getByRole("button", { name: "中文", exact: true }).click();
+    await page.getByRole("button", { name: "新增来源", exact: true }).click();
+    const form = page.locator("form.discovery-editor");
+    await form.getByRole("combobox", { name: "提供商", exact: true }).selectOption("aws_cn");
+    await expect(form.getByLabel("AWS 账号 ID（12 位数字）", { exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBeTruthy();
+    await page.screenshot({ path: info.outputPath("cloud-discovery.zh.png"), fullPage: true });
+    expect(errors).toEqual([]);
+  } finally {
+    for (const id of ids) {
+      const response = await api.get(`/api/v1/asset-discovery/sources/${id}`);
+      if (response.ok())
+        await api.delete(
+          `/api/v1/asset-discovery/sources/${id}?revision=${(await response.json()).revision}`,
+        );
+    }
+    await page.close();
+    await context.close();
+    await api.dispose();
+  }
+});
+
 test("LAN discovery imports a real SSH fixture with bilingual UI, exact retries, scheduling, CLI and Web SSH", async ({
   browser,
 }, info) => {

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/neko233-com/jumpserver233/server/internal/connector/cloudinventory"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/inventoryprobe"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
@@ -34,40 +35,44 @@ type Credential struct {
 	PrivateKeyPassphrase string `json:"private_key_passphrase,omitempty"`
 }
 type SourceInput struct {
-	Provider    string       `json:"provider,omitempty"`
-	RequestID   string       `json:"request_id,omitempty"`
-	Revision    int          `json:"revision"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Enabled     bool         `json:"enabled"`
-	Targets     []string     `json:"targets"`
-	Exclude     []string     `json:"exclude"`
-	Ports       []int        `json:"ports"`
-	TimeoutMS   int          `json:"timeout_ms"`
-	Concurrency int          `json:"concurrency"`
-	GatewayID   string       `json:"gateway_id,omitempty"`
-	Template    assets.Input `json:"template"`
-	Credential  *Credential  `json:"credential,omitempty"`
+	Cloud           *cloudinventory.Config     `json:"cloud,omitempty"`
+	CloudCredential *cloudinventory.Credential `json:"cloud_credential,omitempty"`
+	Provider        string                     `json:"provider,omitempty"`
+	RequestID       string                     `json:"request_id,omitempty"`
+	Revision        int                        `json:"revision"`
+	Name            string                     `json:"name"`
+	Description     string                     `json:"description"`
+	Enabled         bool                       `json:"enabled"`
+	Targets         []string                   `json:"targets"`
+	Exclude         []string                   `json:"exclude"`
+	Ports           []int                      `json:"ports"`
+	TimeoutMS       int                        `json:"timeout_ms"`
+	Concurrency     int                        `json:"concurrency"`
+	GatewayID       string                     `json:"gateway_id,omitempty"`
+	Template        assets.Input               `json:"template"`
+	Credential      *Credential                `json:"credential,omitempty"`
 }
 type Source struct {
-	Provider             string          `json:"provider"`
-	ID                   string          `json:"id"`
-	Revision             int             `json:"revision"`
-	Name                 string          `json:"name"`
-	Description          string          `json:"description"`
-	Enabled              bool            `json:"enabled"`
-	Targets              []string        `json:"targets"`
-	Exclude              []string        `json:"exclude"`
-	Ports                []int           `json:"ports"`
-	AddressCount         int             `json:"address_count"`
-	TimeoutMS            int             `json:"timeout_ms"`
-	Concurrency          int             `json:"concurrency"`
-	GatewayID            string          `json:"gateway_id,omitempty"`
-	Template             json.RawMessage `json:"template"`
-	CredentialConfigured bool            `json:"credential_configured"`
-	KeyFingerprint       string          `json:"key_fingerprint,omitempty"`
-	CreatedAt            time.Time       `json:"created_at"`
-	UpdatedAt            time.Time       `json:"updated_at"`
+	Cloud                     *cloudinventory.Config `json:"cloud,omitempty"`
+	CloudCredentialConfigured bool                   `json:"cloud_credential_configured,omitempty"`
+	Provider                  string                 `json:"provider"`
+	ID                        string                 `json:"id"`
+	Revision                  int                    `json:"revision"`
+	Name                      string                 `json:"name"`
+	Description               string                 `json:"description"`
+	Enabled                   bool                   `json:"enabled"`
+	Targets                   []string               `json:"targets"`
+	Exclude                   []string               `json:"exclude"`
+	Ports                     []int                  `json:"ports"`
+	AddressCount              int                    `json:"address_count"`
+	TimeoutMS                 int                    `json:"timeout_ms"`
+	Concurrency               int                    `json:"concurrency"`
+	GatewayID                 string                 `json:"gateway_id,omitempty"`
+	Template                  json.RawMessage        `json:"template"`
+	CredentialConfigured      bool                   `json:"credential_configured"`
+	KeyFingerprint            string                 `json:"key_fingerprint,omitempty"`
+	CreatedAt                 time.Time              `json:"created_at"`
+	UpdatedAt                 time.Time              `json:"updated_at"`
 }
 type PolicyInput struct {
 	OverwriteManualChanges bool                 `json:"overwrite_manual_changes"`
@@ -102,13 +107,14 @@ type Policy struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 type Finding struct {
-	SourceRevision int    `json:"source_revision"`
-	ID             string `json:"id"`
-	SourceID       string `json:"source_id"`
-	Revision       int    `json:"revision"`
-	Host           string `json:"host"`
-	Port           int    `json:"port"`
-	Protocol       string `json:"protocol"`
+	Cloud          *cloudinventory.Instance `json:"cloud,omitempty"`
+	SourceRevision int                      `json:"source_revision"`
+	ID             string                   `json:"id"`
+	SourceID       string                   `json:"source_id"`
+	Revision       int                      `json:"revision"`
+	Host           string                   `json:"host"`
+	Port           int                      `json:"port"`
+	Protocol       string                   `json:"protocol"`
 	inventoryprobe.Result
 	FirstSeen         time.Time `json:"first_seen"`
 	LastSeen          time.Time `json:"last_seen"`

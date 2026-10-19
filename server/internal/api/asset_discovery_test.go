@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"github.com/neko233-com/jumpserver233/server/internal/connector/cloudinventory"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/inventoryprobe"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assetdiscovery"
@@ -16,15 +17,19 @@ import (
 	"time"
 )
 
-func discoveryEnv(t *testing.T) *policyTestEnv {
+func discoveryEnv(t *testing.T, cloud ...func(context.Context, string, cloudinventory.Config, cloudinventory.Credential) ([]cloudinventory.Instance, error)) *policyTestEnv {
 	t.Helper()
 	e := newPolicyEnv(t)
 	e.d.AccessMu = &sync.RWMutex{}
 	st, err := assetdiscovery.Open(filepath.Join(t.TempDir(), "discovery.json"), make([]byte, 32), nil)
 	require.NoError(t, err)
-	e.d.AssetDiscovery = assetdiscovery.NewService(st, assetdiscovery.Hooks{Probe: func(context.Context, string, int, string, time.Duration, inventoryprobe.DialFunc) inventoryprobe.Result {
+	hooks := assetdiscovery.Hooks{Probe: func(context.Context, string, int, string, time.Duration, inventoryprobe.DialFunc) inventoryprobe.Result {
 		return inventoryprobe.Result{Open: true, SSHVerified: true, HostKeyFingerprint: validTestFingerprint()}
-	}})
+	}}
+	if len(cloud) > 0 {
+		hooks.CloudList = cloud[0]
+	}
+	e.d.AssetDiscovery = assetdiscovery.NewService(st, hooks)
 	e.router = NewRouter("test", e.d)
 	require.NoError(t, e.d.AssetDiscovery.Start(context.Background()))
 	t.Cleanup(e.d.AssetDiscovery.Close)

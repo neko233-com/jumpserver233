@@ -1,8 +1,22 @@
-# 局域网资产发现与同步
+# 资产发现与同步
 
 > 中文 | [English](./ASSET-DISCOVERY.en.md)
 
-竞品为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，来源与同步流程参考其[官方资产文档](https://docs.fit2cloud.com/jumpserver/manual/admin/console/assets/assets_list/)。本模块实现 LAN 来源。公有云、私有云厂商 API 适配及其他企业功能仍按 PLAN 推进。
+竞品为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，来源与同步流程参考其[官方资产文档](https://docs.fit2cloud.com/jumpserver/manual/admin/console/assets/assets_list/)。本模块实现 LAN 发现及 AWS 国际区/中国区原生清单。其他公有云、私有云厂商 API 及企业功能仍按 PLAN 推进。
+
+## AWS 国际区和中国区
+
+选择 `aws` 或 `aws_cn`，填写固定的 12 位 AWS 账号 ID、明确的地域列表，以及私有 IPv4、公网 IPv4 或 IPv6。云凭据与新资产的 SSH 凭据独立。Access Key ID、Secret Access Key 和可选的 STS Session Token 仅写入、按组织加密保存，来源读取、审计、CSV 和 CLI 输出均不回显。编辑来源默认保留云凭据，明确选择替换后才更新。同一来源不能更换提供商或账号；其他账号应创建新来源，当前账号内允许轮换密钥。
+
+连接器使用官方地域 HTTPS 地址，先调用 STS `GetCallerIdentity`，再使用 SigV4 签名 POST Query 请求，分页获取 EC2 `DescribeInstances`。不跟随重定向，不提供自定义端点、不安全 TLS 或云资源写接口。只读身份需具备 `ec2:DescribeInstances`，STS 身份查询遵循 [AWS 权限约定](https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html)。地域启用及账号可访问性由运维人员配置；这两个适配器不含 AWS GovCloud 或隔离分区。
+
+所有选定地域和分页成功后才发布清单。接口失败、无效响应、循环分页、账号或资源所有者不符均保留原发现结果，不计缺失。限制为 32 个地域、每地域 500 页、单响应 8 MiB、规范化云元数据总量 4 MiB、8,192 个观察实例/端点。元数据预算在探测和发布前计算，包含每个所选端口及缺失资源，防止标签与端口展开放大内存占用。限流请求最多重试两次，支持取消并受现有 15 分钟任务时限约束。
+
+发现结果记录稳定的提供商/账号/地域/实例身份、名称、状态、地址和标签。运行中且存在所选 IP 的实例继续执行现有的不认证 SSH 指纹观察或 TCP 探测，可经固定密钥的 SSH 网关。停机或缺少所选 IP 的实例仍显示，不计缺失；只有完整成功清单中消失、且位于当前地域和端口范围内的实例才累计缺失。移除地域会保留旧资产。沿用现有阈值停用、一次性预览与纳管流程。
+
+实例 IP 变化仍保持相同发现和资产 ID。本批对既有端点或 SSH 指纹变化返回冲突，保留原生凭据和信任；自动迁移 IP、多节点映射仍待完成。此类变化需在资产清单中明确核对处理，再确认来源和策略。实例名称更新遵守现有元数据归属保护。没有真实 AWS 账号时，不宣称真实云账号验收；签名协议夹具与 API/浏览器验证分别记录。
+
+Web、SDK 与 `jms discover source save --file -` 共用 `provider`、`cloud`（`account_id`、`regions`、`address_mode`）及仅写的 `cloud_credential`（`access_key_id`、`secret_access_key`、`session_token`）字段。通过受保护的标准输入传入凭据，不放到命令参数或提交的配置中。`jms discover source show` 只返回公开设置和凭据配置状态。
 
 ## 使用
 
@@ -16,11 +30,11 @@
 
 ## 同步与限制
 
-- 资产 ID 由来源和端点确定，重试和进程重启不重复创建。
+- LAN 资产 ID 由来源和端点确定；AWS 由来源、提供商/账号/地域/实例、协议和端口确定。重试和进程重启不重复创建。
 - 不接管人工资产或其他来源资产。单一已有端点标记为已存在，多项匹配报告冲突。
 - 策略只更新名称、节点、分组和备注。人工修改或策略归属不同默认冲突；显式覆盖可接管元数据，不能覆盖端点、用户名、凭据或已有 SSH 主机密钥。
 - 缺失默认保留；可在连续缺失 1–10 次后停用本来源资产。只有本次实际扫描范围参与计数，移除范围不会删除旧资产。同步停用的主机恢复可达后重新启用，人工修改受到保护。
-- 最多 1,024 个地址、16 个端口、8,192 个端点；并发 1–32，探测超时 100–5,000 毫秒。每来源一个活动任务，组织最多四个。
+- LAN 最多 1,024 个地址、16 个端口、8,192 个端点。各来源探测并发 1–32，超时 100–5,000 毫秒。每来源一个活动任务，组织最多四个。
 - 每批最多 500 台，在内存暂存后统一持久化；发现结果按批次写入。
 - 不接受 DNS 扫描目标。网关采用现有固定主机密钥的 SSH 链路，最多三跳，一个扫描复用一条网关连接。登录复核绑定任务与当前路由，不能重放旧批准。
 

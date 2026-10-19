@@ -29,6 +29,9 @@ type Template = {
   [key: string]: unknown;
 };
 type Source = {
+  provider: "lan" | "aws" | "aws_cn";
+  cloud?: { account_id: string; regions: string[]; address_mode: string };
+  cloud_credential_configured?: boolean;
   id: string;
   revision: number;
   name: string;
@@ -67,6 +70,16 @@ type Policy = {
   skipped_triggers: number;
 };
 type Finding = {
+  cloud?: {
+    provider: string;
+    account_id: string;
+    region: string;
+    instance_id: string;
+    name: string;
+    state: string;
+    missing?: boolean;
+  };
+  error_code?: string;
   id: string;
   revision: number;
   source_revision: number;
@@ -118,6 +131,10 @@ type Draft = Omit<Source, "id" | "address_count" | "credential_configured"> & {
   private_key_passphrase: string;
   replace_credential: boolean;
   clear_credential: boolean;
+  access_key_id: string;
+  secret_access_key: string;
+  session_token: string;
+  replace_cloud_credential: boolean;
 };
 type PolicyDraft = Omit<Policy, "id" | "skipped_triggers"> & { id?: string; request_id: string };
 type Preview = { token: string; expires_at: string; results: Finding[] };
@@ -141,6 +158,11 @@ const lines = (value: string) =>
     .map((v) => v.trim())
     .filter(Boolean);
 const fresh = (): Draft => ({
+  provider: "lan",
+  access_key_id: "",
+  secret_access_key: "",
+  session_token: "",
+  replace_cloud_credential: false,
   revision: 0,
   request_id: crypto.randomUUID(),
   name: "",
@@ -404,20 +426,37 @@ export default function AssetDiscoveryPage() {
       private_key_passphrase,
       replace_credential,
       clear_credential,
+      access_key_id,
+      secret_access_key,
+      session_token,
+      replace_cloud_credential,
       ...input
     } = draft;
     await mutate(async () => {
       const saved = await json<Source>(`${root}/sources${source ? `/${source}` : ""}`, {
         method: source ? "PUT" : "POST",
         body: JSON.stringify({
-          provider: "lan",
+          provider: input.provider,
+          ...(input.provider !== "lan"
+            ? {
+                cloud: {
+                  ...input.cloud,
+                  regions: input.cloud?.regions.map((region) => region.trim()).filter(Boolean),
+                },
+                ...(!source || replace_cloud_credential
+                  ? { cloud_credential: { access_key_id, secret_access_key, session_token } }
+                  : {}),
+              }
+            : {}),
           revision: input.revision,
           request_id: input.request_id,
           name: input.name,
           description: input.description,
           enabled: input.enabled,
-          targets: input.targets.map((v) => v.trim()).filter(Boolean),
-          exclude: input.exclude.map((v) => v.trim()).filter(Boolean),
+          targets:
+            input.provider === "lan" ? input.targets.map((v) => v.trim()).filter(Boolean) : [],
+          exclude:
+            input.provider === "lan" ? input.exclude.map((v) => v.trim()).filter(Boolean) : [],
           ports: input.ports,
           timeout_ms: input.timeout_ms,
           concurrency: input.concurrency,
@@ -641,7 +680,7 @@ export default function AssetDiscoveryPage() {
             <table>
               <thead>
                 <tr>
-                  {["name", "targets", "ports", "credential", "revision", "controls"].map((k) => (
+                  {["name", "scope", "ports", "credential", "revision", "controls"].map((k) => (
                     <th key={k}>{label(k)}</th>
                   ))}
                 </tr>
@@ -651,13 +690,23 @@ export default function AssetDiscoveryPage() {
                   <tr key={s.id}>
                     <th scope="row">
                       {s.name}
+                      <small>{label(`providers.${s.provider}`)}</small>
                       {!s.enabled && <small>{label("disabled")}</small>}
                     </th>
                     <td>
-                      {s.targets.join(", ")}
-                      <small>
-                        {label("addressCount")} {s.address_count}
-                      </small>
+                      {s.cloud ? (
+                        <>
+                          {s.cloud.account_id}
+                          <small>{s.cloud.regions.join(", ")}</small>
+                        </>
+                      ) : (
+                        <>
+                          {s.targets.join(", ")}
+                          <small>
+                            {label("addressCount")} {s.address_count}
+                          </small>
+                        </>
+                      )}
                     </td>
                     <td>{s.ports.join(", ")}</td>
                     <td>{label(s.credential_configured ? "configured" : "discoveryOnly")}</td>
@@ -870,6 +919,12 @@ export default function AssetDiscoveryPage() {
                     </td>
                     <th scope="row">
                       {f.host}:{f.port}
+                      {f.cloud && (
+                        <small>
+                          {f.cloud.name} · {f.cloud.instance_id} · {f.cloud.region} ·{" "}
+                          {stateLabel(f.cloud.missing ? "cloud_missing" : `cloud_${f.cloud.state}`)}
+                        </small>
+                      )}
                       <small>{f.latency_ms} ms</small>
                     </th>
                     <td>{f.protocol}</td>
@@ -881,6 +936,7 @@ export default function AssetDiscoveryPage() {
                       <small>
                         {label(f.open ? "reachable" : "unreachable")}
                         {f.sync_error && ` · ${stateLabel(f.sync_error)}`}
+                        {f.error_code && ` · ${stateLabel(f.error_code)}`}
                       </small>
                       {f.asset_id && <Link to="/console">{label("inventory")}</Link>}
                     </td>
@@ -1006,6 +1062,29 @@ export default function AssetDiscoveryPage() {
           <fieldset disabled={busy}>
             <div className="discovery-grid">
               {field(
+                "provider",
+                <select
+                  value={draft.provider}
+                  disabled={!!draft.id}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      provider: e.target.value as Source["provider"],
+                      cloud:
+                        e.target.value === "lan"
+                          ? undefined
+                          : { account_id: "", regions: [], address_mode: "private" },
+                    })
+                  }
+                >
+                  {(["lan", "aws", "aws_cn"] as const).map((provider) => (
+                    <option key={provider} value={provider}>
+                      {label(`providers.${provider}`)}
+                    </option>
+                  ))}
+                </select>,
+              )}
+              {field(
                 "name",
                 <input
                   required
@@ -1022,22 +1101,143 @@ export default function AssetDiscoveryPage() {
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                 />,
               )}
-              {field(
-                "targets",
-                <textarea
-                  required
-                  rows={3}
-                  value={draft.targets.join("\n")}
-                  onChange={(e) => setDraft({ ...draft, targets: e.target.value.split(/\r?\n/) })}
-                />,
-              )}
-              {field(
-                "exclude",
-                <textarea
-                  rows={3}
-                  value={draft.exclude.join("\n")}
-                  onChange={(e) => setDraft({ ...draft, exclude: e.target.value.split(/\r?\n/) })}
-                />,
+              {draft.provider === "lan" &&
+                field(
+                  "targets",
+                  <textarea
+                    required
+                    rows={3}
+                    value={draft.targets.join("\n")}
+                    onChange={(e) => setDraft({ ...draft, targets: e.target.value.split(/\r?\n/) })}
+                  />,
+                )}
+              {draft.provider === "lan" &&
+                field(
+                  "exclude",
+                  <textarea
+                    rows={3}
+                    value={draft.exclude.join("\n")}
+                    onChange={(e) => setDraft({ ...draft, exclude: e.target.value.split(/\r?\n/) })}
+                  />,
+                )}
+              {draft.provider !== "lan" && (
+                <>
+                  {field(
+                    "cloudAccount",
+                    <input
+                      required
+                      pattern="[0-9]{12}"
+                      maxLength={12}
+                      disabled={!!draft.id}
+                      value={draft.cloud?.account_id || ""}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          cloud: {
+                            account_id: e.target.value,
+                            regions: draft.cloud?.regions || [],
+                            address_mode: draft.cloud?.address_mode || "private",
+                          },
+                        })
+                      }
+                    />,
+                  )}
+                  {field(
+                    "cloudRegions",
+                    <textarea
+                      required
+                      rows={2}
+                      value={draft.cloud?.regions.join("\n") || ""}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          cloud: {
+                            account_id: draft.cloud?.account_id || "",
+                            regions: e.target.value.split(/\r?\n/),
+                            address_mode: draft.cloud?.address_mode || "private",
+                          },
+                        })
+                      }
+                    />,
+                  )}
+                  {field(
+                    "cloudAddress",
+                    <select
+                      value={draft.cloud?.address_mode || "private"}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          cloud: {
+                            account_id: draft.cloud?.account_id || "",
+                            regions: draft.cloud?.regions || [],
+                            address_mode: e.target.value,
+                          },
+                        })
+                      }
+                    >
+                      {["private", "public", "ipv6"].map((mode) => (
+                        <option key={mode} value={mode}>
+                          {label(`addressModes.${mode}`)}
+                        </option>
+                      ))}
+                    </select>,
+                  )}
+                  {draft.id &&
+                    field(
+                      "replaceCloudCredential",
+                      <input
+                        type="checkbox"
+                        checked={draft.replace_cloud_credential}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            replace_cloud_credential: e.target.checked,
+                            access_key_id: "",
+                            secret_access_key: "",
+                            session_token: "",
+                          })
+                        }
+                      />,
+                    )}
+                  {(!draft.id || draft.replace_cloud_credential) && (
+                    <>
+                      {field(
+                        "accessKeyID",
+                        <input
+                          required
+                          autoComplete="off"
+                          maxLength={128}
+                          value={draft.access_key_id}
+                          onChange={(e) => setDraft({ ...draft, access_key_id: e.target.value })}
+                        />,
+                      )}
+                      {field(
+                        "secretAccessKey",
+                        <input
+                          required
+                          type="password"
+                          autoComplete="new-password"
+                          maxLength={256}
+                          value={draft.secret_access_key}
+                          onChange={(e) =>
+                            setDraft({ ...draft, secret_access_key: e.target.value })
+                          }
+                        />,
+                      )}
+                      {field(
+                        "sessionToken",
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          maxLength={16384}
+                          value={draft.session_token}
+                          onChange={(e) => setDraft({ ...draft, session_token: e.target.value })}
+                        />,
+                      )}
+                    </>
+                  )}
+                  <p className="muted">{label("cloudHint")}</p>
+                </>
               )}
               {field(
                 "ports",
@@ -1100,7 +1300,7 @@ export default function AssetDiscoveryPage() {
                 </select>,
               )}
             </div>
-            <p>{label("rangeHint")}</p>
+            <p>{label(draft.provider === "lan" ? "rangeHint" : "cloudLimits")}</p>
             {check("enabled", draft.enabled, (v) => setDraft({ ...draft, enabled: v }))}
             <details>
               <summary>{label("advanced")}</summary>

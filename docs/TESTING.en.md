@@ -2,6 +2,17 @@
 
 > [中文](./TESTING.md) | English
 
+## AWS international/China inventory (2026-10-19)
+
+- Final full Go/Testify: 1,353 passed, 48 fixture/platform skips, zero failures; 79.5 seconds with isolated real PostgreSQL. Three additional RDP driver tests passed. Final Linux Docker race: 13 affected packages, 588 passed, eight skipped, zero failures; 338.0 seconds. These suites overlap.
+- Coverage includes the published AWS SigV4 vector, both regional endpoint partitions, temporary tokens, complete pagination, throttling/cancellation, wrong-account/owner rejection, malformed/oversized responses, stable instance identity, stopped/no-IP instances, scoped missing thresholds, credential preservation, restart, API/CLI and normalized metadata bounds including every port. An initial encrypted-restore failure exposed a remaining LAN-only validator; the final suites and actual Docker restart verify its correction.
+- Complete production Playwright ran all 84 cases: 83 passed and one AWS case failed because an exact label matcher included select option text. The corrected combobox-role locator passed against the final production Docker artifact in 1.7 seconds (2.7 seconds including setup), with English/Chinese edits, write-only fields and 390px coverage. The complete-run result remains recorded as failed; the corrected case has a separate passing report. Subsequent cloud-only metadata protection is covered by final full Go/race and a fresh production Docker build.
+- All six final Docker feature checks passed: identical source retries, both AWS partitions, credential preservation, immutable account binding, native CLI reads, real API restarts and deleted-source restoration. Final build/startup/browser smoke: 42.3/12.1/3.3 seconds. AWS inventory protocol tests use signed synthetic fixtures; no real AWS account or production cloud acceptance is claimed.
+- Frontend lint, application/E2E types, production build, fixture/lifecycle tests and bilingual content checks passed. Initial JS remains 499421 bytes (gzip 161446), total JS 1587916, largest chunk 482262. AWS controls/locales add 5738 lazy bytes, with no new dependency and unchanged 500000-byte initial/chunk limits. Both locales have 3408 keys; 136 bilingual documents and 1230 relative links passed.
+- Reports: `.cache/qa-reports/cloud/`; complete browser report: `.cache/qa-reports/browser-1792392864008/`. Preserve compact results, source SHA-256 values, necessary screenshots and sanitized initial failures. This batch removed its test data, Go executables, containers, volumes, networks and 49 temporary helpers/logs/superseded reports (2067277 bytes); repeated cleanup passed. Earlier policy-rejected deletions were excluded and not retried.
+
+Other cloud vendors, automatic IP migration, multi-node mapping and remaining Enterprise features stay open. No intranet deployment, tag or formal Release was created; publish once after overall acceptance.
+
 ## LAN asset discovery and sync (2026-10-19)
 
 - Final full Go/Testify: 1324 passed, 48 skipped for protocol fixtures/platforms, zero failures; 74.7 seconds with isolated real PostgreSQL, including source/policy, asset and import-receipt takeover.

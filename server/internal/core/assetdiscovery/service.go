@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neko233-com/jumpserver233/server/internal/connector/cloudinventory"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/inventoryprobe"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	"github.com/neko233-com/jumpserver233/server/internal/core/operations"
@@ -24,6 +25,7 @@ type Gateway struct {
 	Current func() bool
 }
 type Hooks struct {
+	CloudList       func(context.Context, string, cloudinventory.Config, cloudinventory.Credential) ([]cloudinventory.Instance, error)
 	ApplyBatch      func(context.Context, Actor, Source, Policy, []ApplyRow) ([]ApplyResult, error)
 	Authorize       func(context.Context, Actor, Source, string) error
 	AuthorizeTarget func(context.Context, Actor, Source, string, int) error
@@ -75,6 +77,9 @@ func (s *Service) Configure(h Hooks) error {
 	}
 	if h.Probe == nil {
 		h.Probe = s.hooks.Probe
+	}
+	if h.CloudList == nil {
+		h.CloudList = s.hooks.CloudList
 	}
 	s.hooks = h
 	return nil
@@ -256,9 +261,12 @@ func (s *Service) startRun(ctx context.Context, in RunInput, actor Actor, trigge
 			return Run{}, ErrConflict
 		}
 	}
-	addresses, e := Addresses(source.Input.Targets, source.Input.Exclude)
-	if e != nil {
-		return Run{}, e
+	var addresses []string
+	if source.Input.Provider == "lan" {
+		addresses, e = Addresses(source.Input.Targets, source.Input.Exclude)
+		if e != nil {
+			return Run{}, e
+		}
 	}
 	now := s.now()
 	run := Run{ID: id, Revision: 1, SourceID: source.ID, SourceRevision: source.Input.Revision, PolicyID: in.PolicyID, PolicyRevision: in.PolicyRevision, Actor: actor, Trigger: trigger, State: "scanning", Total: len(addresses) * len(source.Input.Ports), StartedAt: now, Origin: Origin(ctx)}
@@ -331,6 +339,7 @@ type observation struct {
 	host   string
 	port   int
 	result inventoryprobe.Result
+	cloud  *cloudinventory.Instance
 }
 
 func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy, run Run, addresses []string) {
@@ -344,6 +353,17 @@ func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy,
 		s.mu.Unlock()
 	}()
 	public := publicSource(source)
+	var cloudTargets []observation
+	if source.Input.Cloud != nil {
+		var e error
+		cloudTargets, e = s.cloudTargets(ctx, source, run.Actor)
+		if e != nil {
+			s.finish(run, "failed", cloudError(e))
+			return
+		}
+		run.Total = len(cloudTargets)
+		s.updateProgress(run)
+	}
 	gateway := Gateway{Close: func() error { return nil }, Current: func() bool { return true }}
 	if source.Input.GatewayID != "" {
 		if s.hooks.Gateway == nil {
@@ -373,10 +393,7 @@ func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy,
 		return
 	}
 	defer gateway.Close()
-	work := make(chan struct {
-		host string
-		port int
-	})
+	work := make(chan observation)
 	results := make(chan observation, source.Input.Concurrency*2)
 	workerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -403,7 +420,7 @@ func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy,
 					}
 					return
 				}
-				if s.hooks.AuthorizeTarget != nil {
+				if s.hooks.AuthorizeTarget != nil && target.host != "" {
 					if e := s.hooks.AuthorizeTarget(workerCtx, run.Actor, public, target.host, target.port); e != nil {
 						select {
 						case results <- observation{result: inventoryprobe.Result{ErrorCode: "scan_permission_revoked"}}:
@@ -412,9 +429,13 @@ func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy,
 						return
 					}
 				}
-				r := s.hooks.Probe(workerCtx, target.host, target.port, source.Input.Template.Protocol, time.Duration(source.Input.TimeoutMS)*time.Millisecond, gateway.Dial)
+				r := target.result
+				if target.cloud == nil || target.host != "" && target.cloud.State == "running" && !target.cloud.Missing {
+					r = s.hooks.Probe(workerCtx, target.host, target.port, source.Input.Template.Protocol, time.Duration(source.Input.TimeoutMS)*time.Millisecond, gateway.Dial)
+				}
+				target.result = r
 				select {
-				case results <- observation{target.host, target.port, r}:
+				case results <- target:
 				case <-workerCtx.Done():
 					return
 				}
@@ -423,13 +444,20 @@ func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy,
 	}
 	go func() {
 		defer close(work)
+		if source.Input.Cloud != nil {
+			for _, target := range cloudTargets {
+				select {
+				case work <- target:
+				case <-workerCtx.Done():
+					return
+				}
+			}
+			return
+		}
 		for _, host := range addresses {
 			for _, port := range source.Input.Ports {
 				select {
-				case work <- struct {
-					host string
-					port int
-				}{host, port}:
+				case work <- observation{host: host, port: port}:
 				case <-workerCtx.Done():
 					return
 				}
@@ -445,7 +473,7 @@ func (s *Service) scan(ctx context.Context, source sourceRecord, policy *Policy,
 			cancel()
 			continue
 		}
-		if result.host == "" {
+		if result.host == "" && result.cloud == nil {
 			code = result.result.ErrorCode
 			cancel()
 			continue
@@ -592,8 +620,11 @@ func (s *Service) publishObservations(source sourceRecord, run Run, observed []o
 	out := []Finding{}
 	for _, o := range observed {
 		id := endpointID(source.ID, source.Input.Template.Protocol, o.host, o.port)
+		if o.cloud != nil {
+			id = cloudFindingID(source.ID, source.Input.Template.Protocol, *o.cloud, o.port)
+		}
 		old, exists := next.Findings[id]
-		if !exists && !o.result.Open {
+		if !exists && !o.result.Open && o.cloud == nil {
 			continue
 		}
 		f := old
@@ -601,8 +632,12 @@ func (s *Service) publishObservations(source sourceRecord, run Run, observed []o
 		f.SourceID = source.ID
 		f.SourceRevision = run.SourceRevision
 		f.Host = o.host
+		if f.Host == "" && o.cloud != nil {
+			f.Host = old.Host
+		}
 		f.Port = o.port
 		f.Protocol = source.Input.Template.Protocol
+		f.Cloud = copyJSON(o.cloud)
 		f.Revision++
 		f.Result = o.result
 		f.LastScanned = now
@@ -612,7 +647,7 @@ func (s *Service) publishObservations(source sourceRecord, run Run, observed []o
 		if f.FirstSeen.IsZero() {
 			f.FirstSeen = now
 		}
-		if eligible(f) {
+		if eligible(f) || f.Cloud != nil && !f.Cloud.Missing {
 			f.LastSeen = now
 			f.ConsecutiveMisses = 0
 		} else {
@@ -644,15 +679,7 @@ func (s *Service) apply(ctx context.Context, actor Actor, source sourceRecord, p
 	if e := s.ValidateSnapshot(source.ID, source.Input.Revision, policy.ID, policy.Revision); e != nil {
 		return "", "", e
 	}
-	in := copyJSON(source.Input.Template)
-	in.Name = policy.NamePrefix + f.Host + "-" + strconv.Itoa(f.Port)
-	in.Host = f.Host
-	in.Port = f.Port
-	in.HostKeyFingerprint = f.HostKeyFingerprint
-	in.Group = policy.Group
-	in.NodeID = policy.NodeID
-	gateway := source.Input.GatewayID
-	in.GatewayID = &gateway
+	in := discoveryInput(source, policy, f)
 	return s.hooks.Apply(ctx, actor, publicSource(source), policy, f, in, missing)
 }
 func (s *Service) saveFindingSync(run Run, f Finding) error {
