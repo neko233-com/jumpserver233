@@ -2,7 +2,7 @@
 
 > 中文 | [English](./README.en.md)
 
-[资产发现与同步](./ASSET-DISCOVERY.md)：LAN、AWS 国际区/中国区清单、仅写云凭据、同步策略、SSH 指纹预览纳管、定时和组织权限。HA 基础模式及其他云平台边界见文档。
+[资产发现与同步](./ASSET-DISCOVERY.md)：LAN、AWS 国际区/中国区、阿里云 ECS、腾讯云 CVM 清单、仅写云凭据、同步策略、SSH 指纹预览纳管、定时和组织权限。HA 基础模式及其他云平台边界见文档。
 
 [品牌外观](./BRANDING.md)：中英标题、主题、LOGO/图标/登录图片、页脚、全局权限及审计、CLI 和 HA 持久化。
 

@@ -2,7 +2,20 @@
 
 > 中文 | [English](./ASSET-DISCOVERY.en.md)
 
-竞品为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，来源与同步流程参考其[官方资产文档](https://docs.fit2cloud.com/jumpserver/manual/admin/console/assets/assets_list/)。本模块实现 LAN 发现及 AWS 国际区/中国区原生清单。其他公有云、私有云厂商 API 及企业功能仍按 PLAN 推进。
+竞品为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，来源与同步流程参考其[官方资产文档](https://docs.fit2cloud.com/jumpserver/manual/admin/console/assets/assets_list/)。本模块实现 LAN 发现及 AWS 国际区/中国区、阿里云 ECS、腾讯云 CVM 原生清单。其他公有云、私有云厂商 API 及企业功能仍按 PLAN 推进。
+
+## 阿里云 ECS 和腾讯云 CVM
+
+`aliyun` 填写阿里云账号 UID，`tencentcloud` 填写腾讯云主账号 UIN；这些字段不填 RAM 用户 ID、腾讯云 AppID 或子账号 UIN。已有来源的提供商和账号固定。明确指定地域后，地址选择、可选固定密钥 SSH 网关、一次性纳管、策略、定时、来源修订、审计和元数据归属沿用 AWS/LAN 流程，云凭据与 SSH 纳管凭据独立。
+
+共用仅写的 `cloud_credential` 字段，分别对应阿里云 AccessKey ID/Secret 和可选 STS Token，或腾讯云 SecretId/SecretKey 和可选 STS Token。腾讯云临时 ID 和密钥最多 1024 字节，Token 最多 4096 字节。密钥不进入请求 URL，不通过来源读取、审计、CSV 或 CLI 回显，也不会替换原生资产的既有凭据。新增来源表单切换提供商会清空已输入的云密钥。提供商原始状态与统一电源状态共同保留；新状态或未知状态仍显示，不探测、不计缺失。
+
+- 阿里云先核对 [STS GetCallerIdentity](https://www.alibabacloud.com/help/en/ram/developer-reference/api-sts-2015-04-01-getcalleridentity)，再通过地域 [ECS DescribeInstances](https://www.alibabacloud.com/help/en/ecs/developer-reference/api-ecs-2014-05-26-describeinstances) 的 `MaxResults=100` 与 `NextToken` 分页。采用官方 [RPC 签名](https://www.alibabacloud.com/help/en/sdk/product-overview/rpc-mechanism)、独立随机 nonce 和 HTTPS POST 表单。每个地域枚举前后，都要求 `DryRun=true` 返回 `DryRunOperation`。权限不足可能被普通查询表示为空列表；预检被拒或无法确认时，整次任务失败并保留旧清单。
+- 腾讯云先通过 STS `GetCallerIdentity` 核对主账号 UIN，再使用 [CVM DescribeInstances](https://cloud.tencent.com/document/product/213/15728) 的 `Limit=100`、偏移量及 [TC3-HMAC-SHA256](https://www.tencentcloud.com/document/product/1176/55147)。每页必须明确包含总量和实例数组；途中总量变化、重复 ID、未取完就出现空页、接口错误或部分地域失败，都会中止整次任务。签名凭据日期采用 UTC。
+
+两个适配器均使用固定的提供商 HTTPS 地址，不跟随重定向，限制响应、实例和元数据总量，限流或暂时服务错误最多重试两次并支持取消。统一私有/公网 IPv4、IPv6、名称、可用区和标签，无厂商 SDK 新依赖。IPv6 选择稳定地址，阿里云 EIP 优先于普通公网 IPv4，不调用云资源写接口。
+
+启用自动缺失处理前，应授予所选地域的完整清单可见权限。身份查询和预检不能证明生产 RAM/CAM 资源策略展示了所有资产；资源范围可见性变化及云接口最终一致性仍需运维核对，并采用保守缺失阈值。签名协议夹具、加密重启、API/CLI 和浏览器验证，与真实云账号验收分别记录。真实阿里云/腾讯云账号、私有云变体及其他云平台的剩余边界见 PLAN。
 
 ## AWS 国际区和中国区
 
@@ -30,7 +43,7 @@ Web、SDK 与 `jms discover source save --file -` 共用 `provider`、`cloud`（
 
 ## 同步与限制
 
-- LAN 资产 ID 由来源和端点确定；AWS 由来源、提供商/账号/地域/实例、协议和端口确定。重试和进程重启不重复创建。
+- LAN 资产 ID 由来源和端点确定；云资产由来源、提供商/账号/地域/实例、协议和端口确定。重试和进程重启不重复创建。
 - 不接管人工资产或其他来源资产。单一已有端点标记为已存在，多项匹配报告冲突。
 - 策略只更新名称、节点、分组和备注。人工修改或策略归属不同默认冲突；显式覆盖可接管元数据，不能覆盖端点、用户名、凭据或已有 SSH 主机密钥。
 - 缺失默认保留；可在连续缺失 1–10 次后停用本来源资产。只有本次实际扫描范围参与计数，移除范围不会删除旧资产。同步停用的主机恢复可达后重新启用，人工修改受到保护。

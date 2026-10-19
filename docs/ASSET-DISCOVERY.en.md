@@ -2,7 +2,20 @@
 
 > English | [中文](./ASSET-DISCOVERY.md)
 
-The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html). Source and synchronization workflows follow its [official asset documentation](https://docs.fit2cloud.com/jumpserver/manual/admin/console/assets/assets_list/). This module implements LAN discovery and native AWS international/China inventory. Other cloud vendor APIs and enterprise features remain on the PLAN roadmap.
+The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html). Source and synchronization workflows follow its [official asset documentation](https://docs.fit2cloud.com/jumpserver/manual/admin/console/assets/assets_list/). This module implements LAN discovery and native AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory. Other cloud vendor APIs and enterprise features remain on the PLAN roadmap.
+
+## Alibaba Cloud ECS and Tencent Cloud CVM
+
+Choose `aliyun` with the Alibaba Cloud account UID, or `tencentcloud` with the root account UIN. These are provider account identifiers, not a RAM user ID, Tencent AppID or a subaccount UIN. Provider and account are immutable on an existing source. Regions are explicit; address selection, optional pinned SSH gateways, one-use import, policies, scheduling, source revisions, audit and metadata ownership use the same flow as AWS/LAN. Cloud credentials are separate from SSH import credentials.
+
+The shared write-only `cloud_credential` fields map to Alibaba Cloud AccessKey ID/secret and optional STS token, or Tencent Cloud SecretId/SecretKey and optional STS token. Temporary Tencent IDs and secrets accept up to 1024 bytes; its token accepts up to 4096. No key is stored in a request URL, returned by source reads, audit, CSV or CLI, or substituted for an existing native asset credential. Switching provider in a new source form clears entered cloud keys. Provider state is preserved alongside normalized power state; unknown/new states stay visible without probing or counting as missing.
+
+- Alibaba Cloud verifies [STS GetCallerIdentity](https://www.alibabacloud.com/help/en/ram/developer-reference/api-sts-2015-04-01-getcalleridentity), then calls regional [ECS DescribeInstances](https://www.alibabacloud.com/help/en/ecs/developer-reference/api-ecs-2014-05-26-describeinstances) with `MaxResults=100` and `NextToken`. Requests use the documented [RPC signature](https://www.alibabacloud.com/help/en/sdk/product-overview/rpc-mechanism), independent random nonces and HTTPS POST form bodies. A `DryRun=true` request must return `DryRunOperation` before and after each region's enumeration. Missing permission can otherwise appear as an empty list; a denied or ambiguous preflight aborts the entire run and preserves prior findings.
+- Tencent Cloud verifies STS `GetCallerIdentity` against the configured root UIN, then uses [CVM DescribeInstances](https://cloud.tencent.com/document/product/213/15728) with `Limit=100`, offsets and [TC3-HMAC-SHA256](https://www.tencentcloud.com/document/product/1176/55147). Every page must contain an explicit total count and instance array. Count changes, duplicate IDs, a premature empty page, provider errors or partial-region failures abort the complete run. Credential scope uses UTC dates.
+
+Both adapters use fixed provider HTTPS endpoints, reject redirects, bound response/instance/metadata sizes and retry throttling or transient server responses at most twice with cancellation. They normalize private/public IPv4, IPv6, names, zones and tags without introducing a vendor SDK dependency. IPv6 is a stable selected address; Alibaba EIP takes precedence over ordinary public IPv4. No cloud mutation API is invoked.
+
+Grant full inventory visibility in all selected regions before enabling automatic missing-asset handling. API identity/preflight checks do not prove that a production RAM/CAM resource policy exposes every asset; resource-scoped visibility changes and cloud eventual consistency require operational review and conservative missing thresholds. Signed protocol fixtures, encrypted restart, API/CLI and browser verification are distinct from real cloud-account acceptance. Real Alibaba/Tencent accounts, private-cloud variants and other cloud vendors remain unverified or unimplemented as listed in PLAN.
 
 ## AWS international and China
 
@@ -30,7 +43,7 @@ Source changes pause referencing policies. Scan again and save each policy to co
 
 ## Synchronization and bounds
 
-- LAN asset IDs derive from source and endpoint. AWS IDs derive from source, provider/account/region/instance, protocol and port. Retries and process restarts do not duplicate them.
+- LAN asset IDs derive from source and endpoint. Cloud asset IDs derive from source, provider/account/region/instance, protocol and port. Retries and process restarts do not duplicate them.
 - Manual assets and other sources' assets are not adopted. One existing endpoint is reported as existing; ambiguous matches conflict.
 - Policies update name, node, group and remark. Manual edits or different policy ownership conflict by default. Explicit overwrite can reclaim metadata but cannot replace endpoints, usernames, credentials or existing SSH pins.
 - Missing hosts remain by default. A source can disable its own assets after 1–10 consecutive misses. Only endpoints actually scanned are counted; removing ranges retains earlier assets. Returning hosts disabled by sync are re-enabled, while manual edits remain protected.

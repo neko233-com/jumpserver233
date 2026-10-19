@@ -55,6 +55,9 @@ func cloudError(e error) string {
 	if errors.Is(e, cloudinventory.ErrIdentity) {
 		return "scan_cloud_identity_mismatch"
 	}
+	if errors.Is(e, cloudinventory.ErrPermission) {
+		return "scan_cloud_permission_denied"
+	}
 	if errors.Is(e, cloudinventory.ErrCapacity) || errors.Is(e, ErrCapacity) {
 		return "scan_cloud_capacity"
 	}

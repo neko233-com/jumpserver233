@@ -23,14 +23,17 @@ import (
 )
 
 var (
-	ErrConfig       = errors.New("invalid cloud inventory configuration")
-	ErrUnavailable  = errors.New("cloud inventory unavailable")
-	ErrIdentity     = errors.New("cloud inventory account mismatch")
-	ErrCapacity     = errors.New("cloud inventory capacity reached")
-	accountPattern  = regexp.MustCompile(`^[0-9]{12}$`)
-	keyPattern      = regexp.MustCompile(`^[A-Za-z0-9]{16,128}$`)
-	regionPattern   = regexp.MustCompile(`^(af|ap|ca|eu|il|me|mx|sa|us)-(central|north|northeast|northwest|south|southeast|southwest|east|west)-[1-9][0-9]?$`)
-	instancePattern = regexp.MustCompile(`^i-([0-9a-f]{8}|[0-9a-f]{17})$`)
+	ErrConfig           = errors.New("invalid cloud inventory configuration")
+	ErrUnavailable      = errors.New("cloud inventory unavailable")
+	ErrIdentity         = errors.New("cloud inventory account mismatch")
+	ErrCapacity         = errors.New("cloud inventory capacity reached")
+	accountPattern      = regexp.MustCompile(`^[0-9]{12}$`)
+	keyPattern          = regexp.MustCompile(`^[A-Za-z0-9]{16,128}$`)
+	regionPattern       = regexp.MustCompile(`^(af|ap|ca|eu|il|me|mx|sa|us)-(central|north|northeast|northwest|south|southeast|southwest|east|west)-[1-9][0-9]?$`)
+	instancePattern     = regexp.MustCompile(`^i-([0-9a-f]{8}|[0-9a-f]{17})$`)
+	cloudRegionPattern  = regexp.MustCompile(`^[a-z]{2}-[a-z0-9]+(-[a-z0-9]+){0,3}$`)
+	cloudKeyPattern     = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+	cloudAccountPattern = regexp.MustCompile(`^[1-9][0-9]{0,19}$`)
 )
 
 const MaxInstances = 8192
@@ -50,18 +53,19 @@ type Credential struct {
 }
 
 type Instance struct {
-	Provider  string            `json:"provider"`
-	AccountID string            `json:"account_id"`
-	Region    string            `json:"region"`
-	ID        string            `json:"instance_id"`
-	Name      string            `json:"name"`
-	State     string            `json:"state"`
-	Zone      string            `json:"zone,omitempty"`
-	PrivateIP string            `json:"private_ip,omitempty"`
-	PublicIP  string            `json:"public_ip,omitempty"`
-	IPv6      string            `json:"ipv6,omitempty"`
-	Tags      map[string]string `json:"tags,omitempty"`
-	Missing   bool              `json:"missing,omitempty"`
+	Provider      string            `json:"provider"`
+	AccountID     string            `json:"account_id"`
+	Region        string            `json:"region"`
+	ID            string            `json:"instance_id"`
+	Name          string            `json:"name"`
+	State         string            `json:"state"`
+	ProviderState string            `json:"provider_state,omitempty"`
+	Zone          string            `json:"zone,omitempty"`
+	PrivateIP     string            `json:"private_ip,omitempty"`
+	PublicIP      string            `json:"public_ip,omitempty"`
+	IPv6          string            `json:"ipv6,omitempty"`
+	Tags          map[string]string `json:"tags,omitempty"`
+	Missing       bool              `json:"missing,omitempty"`
 }
 
 func (i Instance) Address(mode string) string {
@@ -77,7 +81,8 @@ func (i Instance) Address(mode string) string {
 func (i Instance) EncodedSize() int { data, _ := json.Marshal(i); return len(data) }
 
 func Validate(provider string, in Config, credential Credential) (Config, error) {
-	if provider != "aws" && provider != "aws_cn" || !accountPattern.MatchString(in.AccountID) || len(in.Regions) < 1 || len(in.Regions) > 32 {
+	aws := provider == "aws" || provider == "aws_cn"
+	if !aws && provider != "aliyun" && provider != "tencentcloud" || aws && !accountPattern.MatchString(in.AccountID) || !aws && !cloudAccountPattern.MatchString(in.AccountID) || provider == "aliyun" && len(in.AccountID) < 6 || len(in.Regions) < 1 || len(in.Regions) > 32 {
 		return in, ErrConfig
 	}
 	in.Regions = slices.Clone(in.Regions)
@@ -87,7 +92,7 @@ func Validate(provider string, in Config, credential Credential) (Config, error)
 			if region != "cn-north-1" && region != "cn-northwest-1" {
 				return in, ErrConfig
 			}
-		} else if !regionPattern.MatchString(region) {
+		} else if aws && !regionPattern.MatchString(region) || !aws && (len(region) > 64 || !cloudRegionPattern.MatchString(region)) {
 			return in, ErrConfig
 		}
 		in.Regions[n] = region
@@ -100,7 +105,19 @@ func Validate(provider string, in Config, credential Credential) (Config, error)
 	if in.AddressMode != "private" && in.AddressMode != "public" && in.AddressMode != "ipv6" {
 		return in, ErrConfig
 	}
-	if !keyPattern.MatchString(credential.AccessKeyID) || len(credential.SecretAccessKey) < 16 || len(credential.SecretAccessKey) > 256 || len(credential.SessionToken) > 16384 {
+	keyLimit := 128
+	secretLimit := 256
+	if provider == "tencentcloud" {
+		keyLimit, secretLimit = 1024, 1024
+	}
+	keyValid := keyPattern.MatchString(credential.AccessKeyID)
+	if !aws {
+		keyValid = len(credential.AccessKeyID) >= 16 && len(credential.AccessKeyID) <= keyLimit && cloudKeyPattern.MatchString(credential.AccessKeyID)
+	}
+	if !keyValid || len(credential.SecretAccessKey) < 16 || len(credential.SecretAccessKey) > secretLimit || len(credential.SessionToken) > 16384 {
+		return in, ErrConfig
+	}
+	if provider == "tencentcloud" && len(credential.SessionToken) > 4096 {
 		return in, ErrConfig
 	}
 	for _, value := range []string{credential.SecretAccessKey, credential.SessionToken} {
@@ -241,6 +258,12 @@ func (c *Client) List(ctx context.Context, provider string, config Config, crede
 	config, e := Validate(provider, config, credential)
 	if e != nil {
 		return nil, e
+	}
+	if provider == "aliyun" {
+		return c.listAliyun(ctx, config, credential)
+	}
+	if provider == "tencentcloud" {
+		return c.listTencent(ctx, config, credential)
 	}
 	var identity struct {
 		XMLName xml.Name `xml:"GetCallerIdentityResponse"`

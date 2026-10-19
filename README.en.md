@@ -2,7 +2,7 @@
 
 > [中文](./README.md) | English
 
-[Asset discovery and sync](./docs/ASSET-DISCOVERY.en.md) supports LAN ranges, AWS international/China inventory, pinned SSH gateways, fingerprint preview/import, native schedules, idempotent receipts and organization isolation. Sync preserves rotated credentials; cloud keys are write-only. Other clouds, automatic IP migration and overall Enterprise parity remain in progress.
+[Asset discovery and sync](./docs/ASSET-DISCOVERY.en.md) supports LAN, AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory, pinned SSH gateways, fingerprint preview/import, native schedules, idempotent receipts and organization isolation. Sync preserves rotated credentials; cloud keys are write-only. Other clouds, automatic IP migration and overall Enterprise parity remain in progress.
 
 [Branding](./docs/BRANDING.en.md) provides bilingual site/sign-in titles, themes, logos/icons/sign-in illustrations and footers, managed through global permissions and revision audit.
 

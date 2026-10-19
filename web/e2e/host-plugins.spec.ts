@@ -110,7 +110,14 @@ test("browser upgrades an older pinned exporter, rolls back and restores the lat
   test.setTimeout(90_000);await page.context().addCookies(cookies);await page.goto("/console");
   await page.getByRole("row").filter({hasText:"Native host agents QA"}).getByRole("button",{name:"Tools & agents",exact:true}).click();
   const dialog=page.getByRole("dialog");const card=dialog.getByRole("region",{name:"node_exporter monitoring agent",exact:true});
-  const perform=async(name:string)=>{await card.getByRole("button",{name,exact:true}).click();await expect(dialog.locator(".host-plugin-job")).toContainText("Succeeded");};
+  const perform=async(name:string)=>{
+    const submitted=page.waitForResponse(r=>r.url().includes(`/assets/${asset}/host-plugins/node_exporter/jobs`)&&r.request().method()==="POST");
+    await card.getByRole("button",{name,exact:true}).click();
+    const created=await submitted;expect(created.status()).toBe(201);const job=await created.json();
+    const receipt=dialog.locator(".host-plugin-job");
+    await expect(receipt).toContainText(job.id);
+    await expect(receipt).toContainText("Succeeded",{timeout:60_000});
+  };
   await perform("Status");await expect(card).toContainText("Installed v1.12.0");await expect(card).toContainText("Upgrade available: v1.12.1");
   await card.getByText("Diagnostics & details",{exact:true}).click();
   await perform("Upgrade to pinned release");await expect(card).toContainText("Installed v1.12.1");

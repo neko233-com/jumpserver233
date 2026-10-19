@@ -12,7 +12,7 @@ if (!/^http:\/\/127\.0\.0\.\d+:\d+$/.test(base))
   throw Error("Discovery QA requires loopback isolation");
 test.use({ locale: "en-US", trace: "off" });
 
-test("AWS international and China sources keep cloud credentials write-only across bilingual edits", async ({
+test("cloud sources keep AWS, Alibaba and Tencent credentials write-only across bilingual edits", async ({
   browser,
 }, info) => {
   const context = await browser.newContext({
@@ -45,31 +45,88 @@ test("AWS international and China sources keep cloud credentials write-only acro
       extraHTTPHeaders: { Authorization: `Bearer ${token}` },
     });
     await page.goto(ui + "/console/asset-discovery");
-    for (const provider of ["aws", "aws_cn"]) {
-      const sourceName = `AWS QA ${provider} ${randomUUID()}`;
+    const scenarios = [
+      {
+        provider: "aws",
+        account: "123456789012",
+        region: "us-east-1",
+        accountLabel: "AWS account ID (12 digits)",
+        regionLabel: "AWS regions, one per line",
+        keyLabel: "AWS access key ID",
+        secretLabel: "AWS secret access key",
+        tokenLabel: "AWS session token (optional)",
+      },
+      {
+        provider: "aws_cn",
+        account: "123456789012",
+        region: "cn-north-1",
+        accountLabel: "AWS account ID (12 digits)",
+        regionLabel: "AWS regions, one per line",
+        keyLabel: "AWS access key ID",
+        secretLabel: "AWS secret access key",
+        tokenLabel: "AWS session token (optional)",
+      },
+      {
+        provider: "aliyun",
+        account: "19681320001234567",
+        region: "cn-hangzhou",
+        accountLabel: "Alibaba Cloud account UID",
+        regionLabel: "Alibaba Cloud regions, one per line",
+        keyLabel: "Alibaba Cloud AccessKey ID",
+        secretLabel: "Alibaba Cloud AccessKey secret",
+        tokenLabel: "Alibaba Cloud STS token (optional)",
+      },
+      {
+        provider: "tencentcloud",
+        account: "1000262009",
+        region: "ap-guangzhou",
+        accountLabel: "Tencent Cloud root account UIN",
+        regionLabel: "Tencent Cloud regions, one per line",
+        keyLabel: "Tencent Cloud SecretId",
+        secretLabel: "Tencent Cloud SecretKey",
+        tokenLabel: "Tencent Cloud STS token (optional)",
+      },
+    ];
+    for (const scenario of scenarios) {
+      const { provider } = scenario;
+      const sourceName = `Cloud QA ${provider} ${randomUUID()}`;
       await page.getByRole("button", { name: "Add source", exact: true }).click();
       const form = page.locator("form.discovery-editor");
       await form.getByRole("combobox", { name: "Provider", exact: true }).selectOption(provider);
+      if (provider === "aws") {
+        await form.getByLabel(scenario.keyLabel, { exact: true }).fill("AKIAIOSFODNN7EXAMPLE");
+        await form.getByRole("combobox", { name: "Provider", exact: true }).selectOption("aliyun");
+        await expect(form.getByLabel("Alibaba Cloud AccessKey ID", { exact: true })).toHaveValue(
+          "",
+        );
+        await form.getByRole("combobox", { name: "Provider", exact: true }).selectOption("aws");
+        await expect(form.getByLabel(scenario.keyLabel, { exact: true })).toHaveValue("");
+      }
       await expect(form.getByLabel("IP ranges", { exact: true })).toHaveCount(0);
       await form.getByLabel("Name", { exact: true }).fill(sourceName);
-      await form.getByLabel("AWS account ID (12 digits)", { exact: true }).fill("123456789012");
-      await form
-        .getByLabel("AWS regions, one per line", { exact: true })
-        .fill(provider === "aws" ? "us-east-1\n\n" : "cn-north-1\n");
-      await form.getByLabel("AWS access key ID", { exact: true }).fill("AKIAIOSFODNN7EXAMPLE");
-      await form
-        .getByLabel("AWS secret access key", { exact: true })
-        .fill("synthetic-browser-cloud-secret");
-      await form
-        .getByLabel("AWS session token (optional)", { exact: true })
-        .fill("synthetic-browser-cloud-token");
-      await expect(form.getByLabel("AWS secret access key", { exact: true })).toHaveAttribute(
+      await form.getByLabel(scenario.accountLabel, { exact: true }).fill(scenario.account);
+      await form.getByLabel(scenario.regionLabel, { exact: true }).fill(scenario.region + "\n\n");
+      const keyID =
+        provider === "tencentcloud"
+          ? "AKID" + "x".repeat(1020)
+          : provider === "aliyun"
+            ? "STS.synthetic_browser_cloud_key001"
+            : "AKIAIOSFODNN7EXAMPLE";
+      const secret =
+        provider === "tencentcloud" ? "s".repeat(1024) : "synthetic-browser-cloud-secret";
+      const session =
+        provider === "tencentcloud" ? "t".repeat(4096) : "synthetic-browser-cloud-token";
+      await form.getByLabel(scenario.keyLabel, { exact: true }).fill(keyID);
+      await form.getByLabel(scenario.secretLabel, { exact: true }).fill(secret);
+      await form.getByLabel(scenario.tokenLabel, { exact: true }).fill(session);
+      await expect(form.getByLabel(scenario.secretLabel, { exact: true })).toHaveAttribute(
         "type",
         "password",
       );
-      await expect(
-        form.getByLabel("AWS session token (optional)", { exact: true }),
-      ).toHaveAttribute("type", "password");
+      await expect(form.getByLabel(scenario.tokenLabel, { exact: true })).toHaveAttribute(
+        "type",
+        "password",
+      );
       const savedResponse = page.waitForResponse(
         (r) => r.url().endsWith("/asset-discovery/sources") && r.request().method() === "POST",
       );
@@ -82,14 +139,25 @@ test("AWS international and China sources keep cloud credentials write-only acro
       expect(saved.targets).toEqual([]);
       expect(saved.cloud.regions).toHaveLength(1);
       expect(saved.cloud_credential_configured).toBe(true);
-      expect(JSON.stringify(saved)).not.toContain("synthetic-browser-cloud");
-      expect(JSON.stringify(saved)).not.toContain("AKIAIOSFODNN7EXAMPLE");
+      for (const value of [keyID, secret, session])
+        expect(JSON.stringify(saved)).not.toContain(value);
       await expect(form).toHaveCount(0);
       const row = page.getByRole("row").filter({ hasText: sourceName });
       await row.getByRole("button", { name: "Edit", exact: true }).click();
       await expect(form.getByRole("combobox", { name: "Provider", exact: true })).toBeDisabled();
-      await expect(form.getByLabel("AWS account ID (12 digits)", { exact: true })).toBeDisabled();
-      await expect(form.getByLabel("AWS secret access key", { exact: true })).toHaveCount(0);
+      await expect(form.getByLabel(scenario.accountLabel, { exact: true })).toBeDisabled();
+      await expect(form.getByLabel(scenario.secretLabel, { exact: true })).toHaveCount(0);
+      const replace = form.getByRole("checkbox", { name: "Replace cloud credential", exact: true });
+      const bounds = await replace.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.width).toBeLessThanOrEqual(24);
+      expect(bounds!.height).toBeLessThanOrEqual(24);
+      await replace.check();
+      await expect(form.getByLabel(scenario.keyLabel, { exact: true })).toHaveValue("");
+      await expect(form.getByLabel(scenario.secretLabel, { exact: true })).toHaveValue("");
+      await expect(form.getByLabel(scenario.tokenLabel, { exact: true })).toHaveValue("");
+      await replace.uncheck();
+      await expect(form.getByLabel(scenario.secretLabel, { exact: true })).toHaveCount(0);
       await form
         .getByLabel("Description", { exact: true })
         .fill("Cloud credential preserved by edit");
@@ -103,8 +171,10 @@ test("AWS international and China sources keep cloud credentials write-only acro
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await page.getByRole("button", { name: "新增来源", exact: true }).click();
     const form = page.locator("form.discovery-editor");
-    await form.getByRole("combobox", { name: "提供商", exact: true }).selectOption("aws_cn");
-    await expect(form.getByLabel("AWS 账号 ID（12 位数字）", { exact: true })).toBeVisible();
+    await form.getByRole("combobox", { name: "提供商", exact: true }).selectOption("aliyun");
+    await expect(form.getByLabel("阿里云账号 UID", { exact: true })).toBeVisible();
+    await form.getByRole("combobox", { name: "提供商", exact: true }).selectOption("tencentcloud");
+    await expect(form.getByLabel("腾讯云主账号 UIN", { exact: true })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

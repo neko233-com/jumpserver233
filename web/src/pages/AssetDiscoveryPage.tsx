@@ -29,7 +29,7 @@ type Template = {
   [key: string]: unknown;
 };
 type Source = {
-  provider: "lan" | "aws" | "aws_cn";
+  provider: "lan" | "aws" | "aws_cn" | "aliyun" | "tencentcloud";
   cloud?: { account_id: string; regions: string[]; address_mode: string };
   cloud_credential_configured?: boolean;
   id: string;
@@ -77,6 +77,7 @@ type Finding = {
     instance_id: string;
     name: string;
     state: string;
+    provider_state?: string;
     missing?: boolean;
   };
   error_code?: string;
@@ -139,6 +140,8 @@ type Draft = Omit<Source, "id" | "address_count" | "credential_configured"> & {
 type PolicyDraft = Omit<Policy, "id" | "skipped_triggers"> & { id?: string; request_id: string };
 type Preview = { token: string; expires_at: string; results: Finding[] };
 const root = "/api/v1/asset-discovery";
+const cloudFieldKey = (provider: Source["provider"], key: string) =>
+  provider === "aliyun" || provider === "tencentcloud" ? `cloudFields.${provider}.${key}` : key;
 const protocols = [
   "ssh",
   "rdp",
@@ -923,6 +926,7 @@ export default function AssetDiscoveryPage() {
                         <small>
                           {f.cloud.name} · {f.cloud.instance_id} · {f.cloud.region} ·{" "}
                           {stateLabel(f.cloud.missing ? "cloud_missing" : `cloud_${f.cloud.state}`)}
+                          {f.cloud.provider_state && ` (${f.cloud.provider_state})`}
                         </small>
                       )}
                       <small>{f.latency_ms} ms</small>
@@ -1070,6 +1074,10 @@ export default function AssetDiscoveryPage() {
                     setDraft({
                       ...draft,
                       provider: e.target.value as Source["provider"],
+                      access_key_id: "",
+                      secret_access_key: "",
+                      session_token: "",
+                      replace_cloud_credential: false,
                       cloud:
                         e.target.value === "lan"
                           ? undefined
@@ -1077,7 +1085,7 @@ export default function AssetDiscoveryPage() {
                     })
                   }
                 >
-                  {(["lan", "aws", "aws_cn"] as const).map((provider) => (
+                  {(["lan", "aws", "aws_cn", "aliyun", "tencentcloud"] as const).map((provider) => (
                     <option key={provider} value={provider}>
                       {label(`providers.${provider}`)}
                     </option>
@@ -1123,11 +1131,19 @@ export default function AssetDiscoveryPage() {
               {draft.provider !== "lan" && (
                 <>
                   {field(
-                    "cloudAccount",
+                    cloudFieldKey(draft.provider, "cloudAccount"),
                     <input
                       required
-                      pattern="[0-9]{12}"
-                      maxLength={12}
+                      pattern={
+                        draft.provider === "aliyun"
+                          ? "[1-9][0-9]{5,19}"
+                          : draft.provider === "tencentcloud"
+                            ? "[1-9][0-9]{0,19}"
+                            : "[0-9]{12}"
+                      }
+                      maxLength={
+                        draft.provider === "aliyun" || draft.provider === "tencentcloud" ? 20 : 12
+                      }
                       disabled={!!draft.id}
                       value={draft.cloud?.account_id || ""}
                       onChange={(e) =>
@@ -1143,7 +1159,7 @@ export default function AssetDiscoveryPage() {
                     />,
                   )}
                   {field(
-                    "cloudRegions",
+                    cloudFieldKey(draft.provider, "cloudRegions"),
                     <textarea
                       required
                       rows={2}
@@ -1183,41 +1199,34 @@ export default function AssetDiscoveryPage() {
                     </select>,
                   )}
                   {draft.id &&
-                    field(
-                      "replaceCloudCredential",
-                      <input
-                        type="checkbox"
-                        checked={draft.replace_cloud_credential}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            replace_cloud_credential: e.target.checked,
-                            access_key_id: "",
-                            secret_access_key: "",
-                            session_token: "",
-                          })
-                        }
-                      />,
+                    check("replaceCloudCredential", draft.replace_cloud_credential, (value) =>
+                      setDraft({
+                        ...draft,
+                        replace_cloud_credential: value,
+                        access_key_id: "",
+                        secret_access_key: "",
+                        session_token: "",
+                      }),
                     )}
                   {(!draft.id || draft.replace_cloud_credential) && (
                     <>
                       {field(
-                        "accessKeyID",
+                        cloudFieldKey(draft.provider, "accessKeyID"),
                         <input
                           required
                           autoComplete="off"
-                          maxLength={128}
+                          maxLength={draft.provider === "tencentcloud" ? 1024 : 128}
                           value={draft.access_key_id}
                           onChange={(e) => setDraft({ ...draft, access_key_id: e.target.value })}
                         />,
                       )}
                       {field(
-                        "secretAccessKey",
+                        cloudFieldKey(draft.provider, "secretAccessKey"),
                         <input
                           required
                           type="password"
                           autoComplete="new-password"
-                          maxLength={256}
+                          maxLength={draft.provider === "tencentcloud" ? 1024 : 256}
                           value={draft.secret_access_key}
                           onChange={(e) =>
                             setDraft({ ...draft, secret_access_key: e.target.value })
@@ -1225,11 +1234,11 @@ export default function AssetDiscoveryPage() {
                         />,
                       )}
                       {field(
-                        "sessionToken",
+                        cloudFieldKey(draft.provider, "sessionToken"),
                         <input
                           type="password"
                           autoComplete="new-password"
-                          maxLength={16384}
+                          maxLength={draft.provider === "tencentcloud" ? 4096 : 16384}
                           value={draft.session_token}
                           onChange={(e) => setDraft({ ...draft, session_token: e.target.value })}
                         />,
