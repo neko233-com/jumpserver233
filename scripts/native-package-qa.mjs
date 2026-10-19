@@ -134,6 +134,13 @@ try {
   const api = async (method, path, body, bearer, status = 200) => { const response = await fetch(url + path, { method, headers: { "Content-Type": "application/json", ...(bearer ? { Authorization: "Bearer " + bearer } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000) }); if (response.status !== status) throw new Error("Native installation API status differs at " + path); return response.json(); };
   const loginBefore = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
   const asset = await api("POST", "/api/v1/assets", { name: "Native upgrade SSH", host: owner + "-ssh", port: 22, username: "keyqa", password: "synthetic-keyhost-password-233", host_key_fingerprint: fingerprint }, loginBefore.access_token, 201);
+  const operatorPassword = "synthetic-native-operator-password";
+  const operator = await api("POST", "/api/v1/users", { username: "native.operator", password: operatorPassword, role: "operator" }, loginBefore.access_token, 201);
+  const operatorBefore = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword });
+  if ((await api("GET", "/api/v1/assets", undefined, operatorBefore.access_token)).length !== 0) throw new Error("Ungranting native operator could view assets");
+  await api("POST", "/api/v1/grants", { user_id: operator.id, asset_id: asset.id, account: "keyqa", actions: ["view"] }, loginBefore.access_token, 201);
+  const viewOnly = async bearer => { if (!(await api("GET", "/api/v1/assets", undefined, bearer)).some(row => row.id === asset.id)) throw new Error("Native view grant was lost"); await api("POST", "/api/v1/sessions", { asset_id: asset.id, cols: 80, rows: 24 }, bearer, 403); };
+  await viewOnly(operatorBefore.access_token);
   const execSSH = async (bearer, text) => { const job = await api("POST", "/api/v1/ops/jobs", { asset_id: asset.id, command: "printf " + text, timeout_seconds: 10, request_id: randomUUID() }, bearer, 201); for (let attempt = 0; attempt < 100; attempt++) { const state = await api("GET", "/api/v1/ops/jobs/" + job.id, undefined, bearer); if (state.state === "succeeded" && state.stdout === text) return job.id; if (["failed", "interrupted", "denied"].includes(state.state)) throw new Error("Native installation real SSH failed"); await delay(100); } throw new Error("Native installation SSH timed out"); };
   const originalJob = await execSSH(loginBefore.access_token, "native-before-upgrade");
   await inContainer(["update", "stage", "--root", "/tmp/releases", "--file", "/artifact/upgrade.tar.gz", "--sha256", upgradeSHA]);
@@ -151,7 +158,10 @@ try {
   const loginAfter = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
   if (loginAfter.user.id !== loginBefore.user.id || (await api("GET", "/api/v1/ops/jobs/" + originalJob, undefined, loginAfter.access_token)).state !== "succeeded") throw new Error("Native upgrade lost identity or command audit");
   await execSSH(loginAfter.access_token, "native-after-upgrade");
-  report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true };
+  const operatorAfter = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword });
+  if (operatorAfter.user.id !== operatorBefore.user.id) throw new Error("Native operator identity changed");
+  await viewOnly(operatorAfter.access_token);
+  report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true, operatorViewGrantPreserved: true, operatorConnectDeniedBeforeAndAfter: true };
   const html = await (await fetch(url + "/console/settings")).text();
   if (!html.includes("JumpServer233") || (await fetch(url + "/api/v1/assets")).status !== 401) throw new Error("Native web/auth isolation failed");
   report.linuxExecution = { arch: linuxArch, singlePort: true, protectedAPI: true, web: true, readOnlyRoot: true, stagedCandidate: true };
