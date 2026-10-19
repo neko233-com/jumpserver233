@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { historicalBaseline, verifyHistoricalManifests } from "./historical-source.mjs";
 const head = "a".repeat(40);
 function fixtures() {
@@ -30,4 +31,11 @@ test("source identity, compatibility, files and server byte mismatches refuse hi
     assert.throws(() => verifyHistoricalManifests(...pair, head));
   }
   assert.throws(() => verifyHistoricalManifests(...fixtures(), historicalBaseline));
+});
+test("post-upgrade scheduled and automatic checks use the independent current controller", () => {
+  for (const name of ["scheduled-install-qa.mjs", "automatic-install-qa.mjs"]) {
+    const code = readFileSync(new URL(name, import.meta.url), "utf8");
+    assert.ok(code.includes("/tmp/controller/jms"), name);
+    assert.ok(!code.includes("/tmp/native/jms"), `${name} must not invoke the old baseline CLI`);
+  }
 });

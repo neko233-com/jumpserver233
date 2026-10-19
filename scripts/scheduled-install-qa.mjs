@@ -7,8 +7,8 @@ import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 export async function verifyScheduledInstallation({ run, owner, url, root, output, api, admin, operator, refreshOperator, sshHost, fingerprint, candidate, failedCandidate, stopSelected, waitHealthy, chromium, expect, report }) {
   const endpoint = "/api/v1/settings/security/updates/installation", maintenance = "/api/v1/settings/security/maintenance";
   report.scheduledInstallationStep = "startup";
-  const local = args => run("docker", ["exec", owner, "/tmp/native/jms", ...args]);
-  const supervise = () => run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 exec /tmp/native/jms update supervise --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']);
+  const local = args => run("docker", ["exec", owner, "/tmp/controller/jms", ...args]);
+  const supervise = () => run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 exec /tmp/controller/jms update supervise --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']);
   const status = async () => {
     try { return await api("GET", endpoint, undefined, admin); }
     catch (e) {
@@ -30,7 +30,7 @@ export async function verifyScheduledInstallation({ run, owner, url, root, outpu
   await status(); operator = await refreshOperator();
   await Promise.all(Array.from({length:8},()=>status()));
   let duplicate = false;
-  try { await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 exec /tmp/native/jms update supervise --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']); } catch (e) { duplicate = String(e.stderr).includes("data directory is in use"); }
+  try { await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 exec /tmp/controller/jms update supervise --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']); } catch (e) { duplicate = String(e.stderr).includes("data directory is in use"); }
   if (!duplicate) throw new Error("Competing update supervisor was admitted");
   const browser = await chromium.launch({ headless: true });
   const errors = [], diagnostics = { anonymous_session_probe: 0, headless_gpu_readback: 0 };

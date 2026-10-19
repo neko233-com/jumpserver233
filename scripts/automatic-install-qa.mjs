@@ -9,7 +9,7 @@ export async function verifyAutomaticInstallation({ run, owner, url, output, api
   const get = endpoint => api("GET", endpoint, undefined, admin);
   const policy = async patch => { const state = await get(path); return api("PUT", path, { request_id: randomUUID(), policy: { ...state.policy, ...patch } }, admin); };
   const wait = async (read, condition, label) => { for (let n = 0; n < 600; n++) { try { const v = await read(); if (condition(v)) return v; } catch {} await delay(100); } throw new Error("Automatic QA timed out: " + label); };
-  const local = args => run("docker", ["exec", owner, "/tmp/native/jms", ...args]);
+  const local = args => run("docker", ["exec", owner, "/tmp/controller/jms", ...args]);
   report.automaticStep = "default_off";
   const initial = await get(path); if (initial.policy.mode !== "off") throw new Error("Automatic updating was enabled by default");
   const restricted = await operator(); await api("GET", path, undefined, restricted, 403); await api("PUT", path, { request_id: randomUUID(), policy: initial.policy }, restricted, 403);
