@@ -404,9 +404,11 @@ try {
     await page.goto(url + "/login");
     await page.getByRole("textbox", { name: "Username", exact: true }).fill("root");
     await page.getByRole("textbox", { name: "Password", exact: true }).fill("root");
-    const login = page.waitForResponse(response => response.url().endsWith("/api/v1/authentication/auth/") && response.request().method() === "POST");
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    report.browserLoginStatus = (await login).status();
+    const [login] = await Promise.all([
+      page.waitForResponse(response => response.url().endsWith("/api/v1/authentication/auth/") && response.request().method() === "POST"),
+      page.getByRole("button", { name: "Sign in", exact: true }).click(),
+    ]);
+    report.browserLoginStatus = login.status();
     if (report.browserLoginStatus !== 200) throw new Error("Staged candidate browser login status was " + report.browserLoginStatus);
     await expect(page.getByRole("heading", { name: "Assets", exact: true })).toBeVisible();
 	let terminalOutput = ""; const terminalNotices = [];
@@ -424,9 +426,11 @@ try {
 	await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", workspace + "/terminal-blocked"]);
 	await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", deployDirectory + "/terminal-blocked"]);
 	report.executionDirectories.browserUnverifiedPTYRefused = true;
-	const deletedSession = page.waitForResponse(response => response.request().method() === "DELETE" && /\/api\/v1\/sessions\/[^/]+$/.test(new URL(response.url()).pathname));
-	await terminal.getByRole("button", { name: "Close terminal", exact: true }).click();
-	if ((await deletedSession).status()!==204) throw new Error("Closing the browser session was not idempotent");
+	const [deletedSession] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "DELETE" && /\/api\/v1\/sessions\/[^/]+$/.test(new URL(response.url()).pathname)),
+      terminal.getByRole("button", { name: "Close terminal", exact: true }).click(),
+    ]);
+	if (deletedSession.status()!==204) throw new Error("Closing the browser session was not idempotent");
 	report.workspace.browserPTY = true;
 	await row.getByRole("button", { name: "Edit", exact: true }).click();
 	await expect(page.getByRole("textbox", { name: "SSH execution workspace (optional)", exact: true })).toHaveValue(workspace);
@@ -437,9 +441,10 @@ try {
 	await expect(manager.getByText(`Workspace ${workspace} (shown as /)`,{exact:true})).toBeVisible();
 	await manager.locator('input[type="file"]').setInputFiles({name:"sftp-browser.txt",mimeType:"text/plain",buffer:Buffer.from("browser-confined-upload")});
 	await expect(manager.getByRole("button",{name:"sftp-browser.txt",exact:true})).toBeVisible();
-	const browserDownload=page.waitForEvent("download");
-	await manager.getByRole("row").filter({hasText:"sftp-browser.txt"}).getByRole("button",{name:"Download",exact:true}).click();
-	const downloaded=await browserDownload;
+	const [downloaded] = await Promise.all([
+      page.waitForEvent("download"),
+      manager.getByRole("row").filter({hasText:"sftp-browser.txt"}).getByRole("button",{name:"Download",exact:true}).click(),
+    ]);
 	if(readFileSync(await downloaded.path(),"utf8")!=="browser-confined-upload") throw new Error("Browser SFTP download bytes differ");
 	await downloaded.delete();
 	await manager.getByRole("textbox",{name:"Folder name",exact:true}).fill("browser-dir");
@@ -465,9 +470,11 @@ try {
     await expect(approvalCard.locator("code")).toHaveText(workspace);
     await approvalCard.screenshot({ path: resolve(output, "execution.zh.png") });
     page.once("dialog", dialog => dialog.accept());
-    const approvedResponse = page.waitForResponse(response => response.url().endsWith(`/access-reviews/${browserReview.review_id}/approve`) && response.request().method() === "POST");
-    await approvalCard.getByRole("button", { name: "批准并提交", exact: true }).click();
-    if ((await approvedResponse).status() !== 204) throw new Error("Browser workspace approval failed");
+    const [approvedResponse] = await Promise.all([
+      page.waitForResponse(response => response.url().endsWith(`/access-reviews/${browserReview.review_id}/approve`) && response.request().method() === "POST"),
+      approvalCard.getByRole("button", { name: "批准并提交", exact: true }).click(),
+    ]);
+    if (approvedResponse.status() !== 204) throw new Error("Browser workspace approval failed");
     await expect(approvalCard).toHaveCount(0);
     const browserPermit = await api("POST", fileSession, undefined, approvalLogin.access_token, 201);
     const approvedFiles = await scopedList(browserPermit.session_token);
@@ -484,9 +491,11 @@ try {
     await directoryForm.getByRole("combobox", { name: "Execution directory scope", exact: true }).selectOption("exact");
     await directoryForm.getByRole("textbox", { name: "Directory path or pattern", exact: true }).fill(deployDirectory);
     await directoryForm.getByRole("combobox", { name: "When matched", exact: true }).selectOption("review");
-    const createdFilter = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/command-filters");
-    await directoryForm.getByRole("button", { name: "Add command filter", exact: true }).click();
-    if ((await createdFilter).status() !== 201) throw new Error("Browser directory rule creation failed");
+    const [createdFilter] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/command-filters"),
+      directoryForm.locator('button[type="submit"]').click(),
+    ]);
+    if (createdFilter.status() !== 201) throw new Error("Browser directory rule creation failed");
     await expect(page.getByRole("row").filter({ hasText: "Browser verified directory" })).toContainText(deployDirectory);
     await page.goto(url + "/workbench");
     await expect(page.getByRole("heading", { name: "SSH jobs", exact: true })).toBeVisible();
