@@ -4,7 +4,7 @@
 
 ## 当前优先级：SSH 稳定版（2026-10-19 用户调整）
 
-新增 [SSH/SFTP 登录复核绑定](./ACCESS-REVIEWS.md)：连接/网关快照、真实工作区根身份、SFTP 许可及原生启动 FD 校验；普通 SSH/Agent CLI 作业持久化审批证明并在执行前校验。Go/Testify 1585 项、Linux race 157 项、完整生产浏览器 86/86、六平台原生打包和真实目录替换验收通过，见[验证记录](./TESTING.md)。新增[受控 exec 目录规则](./EXECUTION-DIRECTORIES.md)：Web/CLI 起始目录、真实 FD 身份及策略绑定，整批统一验收待完成。完整交互式 cwd 与完整 Enterprise 仍在进行。
+新增 [SSH/SFTP 登录复核绑定](./ACCESS-REVIEWS.md)：连接/网关快照、真实工作区根身份、SFTP 许可及原生启动 FD 校验；普通 SSH/Agent CLI 作业持久化审批证明并在执行前校验。Go/Testify 1585 项、Linux race 157 项、完整生产浏览器 86/86、六平台原生打包和真实目录替换验收通过，见[验证记录](./TESTING.md)。新增[受控 exec 目录规则](./EXECUTION-DIRECTORIES.md)：Web/CLI 起始目录、真实 FD 身份及策略绑定，整批 Go/Linux race、生产浏览器与六平台原生验收通过，详见测试记录。完整交互式 cwd 与完整 Enterprise 仍在进行。
 
 新增[正式发布检查与原生制品](./UPDATES.md)：Web/CLI/SDK 检查、可选自动检查、修订与幂等回执、归档校验、六平台打包与暂存；[单机安装事务](./INSTALLATION.md)接通加密快照、离线预检、首次启动健康与业务门禁、放行前回滚和旧服务恢复。放行后保留新数据；自动安装调度及真实历史版本迁移验收仍待完成，通用更新器尚未完成。
 

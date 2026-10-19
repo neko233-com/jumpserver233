@@ -2,7 +2,7 @@
 
 > [中文](./EXECUTION-DIRECTORIES.md) | English
 
-Single-command Web workbench jobs and `jms exec` can select a starting directory inside a configured SSH workspace. Rules support exact paths, directory subtrees and full-path RE2 expressions; approvals bind real directory objects and the current command policy. Implementation is connected; consult [testing](./TESTING.en.md) for unified acceptance results. The competitor remains JumpServer Enterprise, with full parity still in progress.
+Single-command Web workbench jobs and `jms exec` can select a starting directory inside a configured SSH workspace. Rules support exact paths, directory subtrees and full-path RE2 expressions; approvals bind real directory objects and the current command policy. Unified batch verification passed; consult [testing](./TESTING.en.md) for its acceptance scope. The competitor remains JumpServer Enterprise, with full parity still in progress.
 
 ## Configuration and use
 
