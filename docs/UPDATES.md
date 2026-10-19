@@ -51,7 +51,7 @@ jms update stage-clean --root /srv/jumpserver233-releases
 
 ## 发布流程
 
-本地验证入口：`node scripts/update-race-qa.mjs` 使用独立网络和内存 PostgreSQL 验证接管与 race；`node scripts/native-package-qa.mjs` 在提交源码后构建六平台包，并运行宿主 CLI 和 Linux 单端口服务。原生 QA 使用独立网页输出，不覆盖正在验证的 `web/dist`；结束后重复清理自有容器、临时制品与运行数据，仅保留精简报告。其他平台的包验证不等于真实设备运行验收。
+本地验证入口：`node scripts/update-race-qa.mjs` 使用独立网络和内存 PostgreSQL 验证接管与 race；`node scripts/native-package-qa.mjs` 在提交源码后构建六平台包，实际暂存并运行宿主 CLI 和 Linux 单端口服务，再通过已安装的 Playwright Chromium 检查真实登录、中英界面和版本显示。原生 QA 使用独立网页输出，不覆盖正在验证的 `web/dist`；结束后重复清理自有容器、临时制品与运行数据，仅保留精简报告和两张截图。其他平台的包验证不等于真实设备运行验收。
 
 Release 仍由 release-please 在正式发布时维护 changelog。`release-artifacts.yml` 在正式稳定 Release 上构建 Linux/macOS/Windows × amd64/arm64 六个 Go 原生包；网页只构建一次，嵌入组件先经生成链准备。通过 `workflow_call` 连接 release-please，避免依赖 `GITHUB_TOKEN` 创建事件再次触发工作流。手动发布稳定 Release 也可触发；不从普通 push/tag 创建正式 Release。
 

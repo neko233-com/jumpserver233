@@ -75,7 +75,7 @@ def verify():
         print('RUN_TESTS=false: tests omitted; production compilation still required', flush=True)
         return
     run(['python3', '-B', '-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'macos_single_test.py'])
-    run(['node', '--test', 'scripts/docker-qa.test.mjs', 'scripts/qa-lifecycle.test.mjs', 'scripts/qa-retention.test.mjs', 'scripts/publish-release.test.mjs',
+    run(['node', '--test', 'scripts/docker-qa.test.mjs', 'scripts/qa-lifecycle.test.mjs', 'scripts/qa-retention.test.mjs', 'scripts/publish-release.test.mjs', 'scripts/native-browser-logs.test.mjs',
          'server/testsupport/docker-qa.test.mjs', 'server/testsupport/ci-health.test.mjs'])
     run(['node', 'scripts/check-content.mjs'])
     run(['go', 'vet', './...', 'github.com/microsoft/go-mssqldb'], ROOT / 'server')
