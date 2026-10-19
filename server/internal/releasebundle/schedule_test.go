@@ -15,6 +15,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNativeInstallationStatusWaitsForBriefMetadataLock(t *testing.T) {
+	opt := installFixture(t)
+	held := installRoot(t, opt.Root)
+	released := make(chan struct{})
+	go func() { time.Sleep(75 * time.Millisecond); held.close(); close(released) }()
+	v, e := InstallationStatus(context.Background(), opt.Root)
+	<-released
+	require.NoError(t, e)
+	require.Equal(t, 0, v.Revision)
+}
+func TestNativeInstallationStatusLockWaitHonorsCancellation(t *testing.T) {
+	opt := installFixture(t)
+	held := installRoot(t, opt.Root)
+	defer held.close()
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+	defer cancel()
+	_, e := InstallationStatus(ctx, opt.Root)
+	require.ErrorIs(t, e, context.DeadlineExceeded)
+}
+
 func scheduleFixture(t *testing.T) (InstallOptions, ScheduleInput) {
 	t.Helper()
 	opt := installFixture(t)

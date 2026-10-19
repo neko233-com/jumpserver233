@@ -28,6 +28,7 @@ export async function verifyScheduledInstallation({ run, owner, url, root, outpu
   await api("GET", endpoint, undefined, operator, 403);
   await stopSelected(); await supervise(); await waitHealthy(report.recoveryVersion);
   await status(); operator = await refreshOperator();
+  await Promise.all(Array.from({length:8},()=>status()));
   let duplicate = false;
   try { await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 exec /tmp/native/jms update supervise --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']); } catch (e) { duplicate = String(e.stderr).includes("data directory is in use"); }
   if (!duplicate) throw new Error("Competing update supervisor was admitted");

@@ -601,7 +601,7 @@ func RecoverInstallation(ctx context.Context, path string, password []byte) (Ins
 	return r, rollbackErr
 }
 func InstallationStatus(ctx context.Context, path string) (Installation, error) {
-	s, e := openStagingRoot(path, runtime.GOOS, runtime.GOARCH, false)
+	s, e := openScheduleRoot(ctx, path)
 	if e != nil {
 		return Installation{}, e
 	}
