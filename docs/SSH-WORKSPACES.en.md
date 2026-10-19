@@ -10,7 +10,7 @@ An administrator first creates an existing Linux directory with ordinary remote-
 
 The workspace must also be disjoint from the remote account's `~/.jumpserver233` helper cache. It cannot contain or live inside that cache; granting the entire home is refused. The helper itself must stay outside the writable tree, preventing confined execution from modifying future startup programs.
 
-Asset creation/update accepts a `ssh_workspace` string. Omission during update preserves the policy; empty disables it. Asset management permission is required. Managed accounts inherit the host workspace. Approval/connection bindings include it, invalidating old bindings after changes. Existing grants and command filtering/review still apply.
+Asset creation/update accepts a `ssh_workspace` string. Omission during update preserves the policy; empty disables it. Asset management permission is required. Managed accounts inherit the host workspace. Access-ticket and SSH-session bindings include it, invalidating old bindings after changes. SFTP login permits authorize a user, asset and account; each new channel enforces the current workspace policy. A permit does not attest a remote directory inode or directory-specific approval. Existing grants and command filtering/review still apply.
 
 ```sh
 jms exec ASSET_ID -- pwd

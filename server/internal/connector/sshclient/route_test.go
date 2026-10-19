@@ -99,6 +99,7 @@ func TestGatewaySFTPAndRotationUseSameRoute(t *testing.T) {
 	assert.Empty(t, entries)
 	require.NoError(t, remote.Mkdir(context.Background(), path.Join(remote.Root(), "routed")))
 	require.NoError(t, remote.Close())
+	require.NoError(t, remote.Close())
 	for _, s := range servers {
 		assert.Positive(t, s.Forwards())
 	}

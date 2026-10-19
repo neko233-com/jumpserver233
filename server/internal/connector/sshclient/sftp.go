@@ -206,7 +206,14 @@ func (s *SFTP) Close() error {
 		if s.session != nil {
 			_ = s.session.Close()
 		}
-		s.closeError = errors.Join(s.client.Close(), transportErr)
+		clientErr := s.client.Close()
+		// SSH has already shut down the channel. Its local close may return
+		// EOF if the receive loop closed it first; file-operation errors are
+		// returned by those operations and are never normalized here.
+		if errors.Is(clientErr, io.EOF) {
+			clientErr = nil
+		}
+		s.closeError = errors.Join(clientErr, transportErr)
 		if s.sessionDone != nil {
 			<-s.sessionDone
 		}

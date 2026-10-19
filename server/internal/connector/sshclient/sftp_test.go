@@ -87,8 +87,8 @@ func TestWorkspaceSFTPExecChannelIsPinnedAndNeverFallsBack(t *testing.T) {
 	require.NoError(t, e)
 	_, e = remote.ReadDir(context.Background(), remote.Root())
 	require.NoError(t, e)
-	_ = remote.Close()
-	_ = remote.Close()
+	require.NoError(t, remote.Close())
+	require.NoError(t, remote.Close())
 	_, e = OpenSFTPCommand(context.Background(), target, Credentials{Password: "sftp-test-password"}, 2*time.Second, "wrong-helper")
 	require.Error(t, e)
 	_, e = OpenSFTPCommand(context.Background(), target, Credentials{Password: "sftp-test-password"}, 2*time.Second, "")
@@ -103,6 +103,26 @@ func TestWorkspaceSFTPExecChannelIsPinnedAndNeverFallsBack(t *testing.T) {
 	_, e = OpenSFTPCommand(context.Background(), stallTarget, Credentials{Password: "sftp-test-password"}, 100*time.Millisecond, "stall")
 	require.Error(t, e)
 	assert.Less(t, time.Since(start), 2*time.Second)
+}
+
+func TestSFTPCloseAfterChannelEOFIsIdempotent(t *testing.T) {
+	for _, test := range []struct{ name, startup string }{{"subsystem", ""}, {"exec", "pinned-workspace-helper"}} {
+		t.Run(test.name, func(t *testing.T) {
+			var commands []string
+			if test.startup != "" {
+				commands = []string{test.startup}
+			}
+			listener, target := startSFTPTestServer(t, t.TempDir(), commands...)
+			t.Cleanup(func() { _ = listener.Close() })
+			remote, err := openSFTP(context.Background(), target, Credentials{Password: "sftp-test-password"}, 2*time.Second, test.startup)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = remote.Close() })
+			// Make channel EOF deterministic before the outer transport closes.
+			require.NoError(t, remote.client.Close())
+			require.NoError(t, remote.Close())
+			require.NoError(t, remote.Close())
+		})
+	}
 }
 
 func startSFTPTestServer(t *testing.T, root string, startup ...string) (net.Listener, Target) {
