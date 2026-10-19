@@ -1032,18 +1032,16 @@ export default function AssetInventoryPage() {
                         >
                           {t("assets.connect")}
                         </button>
-                        {isSSHProtocol(asset.protocol) &&
-                          !asset.ssh_workspace &&
-                          asset.permissions?.includes("sftp") && (
-                            <button
-                              type="button"
-                              className="button-text"
-                              disabled={tokenRequired}
-                              onClick={() => setFileAsset(asset)}
-                            >
-                              {t("files.open")}
-                            </button>
-                          )}
+                        {isSSHProtocol(asset.protocol) && asset.permissions?.includes("sftp") && (
+                          <button
+                            type="button"
+                            className="button-text"
+                            disabled={tokenRequired}
+                            onClick={() => setFileAsset(asset)}
+                          >
+                            {t("files.open")}
+                          </button>
+                        )}
                         {isSSHProtocol(asset.protocol) &&
                           asset.permissions?.includes("connect") &&
                           (allows("plugins.inspect") ||
@@ -2018,6 +2016,7 @@ export default function AssetInventoryPage() {
         <Suspense fallback={null}>
           <SFTPFileManagerDialog
             assetId={fileAsset.id}
+            workspace={fileAsset.ssh_workspace}
             assetName={fileAsset.name}
             accessToken={accessToken}
             onClose={closeFileManager}

@@ -16,7 +16,7 @@ go build ./cmd/server
 
 The generator builds static Linux amd64/arm64 executables with the current Go toolchain and creates a SHA-256 manifest. The server then embeds these artifacts. Generated files are not committed; regenerate after source changes. `make build-server`, `make run-server`, `make test-server`, CI and the browser-test entry point do this automatically. Generate once before directly running `go run ./cmd/server`. A missing bundle explicitly prevents new enforcement.
 
-Explicit start, supervision enablement, policy application and release transitions install the verified component through existing SSH/SFTP. Hash paths are immutable and verified again before execution. Status requests never upload or reconfigure it. The component has no listener, platform token, SSH credential or arbitrary-command facility. Targets need no Go, Python or jq installation.
+Explicit start, supervision enablement, policy application and release transitions install the verified component through existing SSH/SFTP. Hash paths are immutable and verified again before execution. Status requests never upload or reconfigure it. Recovery/supervision entrypoints perform fixed operations; separate [execution workspace](./SSH-WORKSPACES.en.md) entrypoints provide shells/SFTP after kernel confinement. The component has no listener, platform token or SSH credential. Targets need no Go, Python or jq installation.
 
 ## Recovery flow
 

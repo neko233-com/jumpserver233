@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
-	"github.com/neko233-com/jumpserver233/server/internal/hostagent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,8 +20,6 @@ func TestWorkspacePersistsInheritsAndBlocksUnconfinedChannels(t *testing.T) {
 	a, e := s.Create(in)
 	require.NoError(t, e)
 	assert.Equal(t, directory, a.SSHWorkspace)
-	_, _, e = s.OpenSFTP(context.Background(), a.ID)
-	require.ErrorIs(t, e, hostagent.ErrWorkspaceUnavailable)
 	_, _, e = s.PrepareDiscoveryGateway(a.ID)
 	require.ErrorIs(t, e, ErrInvalidInput)
 	child := inheritAccount(a, Asset{ID: "account-test", Username: "second", ParentAssetID: a.ID})

@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"github.com/neko233-com/jumpserver233/server/testsupport/sshidentity"
+	"io"
 	"net"
 	"os"
 	"path"
@@ -14,6 +15,8 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	xssh "golang.org/x/crypto/ssh"
 )
 
@@ -77,7 +80,32 @@ func TestOpenSFTPUsesPinnedSSHAndSupportsFileOperations(t *testing.T) {
 	}
 }
 
-func startSFTPTestServer(t *testing.T, root string) (net.Listener, Target) {
+func TestWorkspaceSFTPExecChannelIsPinnedAndNeverFallsBack(t *testing.T) {
+	listener, target := startSFTPTestServer(t, t.TempDir(), "pinned-workspace-helper")
+	defer listener.Close()
+	remote, e := OpenSFTPCommand(context.Background(), target, Credentials{Password: "sftp-test-password"}, 2*time.Second, "pinned-workspace-helper")
+	require.NoError(t, e)
+	_, e = remote.ReadDir(context.Background(), remote.Root())
+	require.NoError(t, e)
+	_ = remote.Close()
+	_ = remote.Close()
+	_, e = OpenSFTPCommand(context.Background(), target, Credentials{Password: "sftp-test-password"}, 2*time.Second, "wrong-helper")
+	require.Error(t, e)
+	_, e = OpenSFTPCommand(context.Background(), target, Credentials{Password: "sftp-test-password"}, 2*time.Second, "")
+	require.Error(t, e)
+	ordinary, normalTarget := startSFTPTestServer(t, t.TempDir())
+	defer ordinary.Close()
+	_, e = OpenSFTPCommand(context.Background(), normalTarget, Credentials{Password: "sftp-test-password"}, 2*time.Second, "pinned-workspace-helper")
+	require.Error(t, e)
+	stalled, stallTarget := startSFTPTestServer(t, t.TempDir(), "stall")
+	defer stalled.Close()
+	start := time.Now()
+	_, e = OpenSFTPCommand(context.Background(), stallTarget, Credentials{Password: "sftp-test-password"}, 100*time.Millisecond, "stall")
+	require.Error(t, e)
+	assert.Less(t, time.Since(start), 2*time.Second)
+}
+
+func startSFTPTestServer(t *testing.T, root string, startup ...string) (net.Listener, Target) {
 	t.Helper()
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -105,7 +133,7 @@ func startSFTPTestServer(t *testing.T, root string) (net.Listener, Target) {
 			if acceptErr != nil {
 				return
 			}
-			go serveSFTPTestConnection(connection, config, root)
+			go serveSFTPTestConnection(connection, config, root, startup...)
 		}
 	}()
 	host, portText, err := net.SplitHostPort(listener.Addr().String())
@@ -119,7 +147,7 @@ func startSFTPTestServer(t *testing.T, root string) (net.Listener, Target) {
 	return listener, Target{Host: host, Port: port, Username: "sftp-test", HostKeyFingerprint: xssh.FingerprintSHA256(signer.PublicKey())}
 }
 
-func serveSFTPTestConnection(connection net.Conn, config *xssh.ServerConfig, root string) {
+func serveSFTPTestConnection(connection net.Conn, config *xssh.ServerConfig, root string, startup ...string) {
 	serverConnection, channels, requests, err := xssh.NewServerConn(connection, config)
 	if err != nil {
 		_ = connection.Close()
@@ -139,16 +167,24 @@ func serveSFTPTestConnection(connection net.Conn, config *xssh.ServerConfig, roo
 		go func() {
 			defer channel.Close()
 			for request := range channelRequests {
-				if request.Type != "subsystem" {
+				kind, want := "subsystem", "sftp"
+				if len(startup) > 0 {
+					kind, want = "exec", startup[0]
+				}
+				if request.Type != kind {
 					_ = request.Reply(false, nil)
 					continue
 				}
 				var payload struct{ Name string }
-				if err := xssh.Unmarshal(request.Payload, &payload); err != nil || payload.Name != "sftp" {
+				if err := xssh.Unmarshal(request.Payload, &payload); err != nil || payload.Name != want {
 					_ = request.Reply(false, nil)
 					return
 				}
 				if err := request.Reply(true, nil); err != nil {
+					return
+				}
+				if want == "stall" {
+					_, _ = io.Copy(io.Discard, channel)
 					return
 				}
 				server, err := sftp.NewServer(channel, sftp.WithServerWorkingDirectory(root))

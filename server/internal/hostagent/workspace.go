@@ -27,6 +27,18 @@ func ValidateWorkspace(directory string) error {
 	return nil
 }
 
+// Control paths must stay outside operator-writable workspaces. In particular,
+// a workspace cannot contain or live inside the pinned helper cache.
+func ValidateWorkspaceControl(directory, control string) error {
+	if ValidateWorkspace(directory) != nil || !path.IsAbs(control) || path.Clean(control) != control || strings.IndexFunc(control, unicode.IsControl) >= 0 {
+		return ErrWorkspaceInvalid
+	}
+	if directory == control || strings.HasPrefix(control, directory+"/") || strings.HasPrefix(directory, control+"/") {
+		return ErrWorkspaceInvalid
+	}
+	return nil
+}
+
 type WorkspaceStatus struct {
 	Format      string `json:"format"`
 	Directory   string `json:"directory"`

@@ -33,6 +33,18 @@ func TestResolveKeepsPathsInsideSFTPHome(t *testing.T) {
 	}
 }
 
+func TestWorkspaceVirtualSFTPRootKeepsRelativeFilesAndRejectsTraversal(t *testing.T) {
+	full, parent, e := resolve("/", "folder/file.txt")
+	if e != nil || full != "/folder/file.txt" || parent != "folder" {
+		t.Fatalf("virtual root mapping: %q %q %v", full, parent, e)
+	}
+	for _, name := range []string{"../private", "folder/../private", "/etc/passwd", `a\b`} {
+		if _, _, e := resolve("/", name); e == nil {
+			t.Fatalf("accepted %q", name)
+		}
+	}
+}
+
 func TestUploadDownloadAndTransferAudit(t *testing.T) {
 	remote := newMemoryRemote()
 	remote.dirs["/home/operator/reports"] = true

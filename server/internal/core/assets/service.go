@@ -418,7 +418,8 @@ func (s *Service) OpenSFTP(ctx context.Context, id string) (Asset, *sshclient.SF
 		return Asset{}, nil, err
 	}
 	if asset.SSHWorkspace != "" {
-		return Asset{}, nil, hostagent.ErrWorkspaceUnavailable
+		remote, e := s.openWorkspaceSFTP(ctx, target, credentials, asset.SSHWorkspace)
+		return asset, remote, e
 	}
 	remote, err := sshclient.OpenSFTP(ctx, target, credentials, 12*time.Second)
 	if err != nil {

@@ -19,13 +19,28 @@ import (
 )
 
 func run(args []string) int {
+	if len(args) == 1 && args[0] == "workspace-sftp-internal" {
+		if e := hostagent.ServeWorkspaceSFTP(); e != nil {
+			fmt.Fprintln(os.Stderr, "workspace_sftp_unavailable")
+			return 1
+		}
+		return 0
+	}
 	if len(args) > 0 && (args[0] == "workspace" || args[0] == "workspace-check") {
 		flags := flag.NewFlagSet("workspace", flag.ContinueOnError)
 		flags.SetOutput(io.Discard)
 		directory := flags.String("directory", "", "")
 		execInput := flags.Bool("exec-stdin", false, "")
-		if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || hostagent.ValidateWorkspace(*directory) != nil || args[0] == "workspace-check" && *execInput {
+		sftpMode := flags.Bool("sftp", false, "")
+		if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || hostagent.ValidateWorkspace(*directory) != nil || args[0] == "workspace-check" && (*execInput || *sftpMode) || *execInput && *sftpMode {
 			return 2
+		}
+		if *sftpMode {
+			if e := hostagent.ExecWorkspaceSFTP(*directory); e != nil {
+				fmt.Fprintln(os.Stderr, "workspace_sftp_unavailable")
+				return 1
+			}
+			return 1
 		}
 		if args[0] == "workspace-check" {
 			state, e := hostagent.CheckWorkspace(*directory)

@@ -15,7 +15,7 @@ import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
-const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/workspaces");
+const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/confined-sftp");
 mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
@@ -127,7 +127,7 @@ try {
   const token = randomUUID() + randomUUID();
   await run("docker", ["run", "--detach", "--pull", "missing", "--name", owner,
     ...labels, "--network", owner,
-    "--read-only", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=512m", "--publish", `127.0.0.10:${selectedPort}:8080`,
+    "--read-only", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=768m", "--publish", `127.0.0.10:${selectedPort}:8080`,
     "--mount", `type=bind,source=${archive},target=/artifact/package.tar.gz,readonly`,
     "--mount", `type=bind,source=${upgradeArchive},target=/artifact/upgrade.tar.gz,readonly`,
     ...synthetic.flatMap(f => ["--mount", `type=bind,source=${f.path},target=/artifact/${f.mode}.tar.gz,readonly`]),
@@ -224,11 +224,30 @@ try {
 	if ((await workspaceJob("printf workspace-inside > owned; cat owned", true)).stdout !== "workspace-inside") throw new Error("Workspace write failed");
 	await workspaceJob("cat /home/keyqa/protected/sentinel", false);
 	await workspaceJob("printf changed > /home/keyqa/protected/sentinel", false);
-	await api("GET", "/api/v1/assets/" + asset.id + "/files", undefined, recoveredLogin.access_token, 403);
+	await api("GET", "/api/v1/assets/" + asset.id + "/files", undefined, recoveredOperator.access_token, 403);
+	const transfer = async (method, name, body, status = 200, overwrite = false) => {
+		const response = await fetch(url + `/api/v1/assets/${asset.id}/files/content?` + new URLSearchParams({ path: name, overwrite: String(overwrite) }), { method, headers: { Authorization: "Bearer " + recoveredLogin.access_token }, ...(body===undefined ? {} : {body}), signal: AbortSignal.timeout(15000) });
+		if(response.status!==status) throw new Error(`Confined SFTP ${method} status ${response.status} differs from ${status}`);
+		return response;
+	};
+	await transfer("PUT", "sftp-api.txt", "first", 201);
+	await transfer("PUT", "sftp-api.txt", "must-not-overwrite", 409);
+	if(await (await transfer("GET", "sftp-api.txt")).text()!=="first") throw new Error("SFTP conflict overwrote bytes");
+	for(let retry=0;retry<2;retry++) await transfer("PUT", "sftp-api.txt", "replacement", 201, true);
+	if(await (await transfer("GET", "sftp-api.txt")).text()!=="replacement") throw new Error("SFTP replacement bytes differ");
+	await run("docker",["exec",owner+"-ssh","ln","-s","/home/keyqa/protected","/home/keyqa/workspace/escape"]);
+	await transfer("GET", "escape/sentinel", undefined, 400);
+	await transfer("GET", "../protected/sentinel", undefined, 400);
+	const listing=await api("GET",`/api/v1/assets/${asset.id}/files` ,undefined,recoveredLogin.access_token);
+	if(!listing.entries.some(f=>f.name==="sftp-api.txt") || listing.entries.some(f=>f.name===".jumpserver233")) throw new Error("SFTP virtual root differs");
+	await api("PUT", "/api/v1/assets/"+asset.id,{name:asset.name,host:asset.host,port:asset.port,username:asset.username,host_key_fingerprint:fingerprint,ssh_workspace:"/home/keyqa"},recoveredLogin.access_token);
+	await workspaceJob("printf must-not-run > workspace/overlap-executed",false);
+	await run("docker",["exec",owner+"-ssh","test","!","-e","/home/keyqa/workspace/overlap-executed"]);
+	await api("PUT", "/api/v1/assets/"+asset.id,{name:asset.name,host:asset.host,port:asset.port,username:asset.username,host_key_fingerprint:fingerprint,ssh_workspace:workspace},recoveredLogin.access_token);
 	const nativeExec = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/native/jms exec "$1" --json -- pwd', "sh", asset.id])).stdout);
 	if (nativeExec.state !== "succeeded" || nativeExec.stdout.trim() !== workspace) throw new Error("Native CLI workspace execution failed");
 	if ((await run("docker", ["exec", owner + "-ssh", "cat", "/home/keyqa/protected/sentinel"])).stdout !== "preserve") throw new Error("Workspace modified protected content");
-	report.workspace = { directory: workspace, realSSH: true, realCLI: true, trustedCwd: true, insideWrite: true, outsideReadAndWriteRefused: true, sftpRefused: true, protectedDataPreserved: true };
+	report.workspace = { directory: workspace, realSSH: true, realCLI: true, trustedCwd: true, insideWrite: true, outsideReadAndWriteRefused: true, confinedSFTP: true, sftpNoOverwriteAndRepeatedReplacement: true, sftpSymlinkAndTraversalRefused: true, helperOverlapRefusedBeforeExecution: true, protectedDataPreserved: true };
   report.activation = { privateReadinessAndHTTPProbe: true, businessGateBeforeCommit: true, preCommitFailureRolledBack: true, oldServiceAutomaticallyResumed: true, failedTrialWriteRemoved: trialWriteAbsent, monotonicRollbackRevision: 4, postCommitFailurePreservedVersionAndData: true, forwardRecoveryVersion: report.recoveryVersion, finalRevision: 6, realSSHAfterRollbackAndForwardRecovery: true };
   report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true, operatorViewGrantPreserved: true, operatorConnectDeniedBeforeAndAfter: true };
   const html = await (await fetch(url + "/console/settings")).text();
@@ -269,13 +288,33 @@ try {
 	report.workspace.browserPTY = true;
 	await row.getByRole("button", { name: "Edit", exact: true }).click();
 	await expect(page.getByRole("textbox", { name: "SSH execution workspace (optional)", exact: true })).toHaveValue(workspace);
-	await page.getByRole("dialog").screenshot({ path: resolve(output, "workspace.en.png") });
 	await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
+	await row.getByRole("button",{name:"Files",exact:true}).click();
+	const manager=page.locator(".sftp-manager");
+	await expect(manager.getByRole("button",{name:"sftp-api.txt",exact:true})).toBeVisible();
+	await expect(manager.getByText(`Workspace ${workspace} (shown as /)`,{exact:true})).toBeVisible();
+	await manager.locator('input[type="file"]').setInputFiles({name:"sftp-browser.txt",mimeType:"text/plain",buffer:Buffer.from("browser-confined-upload")});
+	await expect(manager.getByRole("button",{name:"sftp-browser.txt",exact:true})).toBeVisible();
+	const browserDownload=page.waitForEvent("download");
+	await manager.getByRole("row").filter({hasText:"sftp-browser.txt"}).getByRole("button",{name:"Download",exact:true}).click();
+	const downloaded=await browserDownload;
+	if(readFileSync(await downloaded.path(),"utf8")!=="browser-confined-upload") throw new Error("Browser SFTP download bytes differ");
+	await downloaded.delete();
+	await manager.getByRole("textbox",{name:"Folder name",exact:true}).fill("browser-dir");
+	await manager.getByRole("button",{name:"New folder",exact:true}).click();
+	await expect(manager.getByRole("button",{name:"browser-dir",exact:true})).toBeVisible();
+	await manager.screenshot({path:resolve(output,"sftp.en.png")});
+	await manager.getByRole("button",{name:"Cancel",exact:true}).last().click();
 	await page.getByRole("button", { name: "中文", exact: true }).click();
 	await row.getByRole("button", { name: "编辑", exact: true }).click();
 	await expect(page.getByRole("textbox", { name: "SSH 执行工作区（可选）", exact: true })).toHaveValue(workspace);
-	await page.getByRole("dialog").screenshot({ path: resolve(output, "workspace.zh.png") });
 	await page.getByRole("button", { name: "取消", exact: true }).click();
+	await row.getByRole("button",{name:"文件",exact:true}).click();
+	await expect(manager.getByRole("button",{name:"sftp-browser.txt",exact:true})).toBeVisible();
+	await expect(manager.getByText(`工作区 ${workspace}（显示为 /）`,{exact:true})).toBeVisible();
+	await manager.screenshot({path:resolve(output,"sftp.zh.png")});
+	await manager.getByRole("button",{name:"取消",exact:true}).last().click();
+	report.workspace.browserUploadDownloadAndMkdir=true;
 	await page.getByRole("button", { name: "EN", exact: true }).click();
     await page.goto(url + "/console/settings");
     await page.getByRole("tab", { name: "Security", exact: true }).click();

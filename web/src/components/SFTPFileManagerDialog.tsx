@@ -33,11 +33,13 @@ export default function SFTPFileManagerDialog({
   assetName,
   accessToken,
   onClose,
+  workspace,
 }: {
   assetId: string;
   assetName: string;
   accessToken: string | null;
   onClose: () => void;
+  workspace?: string;
 }) {
   const { t, i18n } = useTranslation();
   const [currentPath, setCurrentPath] = useState("");
@@ -288,6 +290,7 @@ export default function SFTPFileManagerDialog({
           <div>
             <h3 id="sftp-title">{t("files.title")}</h3>
             <p>{assetName}</p>
+            {workspace && <small>{t("files.workspaceRoot", { path: workspace })}</small>}
           </div>
           <button
             type="button"

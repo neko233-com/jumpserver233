@@ -3,6 +3,7 @@
 package hostagent
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -71,6 +72,26 @@ func ExecWorkspace(directory, command string, interactive bool) error {
 	if len(command) > 8192 || !interactive && command == "" {
 		return ErrWorkspaceInvalid
 	}
+	args := []string{"sh", "-c", command}
+	if interactive {
+		args = []string{"sh", "-i"}
+	}
+	return execWorkspace(directory, "/bin/sh", args, false)
+}
+
+func ExecWorkspaceSFTP(directory string) error {
+	self, e := os.Executable()
+	if e != nil {
+		return ErrWorkspaceUnavailable
+	}
+	return execWorkspace(directory, self, []string{"jms-agent", "workspace-sftp-internal"}, true)
+}
+
+func execWorkspace(directory, executable string, args []string, nativeSFTP bool) error {
+	self, e := os.Executable()
+	if e != nil || ValidateWorkspaceControl(directory, self) != nil {
+		return ErrWorkspaceInvalid
+	}
 	if _, e := workspaceABI(); e != nil {
 		return e
 	}
@@ -79,6 +100,28 @@ func ExecWorkspace(directory, command string, interactive bool) error {
 		return e
 	}
 	defer unix.Close(root)
+	handoff := -1
+	if nativeSFTP {
+		var st unix.Stat_t
+		if unix.Fstat(root, &st) != nil {
+			return ErrWorkspaceInvalid
+		}
+		raw, _ := json.Marshal(workspaceHandoff{Format: "jms233-workspace-sftp-v1", PID: os.Getpid(), Device: uint64(st.Dev), Inode: st.Ino})
+		handoff, e = unix.MemfdCreate("jms233-workspace", unix.MFD_CLOEXEC|unix.MFD_ALLOW_SEALING)
+		if e != nil {
+			return ErrWorkspaceUnavailable
+		}
+		defer unix.Close(handoff)
+		if _, e = unix.Write(handoff, raw); e != nil {
+			return ErrWorkspaceUnavailable
+		}
+		if _, e = unix.Seek(handoff, 0, 0); e != nil {
+			return ErrWorkspaceUnavailable
+		}
+		if _, e = unix.FcntlInt(uintptr(handoff), unix.F_ADD_SEALS, workspaceSeals); e != nil {
+			return ErrWorkspaceUnavailable
+		}
+	}
 	attr := struct{ Access uint64 }{workspaceHandled}
 	value, _, errno := unix.Syscall(unix.SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&attr)), unsafe.Sizeof(attr), 0)
 	if errno != 0 {
@@ -91,7 +134,11 @@ func ExecWorkspace(directory, command string, interactive bool) error {
 	}
 	// System executables/libraries are read-only. No /etc tree, home, /proc or
 	// inherited environment is exposed. Resolve only these fixed OS aliases.
-	for _, name := range []string{"/usr/bin", "/usr/sbin", "/usr/lib", "/usr/lib64", "/bin", "/sbin", "/lib", "/lib64", "/etc/ld.so.cache", "/etc/localtime", "/dev/null", "/dev/tty"} {
+	runtimePaths := []string{"/usr/bin", "/usr/sbin", "/usr/lib", "/usr/lib64", "/bin", "/sbin", "/lib", "/lib64", "/etc/ld.so.cache", "/etc/localtime", "/dev/null", "/dev/tty"}
+	if nativeSFTP {
+		runtimePaths = []string{self}
+	} // Static Go service needs no OS runtime tree.
+	for _, name := range runtimePaths {
 		resolved, err := filepath.EvalSymlinks(name)
 		if os.IsNotExist(err) {
 			continue
@@ -120,10 +167,6 @@ func ExecWorkspace(directory, command string, interactive bool) error {
 			return ErrWorkspaceUnavailable
 		}
 	}
-	args := []string{"sh", "-c", command}
-	if interactive {
-		args = []string{"sh", "-i"}
-	}
 	environment := []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C", "HOME=" + directory, "PWD=" + directory, "TMPDIR=" + directory, "TERM=xterm-256color", "ENV=/dev/null", "BASH_ENV=/dev/null"}
 	runtime.LockOSThread() // Landlock and seccomp apply to this thread and its descendants.
 	if e = unix.Fchdir(root); e != nil {
@@ -151,8 +194,20 @@ func ExecWorkspace(directory, command string, interactive bool) error {
 	}
 	// No inherited control socket, open outside file or directory descriptor can
 	// be reused to bypass path checks. stdin/stdout/stderr retain the SSH stream.
-	if e = unix.CloseRange(3, ^uint(0), unix.CLOSE_RANGE_UNSHARE); e != nil {
+	firstClose := uint(3)
+	if nativeSFTP {
+		if handoff != 3 {
+			e = unix.Dup3(handoff, 3, 0)
+		} else {
+			_, e = unix.FcntlInt(3, unix.F_SETFD, 0)
+		}
+		if e != nil {
+			return ErrWorkspaceUnavailable
+		}
+		firstClose = 4
+	}
+	if e = unix.CloseRange(firstClose, ^uint(0), unix.CLOSE_RANGE_UNSHARE); e != nil {
 		return ErrWorkspaceUnavailable
 	}
-	return unix.Exec("/bin/sh", args, environment)
+	return unix.Exec(executable, args, environment)
 }

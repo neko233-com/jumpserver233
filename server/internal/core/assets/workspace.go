@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/agentbundle"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
@@ -58,6 +59,9 @@ func prepareWorkspace(ctx context.Context, h *sshclient.ManagedHost, directory s
 		return "", hostagent.ErrWorkspaceInvalid
 	}
 	base := path.Join(home, ".jumpserver233")
+	if hostagent.ValidateWorkspaceControl(directory, base) != nil {
+		return "", hostagent.ErrWorkspaceInvalid
+	}
 	dir := path.Join(base, "workspace")
 	for _, name := range []string{base, dir} {
 		q := workspaceQuote(name)
@@ -103,6 +107,22 @@ func prepareWorkspace(ctx context.Context, h *sshclient.ManagedHost, directory s
 		startup += " --exec-stdin"
 	}
 	return startup, nil
+}
+
+func (s *Service) openWorkspaceSFTP(ctx context.Context, target sshclient.Target, credentials sshclient.Credentials, directory string) (*sshclient.SFTP, error) {
+	startup, e := s.workspaceStartup(ctx, target, credentials, directory, false)
+	if e != nil {
+		return nil, e
+	}
+	remote, e := sshclient.OpenSFTPCommand(ctx, target, credentials, 12*time.Second, startup+" --sftp")
+	if e != nil {
+		return nil, e
+	}
+	if remote.Root() != "/" {
+		_ = remote.Close()
+		return nil, hostagent.ErrWorkspaceUnavailable
+	}
+	return remote, nil
 }
 
 func (s *Service) execWorkspace(ctx context.Context, target sshclient.Target, credentials sshclient.Credentials, directory, command string) (sshclient.ExecResult, error) {

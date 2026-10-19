@@ -24,6 +24,9 @@ func main() {
 		}
 	}
 	var capabilities [2]unix.CapUserData
+	if _, _, e := unix.Syscall(unix.SYS_TGKILL, uintptr(os.Getpid()+1), 0, 0); e != unix.EPERM {
+		os.Exit(95)
+	}
 	if unix.Capget(&unix.CapUserHeader{Version: unix.LINUX_CAPABILITY_VERSION_3}, &capabilities[0]) != nil || capabilities[0] != (unix.CapUserData{}) || capabilities[1] != (unix.CapUserData{}) {
 		os.Exit(93)
 	}
