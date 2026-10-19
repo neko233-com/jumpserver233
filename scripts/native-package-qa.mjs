@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import { setTimeout as delay } from "node:timers/promises";
 import { inspectQAContainers, removeOwnedTree } from "./qa-lifecycle.mjs";
 import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
+import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
 const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/updates");
@@ -104,9 +105,13 @@ try {
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext({ locale: "en-US", viewport: { width: 1280, height: 900 } });
-    const page = await context.newPage(), errors = [];
+    const page = await context.newPage(), errors = [], diagnostics = { anonymous_session_probe: 0, headless_gpu_readback: 0 };
     page.on("pageerror", e => errors.push(e.message));
-    page.on("console", message => { if (["warning", "error"].includes(message.type())) errors.push(message.text()); });
+    page.on("console", message => {
+      if (!["warning", "error"].includes(message.type())) return;
+      const category = classifyNativeBrowserLog(message.type(), message.text(), message.location().url, url, report.browserLoginStatus === 200);
+      if (category === "unexpected") errors.push(message.text()); else diagnostics[category]++;
+    });
     await page.goto(url + "/login");
     await page.getByRole("textbox", { name: "Username", exact: true }).fill("root");
     await page.getByRole("textbox", { name: "Password", exact: true }).fill("root");
@@ -129,7 +134,7 @@ try {
       report.browserDiagnostics = errors.slice(-10).map(message => fixtureDiagnostic(message));
       throw new Error("Staged candidate browser reported runtime warnings or errors");
     }
-    report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.testVersion, warningsOrErrors: errors.length, fromStagedCandidate: true };
+    report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.testVersion, applicationWarningsOrErrors: errors.length, expectedBrowserDiagnostics: diagnostics, fromStagedCandidate: true };
   } finally { await browser.close(); }
   // Repeating package creation must refuse replacement of an existing archive.
   let conflict = false;
