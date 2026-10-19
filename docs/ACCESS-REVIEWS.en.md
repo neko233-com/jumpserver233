@@ -9,11 +9,21 @@ Login review is an enterprise-parity slice. It adds a second check on top of exi
 ## Configuration and flow
 
 - An administrator enables **Require administrator review for SSH and SFTP login** in the SSH asset editor. Administrators bypass the review queue.
-- An operator starts access from Web SSH, `jms ssh <asset-id>`, or the SFTP file manager. The server checks the matching `connect` or `sftp` grant first and creates a review request for that access method; no SSH or SFTP connection is opened while approval is pending.
-- An administrator reviews the requester, asset, account, request time, and expiry in **System Settings → Login review**, then approves or denies it.
+- An operator starts access from Web SSH, `jms ssh <asset-id>`, or the SFTP file manager. The server checks the matching grant first. Configured workspaces prepare/check a helper and directory identity through a pinned management connection; no operator PTY, user command or file access starts while approval is pending.
+- An administrator reviews the requester, asset, account, workspace path, request time and expiry in **System Settings → Login review**, then approves or denies it.
 - After SSH approval, the operator client reads its review state and retries automatically. The one-time permit is bound to the operator, asset, and SSH account and can be consumed once within 60 seconds. A failed connection cannot reuse it.
 - After SFTP approval, the file manager consumes the one-time permit through `POST /api/v1/assets/{assetID}/files/session` and receives a 30-minute browser session token. The token is bound to the operator, asset, and SSH account; only its digest is stored server-side, and closing the file manager revokes it. Every SFTP file endpoint validates this token.
 - Requests expire after five minutes. Denied or expired requests do not create sessions. Repeated requests for the same operator, asset, and account reuse the current pending request.
+
+## Connection and directory binding
+
+New SSH/SFTP reviews also bind the asset/account configuration, credential revision, complete gateway chain and workspace policy snapshot. A changed configuration or credential revision creates a new request; old approvals cannot authorize the new target. Workspace reviews additionally bind a digest of the remote boot ID, filesystem device, inode and creation time. Ordinary file changes preserve root identity; directory replacement or host restart requires approval again.
+
+Ordinary SSH jobs, including `jms exec`, batches and Playbook SSH steps, also retain the connection snapshot. Login/command-reviewed workspace jobs pin root identity at submission and persist the proof encrypted. Execution and manual approval recheck current grants/configuration; real execution starts with the retained proof. Repeated request IDs return the original job without executing again, and missing context binders fail closed. Fixed plugin/account-discovery/account-management operations retain their separate authorization. See [SSH jobs](./JOBS.en.md).
+
+The 30-minute SFTP token retains the same configuration binding and directory proof. Every file API checks current grants/configuration; the real channel starts with the retained proof. A mismatch returns `428`; reopen the file manager. The native helper holds a directory FD opened without symlinks, checks identity before confinement, and uses that same object for cwd and the Landlock grant.
+
+The internal canonical `request_scope` and displayed `workspace` path are not credentials. Legacy unscoped records remain readable; new SSH/SFTP requests do not consume unscoped permits. Tokens remain digest-only and process-local. Directory proofs require a trusted remote kernel and filesystem birth-time support through `statx`; missing capabilities fail closed. This authorizes the workspace root object. Command-level cwd binding and exact/regex directory command policies remain open. See [workspaces](./SSH-WORKSPACES.en.md).
 
 ## API and storage
 

@@ -57,6 +57,12 @@ Plans: `GET/POST /api/v1/ops/plans`. Create fields are `{name, asset_ids, comman
 
 Runs: `GET /api/v1/ops/runs?limit=50&offset=0`, `GET /api/v1/ops/runs/{id}`, and `POST /api/v1/ops/runs/{id}/cancel`. Each target exposes `state`, `job_id`, `review_id`, or `error_code`. Job details contain actual output.
 
+## Connection and workspace approval proofs
+
+Ordinary SSH jobs retain server-generated `connection_scope`; request bodies cannot set it. Login/command-reviewed jobs pin the real workspace-root identity at submission and validate its FD through the native helper at execution. Changed configuration/directories prevent reuse of the old proof. Proofs are encrypted with the job in authenticated envelope v5; v1–v4 remain readable. Missing context binders do not fall back to ordinary execution. Legacy ordinary jobs awaiting command review without proofs must be cancelled and resubmitted. Repeated request IDs retain the original job/result without a second execution.
+
+This pins the whole workspace root; command-level cwd and exact/regex directory command rules remain open. Plugins, discovery and remote-account operations keep their separate typed executors. See [login review](./ACCESS-REVIEWS.en.md) and [workspaces](./SSH-WORKSPACES.en.md).
+
 ## Automated verification
 
 Testify cases cover template ownership/revisions/snapshots, encryption, local and PostgreSQL recovery, capacity queuing, batch cancellation, missed occurrences, overlap prevention, claim recovery without replay, grant revocation, both reviews, and former-leader write rejection. Set `JMS_TEST_DATABASE_URL` and run `go test ./...`; Linux CI runs the complete `go test -race ./...` suite. `pnpm test:e2e` uses isolated temporary data and a real synthetic SSH server to cover two-host batches, scheduled template snapshots, recurring pause/resume, bilingual UI, and view-only denial. HA integration verifies retained login sessions, templates, and future plans after takeover.

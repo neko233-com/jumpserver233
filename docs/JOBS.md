@@ -57,6 +57,12 @@ CLI 默认将远端 stdout/stderr 分别写到本地对应流，作业 ID 写入
 
 执行：`GET /api/v1/ops/runs?limit=50&offset=0`、`GET /api/v1/ops/runs/{id}`、`POST /api/v1/ops/runs/{id}/cancel`。每个目标包含 `state`、`job_id`、`review_id` 或 `error_code`，通过作业详情读取实际输出。
 
+## 连接与工作区审批证明
+
+普通 SSH 作业记录服务端生成的 `connection_scope`，请求正文不能设置该字段。登录/命令复核作业在提交时固定真实工作区根身份，执行时经原生 helper 的 FD 校验；配置或目录变更会阻止使用旧证明。证明作为作业的一部分加密保存，新记录使用认证加密 envelope v5，继续读取 v1–v4。缺少上下文校验器不会回退普通执行；旧版没有证明的待命令审批普通作业需要取消后重新提交。重复 request ID 保留原作业与结果，不启动第二次执行。
+
+这固定的是整个工作区根，未实现命令实际 cwd 或精确/正则目录命令规则。插件、发现和远端账号操作沿用单独的类型化执行器。详见[登录复核](./ACCESS-REVIEWS.md)与[工作区](./SSH-WORKSPACES.md)。
+
 ## 自动化验证
 
 Testify 用例覆盖模板隔离/版本/快照、加密、本地与 PostgreSQL 恢复、容量排队、批量取消、错过触发合并、避免重叠、领取恢复防重放、权限撤销、两种复核及失主停止写入。设置 `JMS_TEST_DATABASE_URL` 后运行 `go test ./...`；Linux CI 运行完整 `go test -race ./...`。`pnpm test:e2e` 使用独立临时数据和真实合成 SSH 服务，覆盖双主机批量、模板快照的一次性调度、周期暂停/恢复、中英界面及 view-only 拒绝。HA 集成用例检查接管后登录会话、模板和未来计划保留。

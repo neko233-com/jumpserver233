@@ -57,6 +57,7 @@ type Review struct {
 	Account      string     `json:"account"`
 	Action       string     `json:"action,omitempty"`
 	RequestScope string     `json:"request_scope,omitempty"`
+	Workspace    string     `json:"workspace,omitempty"`
 	State        string     `json:"state"`
 	RequestedAt  time.Time  `json:"requested_at"`
 	ExpiresAt    time.Time  `json:"expires_at"`
@@ -177,6 +178,9 @@ func (s *Store) RequestScopedAction(userID, operator, assetID, assetName, accoun
 		ID: id, UserID: userID, Operator: operator, AssetID: assetID,
 		AssetName: assetName, Account: account, Action: action, RequestScope: scope, State: StatePending,
 		RequestedAt: now, ExpiresAt: now.Add(requestLifetime),
+	}
+	if connection, err := ParseConnectionScope(scope); err == nil {
+		review.Workspace = connection.Workspace
 	}
 	candidate[id] = record{Review: review}
 	if err := s.persistLocked(candidate); err != nil {
@@ -408,6 +412,14 @@ func validate(review Review) error {
 	if !validAction(review.Action) || !validScope(review.Action, review.RequestScope) {
 		return ErrInvalid
 	}
+	if strings.HasPrefix(review.RequestScope, "cx1-") {
+		connection, err := ParseConnectionScope(review.RequestScope)
+		if err != nil || connection.Workspace != review.Workspace {
+			return ErrInvalid
+		}
+	} else if review.Workspace != "" {
+		return ErrInvalid
+	}
 	switch review.State {
 	case StatePending, StateApproved, StateDenied, StateExpired, StateConsumed:
 	default:
@@ -424,6 +436,13 @@ func validAction(action string) bool {
 }
 
 func validScope(action, scope string) bool {
+	if action == ActionSSH || action == ActionSFTP {
+		if scope == "" { // Read legacy records; new API requests always bind scope.
+			return true
+		}
+		_, err := ParseConnectionScope(scope)
+		return err == nil
+	}
 	if action == ActionAssetDiscovery {
 		if !strings.HasPrefix(scope, "ad-") || len(scope) != 67 || strings.ToLower(scope) != scope {
 			return false

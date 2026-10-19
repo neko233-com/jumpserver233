@@ -47,13 +47,29 @@ func registerSFTPAccessSessionRoutes(mux *http.ServeMux, assets *coreassets.Serv
 			return
 		}
 
-		approved, err := reviews.ConsumeApprovedAction(principal.ID, asset.ID, asset.Username, coreaccessreviews.ActionSFTP)
+		binding, err := assets.BindConnection(asset)
+		if err != nil {
+			writeFileError(w, err)
+			return
+		}
+		ctx := coreassets.WithConnectionBinding(r.Context(), binding)
+		identity, err := assets.WorkspaceIdentity(ctx, asset.ID)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"detail": "could not verify SFTP workspace"})
+			return
+		}
+		scope, err := coreaccessreviews.ConnectionScope(binding, asset.SSHWorkspace, identity)
+		if err != nil {
+			writeJSON(w, http.StatusConflict, map[string]string{"detail": "SFTP connection authorization changed"})
+			return
+		}
+		approved, err := reviews.ConsumeApprovedScopedAction(principal.ID, asset.ID, asset.Username, coreaccessreviews.ActionSFTP, scope)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"detail": "could not consume SFTP approval"})
 			return
 		}
 		if approved {
-			token, expiresAt, err := sessions.Issue(principal.ID, asset.ID, asset.Username)
+			token, expiresAt, err := sessions.IssueBound(principal.ID, asset.ID, asset.Username, binding, identity)
 			if err != nil {
 				writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "could not create SFTP access session"})
 				return
@@ -65,14 +81,14 @@ func registerSFTPAccessSessionRoutes(mux *http.ServeMux, assets *coreassets.Serv
 			return
 		}
 
-		review, err := reviews.RequestAction(principal.ID, principal.Username, asset.ID, asset.Name, asset.Username, coreaccessreviews.ActionSFTP)
+		review, err := reviews.RequestScopedAction(principal.ID, principal.Username, asset.ID, asset.Name, asset.Username, coreaccessreviews.ActionSFTP, scope)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"detail": "could not request SFTP login review"})
 			return
 		}
 		setNoStore(w)
 		writeJSON(w, http.StatusAccepted, map[string]any{
-			"required": true, "review_id": review.ID, "state": review.State, "action": review.Action,
+			"required": true, "review_id": review.ID, "state": review.State, "action": review.Action, "expires_at": review.ExpiresAt,
 		})
 	}))
 

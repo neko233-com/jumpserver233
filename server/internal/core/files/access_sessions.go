@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"sync"
 	"time"
@@ -23,6 +24,8 @@ type sftpAccessSession struct {
 	userID    string
 	assetID   string
 	account   string
+	binding   string
+	identity  string
 	expiresAt time.Time
 }
 
@@ -41,7 +44,17 @@ func NewAccessSessionStore() *AccessSessionStore {
 
 // Issue returns a random bearer token once and stores only its SHA-256 digest.
 func (s *AccessSessionStore) Issue(userID, assetID, account string) (string, time.Time, error) {
+	return s.IssueBound(userID, assetID, account, "", "")
+}
+func (s *AccessSessionStore) IssueBound(userID, assetID, account, binding, identity string) (string, time.Time, error) {
 	if userID == "" || assetID == "" || account == "" {
+		return "", time.Time{}, ErrInvalidAccessSession
+	}
+	validHash := func(value string) bool {
+		raw, err := hex.DecodeString(value)
+		return err == nil && len(raw) == sha256.Size && hex.EncodeToString(raw) == value
+	}
+	if binding == "" && identity != "" || binding != "" && !validHash(binding) || identity != "" && !validHash(identity) {
 		return "", time.Time{}, ErrInvalidAccessSession
 	}
 	var raw [32]byte
@@ -59,15 +72,19 @@ func (s *AccessSessionStore) Issue(userID, assetID, account string) (string, tim
 	if len(s.sessions) >= maxSFTPAccessSessions {
 		return "", time.Time{}, ErrAccessSessionLimit
 	}
-	s.sessions[digest] = sftpAccessSession{userID: userID, assetID: assetID, account: account, expiresAt: expiresAt}
+	s.sessions[digest] = sftpAccessSession{userID: userID, assetID: assetID, account: account, binding: binding, identity: identity, expiresAt: expiresAt}
 	return token, expiresAt, nil
 }
 
 // Authorize checks the token against the authenticated operator and current
 // asset account. It never returns the stored token or SSH credential.
 func (s *AccessSessionStore) Authorize(token, userID, assetID, account string) bool {
+	_, ok := s.AuthorizeBound(token, userID, assetID, account, "")
+	return ok
+}
+func (s *AccessSessionStore) AuthorizeBound(token, userID, assetID, account, binding string) (string, bool) {
 	if !validAccessSessionToken(token) || userID == "" || assetID == "" || account == "" {
-		return false
+		return "", false
 	}
 	digest := sha256.Sum256([]byte(token))
 	now := s.now().UTC()
@@ -75,7 +92,10 @@ func (s *AccessSessionStore) Authorize(token, userID, assetID, account string) b
 	defer s.mu.Unlock()
 	s.pruneLocked(now)
 	session, exists := s.sessions[digest]
-	return exists && session.userID == userID && session.assetID == assetID && session.account == account && now.Before(session.expiresAt)
+	if !exists || session.userID != userID || session.assetID != assetID || session.account != account || session.binding != binding || !now.Before(session.expiresAt) {
+		return "", false
+	}
+	return session.identity, true
 }
 
 // Revoke invalidates a token only for the operator who owns it.

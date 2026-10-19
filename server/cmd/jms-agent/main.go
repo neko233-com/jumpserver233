@@ -32,11 +32,15 @@ func run(args []string) int {
 		directory := flags.String("directory", "", "")
 		execInput := flags.Bool("exec-stdin", false, "")
 		sftpMode := flags.Bool("sftp", false, "")
+		identity := flags.String("identity", "", "")
 		if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || hostagent.ValidateWorkspace(*directory) != nil || args[0] == "workspace-check" && (*execInput || *sftpMode) || *execInput && *sftpMode {
 			return 2
 		}
+		if *identity != "" && (!hostagent.ValidWorkspaceIdentity(*identity) || args[0] == "workspace-check") {
+			return 2
+		}
 		if *sftpMode {
-			if e := hostagent.ExecWorkspaceSFTP(*directory); e != nil {
+			if e := hostagent.ExecWorkspaceSFTP(*directory, *identity); e != nil {
 				fmt.Fprintln(os.Stderr, "workspace_sftp_unavailable")
 				return 1
 			}
@@ -64,7 +68,7 @@ func run(args []string) int {
 			}
 			command = request.Command
 		}
-		if e := hostagent.ExecWorkspace(*directory, command, !*execInput); e != nil {
+		if e := hostagent.ExecWorkspace(*directory, command, !*execInput, *identity); e != nil {
 			fmt.Fprintln(os.Stderr, "workspace_isolation_unavailable")
 			return 1
 		}

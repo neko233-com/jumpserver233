@@ -3,10 +3,13 @@
 package hostagent
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -49,7 +52,34 @@ func CheckWorkspace(directory string) (WorkspaceStatus, error) {
 	if e != nil {
 		return WorkspaceStatus{}, e
 	}
-	return WorkspaceStatus{Format: "jms233-workspace-v1", Directory: directory, LandlockABI: abi}, nil
+	identity, e := workspaceIdentity(fd)
+	if e != nil {
+		return WorkspaceStatus{}, e
+	}
+	return WorkspaceStatus{Format: "jms233-workspace-v1", Directory: directory, LandlockABI: abi, Identity: identity}, nil
+}
+
+// Read identity from the held descriptor, never from PWD or terminal text.
+// Birth time avoids accepting a recycled inode; boot ID invalidates a proof
+// after host restart. Filesystems without these fields fail closed.
+func workspaceIdentity(fd int) (string, error) {
+	var st unix.Statx_t
+	const fields = unix.STATX_INO | unix.STATX_BTIME | unix.STATX_TYPE
+	if unix.Statx(fd, "", unix.AT_EMPTY_PATH|unix.AT_STATX_SYNC_AS_STAT, fields, &st) != nil || st.Mask&fields != fields || st.Mode&unix.S_IFMT != unix.S_IFDIR {
+		return "", ErrWorkspaceUnavailable
+	}
+	boot, e := os.ReadFile("/proc/sys/kernel/random/boot_id")
+	if e != nil || len(strings.TrimSpace(string(boot))) != 36 {
+		return "", ErrWorkspaceUnavailable
+	}
+	raw, _ := json.Marshal(struct {
+		Boot         string
+		Major, Minor uint32
+		Inode        uint64
+		Birth        unix.StatxTimestamp
+	}{strings.TrimSpace(string(boot)), st.Dev_major, st.Dev_minor, st.Ino, st.Btime})
+	digest := sha256.Sum256(raw)
+	return hex.EncodeToString(digest[:]), nil
 }
 
 func addWorkspaceRule(ruleset, fd int, rights uint64) error {
@@ -68,7 +98,7 @@ func addWorkspaceRule(ruleset, fd int, rights uint64) error {
 // ExecWorkspace replaces this helper process. It must only be called by the
 // dedicated CLI process, never by the application server or a reusable worker.
 // Any setup failure is fatal to that CLI process; no unrestricted fallback exists.
-func ExecWorkspace(directory, command string, interactive bool) error {
+func ExecWorkspace(directory, command string, interactive bool, expected ...string) error {
 	if len(command) > 8192 || !interactive && command == "" {
 		return ErrWorkspaceInvalid
 	}
@@ -76,18 +106,21 @@ func ExecWorkspace(directory, command string, interactive bool) error {
 	if interactive {
 		args = []string{"sh", "-i"}
 	}
-	return execWorkspace(directory, "/bin/sh", args, false)
+	return execWorkspace(directory, "/bin/sh", args, false, expected...)
 }
 
-func ExecWorkspaceSFTP(directory string) error {
+func ExecWorkspaceSFTP(directory string, expected ...string) error {
 	self, e := os.Executable()
 	if e != nil {
 		return ErrWorkspaceUnavailable
 	}
-	return execWorkspace(directory, self, []string{"jms-agent", "workspace-sftp-internal"}, true)
+	return execWorkspace(directory, self, []string{"jms-agent", "workspace-sftp-internal"}, true, expected...)
 }
 
-func execWorkspace(directory, executable string, args []string, nativeSFTP bool) error {
+func execWorkspace(directory, executable string, args []string, nativeSFTP bool, expected ...string) error {
+	if len(expected) > 1 || len(expected) == 1 && expected[0] != "" && !ValidWorkspaceIdentity(expected[0]) {
+		return ErrWorkspaceInvalid
+	}
 	self, e := os.Executable()
 	if e != nil || ValidateWorkspaceControl(directory, self) != nil {
 		return ErrWorkspaceInvalid
@@ -100,6 +133,12 @@ func execWorkspace(directory, executable string, args []string, nativeSFTP bool)
 		return e
 	}
 	defer unix.Close(root)
+	if len(expected) == 1 && expected[0] != "" {
+		identity, err := workspaceIdentity(root)
+		if err != nil || identity != expected[0] {
+			return ErrWorkspaceInvalid
+		}
+	}
 	handoff := -1
 	if nativeSFTP {
 		var st unix.Stat_t

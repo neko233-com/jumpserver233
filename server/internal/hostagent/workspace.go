@@ -1,6 +1,7 @@
 package hostagent
 
 import (
+	"encoding/hex"
 	"errors"
 	"path"
 	"strings"
@@ -43,4 +44,10 @@ type WorkspaceStatus struct {
 	Format      string `json:"format"`
 	Directory   string `json:"directory"`
 	LandlockABI int    `json:"landlock_abi"`
+	Identity    string `json:"identity"`
+}
+
+func ValidWorkspaceIdentity(identity string) bool {
+	_, err := hex.DecodeString(identity)
+	return len(identity) == 64 && strings.ToLower(identity) == identity && err == nil
 }

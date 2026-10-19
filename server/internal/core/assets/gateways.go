@@ -42,8 +42,14 @@ func (s *Store) connection(id string) (Asset, sshclient.Target, sshclient.Creden
 	return s.connectionForProtocol(id, true)
 }
 func (s *Store) connectionForProtocol(id string, requireSSH bool) (Asset, sshclient.Target, sshclient.Credentials, error) {
+	return s.connectionForProtocolBound(id, requireSSH, "")
+}
+func (s *Store) connectionForProtocolBound(id string, requireSSH bool, binding string) (Asset, sshclient.Target, sshclient.Credentials, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	if err := s.checkConnectionBindingLocked(id, binding); err != nil {
+		return Asset{}, sshclient.Target{}, sshclient.Credentials{}, err
+	}
 	record, ok := s.assets[id]
 	if !ok {
 		return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrNotFound

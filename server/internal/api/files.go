@@ -64,6 +64,12 @@ func registerFileRoutes(mux *http.ServeMux, service *corefiles.Service, assets *
 				writeAssetError(w, coreassets.ErrUnsupportedProtocol)
 				return
 			}
+			binding, err := assets.BindConnection(asset)
+			if err != nil {
+				writeFileError(w, err)
+				return
+			}
+			r = r.WithContext(coreassets.WithConnectionBinding(r.Context(), binding))
 			method := ""
 			switch {
 			case r.Method == "PUT":
@@ -83,10 +89,12 @@ func registerFileRoutes(mux *http.ServeMux, service *corefiles.Service, assets *
 					writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "SFTP login review is unavailable"})
 					return
 				}
-				if !sftpSessions.Authorize(r.Header.Get(sftpAccessSessionHeader), principal.ID, asset.ID, asset.Username) {
+				identity, valid := sftpSessions.AuthorizeBound(r.Header.Get(sftpAccessSessionHeader), principal.ID, asset.ID, asset.Username, binding)
+				if !valid {
 					writeJSON(w, http.StatusPreconditionRequired, map[string]string{"detail": "SFTP login review session is required"})
 					return
 				}
+				r = r.WithContext(coreassets.WithWorkspaceIdentity(r.Context(), identity))
 			}
 			handler(w, r)
 		}), adminToken, identities)
@@ -209,6 +217,8 @@ func principalActor(r *http.Request) string {
 
 func writeFileError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, coreassets.ErrConnectionChanged):
+		writeJSON(w, http.StatusPreconditionRequired, map[string]string{"detail": "SFTP connection authorization changed; reopen the file manager"})
 	case errors.Is(err, coreassets.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, map[string]string{"detail": "asset not found"})
 	case errors.Is(err, corefiles.ErrInvalidPath):

@@ -100,6 +100,25 @@ func TestAssetLoginReviewApprovesOneSessionAndScopesStatusToOperator(t *testing.
 	if status.Code != http.StatusOK || !containsText(status.Body.String(), `"state":"approved"`) {
 		t.Fatalf("operator review status = %d %s", status.Code, status.Body.String())
 	}
+	// An approved old endpoint must not authorize the same asset ID after
+	// configuration changes; the connector remains unopened during re-review.
+	_, err = assets.Update(asset.ID, coreassets.Input{Name: asset.Name, Host: "192.0.2.21", Port: asset.Port, Username: asset.Username, HostKeyFingerprint: asset.HostKeyFingerprint})
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := doJSONRequest(t, router, http.MethodPost, "/api/v1/sessions", createSession, operatorSession.AccessToken, "127.0.0.1:43210")
+	if changed.Code != http.StatusAccepted || sessionsCreated != 0 {
+		t.Fatalf("stale endpoint approval accepted: %d", changed.Code)
+	}
+	var newReview struct {
+		ReviewID string `json:"review_id"`
+	}
+	if err := json.Unmarshal(changed.Body.Bytes(), &newReview); err != nil || newReview.ReviewID == pending.ReviewID {
+		t.Fatal("changed endpoint reused old review")
+	}
+	if err := reviews.Resolve(newReview.ReviewID, "admin.user", true); err != nil {
+		t.Fatal(err)
+	}
 	connected := doJSONRequest(t, router, http.MethodPost, "/api/v1/sessions", createSession, operatorSession.AccessToken, "127.0.0.1:43210")
 	if connected.Code != http.StatusCreated || sessionsCreated != 1 {
 		t.Fatalf("approved session = %d %s, sessions=%d", connected.Code, connected.Body.String(), sessionsCreated)

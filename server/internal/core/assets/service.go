@@ -391,7 +391,7 @@ func (s *Service) Probe(ctx context.Context, id string) (ListItem, error) {
 // OpenShell starts a server-side SSH PTY using the encrypted asset credential.
 // The returned terminal exposes only stream I/O, never the decrypted secret.
 func (s *Service) OpenShell(ctx context.Context, id string, cols, rows int) (Asset, *sshclient.Shell, error) {
-	asset, target, credentials, err := s.store.connection(id)
+	asset, target, credentials, err := s.store.connectionForProtocolBound(id, true, expectedConnectionBinding(ctx))
 	if err != nil {
 		return Asset{}, nil, err
 	}
@@ -413,7 +413,7 @@ func (s *Service) OpenShell(ctx context.Context, id string, cols, rows int) (Ass
 // OpenSFTP opens a server-side SFTP channel using the asset's encrypted
 // credential and pinned host key. Only the file-channel abstraction escapes.
 func (s *Service) OpenSFTP(ctx context.Context, id string) (Asset, *sshclient.SFTP, error) {
-	asset, target, credentials, err := s.store.connection(id)
+	asset, target, credentials, err := s.store.connectionForProtocolBound(id, true, expectedConnectionBinding(ctx))
 	if err != nil {
 		return Asset{}, nil, err
 	}

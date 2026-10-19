@@ -72,6 +72,7 @@ type CommandReview = {
 };
 type CommandReviewPage = { results: CommandReview[]; total: number };
 type LoginAccessReview = {
+  workspace?: string;
   id: string;
   action:
     | "ssh"
@@ -1959,6 +1960,7 @@ export default function SettingsPage() {
                   <div className="settings-review-main">
                     <header>
                       <strong>{review.asset_name}</strong>
+                      {review.workspace && <code>{review.workspace}</code>}
                       <span>
                         {t("settings.reviewExpires", {
                           time: formatDate(review.expires_at, i18n.language),

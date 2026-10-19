@@ -96,7 +96,12 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 					return
 				}
 				d := policyDependencies(r)
-				binding := databaseRouteBinding(d, asset)
+				binding, err := assets.BindConnection(asset)
+				if err != nil {
+					writeAssetError(w, err)
+					return
+				}
+				r = r.WithContext(coreassets.WithConnectionBinding(r.Context(), binding))
 				request.AccessPolicy = func(ctx context.Context) error {
 					currentUser := principal
 					if identities != nil && principal.ID != "admin-token" && principal.ID != "loopback-admin" {
@@ -109,7 +114,11 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 					accessMu.RLock()
 					defer accessMu.RUnlock()
 					current, e := authorizeTerminalAsset(d, currentUser, asset.ID, coreassets.ProtocolSSH, accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(ctx), Method: "ssh"}, false)
-					if e != nil || binding == "" || databaseRouteBinding(d, current) != binding {
+					if e != nil {
+						return accesspolicies.ErrDenied
+					}
+					currentBinding, e := assets.BindConnection(current)
+					if e != nil || currentBinding != binding {
 						return accesspolicies.ErrDenied
 					}
 					return nil
@@ -119,13 +128,24 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 						writeJSON(w, http.StatusServiceUnavailable, map[string]string{"detail": "login review is unavailable"})
 						return
 					}
-					approved, err := accessReviews.ConsumeApproved(principal.ID, asset.ID, asset.Username)
+					identity, err := assets.WorkspaceIdentity(r.Context(), asset.ID)
+					if err != nil {
+						writeJSON(w, http.StatusBadGateway, map[string]string{"detail": "could not verify SSH workspace"})
+						return
+					}
+					scope, err := coreaccessreviews.ConnectionScope(binding, asset.SSHWorkspace, identity)
+					if err != nil {
+						writeJSON(w, http.StatusConflict, map[string]string{"detail": "SSH connection authorization changed"})
+						return
+					}
+					r = r.WithContext(coreassets.WithWorkspaceIdentity(r.Context(), identity))
+					approved, err := accessReviews.ConsumeApprovedScopedAction(principal.ID, asset.ID, asset.Username, coreaccessreviews.ActionSSH, scope)
 					if err != nil {
 						writeJSON(w, http.StatusInternalServerError, map[string]string{"detail": "could not validate login review"})
 						return
 					}
 					if !approved {
-						review, err := accessReviews.Request(principal.ID, principal.Username, asset.ID, asset.Name, asset.Username)
+						review, err := accessReviews.RequestScopedAction(principal.ID, principal.Username, asset.ID, asset.Name, asset.Username, coreaccessreviews.ActionSSH, scope)
 						if err != nil {
 							writeJSON(w, http.StatusInternalServerError, map[string]string{"detail": "could not create login review"})
 							return

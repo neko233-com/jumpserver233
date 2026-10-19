@@ -168,6 +168,14 @@ func TestSFTPLoginReviewIssuesBoundShortLivedSession(t *testing.T) {
 	if opened.Code != http.StatusBadGateway || openCalls != 1 {
 		t.Fatalf("approved SFTP request = status %d, connector calls %d", opened.Code, openCalls)
 	}
+	_, err = assets.Update(asset.ID, coreassets.Input{Name: asset.Name, Host: "192.0.2.45", Port: asset.Port, Username: asset.Username, HostKeyFingerprint: asset.HostKeyFingerprint})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale := doSFTPRequest(t, router, http.MethodGet, base, operatorSession.AccessToken, issued.SessionToken)
+	if stale.Code != http.StatusPreconditionRequired || openCalls != 1 {
+		t.Fatalf("stale SFTP connection approval = status %d, connector calls %d", stale.Code, openCalls)
+	}
 	revoked := doSFTPRequest(t, router, http.MethodDelete, base+"/session", operatorSession.AccessToken, issued.SessionToken)
 	if revoked.Code != http.StatusNoContent {
 		t.Fatalf("revoke SFTP session = %d %s", revoked.Code, revoked.Body.String())

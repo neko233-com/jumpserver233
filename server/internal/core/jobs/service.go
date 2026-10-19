@@ -19,6 +19,7 @@ import (
 
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/core/playbooks"
@@ -35,37 +36,39 @@ var (
 )
 
 type Input struct {
-	PlaybookStep   *playbooks.Execution        `json:"-"`
-	RemoteAccount  *hostagent.AccountOperation `json:"-"`
-	Discovery      *accountdiscovery.Operation `json:"-"`
-	Plugin         *hostplugins.Operation      `json:"-"`
-	Origin         accesspolicies.Origin       `json:"-"`
-	AssetID        string                      `json:"asset_id"`
-	Command        string                      `json:"command"`
-	TimeoutSeconds int                         `json:"timeout_seconds"`
-	RequestID      string                      `json:"request_id"`
+	ConnectionScope string                      `json:"-"`
+	PlaybookStep    *playbooks.Execution        `json:"-"`
+	RemoteAccount   *hostagent.AccountOperation `json:"-"`
+	Discovery       *accountdiscovery.Operation `json:"-"`
+	Plugin          *hostplugins.Operation      `json:"-"`
+	Origin          accesspolicies.Origin       `json:"-"`
+	AssetID         string                      `json:"asset_id"`
+	Command         string                      `json:"command"`
+	TimeoutSeconds  int                         `json:"timeout_seconds"`
+	RequestID       string                      `json:"request_id"`
 }
 type Job struct {
-	PlaybookStep   *playbooks.Execution        `json:"playbook_step,omitempty"`
-	RemoteAccount  *hostagent.AccountOperation `json:"remote_account,omitempty"`
-	Discovery      *accountdiscovery.Operation `json:"account_discovery,omitempty"`
-	Plugin         *hostplugins.Operation      `json:"plugin,omitempty"`
-	AccessOrigin   accesspolicies.Origin       `json:"access_origin,omitempty"`
-	ID             string                      `json:"id"`
-	AssetID        string                      `json:"asset_id"`
-	AssetName      string                      `json:"asset_name"`
-	Account        string                      `json:"account"`
-	OperatorID     string                      `json:"operator_id"`
-	Operator       string                      `json:"operator"`
-	Command        string                      `json:"command"`
-	TimeoutSeconds int                         `json:"timeout_seconds"`
-	RequestID      string                      `json:"request_id,omitempty"`
-	State          string                      `json:"state"`
-	RuleName       string                      `json:"rule_name,omitempty"`
-	ReviewedBy     string                      `json:"reviewed_by,omitempty"`
-	CreatedAt      time.Time                   `json:"created_at"`
-	StartedAt      time.Time                   `json:"started_at,omitzero"`
-	FinishedAt     time.Time                   `json:"finished_at,omitzero"`
+	ConnectionScope string                      `json:"connection_scope,omitempty"`
+	PlaybookStep    *playbooks.Execution        `json:"playbook_step,omitempty"`
+	RemoteAccount   *hostagent.AccountOperation `json:"remote_account,omitempty"`
+	Discovery       *accountdiscovery.Operation `json:"account_discovery,omitempty"`
+	Plugin          *hostplugins.Operation      `json:"plugin,omitempty"`
+	AccessOrigin    accesspolicies.Origin       `json:"access_origin,omitempty"`
+	ID              string                      `json:"id"`
+	AssetID         string                      `json:"asset_id"`
+	AssetName       string                      `json:"asset_name"`
+	Account         string                      `json:"account"`
+	OperatorID      string                      `json:"operator_id"`
+	Operator        string                      `json:"operator"`
+	Command         string                      `json:"command"`
+	TimeoutSeconds  int                         `json:"timeout_seconds"`
+	RequestID       string                      `json:"request_id,omitempty"`
+	State           string                      `json:"state"`
+	RuleName        string                      `json:"rule_name,omitempty"`
+	ReviewedBy      string                      `json:"reviewed_by,omitempty"`
+	CreatedAt       time.Time                   `json:"created_at"`
+	StartedAt       time.Time                   `json:"started_at,omitzero"`
+	FinishedAt      time.Time                   `json:"finished_at,omitzero"`
 	sshclient.ExecResult
 	ErrorCode string `json:"error_code,omitempty"`
 }
@@ -81,6 +84,7 @@ type Service struct {
 	cancel            context.CancelFunc
 	wg                sync.WaitGroup
 	exec              Executor
+	contextBinder     func(context.Context, Job) (context.Context, error)
 	pluginExec        func(context.Context, Job) (sshclient.ExecResult, error)
 	discoveryExec     func(context.Context, Job) (sshclient.ExecResult, error)
 	remoteAccountExec func(context.Context, Job) (sshclient.ExecResult, error)
@@ -122,7 +126,7 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 	}
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 4 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 5 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid encrypted job store")
 		}
@@ -140,6 +144,12 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 			if j.PlaybookStep != nil && (e.Version < 4 || j.PlaybookStep.Validate() != nil || j.RemoteAccount != nil || j.Discovery != nil || j.Plugin != nil) {
 				cancel()
 				return nil, ErrInvalid
+			}
+			if j.ConnectionScope != "" {
+				if _, err := accessreviews.ParseConnectionScope(j.ConnectionScope); err != nil || e.Version < 5 || j.RemoteAccount != nil || j.Discovery != nil || j.Plugin != nil {
+					cancel()
+					return nil, ErrInvalid
+				}
 			}
 			if j.RemoteAccount != nil && (e.Version < 3 || j.RemoteAccount.Validate() != nil || j.Command != j.RemoteAccount.Command() || j.Discovery != nil || j.Plugin != nil) {
 				cancel()
@@ -186,6 +196,11 @@ func validState(v string) bool {
 	return false
 }
 func Validate(in Input) (Input, error) {
+	if in.ConnectionScope != "" {
+		if _, err := accessreviews.ParseConnectionScope(in.ConnectionScope); err != nil || in.RemoteAccount != nil || in.Discovery != nil || in.Plugin != nil {
+			return in, ErrInvalid
+		}
+	}
 	if in.PlaybookStep != nil {
 		if in.PlaybookStep.Validate() != nil || in.RemoteAccount != nil || in.Discovery != nil || in.Plugin != nil {
 			return in, ErrInvalid
@@ -262,7 +277,7 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 	if _, err = rand.Read(raw[:]); err != nil {
 		return Job{}, err
 	}
-	j := Job{PlaybookStep: in.PlaybookStep, RemoteAccount: in.RemoteAccount, Discovery: in.Discovery, Plugin: in.Plugin, AccessOrigin: in.Origin, ID: "job-" + hex.EncodeToString(raw[:]), AssetID: in.AssetID, AssetName: assetName, Account: account, OperatorID: actorID, Operator: actor, Command: in.Command, TimeoutSeconds: in.TimeoutSeconds, RequestID: in.RequestID, RuleName: rule, CreatedAt: time.Now().UTC(), ExecResult: sshclient.ExecResult{ExitCode: -1}}
+	j := Job{ConnectionScope: in.ConnectionScope, PlaybookStep: in.PlaybookStep, RemoteAccount: in.RemoteAccount, Discovery: in.Discovery, Plugin: in.Plugin, AccessOrigin: in.Origin, ID: "job-" + hex.EncodeToString(raw[:]), AssetID: in.AssetID, AssetName: assetName, Account: account, OperatorID: actorID, Operator: actor, Command: in.Command, TimeoutSeconds: in.TimeoutSeconds, RequestID: in.RequestID, RuleName: rule, CreatedAt: time.Now().UTC(), ExecResult: sshclient.ExecResult{ExitCode: -1}}
 	switch decision {
 	case "deny":
 		j.State = "denied"
@@ -381,6 +396,14 @@ func (s *Service) SetPluginExecutor(exec func(context.Context, Job) (sshclient.E
 	defer s.mu.Unlock()
 	s.pluginExec = exec
 }
+
+// A persisted ordinary command proof requires the authenticated server binder.
+// It must never fall back to the unbound executor after restart or takeover.
+func (s *Service) SetConnectionContext(binder func(context.Context, Job) (context.Context, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.contextBinder = binder
+}
 func (s *Service) SetDiscoveryExecutor(exec func(context.Context, Job) (sshclient.ExecResult, error)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -413,6 +436,7 @@ func (s *Service) launchLocked(j Job) {
 	j = cloneJob(j)
 	guard := s.executionGuard
 	pluginExec := s.pluginExec
+	binder := s.contextBinder
 	if j.Discovery != nil {
 		pluginExec = s.discoveryExec
 	}
@@ -468,7 +492,21 @@ func (s *Service) launchLocked(j Job) {
 					}
 				}
 			} else {
-				result, err = s.exec(ctx, j.AssetID, j.Command)
+				if j.ConnectionScope != "" {
+					if binder == nil || guard == nil {
+						err = ErrAccessDenied
+					} else {
+						bound, bindErr := binder(ctx, j)
+						if bindErr != nil || bound == nil {
+							err = ErrAccessDenied
+						} else {
+							ctx = bound
+						}
+					}
+				}
+				if err == nil {
+					result, err = s.exec(ctx, j.AssetID, j.Command)
+				}
 			}
 		}
 		if len(result.Stdout) > sshclient.MaxExecOutput {
@@ -638,8 +676,14 @@ func (s *Service) persistLocked() error {
 	}
 	version := 1
 	for _, j := range records {
+		if j.ConnectionScope != "" {
+			version = 5
+			break
+		}
+	}
+	for _, j := range records {
 		if j.PlaybookStep != nil {
-			version = 4
+			version = max(version, 4)
 			break
 		}
 		if j.RemoteAccount != nil {

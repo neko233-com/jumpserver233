@@ -96,3 +96,40 @@ func TestWorkspaceKernelConfinementSurvivesShellsSymlinksAndRawSyscalls(t *testi
 	_, e = CheckWorkspace(alias)
 	require.ErrorIs(t, e, ErrWorkspaceInvalid)
 }
+
+func TestWorkspaceIdentityPinsBirthInodeAndRejectsReplacementBeforeExecution(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "approved")
+	require.NoError(t, os.Mkdir(root, 0700))
+	before, err := CheckWorkspace(root)
+	if err != nil {
+		if os.Getenv("JMS_REQUIRE_WORKSPACE") == "1" {
+			t.Fatal(err)
+		}
+		t.Skip("workspace kernel and filesystem identity required")
+	}
+	assert.True(t, ValidWorkspaceIdentity(before.Identity))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "ordinary-write"), []byte("safe"), 0600))
+	again, err := CheckWorkspace(root)
+	require.NoError(t, err)
+	assert.Equal(t, before.Identity, again.Identity)
+	require.NoError(t, os.Rename(root, filepath.Join(base, "old-approved")))
+	require.NoError(t, os.Mkdir(root, 0700))
+	after, err := CheckWorkspace(root)
+	require.NoError(t, err)
+	assert.NotEqual(t, before.Identity, after.Identity)
+	helper := filepath.Join(base, "helper")
+	data, err := os.ReadFile(filepath.Join("..", "agentbundle", "artifacts", "jms-agent-linux-"+runtime.GOARCH))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(helper, data, 0700))
+	for _, mode := range []string{"--exec-stdin", "--sftp"} {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		cmd := exec.CommandContext(ctx, helper, "workspace", "--directory", root, "--identity", before.Identity, mode)
+		cmd.Stdin = strings.NewReader(`{"command":"printf must-not-run > forbidden"}`)
+		_, err := cmd.CombinedOutput()
+		cancel()
+		require.Error(t, err)
+		_, err = os.Stat(filepath.Join(root, "forbidden"))
+		assert.True(t, os.IsNotExist(err))
+	}
+}

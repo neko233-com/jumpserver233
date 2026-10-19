@@ -7,7 +7,7 @@ import (
 
 // Exec keeps decrypted SSH credentials inside the asset/connector boundary.
 func (s *Service) Exec(ctx context.Context, id, command string) (sshclient.ExecResult, error) {
-	asset, target, credentials, err := s.store.connection(id)
+	asset, target, credentials, err := s.store.connectionForProtocolBound(id, true, expectedConnectionBinding(ctx))
 	if err != nil {
 		return sshclient.ExecResult{ExitCode: -1}, err
 	}

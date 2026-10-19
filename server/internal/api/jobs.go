@@ -63,6 +63,20 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		return asset.Name, asset.Username, decision, http.StatusOK
 	}
 	jobGuardLocked := func(job jobs.Job) error {
+		if job.ConnectionScope == "" && job.Plugin == nil && job.Discovery == nil && job.RemoteAccount == nil && job.State == "pending_review" {
+			return jobs.ErrAccessDenied
+		}
+		if job.ConnectionScope != "" {
+			connection, err := accessreviews.ParseConnectionScope(job.ConnectionScope)
+			current, currentErr := d.Assets.Get(job.AssetID)
+			if err != nil || currentErr != nil {
+				return jobs.ErrAccessDenied
+			}
+			binding, err := d.Assets.BindConnection(current)
+			if err != nil || binding != connection.Binding {
+				return jobs.ErrAccessDenied
+			}
+		}
 		if job.PlaybookStep != nil && (d.Operations == nil || !d.Operations.WorkflowJobAllowed(job.OperatorID, job.AssetID, *job.PlaybookStep, job.Command)) {
 			return jobs.ErrAccessDenied
 		}
@@ -81,6 +95,14 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 	}
 	jobGuard := func(j jobs.Job) error { accessMu.RLock(); defer accessMu.RUnlock(); return jobGuardLocked(j) }
 	d.Jobs.SetExecutionGuard(jobGuard)
+	d.Jobs.SetConnectionContext(func(ctx context.Context, job jobs.Job) (context.Context, error) {
+		connection, err := accessreviews.ParseConnectionScope(job.ConnectionScope)
+		if err != nil {
+			return ctx, jobs.ErrAccessDenied
+		}
+		ctx = assets.WithConnectionBinding(ctx, connection.Binding)
+		return assets.WithWorkspaceIdentity(ctx, connection.Identity), nil
+	})
 	submitUser := func(user coreauth.User, input jobs.Input, reviewID string) (operations.Submission, error) {
 		input, err := jobs.Validate(input)
 		if err != nil {
@@ -107,6 +129,28 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		if input.RemoteAccount != nil {
 			reviewAction = accessreviews.ActionRemoteAccount
 			reviewScope = input.RemoteAccount.Task.ID + ":" + strconv.FormatUint(input.RemoteAccount.Attempt, 10)
+		}
+		if input.Plugin == nil && input.Discovery == nil && input.RemoteAccount == nil && decision.Action != commandfilters.ActionDeny {
+			binding, err := d.Assets.BindConnection(asset)
+			if err != nil {
+				return operations.Submission{}, operations.ErrDenied
+			}
+			workspace, identity := "", ""
+			needsProof := decision.Action == commandfilters.ActionReview || asset.LoginReviewRequired && !effectivePermissions(user, d.RBAC, d.Groups).Allows("login_review.bypass")
+			if needsProof && asset.SSHWorkspace != "" {
+				probeCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				identity, err = d.Assets.WorkspaceIdentity(assets.WithConnectionBinding(probeCtx, binding), asset.ID)
+				cancel()
+				if err != nil {
+					return operations.Submission{}, err
+				}
+				workspace = asset.SSHWorkspace
+			}
+			reviewScope, err = accessreviews.ConnectionScope(binding, workspace, identity)
+			if err != nil {
+				return operations.Submission{}, err
+			}
+			input.ConnectionScope = reviewScope
 		}
 		pendingID := ""
 		gate := func() error {
