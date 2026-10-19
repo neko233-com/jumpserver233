@@ -111,6 +111,14 @@ func execWorkspace(directory, executable string, args []string, nativeSFTP bool)
 		if e != nil {
 			return ErrWorkspaceUnavailable
 		}
+		if handoff == 3 {
+			moved, moveErr := unix.FcntlInt(uintptr(handoff), unix.F_DUPFD_CLOEXEC, 4)
+			_ = unix.Close(handoff)
+			if moveErr != nil {
+				return ErrWorkspaceUnavailable
+			}
+			handoff = moved
+		}
 		defer unix.Close(handoff)
 		if _, e = unix.Write(handoff, raw); e != nil {
 			return ErrWorkspaceUnavailable
@@ -196,12 +204,12 @@ func execWorkspace(directory, executable string, args []string, nativeSFTP bool)
 	// be reused to bypass path checks. stdin/stdout/stderr retain the SSH stream.
 	firstClose := uint(3)
 	if nativeSFTP {
-		if handoff != 3 {
-			e = unix.Dup3(handoff, 3, 0)
-		} else {
-			_, e = unix.FcntlInt(3, unix.F_SETFD, 0)
+		// Detach the descriptor table before replacing fd 3. Other Go runtime
+		// threads may still own that number until exec terminates them.
+		if e = unix.CloseRange(3, 3, unix.CLOSE_RANGE_UNSHARE); e != nil {
+			return ErrWorkspaceUnavailable
 		}
-		if e != nil {
+		if e = unix.Dup3(handoff, 3, 0); e != nil {
 			return ErrWorkspaceUnavailable
 		}
 		firstClose = 4
