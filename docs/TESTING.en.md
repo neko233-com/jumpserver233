@@ -2,6 +2,18 @@
 
 > [中文](./TESTING.md) | English
 
+## Standalone pre-upgrade draining and stability repairs (2026-10-20)
+
+- Implementation `49ef4e8`, artifact identity repair `d97f00c`, Agent lock repair `0437b50`. Full Go/Testify: **1610 passed, 109 platform/external-fixture skips, zero failures**; Go vet passed. Isolated Linux/PostgreSQL race: **19 packages, 195 passed, zero skips/failures**, 71.7 seconds.
+- Complete production Playwright: **87/87 passed, 1086.9 seconds**, report `.cache/qa-reports/browser-1792440780868/`. Real OpenSSH remained usable during draining; new sessions/jobs returned 503. Web/CLI state, stale revisions, start replay, cancellation, bilingual UI and 390px layout passed. The new case checks page identity, absence of error overlays, zero page exceptions and unexpected console messages. Drain-blocked locale writes and known Headless readback hints are separately classified.
+- Native SSH/SFTP tests cover retained connections, multi-hop lifetime, handshake-failure cleanup, context permits and repeated release. Failed audit persistence leaves admission open; restart creates a new instance; replaying a start after cancellation does not restart draining. One controller aggregates work from every loaded organization. See [pre-upgrade draining](./SERVICE-MAINTENANCE.en.md).
+- The Agent case deliberately overlaps the operation lock and verifies CLI autostart disabling. Real upgrades/rollback, host reboot, crash/firewall recovery and event collection subsequently passed. Linux cases also verify released-holder admission, timeout preserving the original lock, and rejection of symlinks/regular files. Unknown locks and crontab change checks remain intact.
+- Docker source build: 32.26 seconds building, 11.95 starting and 7.99 for HTTP/bilingual browser checks. An actual restart verified drain reset, new instance ID, stale-instance rejection and three retained maintenance audit events. `success=true`, `cleaned=true`, `resourcesRemoved=true`; owned containers/networks/volumes, QA images and caches were removed.
+- All **53 QA helpers passed on both Windows and isolated Linux**. Linux Git tooling used a temporary readonly volume; containers, the tools volume and the pulled Node image were removed. Six renderer/cache cases, app/E2E types, lint and bilingual content checks passed. Initial JS: **499602**, gzip **161526**, total **1611868**, largest **482443** bytes. UI/locales add 5948 bytes without frontend dependencies; entry/single-chunk limits remain 500 kB.
+- Initial Docker context sharing, Linux equal-size/equal-mtime identity collisions and Agent lock contention received repairs and regressions. Suite temporary data was removed; cleanup repeated twice against the same root. A transient Docker metadata read failed during final repetition, then passed after inspection/retry; failure was never treated as missing resources. Final resource preview selected zero containers, volumes and networks. Only compact JSON and two bilingual screenshots remain in `.cache/qa-reports/service-maintenance/`.
+
+This batch delivers standalone drain control through Web/CLI. Automatic installation scheduling, process-stop control, historical-release migration and full Enterprise parity remain open. No intranet deployment, tag or formal Release was performed.
+
 ## Controlled SSH execution directories and policy approval (2026-10-20)
 
 - Implementation `bc6465a`; final native/mobile acceptance `233fddb`. Full Go/Testify: **1598 passed, 109 platform/external-fixture skips, zero failures** (final rerun used Go cache); Go vet passed. Isolated Linux/PostgreSQL race: **16 packages, 171 passed, zero skips/failures**, 79.7 seconds.
