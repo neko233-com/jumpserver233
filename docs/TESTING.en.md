@@ -2,6 +2,16 @@
 
 > [中文](./TESTING.md) | English
 
+## First-start acceptance and business release boundary (2026-10-20)
+
+- Full Go/Testify: 1561 passed, 109 external-fixture/platform skips, zero failures; 13.6 seconds. Go vet passed. Isolated Linux/PostgreSQL race: eight affected packages, 105 passed, zero skips/failures; 67.2 seconds. Added real HTTP gates, process/attempt binding, wrong-key and buffer-clearing checks, release replay refusal and monotonic rollback revisions.
+- All six native packages built and verified; Windows amd64 executed offline installation and receipt replay. Linux read-only containers used `jms update run` to verify first-start health/index digest and API/WS gates. Candidate exit before release restored the checkpoint and automatically resumed the old service, removed trial-only writes from live data and advanced revision from 2 through selection/rollback to 4. Exit after release preserved the new version/writes; forward installation of a healthy candidate succeeded at revision 6.
+- Versions `v0.0.0`, `v0.0.1` and `v0.0.4` are injected builds from the same source. `v0.0.2/3` are explicit synthetic fault programs and were never published. They prove transaction boundaries, not historical-release format migration. Real OpenSSH execution succeeded before/after upgrade, after rollback and after forward repair. User IDs, view grants and command audit persisted; operator SSH session creation remained 403.
+- Playwright Chromium logged into the actual candidate with 200, showing `v0.0.4` in English/Chinese without application warnings/errors. Expected anonymous-session 401 and exact Headless readback diagnostics were counted separately. The first QA attempt mistook trial health for business readiness; correcting its wait condition passed without weakening product gates. Production build, lint, app/E2E types, six renderer/cache tests, 41 QA/publication helpers, macOS helpers (eight passed, two platform skips) and bilingual content checks passed. Initial/total JS stayed 499421/1600370 bytes with no new dependencies. The complete page suite was not rerun; the existing 86/86 remains a prior baseline.
+- Compact reports and two bilingual screenshots live in ignored `.cache/qa-reports/activation/`. Both native attempts and the race run removed owned containers, networks, data, executables/archives, isolated SSH images and build records; repeated cleanup passed. Shared base caches remain. Historical artifact retention preview had nothing to delete. No intranet deployment, tag or formal Release. Automatic installation scheduling, historical-version migration and strong directory rules remain pending.
+
+See [standalone installation](./INSTALLATION.en.md) for protocol/recovery.
+
 ## Standalone installation transactions and offline preflight (2026-10-19)
 
 - Full Go/Testify: 1546 passed, 109 external-fixture/platform skips, zero failures, 16.5 seconds; Go vet passed. Isolated Linux/PostgreSQL race across eight packages: 90 passed, no skips/failures, 63.7 seconds. Coverage includes checkpoint exclusion, guards, wrong keys/damaged formats, revision/request replay, recovery around the commit point, preservation of new writes, retained previous-data locations and recovery after forcibly terminating a real process.
