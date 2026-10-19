@@ -10,6 +10,10 @@ Buildx 元数据只读查询遇到 RPC Unavailable/EOF 时最多尝试 3 次；�
 
 ## 快速验证
 
+CI 前端 runner 固定为 `ubuntu-22.04` 并记录 `uname -r`，继续运行真实 MongoDB 8.0 夹具。上一轮 `ubuntu-latest` 的 MongoDB 被其内核保护检查拒绝启动；MongoDB 官方说明特定内核与 TCMalloc 不兼容，Docker 也共享宿主内核。选择依据为 [MongoDB 生产说明](https://www.mongodb.com/docs/manual/administration/production-notes/)和 [GitHub Ubuntu 22.04 runner 清单](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md)中的 6.8 内核；未关闭数据库保护或跳过 MongoDB 用例。新的远端 CI 结果需按具体提交核对。
+
+生产浏览器构建使用本轮受控临时根下的 `web-dist/`，预览与体积检查读取同一目录，结束后随本轮数据一起回收。独立 `pnpm build` 继续输出到 `web/dist/`，可并行验证。
+
 浏览器与 Docker runner 在结束时自动执行文件保留策略：各保留最近三次已完成并清理成功的独立验证，每次最多两张截图（PNG/JPEG/WebP），优先各一张中英文截图。原生包与 Linux race runner 也会自动精简当前成功批次，须两者结果与清理均成功；检查 runner 和子进程 PID，避免并行运行时误删。失败结果仍保留精简摘要；Docker 失败日志保留既有 16,000 字符诊断。活动 PID、清理未完成的夹具与刻意保留的调试环境会跳过。被淘汰的独立验证目录会删除；具名专题的 JSON 报告继续保留。
 
 手动预览和清理历史文件：

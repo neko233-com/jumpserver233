@@ -4,6 +4,8 @@
 
 ## Current priority: stable SSH release (user change, 2026-10-19)
 
+Added [SSH/SFTP login-review binding](./ACCESS-REVIEWS.en.md): connection/gateway snapshots, real workspace-root identity, scoped SFTP permits and native startup FD validation. Ordinary SSH/Agent CLI jobs persist approval proofs and check them before execution. Go/Testify 1585, Linux race 157, complete production browser 86/86, six-platform packaging and real directory replacement acceptance passed; see [verification](./TESTING.en.md). Command-cwd/exact/regex directory rules and full Enterprise parity remain in progress.
+
 Added [published-release checks and native artifacts](./UPDATES.en.md): Web/CLI/SDK checks, optional automatic checks, revisions/idempotent receipts, archive verification, six-platform packaging and staging. [Standalone installation transactions](./INSTALLATION.en.md) add encrypted checkpoints, offline preflight, first-start health/traffic gates, rollback before release and old-service resumption. After release, new data is preserved. Automatic installation scheduling and historical-version migration acceptance remain pending; the general updater is incomplete.
 
 This batch's [encrypted standalone backup/recovery](./BACKUP.en.md) passed unified verification: native `jms backup`, process exclusion, external-key fingerprint checks, format/path/integrity preflight, Docker mount-point recovery and idempotent restore/rollback journals. Go/Testify: 1,523 passed; Linux race: 745 passed; production browser: 85/85; Docker: 7/7. See [verification](./TESTING.en.md).

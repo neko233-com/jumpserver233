@@ -123,9 +123,13 @@ jobs:
         run: node server/testsupport/systemdvm/ci-env.mjs --cleanup
 
   frontend:
-    runs-on: ubuntu-latest
+    # MongoDB's allocator rejects newer runner kernels (SERVER-121912).
+    # Keep the real 8.0 fixture on the supported 6.8 runner kernel family.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Record frontend fixture kernel
+        run: uname -r
       - uses: actions/setup-go@v5
         with:
           go-version-file: server/go.mod

@@ -10,6 +10,10 @@ Docker builds the production API and web application from source, with separate 
 
 ## Fast verification
 
+The frontend CI runner is pinned to `ubuntu-22.04` and records `uname -r`, retaining the real MongoDB 8.0 fixture. On the previous `ubuntu-latest` run, MongoDB refused startup through its kernel guard. MongoDB documents an allocator incompatibility with certain kernels, also shared by Docker containers. The baseline uses the 6.8 kernel listed in the [GitHub Ubuntu 22.04 inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md); see [MongoDB production notes](https://www.mongodb.com/docs/manual/administration/production-notes/). No guard is disabled and no MongoDB test is skipped. Confirm the new remote CI result against its exact commit.
+
+Production browser builds use `web-dist/` under their owned temporary run root. Preview and bundle checks use that same directory, removed with the run data. Independent `pnpm build` keeps `web/dist/`, allowing parallel verification.
+
 Browser and Docker runners apply file retention on completion: each keeps the latest three completed, successfully cleaned disposable runs, with at most two screenshots (PNG/JPEG/WebP), preferring one English and one Chinese image. Native package and Linux race runners also compact their successful current batch after both results and cleanup pass; runner and child PIDs protect concurrent runs. Failed results retain compact summaries; Docker failures keep the existing 16,000-character diagnostic log. Active PIDs, incomplete fixture cleanup and intentionally retained debug environments are skipped. Expired disposable run directories are deleted; named feature JSON reports remain.
 
 Preview and clean historical files manually:
