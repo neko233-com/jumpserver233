@@ -214,6 +214,89 @@ test("native child PIDs, failed race checks and incomplete cleanup protect diagn
   assert.ok(existsSync(log));
 });
 
+test("named screenshot history is bounded independently of durable reports and empty batches", t => {
+  const { root, put } = fixture(t);
+  const native = { status: "passed", cleanup: { removed: true, idempotent: true, temporaryArtifactsRemoved: true } };
+  const batches = Array.from({ length: 5 }, (_, i) => {
+    const folder = `.cache/qa-reports/feature-${i}`;
+    const receipt = put(`${folder}/native-packages.json`, native);
+    const summary = put(`${folder}/summary.json`, { status: "passed" });
+    const images = ["result.en.png", "result.zh-CN.png"].map(name => {
+      const path = put(`${folder}/${name}`);
+      utimesSync(path, new Date(1000 + i), new Date(1000 + i));
+      return path;
+    });
+    return { receipt, summary, images };
+  });
+  // Updating a receipt does not make old screenshots current evidence.
+  utimesSync(batches[0].summary, new Date(), new Date());
+  const empty = put(".cache/qa-reports/newer-without-images/native-packages.json", native);
+  const protectedFiles = [empty];
+  for (const [name, changed] of [["failed", { status: "failed" }], ["incomplete", { cleanup: {} }], ["active", { pid: 12345 }]]) {
+    protectedFiles.push(put(`.cache/qa-reports/${name}/native-packages.json`, { ...native, ...changed }));
+    protectedFiles.push(put(`.cache/qa-reports/${name}/diagnostic.png`));
+  }
+  const options = { isAlive: pid => pid === 12345 };
+  const result = retainQAArtifacts(root, options);
+  assert.equal(result.removedFiles, 4);
+  batches.slice(0, 2).flatMap(b => b.images).forEach(path => assert.equal(existsSync(path), false));
+  [...batches.flatMap(b => [b.receipt, b.summary]), ...batches.slice(2).flatMap(b => b.images), ...protectedFiles].forEach(path => assert.ok(existsSync(path)));
+  assert.equal(retainQAArtifacts(root, options).removedFiles, 0);
+});
+
+test("the current named batch occupies one screenshot slot even with older timestamps", t => {
+  const { root, put } = fixture(t);
+  const folders = Array.from({ length: 5 }, (_, i) => {
+    const folder = `.cache/qa-reports/named-${i}`;
+    put(`${folder}/summary.json`, { status: "passed" });
+    const image = put(`${folder}/result.en.png`);
+    utimesSync(image, new Date(1000 + i), new Date(1000 + i));
+    return { folder: resolve(root, folder), image };
+  });
+  const options = { legacy: true, currentRun: folders[0].folder };
+  assert.equal(retainQAArtifacts(root, options).removedFiles, 2);
+  for (const i of [0, 3, 4]) assert.ok(existsSync(folders[i].image));
+  for (const i of [1, 2]) assert.equal(existsSync(folders[i].image), false);
+  assert.equal(retainQAArtifacts(root, options).removedFiles, 0);
+});
+
+test("named Docker histories share the three screenshot slots without losing summaries", t => {
+  const { root, put } = fixture(t), batches = [];
+  for (let i = 0; i < 5; i++) {
+    const project = `jms233-review-${i}`, folder = `.cache/docker-qa/${project}`;
+    const summary = put(`${folder}/summary.json`, { project, success: true, cleaned: true });
+    const images = ["result.en.png", "result.zh.png"].map(name => {
+      const image = put(`${folder}/${name}`);
+      utimesSync(image, new Date(1000 + i), new Date(1000 + i)); return image;
+    });
+    batches.push({ summary, images });
+  }
+  const protectedImages = [];
+  for (const [project, change] of [["jms233-failed", { success: false }], ["jms233-retained", { retained: true }]]) {
+    const folder = `.cache/docker-qa/${project}`;
+    put(`${folder}/summary.json`, { project, success: true, cleaned: true, ...change });
+    protectedImages.push(put(`${folder}/diagnostic.png`));
+  }
+  assert.equal(retainQAArtifacts(root).removedFiles, 4);
+  batches.slice(0, 2).flatMap(b => b.images).forEach(path => assert.equal(existsSync(path), false));
+  [...batches.map(b => b.summary), ...batches.slice(2).flatMap(b => b.images), ...protectedImages].forEach(path => assert.ok(existsSync(path)));
+  assert.equal(retainQAArtifacts(root).removedFiles, 0);
+});
+
+test("a failed final lifecycle protects named and Docker diagnostic histories", t => {
+  const { root, put } = fixture(t), protectedFiles = [];
+  for (const [folder, summary] of [[".cache/qa-reports/feature", { status: "passed" }], [".cache/docker-qa/jms233-review", { project: "jms233-review", success: true, cleaned: true }]]) {
+    put(`${folder}/summary.json`, summary);
+    put(`${folder}/lifecycle.json`, { status: "failed", artifactRetentionFailed: true });
+    protectedFiles.push(put(`${folder}/diagnostic.png`), put(`${folder}/verify.log`));
+  }
+  const plan = planRetention(root, { legacy: true });
+  assert.equal(plan.selected.length, 0);
+  assert.equal(plan.skipped.filter(row => row.reason === "incomplete or failed runner result").length, 2);
+  applyRetention(plan);
+  protectedFiles.forEach(path => assert.ok(existsSync(path)));
+});
+
 test("only three completed read-only cleanup snapshots survive; recovery receipts remain", t => {
   const { root, put } = fixture(t);
   const base = { root, applied: false, after: "synthetic disk summary", removed: { containers: 0, volumes: 0, networks: 0, images: 0 } };
@@ -390,14 +473,18 @@ test("Git excludes generated evidence and secrets while keeping product screensh
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 0, `${path} must be ignored`);
   }
-  for (const path of ["docs/images/inventory.en.png", "web/src/main.tsx", "scripts/qa-retention.mjs", "web/.env.example", "web/src/components/icon.png", "server/testsupport/fixture.json", "release-please-config.json", "web/pnpm-lock.yaml"]) {
+  for (const path of [".playwright-mcp/page-1.png", "web/.playwright-cli/session.json", "screenshot.png", "Screenshot-login.webp", "web/screenshot-qa.jpeg", "codex-clipboard-123.png", "web/codex-clipboard-123.png", "coverage.out", "coverage.html", "junit.xml", "web/junit-results.xml", "server/junit.xml", "jms", "jms-agent", "jms233-server", "jms-package", "server/jms233-server", "server/jms-package", "web/src/App.tsx.orig", "server/main.go.rej"]) {
+    const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
+    assert.equal(result.status, 0, `${path} must be ignored`);
+  }
+  for (const path of ["docs/images/inventory.en.png", "docs/images/screenshot-guide.png", "web/src/main.tsx", "scripts/qa-retention.mjs", "web/.env.example", ".env.development.example", "web/src/components/icon.png", "web/src/components/screenshot-icon.png", "server/testsupport/fixture.json", "server/testsupport/junit.xml", "release-please-config.json", "web/pnpm-lock.yaml", "example.tar.gz"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 1, `${path} must remain visible`);
   }
   const tracked = spawnSync("git", ["ls-files", "-ci", "--exclude-standard"], { cwd: root, encoding: "utf8" });
   assert.equal(tracked.status, 0); assert.equal(tracked.stdout.trim(), "", "Ignore rules must not hide tracked source");
   const dockerIgnore = readFileSync(resolve(root, ".dockerignore"), "utf8").split(/\r?\n/);
-  for (const rule of ["**/screenshots", "**/.jms233-schedule.json", "**/.jms233-automatic.json", "server/testsupport/**/artifacts"]) assert.ok(dockerIgnore.includes(rule), `Build context must exclude ${rule}`);
+  for (const rule of ["**/screenshots", "**/.jms233-schedule.json", "**/.jms233-automatic.json", "server/testsupport/**/artifacts", "**/.playwright-mcp", "**/.playwright-cli", "/[Ss]creenshot*.png", "/web/[Ss]creenshot*.webp", "/codex-clipboard-*.png", "/junit*.xml", "/jms233-server", "**/*.orig", "**/*.rej"]) assert.ok(dockerIgnore.includes(rule), `Build context must exclude ${rule}`);
 });
 
 test("content checks reject newly orphaned product images and the negative fixture is removed", () => {

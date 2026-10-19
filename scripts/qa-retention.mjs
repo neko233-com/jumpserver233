@@ -163,18 +163,24 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
           }
           buckets.push({ folder, items, type, success: (summary?.status || lifecycle?.status) === "passed" && (!lifecycle?.status || lifecycle.status === "passed"), time: Number(row.name.slice(8)), expire: true });
         } else if (type === "docker") {
+          if (lifecycle && lifecycle.status !== "passed") {
+            plan.skipped.push({ name: row.name, reason: "incomplete or failed runner result" }); continue;
+          }
           if (summary?.project !== row.name || summary.cleaned !== true || summary.retained === true) {
             plan.skipped.push({ name: row.name, reason: "retained environment or incomplete cleanup" }); continue;
           }
           buckets.push({ folder, items, type, success: summary.success, time: lstatSync(resolve(folder, "summary.json")).mtimeMs, expire: /^jms233-qa-[a-f0-9-]{36}$/.test(row.name) });
         } else if (legacy || current || native || race) {
           // Named historical evidence is not a disposable run: keep all JSON receipts.
+          if (lifecycle && lifecycle.status !== "passed") {
+            plan.skipped.push({ name: row.name, reason: "incomplete or failed runner result" }); continue;
+          }
           const passed = summary?.status === "passed" || summary?.success === true || summary?.browser?.passed > 0 && summary.browser.failed === 0;
           if (!passed || summary.status && summary.status !== "passed" || summary.success === false || summary.browser?.failed > 0) continue;
           if (native && !(native.status === "passed" && native.cleanup?.removed && native.cleanup?.idempotent && native.cleanup?.temporaryArtifactsRemoved) || race && !(race.status === "passed" && race.cleanup?.removed && race.cleanup?.idempotent)) {
             plan.skipped.push({ name: row.name, reason: "incomplete native result or cleanup" }); continue;
           }
-          buckets.push({ folder, items, type: "named", expire: false });
+          buckets.push({ folder, items, type: "named", success: true, expire: false });
         }
       } catch (e) { plan.skipped.push({ name: row.name, reason: e.message }); }
     }
@@ -186,8 +192,22 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
       b.items.forEach(select); plan.directories.push(b.folder); b.expired = true;
     }
   }
+  // Named feature reports remain useful; their historical screenshots do not
+  // need an unbounded pair per feature. Image timestamps avoid promoting an
+  // old batch merely because someone updates its summary or cleanup receipt.
+  const imageExpired = new Set();
+  for (const type of ["named", "docker"]) {
+    const candidates = buckets.filter(b => !b.expired && b.type === type && b.success === true && b.items.some(f => screenshot.test(f.path)))
+      .map(b => ({ ...b, imageTime: b.items.reduce((latest, f) => screenshot.test(f.path) ? Math.max(latest, f.modified) : latest, 0) }))
+      .sort((a, b) => b.imageTime - a.imageTime || a.folder.localeCompare(b.folder));
+    // The current completed runner may still be assembling its final report.
+    // Count it within the limit even if its screenshots have old timestamps.
+    const kept = new Set(candidates.filter(b => b.folder === currentRun).map(b => b.folder));
+    for (const b of candidates) { if (kept.size >= 3) break; kept.add(b.folder); }
+    for (const b of candidates) if (!kept.has(b.folder)) imageExpired.add(b.folder);
+  }
   for (const b of buckets.filter(b => !b.expired)) {
-    const kept = evidence(b.items);
+    const kept = imageExpired.has(b.folder) ? new Set() : evidence(b.items);
     for (const f of b.items) {
       const name = basename(f.path);
       if (screenshot.test(name) && !kept.has(f.path) || b.type === "browser" && !["summary.json", "cleanup.json", "lifecycle.json"].includes(name) && !kept.has(f.path) || b.type === "docker" && (/^summary-\d+\.json$/.test(name) || disposable(name) && b.success === true) || b.type === "named" && disposable(name)) select(f);

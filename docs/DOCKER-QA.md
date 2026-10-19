@@ -22,7 +22,7 @@ CI 前后端 runner 固定为 `ubuntu-22.04` 并记录 `uname -r`，继续运行
 
 CI 前端复用 `pnpm test:e2e:production` 的一次构建，继续执行完整套件，移除之前重复的独立构建步骤。后端状态机检查明确选择 Python 3.11，满足 `hashlib.file_digest` 的依赖；Linux 只读容器内 10 项状态机用例已通过。此处状态机使用假运行时，没有部署内网服务。
 
-浏览器与 Docker runner 在结束时自动执行文件保留策略：各保留最近三次已完成并清理成功的独立验证，每次最多两张截图（PNG/JPEG/WebP），优先各一张中英文截图。原生包与 Linux race 的当前及历史批次，有有效 runner 回执且结果与清理均成功时也自动精简；检查 runner 和子进程 PID，避免并行运行时误删。成功专题和 Docker 批次还删除原始 trace/ZIP/TAR、视频、HTML/HAR、性能分析和临时测试程序，继续保留 JSON 报告及其他未识别文件。失败结果仍保留精简摘要；Docker 失败日志保留既有 16,000 字符诊断。活动 PID、清理未完成的夹具与刻意保留的调试环境会跳过。被淘汰的独立验证目录会删除；具名专题的 JSON 报告继续保留。
+浏览器与 Docker runner 在结束时自动执行文件保留策略：各保留最近三次已完成并清理成功的独立验证，每次最多两张截图（PNG/JPEG/WebP），优先各一张中英文截图。原生包与 Linux race 的当前及历史批次，有有效 runner 回执且结果与清理均成功时也自动精简；检查 runner 和子进程 PID，避免并行运行时误删。成功专题和 Docker 批次还删除原始 trace/ZIP/TAR、视频、HTML/HAR、性能分析和临时测试程序，继续保留 JSON 报告及其他未识别文件。失败结果仍保留精简摘要；Docker 失败日志保留既有 16,000 字符诊断。活动 PID、清理未完成的夹具与刻意保留的调试环境会跳过。被淘汰的独立验证目录会删除；具名专题的 JSON 报告继续保留。成功专题的截图按图片时间合计保留最近三个符合清理条件的批次，每批最多两张；没有截图的批次不占名额。Docker 的截图限额也统一为最近三个成功且已清理批次，包含具名预览。当前 runner 优先占用一个名额；较早专题和具名 Docker 预览仅移除截图，保留报告。更新旧摘要不会延长截图保留时间。失败的最终 lifecycle 继续保护专题和 Docker 诊断。
 
 手动预览和清理历史文件：
 
@@ -39,6 +39,8 @@ node scripts/qa-retention.mjs --apply --legacy
 成功批次的临时 JS/TS、Shell/PowerShell/Python、CMD/BAT 脚本、已知无扩展名的 jms 程序和浏览器 `error-context.md` / `.last-run.json` 也自动回收。可复用脚本必须放在 `scripts/`。PID 文件仅在内容为有效进程号且进程已退出时清理；活动或无法读取的 PID 文件保护整个批次。删除前再次核对 PID 文件集合与内容身份，防止预览后新任务启动。其他 Markdown、TXT 和 JSON 证据继续保留。
 
 文件入口也可用 `make qa-preview` / `make qa-clean`，或在 `web/` 下执行 `pnpm qa:preview` / `pnpm qa:clean`。Docker 资源预览不再写入文件；旧的成功只读快照最多保留三份。成功且无资源候选、无变更的执行回执也单独最多保留三份。实际删除、归属信息、剩余资源、失败、未完成或未知字段的回执继续保留，供恢复与核对。缺少原生/race 回执的历史专题仍需显式 `--legacy`。
+
+Git 与 Docker 还忽略 `.playwright-mcp/`、`.playwright-cli/`、根目录和 `web/` 下按 screenshot/codex-clipboard 命名的散落图片、根目录/web/server 的 `junit*.xml`、本地构建的 jms 程序及 `.orig`/`.rej` 合并残留。这些忽略规则不触发删除；自动清理仍限于已核对的 QA 目录，不扫描或删除开发依赖、业务数据、未知历史结果或正式文档图片。默认搜索遵循 `.gitignore`，只有明确调查历史问题时才检索忽略目录。
 
 Git 和 Docker 上下文还排除脚本/协议夹具目录中的测试截图与 artifacts、任意层级的 coverage、PID 与 PID lock 文件。不会全局忽略图片或归档；正式图片仍需通过文档引用检查。
 

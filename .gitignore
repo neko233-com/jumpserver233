@@ -24,6 +24,19 @@ screenshots/
 web/e2e/artifacts/
 web/artifacts/
 web/playwright/.cache/
+# Browser tool sessions and accidentally saved screenshots beside entrypoints.
+.playwright-mcp/
+.playwright-cli/
+/[Ss]creenshot*.png
+/[Ss]creenshot*.jpg
+/[Ss]creenshot*.jpeg
+/[Ss]creenshot*.webp
+/web/[Ss]creenshot*.png
+/web/[Ss]creenshot*.jpg
+/web/[Ss]creenshot*.jpeg
+/web/[Ss]creenshot*.webp
+/codex-clipboard-*.png
+/web/codex-clipboard-*.png
 scripts/artifacts/
 server/testsupport/artifacts/
 server/testsupport/**/artifacts/
@@ -75,6 +88,11 @@ coverage/
 /server/coverage.out
 /server/coverage.html
 /server/coverage-*.out
+/coverage.out
+/coverage.html
+/junit*.xml
+/server/junit*.xml
+/web/junit*.xml
 *.prof
 *.cpuprofile
 *.heapprofile
@@ -88,6 +106,12 @@ coverage/
 /server/server
 /server/jms
 /server/jms-agent
+/jms
+/jms-agent
+/jms233-server
+/jms-package
+/server/jms233-server
+/server/jms-package
 /.idea/
 /server/.idea/
 /web/.idea/
@@ -106,3 +130,5 @@ Desktop.ini
 *.swp
 *.swo
 *~
+*.orig
+*.rej
