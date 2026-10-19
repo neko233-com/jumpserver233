@@ -178,6 +178,19 @@ test("only three completed read-only cleanup snapshots survive; recovery receipt
   assert.equal(retainQAArtifacts(root).removedFiles, 0);
 });
 
+test("partially written runner receipts preserve their batch until a complete result exists", t => {
+  const { root, put } = fixture(t), folder = ".cache/qa-reports/race-only";
+  const receipt = put(`${folder}/linux-race.json`, '{"status":');
+  const log = put(`${folder}/run.log`), options = { currentRun: resolve(root, folder) };
+  let plan = planRetention(root, options);
+  assert.equal(plan.selected.length, 0);
+  assert.match(plan.skipped[0].reason, /unreadable runner receipt/);
+  assert.ok(existsSync(log));
+  writeFileSync(receipt, JSON.stringify({ status: "passed", cleanup: { removed: true, idempotent: true } }));
+  assert.equal(retainQAArtifacts(root, options).removedFiles, 1);
+  assert.equal(retainQAArtifacts(root, options).removedFiles, 0);
+});
+
 test("linked output receipts cannot overwrite another file", t => {
   const { root, put } = fixture(t), outside = put("important.txt", "keep");
   mkdirSync(resolve(root, ".cache/qa-reports"), { recursive: true });

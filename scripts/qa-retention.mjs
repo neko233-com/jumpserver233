@@ -71,6 +71,9 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
         const items = files(root, folder), lifecycle = json(resolve(folder, "lifecycle.json"));
         const native = json(resolve(folder, "native-packages.json")), race = json(resolve(folder, "linux-race.json"));
         const current = currentRun && resolve(currentRun) === folder;
+        if ([["lifecycle.json", lifecycle], ["native-packages.json", native], ["linux-race.json", race]].some(([name, value]) => !value && existsSync(resolve(folder, name)))) {
+          plan.skipped.push({ name: row.name, reason: "unreadable runner receipt" }); continue;
+        }
         const states = [lifecycle, native, race].filter(Boolean);
         if (states.some(state => [state.pid, state.buildPID, state.playwrightPID, state.childPID].some(pid => isAlive(pid) && !(current && pid === process.pid && terminal.has(state.status))))) {
           liveRun = true; plan.skipped.push({ name: row.name, reason: "active process" }); continue;
