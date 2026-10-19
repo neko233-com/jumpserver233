@@ -2,6 +2,9 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+
+新增[SSH 生成密码策略](./SSH-PASSWORD-POLICY.md)：组织级随机密码规则、每七天/手动/计划共用生成器、共享账号约束合并、独立权限、Web/CLI、加密回执及备份保留。逐计划覆盖与完整企业版对齐仍在进行。
+
 ## 当前优先级：SSH 稳定版（2026-10-19 用户调整）
 
 新增[受控 SSH 执行目录](./EXECUTION-DIRECTORIES.md)：单命令 Web/CLI 可选择工作区内的真实起始目录，审批绑定根/目录对象与命令策略，支持精确、子树与整路径 RE2 规则。Go/Testify 1598、Linux race 171、完整生产回归 86/86、六平台原生及新布局的中英桌面/窄屏验收通过；从源码 Docker 构建和浏览器冒烟也通过，见[测试记录](./TESTING.md)。既有[SSH/SFTP 登录复核](./ACCESS-REVIEWS.md)继续绑定连接/网关与工作区根对象。完整交互式 cwd、任意 shell 语义和完整 Enterprise 仍在进行。

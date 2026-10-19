@@ -33,6 +33,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	corecommandfilters "github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/databasequery"
 	corefiles "github.com/neko233-com/jumpserver233/server/internal/core/files"
 	coregrants "github.com/neko233-com/jumpserver233/server/internal/core/grants"
@@ -168,6 +169,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	assetService := coreassets.NewService(assetStore, nil)
+	sshPolicy, err := credentialpolicy.Open(filepath.Join(cfg.DataDir, "ssh-password-policy.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	assetStore.SetPasswordPolicy(sshPolicy)
 	assetStore.SetAdmissionGate(admission)
 	historyStore, err := monitorhistory.Open(filepath.Join(cfg.DataDir, "monitor-history"), vaultKey, documents)
 	if err != nil {
@@ -430,6 +436,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.AssetDiscovery = assetDiscoveryService
 	root.AccountRisks = accountRisks
 	root.RotationPlans = credentialPlans
+	root.SSHPasswordPolicy = sshPolicy
 	root.Tickets = accessTickets
 	root.Notifications = notificationService
 	root.CommandAlerts = commandAlertStore

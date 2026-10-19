@@ -2,12 +2,9 @@ package assets
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -381,7 +378,7 @@ func (s *Service) rotatePasswordToLocal(ctx context.Context, id, trigger, actor,
 			return ErrCredentialBackupNotFound
 		}
 	} else {
-		newPassword, err = generateRotationPassword()
+		newPassword, err = s.generatePassword()
 		if err != nil {
 			return s.failRotationDetails(asset, trigger, "password_generation_failed", now, actor, backupID)
 		}
@@ -617,14 +614,6 @@ func sshTarget(asset Asset) sshclient.Target {
 		Host: asset.Host, Port: asset.Port, Username: asset.Username,
 		HostKeyFingerprint: asset.HostKeyFingerprint,
 	}
-}
-
-func generateRotationPassword() (string, error) {
-	secret := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, secret); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(secret), nil
 }
 
 func classifyRotationError(err error) string {

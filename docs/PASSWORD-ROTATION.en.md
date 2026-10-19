@@ -2,6 +2,8 @@
 
 > [中文](./PASSWORD-ROTATION.md) | English
 
+New passwords follow the organization's [generated SSH password policy](./SSH-PASSWORD-POLICY.en.md) for seven-day automatic, manual and planned rotations. Shared identities must satisfy every participating organization's constraints. Credential recovery retains its original encrypted backup value.
+
 Primary and named SSH accounts on one host have independent enablement, seven-day policies and encrypted credentials. Shared passwords still synchronize to disabled copies: [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md).
 
 SSH key installation, verified rotation, opt-in seven-day scheduling and persistent staged recovery are described in [SSH key rotation](./SSH-KEY-ROTATION.en.md).

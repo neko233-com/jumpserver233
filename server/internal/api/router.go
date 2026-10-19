@@ -16,6 +16,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	corecommandfilters "github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/databasequery"
 	corefiles "github.com/neko233-com/jumpserver233/server/internal/core/files"
 	coregrants "github.com/neko233-com/jumpserver233/server/internal/core/grants"
@@ -46,6 +47,7 @@ import (
 )
 
 type Dependencies struct {
+	SSHPasswordPolicy     *credentialpolicy.Store
 	ReleaseRoot           string
 	InstallationDataDir   string
 	Maintenance           *servicemaintenance.Controller
@@ -152,6 +154,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	}
 	if len(dependencies) > 0 && dependencies[0].RotationPlans != nil {
 		registerRotationPlanRoutes(mux, dependencies[0], accessMu)
+	}
+	if len(dependencies) > 0 {
+		registerSSHPasswordPolicyRoutes(mux, dependencies[0], accessMu)
 	}
 	if len(dependencies) > 0 && dependencies[0].AccountRisks != nil {
 		registerAccountRiskRoutes(mux, dependencies[0], accessMu)

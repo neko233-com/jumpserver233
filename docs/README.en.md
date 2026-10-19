@@ -44,6 +44,8 @@ Published scopes, one to five approval stages, amendment reset, temporary grants
 
 Multi-host SSH password/key rotation, weekly scheduling, privileged accounts, per-account results and recovery: [Credential rotation plans](./ROTATION-PLANS.en.md).
 
+[Generated SSH password policy](./SSH-PASSWORD-POLICY.en.md): organization lengths/categories/exclusions, merged shared-account constraints, Web/CLI, replay receipts and encrypted persistence.
+
 Weak/reused SSH credentials, age/usage risks, human review and periodic scanning: [Account risks](./ACCOUNT-RISKS.en.md).
 
 Multi-host CSV/XLSX create/update, atomic commits, idempotent receipts and Web/CLI are covered in [Account credential import](./ACCOUNT-IMPORT.en.md).

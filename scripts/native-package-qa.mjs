@@ -17,6 +17,7 @@ import { retainQAArtifacts } from "./qa-retention.mjs";
 import { verifyScheduledInstallation } from "./scheduled-install-qa.mjs";
 import { verifyAutomaticInstallation } from "./automatic-install-qa.mjs";
 import { historicalBaseline, prepareHistoricalPackage, verifyHistoricalManifests } from "./historical-source.mjs";
+import { verifySSHPasswordPolicy } from "./ssh-password-policy-qa.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
 const options = process.argv.slice(2), historical = options.includes("--historical");
@@ -591,6 +592,7 @@ try {
   await verifyScheduledInstallation({run,owner,url,root,output,api,admin:recoveredLogin.access_token,operator:recoveredOperator.access_token,refreshOperator:async ()=>(await api("POST","/api/v1/authentication/auth/",{username:operator.username,password:operatorPassword})).access_token,sshHost:owner+"-ssh",fingerprint,candidate:{version:"v0.0.5",sha:scheduledSHA},failedCandidate:{version:"v0.0.6",sha:failedScheduledSHA},stopSelected,waitHealthy,chromium,expect,report});
   await verifyAutomaticInstallation({run,owner,url,output,api,admin:token,operator:async ()=>(await api("POST","/api/v1/authentication/auth/",{username:operator.username,password:operatorPassword})).access_token,sshHost:owner+"-ssh",fingerprint,feedURL,waitHealthy,chromium,expect,report});
   // Repeating package creation must refuse replacement of an existing archive.
+  await verifySSHPasswordPolicy({run,runInput,owner,url,output,api,operator:async ()=>(await api("POST","/api/v1/authentication/auth/",{username:operator.username,password:operatorPassword})).access_token,sshHost:owner+"-ssh",fingerprint,chromium,expect,report,stopSelected,startSelected,inContainer});
   let conflict = false;
   const repeatedArchive = resolve(packages, `jumpserver233-${report.testVersion}-linux-amd64.tar.gz`);
   const originalDigest = createHash("sha256").update(readFileSync(repeatedArchive)).digest("hex");

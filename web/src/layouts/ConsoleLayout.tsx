@@ -29,7 +29,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
       ? [{ to: "/console/monitoring", label: t("nav.monitoring"), end: false }]
       : []),
     { to: "/console/access-tickets", label: t("nav.accessTickets"), end: false },
-    ...(allows("accounts.rotation.view")
+    ...(allows("accounts.rotation.view") || allows("accounts.password_policy.view")
       ? [{ to: "/console/rotation-plans", label: t("nav.rotationPlans"), end: false }]
       : []),
     ...(allows("accounts.risks.view")

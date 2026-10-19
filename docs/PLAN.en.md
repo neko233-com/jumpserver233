@@ -2,6 +2,9 @@
 
 > [中文](./PLAN.md) | English
 
+
+Added [generated SSH password policy](./SSH-PASSWORD-POLICY.en.md): organization rules, shared seven-day/manual/planned generation, merged shared-account constraints, independent permissions, Web/CLI, encrypted receipts and backup retention. Per-plan overrides and full Enterprise parity remain in progress.
+
 ## Current priority: stable SSH release (user change, 2026-10-19)
 
 Added [controlled SSH execution directories](./EXECUTION-DIRECTORIES.en.md): single-command Web/CLI selects a real workspace starting directory; approvals bind root/cwd objects and command policy for exact/subtree/full-path RE2 rules. Go/Testify 1598, Linux race 171, complete production regression 86/86, six native platforms and current bilingual desktop/mobile layout acceptance passed. Clean Docker source builds and browser smoke also passed; see [testing](./TESTING.en.md). Existing [SSH/SFTP login review](./ACCESS-REVIEWS.en.md) still binds connection/gateway and workspace-root objects. Complete interactive cwd, arbitrary shell semantics and full Enterprise parity remain in progress.

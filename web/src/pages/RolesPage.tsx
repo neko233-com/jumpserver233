@@ -1,4 +1,5 @@
 import "../i18n/locales/features/asset-discovery/register";
+import "../i18n/locales/features/ssh-password-policy/register";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";

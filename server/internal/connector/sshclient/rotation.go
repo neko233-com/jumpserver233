@@ -18,8 +18,10 @@ var (
 )
 
 var (
-	rotationAccountPattern  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_.-]{0,127}$`)
-	rotationPasswordPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{32,128}$`)
+	rotationAccountPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_.-]{0,127}$`)
+	// Transport allowlist; organization complexity/exclusion rules are applied
+	// before dispatch. Separators and shell quoting characters stay forbidden.
+	rotationPasswordPattern = regexp.MustCompile(`^[A-Za-z0-9!#%+,.=?@\[\]^_{}~-]{16,128}$`)
 )
 
 // ChangePassword replaces the login account's password without putting the new

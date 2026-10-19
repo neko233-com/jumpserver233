@@ -44,6 +44,8 @@ SSH 命令计划支持五段 cron、显式时区、夏令时、错过触发策�
 
 多主机 SSH 密码/密钥轮换、每周计划、特权账号、逐项结果及恢复见[账号改密计划](./ROTATION-PLANS.md)。
 
+[SSH 生成密码策略](./SSH-PASSWORD-POLICY.md)：组织级长度/字符/排除规则、共享账号约束合并、Web/CLI、幂等回执与加密持久化。
+
 SSH 弱密码、凭据复用、超期与使用风险、处置和周期检测见[账号风险](./ACCOUNT-RISKS.md)。
 
 CSV/XLSX 多主机新增/更新、原子提交、幂等回执与 Web/CLI 见[账号凭据导入](./ACCOUNT-IMPORT.md)。

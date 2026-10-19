@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import "../i18n/locales/features/rotation-plans/register";
 import "./rotation-plans.css";
+import SSHPasswordPolicy from "../components/SSHPasswordPolicy";
 
 type Ref = {
   asset_id: string;
@@ -464,7 +465,16 @@ export default function RotationPlansPage() {
     setCollectorFor(null);
   };
   if (!ready) return <p role="status">{t("placeholder.skeleton")}</p>;
-  if (!view) return <p role="alert">{t("rotationPlans.noView")}</p>;
+  if (!view)
+    return (
+      <>
+        <SSHPasswordPolicy
+          view={allows("accounts.password_policy.view")}
+          manage={allows("accounts.password_policy.manage")}
+        />
+        <p role="alert">{t("rotationPlans.noView")}</p>
+      </>
+    );
   const total = tab === "plans" ? plans.total : tab === "runs" ? runs.total : audit.total;
   return (
     <section className="rotation-page" aria-labelledby="rotation-title">
@@ -497,6 +507,10 @@ export default function RotationPlansPage() {
         </div>
       </header>
       <p className="settings-help">{t("rotationPlans.coverage")}</p>
+      <SSHPasswordPolicy
+        view={allows("accounts.password_policy.view")}
+        manage={allows("accounts.password_policy.manage")}
+      />
       {error && (
         <p role="alert" className="asset-error">
           {t(`rotationPlans.errors.${error}`)}

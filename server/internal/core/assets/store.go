@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/workgate"
 	"io"
 	"os"
@@ -161,6 +162,7 @@ type pendingRotation struct {
 // Store persists assets and AES-GCM-encrypted credentials in a single-user
 // standalone file. The key is supplied separately from the data file.
 type Store struct {
+	passwordPolicy     *credentialpolicy.Store
 	admission          *workgate.Gate
 	mu                 sync.RWMutex
 	path               string

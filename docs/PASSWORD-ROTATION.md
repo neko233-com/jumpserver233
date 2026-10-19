@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PASSWORD-ROTATION.en.md)
 
+新生成密码遵循组织级 [SSH 生成密码策略](./SSH-PASSWORD-POLICY.md)，覆盖每七天自动、手动及计划改密，共享账号需满足全部参与组织的约束。历史凭据恢复继续使用原加密备份值。
+
 同一主机的默认和具名 SSH 账号可分别启停、配置七天轮换与托管独立凭据；共享密码仍同步到停用副本，见 [SSH 多账号托管](./MANAGED-ACCOUNTS.md)。
 
 SSH 密钥安装、验证后轮换、显式启用的七天计划及持久化阶段恢复见 [SSH 密钥轮换](./SSH-KEY-ROTATION.md)。

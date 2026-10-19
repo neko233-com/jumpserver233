@@ -22,6 +22,7 @@ import (
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/databasequery"
 	corefiles "github.com/neko233-com/jumpserver233/server/internal/core/files"
 	"github.com/neko233-com/jumpserver233/server/internal/core/grants"
@@ -92,6 +93,11 @@ func (r *organizationRuntimes) assetStore(id string) (*coreassets.Store, error) 
 	if e != nil {
 		return nil, e
 	}
+	policy, e := credentialpolicy.Open(filepath.Join(filepath.Dir(path), "ssh-password-policy.json"), key, docs)
+	if e != nil {
+		return nil, e
+	}
+	st.SetPasswordPolicy(policy)
 	if e = r.passwords.Register(id, st); e != nil {
 		return nil, e
 	}
@@ -311,6 +317,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return nil, e
 		}
 	}
+	d.SSHPasswordPolicy = d.Assets.PasswordPolicyStore()
 	d.RBAC, e = rbac.OpenOrganization(filepath.Join(orgPath, "organization-rbac.json"), docs, func(user, role string) rbac.Snapshot { return r.inherited(id, user, role) })
 	if e != nil {
 		if id != organizations.DefaultID {

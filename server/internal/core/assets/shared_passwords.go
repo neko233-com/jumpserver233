@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"net"
 	"os"
 	"path/filepath"
@@ -482,7 +483,16 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 	if backupID != "" {
 		next, e = s.store.CredentialBackupPassword(id, backupID)
 	} else {
-		next, e = generateRotationPassword()
+		policies := make([]credentialpolicy.Rules, 0, len(ps))
+		for _, p := range ps {
+			policies = append(policies, c.stores[p.Scope].passwordRules())
+		}
+		var merged credentialpolicy.Rules
+		merged, e = credentialpolicy.Merge(policies...)
+		if e != nil {
+			return ErrSharedCredentialConflict
+		}
+		next, e = credentialpolicy.Generate(merged)
 	}
 	if e != nil {
 		return e

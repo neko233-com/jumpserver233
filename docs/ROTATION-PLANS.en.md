@@ -24,6 +24,8 @@ Console → Credential rotation → Create plan:
 
 Passwords are generated strong values. SSH key accounts remain key accounts: the existing native engine generates Ed25519 keys, installs and verifies them, then revokes the old key. Privileged accounts apply only to password resets; key changes authenticate as the target account.
 
+Generated passwords use the organization's [SSH password policy](./SSH-PASSWORD-POLICY.en.md). Users with independent permissions can configure lengths, category minima and exclusions on this page; shared identities combine every participating policy. Per-plan overrides and fixed passwords remain pending.
+
 Duplicate managed records for one remote account share one operation and linked results. Password copies for that identity must agree; conflicting credentials reject rotation. Shared copies use the existing [password](./PASSWORD-ROTATION.en.md) and [key](./SSH-KEY-ROTATION.en.md) coordinators, without granting visibility across organizations.
 
 ## Results and recovery
@@ -102,4 +104,4 @@ Updates and deletion require the current revision. `--file` strictly rejects unk
 
 Go/Testify covers idempotent and concurrent submissions, aliases, target binding, cancellation, permission revocation, explicit recovery, result write failures, encryption, format 4/import compatibility, PostgreSQL organization isolation and takeover. The real OpenSSH browser case is `web/e2e/rotation-plans.spec.ts`; commands and results are in [TESTING](./TESTING.en.md).
 
-This slice supports Linux SSH passwords and existing key accounts. Specified password policies, Windows/database/network device rotation, notifications/external credential distribution, risk-driven automatic remediation, production HA failover acceptance and full Enterprise parity remain open. No CHANGELOG or release tag was generated.
+This slice supports Linux SSH passwords and existing key accounts. Per-plan password-policy overrides/fixed passwords, Windows/database/network device rotation, notifications/external credential distribution, risk-driven automatic remediation, production HA failover acceptance and full Enterprise parity remain open. No CHANGELOG or release tag was generated.
