@@ -371,7 +371,7 @@ try {
 	report.workspace.browserUploadDownloadAndMkdir=true;
 	await page.getByRole("button", { name: "EN", exact: true }).click();
     await page.goto(url + "/console/settings");
-    await page.getByRole("tab", { name: "Login review", exact: true }).click();
+    await page.getByRole("tab", { name: /^Login review\s*\d+$/ }).click();
     const approvalCard = page.locator("article.settings-card").filter({ hasText: approvalUser.username });
     await expect(approvalCard.locator("code")).toHaveText(workspace);
     await approvalCard.screenshot({ path: resolve(output, "approval.en.png") });
