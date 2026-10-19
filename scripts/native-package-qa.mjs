@@ -87,7 +87,7 @@ try {
     "--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`,
     "--read-only", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=512m", "--publish", `127.0.0.10:${selectedPort}:8080`,
     "--mount", `type=bind,source=${archive},target=/artifact/package.tar.gz,readonly`,
-    "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", `JMS_QA_PACKAGE_SHA=${linuxSHA}`,
+    "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", `JMS_PUBLIC_URL=http://127.0.0.10:${selectedPort}`, "--env", `JMS_QA_PACKAGE_SHA=${linuxSHA}`,
     "golang:1.27-bookworm", "sh", "-ceu", 'mkdir /tmp/native; tar -xzf /artifact/package.tar.gz -C /tmp/native; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; /tmp/native/jms update stage-status --root /tmp/releases --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; export JMS_WEB_DIR="/tmp/releases/releases/$JMS_QA_PACKAGE_SHA/web"; exec "/tmp/releases/releases/$JMS_QA_PACKAGE_SHA/jms233-server"']);
   const url = `http://127.0.0.10:${selectedPort}`;
   let healthy = false;
@@ -110,7 +110,10 @@ try {
     await page.goto(url + "/login");
     await page.getByRole("textbox", { name: "Username", exact: true }).fill("root");
     await page.getByRole("textbox", { name: "Password", exact: true }).fill("root");
+    const login = page.waitForResponse(response => response.url().endsWith("/api/v1/authentication/auth/") && response.request().method() === "POST");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    report.browserLoginStatus = (await login).status();
+    if (report.browserLoginStatus !== 200) throw new Error("Staged candidate browser login status was " + report.browserLoginStatus);
     await expect(page.getByRole("heading", { name: "Assets", exact: true })).toBeVisible();
     await page.goto(url + "/console/settings");
     await page.getByRole("tab", { name: "Security", exact: true }).click();
