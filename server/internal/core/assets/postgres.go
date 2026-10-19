@@ -13,6 +13,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sqlclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sqlserverclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/telnetclient"
+	"github.com/neko233-com/jumpserver233/server/internal/hostagent"
 )
 
 const (
@@ -199,6 +200,9 @@ func cloneAsset(a Asset) Asset {
 	return a
 }
 func validateProtocolAsset(a Asset) error {
+	if a.SSHWorkspace != "" && (!IsSSH(a) || hostagent.ValidateWorkspace(a.SSHWorkspace) != nil) {
+		return ErrInvalidInput
+	}
 	if e := validateDiscoveryOrigin(a); e != nil {
 		return e
 	}

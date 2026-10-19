@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import "../i18n/locales/features/workspaces/register";
 import { useSearchParams } from "react-router-dom";
 import { usePermissions } from "../auth/usePermissions";
 import { useAuth } from "../auth/AuthContext";
@@ -142,6 +143,7 @@ type Asset = {
   gateway_id?: string;
   remark: string;
   login_review_required?: boolean;
+  ssh_workspace?: string;
   monitor: Monitor;
   permissions: string[];
   password_rotation?: PasswordRotation;
@@ -189,6 +191,7 @@ type AssetForm = {
   gateway_id: string;
   remark: string;
   login_review_required: boolean;
+  ssh_workspace: string;
 };
 
 const emptyForm: AssetForm = {
@@ -212,6 +215,7 @@ const emptyForm: AssetForm = {
   gateway_id: "",
   remark: "",
   login_review_required: false,
+  ssh_workspace: "",
 };
 
 const unassignedNode = "__unassigned__";
@@ -445,6 +449,7 @@ export default function AssetInventoryPage() {
       gateway_id: asset.gateway_id ?? "",
       remark: asset.remark,
       login_review_required: Boolean(asset.login_review_required),
+      ssh_workspace: asset.ssh_workspace ?? "",
     });
     setSaveFailed(false);
     setDialogOpen(true);
@@ -459,6 +464,7 @@ export default function AssetInventoryPage() {
       form;
     const payload = {
       ...identity,
+      ssh_workspace: isSSHProtocol(form.protocol) ? identity.ssh_workspace : undefined,
       rdp: form.protocol === "rdp" ? rdp_settings : undefined,
       kubernetes: form.protocol === "kubernetes" ? kubernetes_settings : undefined,
       telnet: form.protocol === "telnet" ? telnet_settings : undefined,
@@ -1026,16 +1032,18 @@ export default function AssetInventoryPage() {
                         >
                           {t("assets.connect")}
                         </button>
-                        {isSSHProtocol(asset.protocol) && asset.permissions?.includes("sftp") && (
-                          <button
-                            type="button"
-                            className="button-text"
-                            disabled={tokenRequired}
-                            onClick={() => setFileAsset(asset)}
-                          >
-                            {t("files.open")}
-                          </button>
-                        )}
+                        {isSSHProtocol(asset.protocol) &&
+                          !asset.ssh_workspace &&
+                          asset.permissions?.includes("sftp") && (
+                            <button
+                              type="button"
+                              className="button-text"
+                              disabled={tokenRequired}
+                              onClick={() => setFileAsset(asset)}
+                            >
+                              {t("files.open")}
+                            </button>
+                          )}
                         {isSSHProtocol(asset.protocol) &&
                           asset.permissions?.includes("connect") &&
                           (allows("plugins.inspect") ||
@@ -1789,7 +1797,10 @@ export default function AssetInventoryPage() {
                   <option value="">{t("assets.gatewayDirect")}</option>
                   {assets
                     .filter(
-                      (asset) => isSSHProtocol(asset.protocol) && asset.id !== editingAsset?.id,
+                      (asset) =>
+                        isSSHProtocol(asset.protocol) &&
+                        !asset.ssh_workspace &&
+                        asset.id !== editingAsset?.id,
                     )
                     .flatMap((asset) =>
                       (asset.accounts?.length
@@ -1804,6 +1815,18 @@ export default function AssetInventoryPage() {
                 </select>
                 <small>{t("assets.gatewayHint")}</small>
               </label>
+              {isSSHProtocol(form.protocol) && (
+                <label className="asset-form-wide">
+                  <span>{t("assets.workspace")}</span>
+                  <input
+                    value={form.ssh_workspace}
+                    onChange={(event) => setForm({ ...form, ssh_workspace: event.target.value })}
+                    placeholder="/srv/workspace"
+                    maxLength={1024}
+                  />
+                  <small>{t("assets.workspaceHint")}</small>
+                </label>
+              )}
               {isSSHProtocol(form.protocol) && (
                 <label className="asset-form-wide">
                   <span>{t("assets.hostKey")}</span>

@@ -25,7 +25,8 @@ func databaseBinding(a assets.Asset) string {
 		Gateway            string
 		Settings           *sqlclient.Settings
 		HostKeyFingerprint string `json:",omitempty"`
-	}{assets.Protocol(a), a.Host, a.Port, a.Username, a.CredentialRevision, a.GatewayID, assets.DatabaseSettings(a), a.HostKeyFingerprint})
+		SSHWorkspace       string `json:",omitempty"`
+	}{assets.Protocol(a), a.Host, a.Port, a.Username, a.CredentialRevision, a.GatewayID, assets.DatabaseSettings(a), a.HostKeyFingerprint, a.SSHWorkspace})
 }
 func databaseRouteBinding(d Dependencies, a assets.Asset) string {
 	bindings := []string{databaseBinding(a)}

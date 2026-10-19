@@ -15,7 +15,7 @@ import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
-const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/activation");
+const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/workspaces");
 mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
@@ -205,6 +205,30 @@ try {
   if (recoveredLogin.user.id !== loginBefore.user.id || (await api("GET", "/api/v1/ops/jobs/" + originalJob, undefined, recoveredLogin.access_token)).state !== "succeeded") throw new Error("Forward recovery lost identity or audit");
   await execSSH(recoveredLogin.access_token, "native-after-forward-recovery");
   const recoveredOperator = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword }); await viewOnly(recoveredOperator.access_token);
+	const workspace = "/home/keyqa/workspace";
+	await run("docker", ["exec", owner + "-ssh", "sh", "-ceu", "mkdir -p /home/keyqa/workspace /home/keyqa/protected; printf preserve > /home/keyqa/protected/sentinel; chown -R keyqa:keyqa /home/keyqa/workspace /home/keyqa/protected"]);
+	await api("PUT", "/api/v1/assets/" + asset.id, { name: asset.name, host: asset.host, port: asset.port, username: asset.username, host_key_fingerprint: fingerprint, ssh_workspace: workspace }, recoveredLogin.access_token);
+	const workspaceJob = async (command, success) => {
+		const submitted = await api("POST", "/api/v1/ops/jobs", { asset_id: asset.id, command, timeout_seconds: 10, request_id: randomUUID() }, recoveredLogin.access_token, 201);
+		for (let attempt = 0; attempt < 150; attempt++) {
+			const job = await api("GET", "/api/v1/ops/jobs/" + submitted.id, undefined, recoveredLogin.access_token);
+			if (["succeeded", "failed", "interrupted", "denied", "timed_out"].includes(job.state)) {
+				if ((job.state === "succeeded") !== success) throw new Error("Workspace job result differs from expected enforcement");
+				return job;
+			}
+			await delay(100);
+		}
+		throw new Error("Workspace job timed out");
+	};
+	if ((await workspaceJob("pwd", true)).stdout.trim() !== workspace) throw new Error("Workspace cwd was not fixed");
+	if ((await workspaceJob("printf workspace-inside > owned; cat owned", true)).stdout !== "workspace-inside") throw new Error("Workspace write failed");
+	await workspaceJob("cat /home/keyqa/protected/sentinel", false);
+	await workspaceJob("printf changed > /home/keyqa/protected/sentinel", false);
+	await api("GET", "/api/v1/assets/" + asset.id + "/files", undefined, recoveredLogin.access_token, 403);
+	const nativeExec = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/native/jms exec "$1" --json -- pwd', "sh", asset.id])).stdout);
+	if (nativeExec.state !== "succeeded" || nativeExec.stdout.trim() !== workspace) throw new Error("Native CLI workspace execution failed");
+	if ((await run("docker", ["exec", owner + "-ssh", "cat", "/home/keyqa/protected/sentinel"])).stdout !== "preserve") throw new Error("Workspace modified protected content");
+	report.workspace = { directory: workspace, realSSH: true, realCLI: true, trustedCwd: true, insideWrite: true, outsideReadAndWriteRefused: true, sftpRefused: true, protectedDataPreserved: true };
   report.activation = { privateReadinessAndHTTPProbe: true, businessGateBeforeCommit: true, preCommitFailureRolledBack: true, oldServiceAutomaticallyResumed: true, failedTrialWriteRemoved: trialWriteAbsent, monotonicRollbackRevision: 4, postCommitFailurePreservedVersionAndData: true, forwardRecoveryVersion: report.recoveryVersion, finalRevision: 6, realSSHAfterRollbackAndForwardRecovery: true };
   report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true, operatorViewGrantPreserved: true, operatorConnectDeniedBeforeAndAfter: true };
   const html = await (await fetch(url + "/console/settings")).text();
@@ -229,16 +253,33 @@ try {
     report.browserLoginStatus = (await login).status();
     if (report.browserLoginStatus !== 200) throw new Error("Staged candidate browser login status was " + report.browserLoginStatus);
     await expect(page.getByRole("heading", { name: "Assets", exact: true })).toBeVisible();
+	let terminalOutput = "";
+	page.on("websocket", socket => socket.on("framereceived", event => { if (Buffer.isBuffer(event.payload)) terminalOutput += event.payload.toString("utf8"); }));
+	const row = page.getByRole("row").filter({ hasText: "Native upgrade SSH" });
+	await row.getByRole("button", { name: "Connect", exact: true }).click();
+	const terminal = page.locator(".ssh-terminal-dialog");
+	await expect(terminal.locator(".ssh-terminal-status.connected")).toBeVisible();
+	await terminal.locator(".xterm-helper-textarea").pressSequentially("printf '\\167\\157\\162\\153\\163\\160\\141\\143\\145\\055\\160\\164\\171\\055\\157\\153\\012'");
+	await page.keyboard.press("Enter");
+	await expect.poll(() => terminalOutput).toContain("workspace-pty-ok");
+	await terminal.getByRole("button", { name: "Close terminal", exact: true }).click();
+	report.workspace.browserPTY = true;
+	await row.getByRole("button", { name: "Edit", exact: true }).click();
+	await expect(page.getByRole("textbox", { name: "SSH execution workspace (optional)", exact: true })).toHaveValue(workspace);
+	await page.getByRole("dialog").screenshot({ path: resolve(output, "workspace.en.png") });
+	await page.getByRole("button", { name: "中文", exact: true }).click();
+	await expect(page.getByRole("textbox", { name: "SSH 执行工作区（可选）", exact: true })).toHaveValue(workspace);
+	await page.getByRole("dialog").screenshot({ path: resolve(output, "workspace.zh.png") });
+	await page.getByRole("button", { name: "取消", exact: true }).click();
+	await page.getByRole("button", { name: "EN", exact: true }).click();
     await page.goto(url + "/console/settings");
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     const card = page.locator(".update-settings-card");
     await expect(card.getByRole("heading", { name: "Software updates", exact: true })).toBeVisible();
     await expect(card.getByText(report.recoveryVersion, { exact: true })).toBeVisible();
     const screenshots = output;
-    await card.screenshot({ path: resolve(screenshots, "native-stage.en.png") });
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(card.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
-    await card.screenshot({ path: resolve(screenshots, "native-stage.zh.png") });
     if (errors.length) {
       report.browserDiagnostics = errors.slice(-10).map(message => fixtureDiagnostic(message));
       throw new Error("Staged candidate browser reported runtime warnings or errors");

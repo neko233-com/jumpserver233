@@ -28,6 +28,9 @@ func (s *Store) validateGatewaysLocked() error {
 			if !IsSSH(current.Asset) {
 				return ErrUnsupportedProtocol
 			}
+			if current.SSHWorkspace != "" {
+				return ErrInvalidInput
+			}
 		}
 	}
 	return nil
@@ -71,6 +74,9 @@ func (s *Store) connectionForProtocol(id string, requireSSH bool) (Asset, sshcli
 		}
 		if !IsSSH(gateway.Asset) {
 			return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrUnsupportedProtocol
+		}
+		if gateway.SSHWorkspace != "" {
+			return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrInvalidInput
 		}
 		if gateway.AccountDisabled {
 			return Asset{}, sshclient.Target{}, sshclient.Credentials{}, ErrAccountDisabled

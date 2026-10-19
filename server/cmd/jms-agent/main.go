@@ -1,5 +1,6 @@
 // jms-agent is a local recovery helper. It has no listener, platform token,
-// remote SSH password, arbitrary-command facility or external network client.
+// remote SSH password or external network client. Workspace execution replaces
+// this process only after mandatory kernel confinement; it has no fallback.
 package main
 
 import (
@@ -18,6 +19,42 @@ import (
 )
 
 func run(args []string) int {
+	if len(args) > 0 && (args[0] == "workspace" || args[0] == "workspace-check") {
+		flags := flag.NewFlagSet("workspace", flag.ContinueOnError)
+		flags.SetOutput(io.Discard)
+		directory := flags.String("directory", "", "")
+		execInput := flags.Bool("exec-stdin", false, "")
+		if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || hostagent.ValidateWorkspace(*directory) != nil || args[0] == "workspace-check" && *execInput {
+			return 2
+		}
+		if args[0] == "workspace-check" {
+			state, e := hostagent.CheckWorkspace(*directory)
+			if e != nil {
+				fmt.Fprintln(os.Stderr, "workspace_isolation_unavailable")
+				return 1
+			}
+			if json.NewEncoder(os.Stdout).Encode(state) != nil {
+				return 1
+			}
+			return 0
+		}
+		command := ""
+		if *execInput {
+			raw, e := io.ReadAll(io.LimitReader(os.Stdin, 16385))
+			var request struct {
+				Command string `json:"command"`
+			}
+			if e != nil || len(raw) > 16384 || json.Unmarshal(raw, &request) != nil {
+				return 2
+			}
+			command = request.Command
+		}
+		if e := hostagent.ExecWorkspace(*directory, command, !*execInput); e != nil {
+			fmt.Fprintln(os.Stderr, "workspace_isolation_unavailable")
+			return 1
+		}
+		return 1
+	}
 	if len(args) == 1 && args[0] == "account-admin-install" {
 		raw, e := hostagent.AccountAdminInstallJSON()
 		if e != nil {

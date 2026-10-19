@@ -398,6 +398,9 @@ func (s *Service) PrepareDiscoveryGateway(id string) (DiscoveryGatewayOpen, stri
 		if e != nil {
 			return target, credentials, "", e
 		}
+		if a.SSHWorkspace != "" {
+			return target, credentials, "", ErrInvalidInput
+		}
 		chain := []Asset{a}
 		for _, hop := range a.GatewayIDs {
 			g, e := s.Get(hop)

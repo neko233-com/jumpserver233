@@ -27,6 +27,12 @@ type Shell struct {
 
 // OpenShell connects to a pinned SSH host and starts an xterm-compatible PTY.
 func OpenShell(ctx context.Context, target Target, credentials Credentials, timeout time.Duration, cols, rows int) (*Shell, error) {
+	return OpenShellCommand(ctx, target, credentials, timeout, cols, rows, "")
+}
+
+// OpenShellCommand is reserved for a server-authored, pinned startup helper.
+// User terminal input remains on the PTY and never becomes the startup command.
+func OpenShellCommand(ctx context.Context, target Target, credentials Credentials, timeout time.Duration, cols, rows int, startup string) (*Shell, error) {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
@@ -71,7 +77,11 @@ func OpenShell(ctx context.Context, target Target, credentials Credentials, time
 		_ = session.Close()
 		return failed(fmt.Errorf("request SSH PTY: %w", err))
 	}
-	if err := session.Shell(); err != nil {
+	start := session.Shell
+	if startup != "" {
+		start = func() error { return session.Start(startup) }
+	}
+	if err := start(); err != nil {
 		_ = input.Close()
 		_ = outputRead.Close()
 		_ = outputWrite.Close()

@@ -19,6 +19,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/telnetclient"
 	"github.com/neko233-com/jumpserver233/server/internal/core/monitorhistory"
+	"github.com/neko233-com/jumpserver233/server/internal/hostagent"
 )
 
 var hostLabelPattern = regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
@@ -202,6 +203,9 @@ func (s *Service) Update(id string, input Input) (Asset, error) {
 	}
 	if input.LoginReviewRequired == nil {
 		asset.LoginReviewRequired = current.LoginReviewRequired
+	}
+	if input.SSHWorkspace == nil {
+		asset.SSHWorkspace = current.SSHWorkspace
 	}
 	asset.UpdatedAt = time.Now().UTC()
 	kind, pin, credentials, err := inputCredential(input, &current)
@@ -391,6 +395,14 @@ func (s *Service) OpenShell(ctx context.Context, id string, cols, rows int) (Ass
 	if err != nil {
 		return Asset{}, nil, err
 	}
+	if asset.SSHWorkspace != "" {
+		startup, e := s.workspaceStartup(ctx, target, credentials, asset.SSHWorkspace, false)
+		if e != nil {
+			return Asset{}, nil, e
+		}
+		shell, e := sshclient.OpenShellCommand(ctx, target, credentials, 12*time.Second, cols, rows, startup)
+		return asset, shell, e
+	}
 	shell, err := sshclient.OpenShell(ctx, target, credentials, 12*time.Second, cols, rows)
 	if err != nil {
 		return Asset{}, nil, err
@@ -404,6 +416,9 @@ func (s *Service) OpenSFTP(ctx context.Context, id string) (Asset, *sshclient.SF
 	asset, target, credentials, err := s.store.connection(id)
 	if err != nil {
 		return Asset{}, nil, err
+	}
+	if asset.SSHWorkspace != "" {
+		return Asset{}, nil, hostagent.ErrWorkspaceUnavailable
 	}
 	remote, err := sshclient.OpenSFTP(ctx, target, credentials, 12*time.Second)
 	if err != nil {
@@ -619,6 +634,12 @@ func normalizeInput(input Input, id string) (Asset, error) {
 		Port:                input.Port,
 		Remark:              remark,
 		LoginReviewRequired: input.LoginReviewRequired != nil && *input.LoginReviewRequired,
+	}
+	if input.SSHWorkspace != nil {
+		asset.SSHWorkspace = *input.SSHWorkspace
+		if asset.SSHWorkspace != "" && (protocol != ProtocolSSH || hostagent.ValidateWorkspace(asset.SSHWorkspace) != nil) {
+			return Asset{}, ErrInvalidInput
+		}
 	}
 	setAssetSettings(&asset, protocol, pg)
 	return asset, nil

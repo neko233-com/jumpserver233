@@ -36,6 +36,7 @@ const maxCredentialBackups = 10
 // Asset contains non-secret inventory fields. Credential material is encrypted
 // separately and never appears in API representations.
 type Asset struct {
+	SSHWorkspace             string                 `json:"ssh_workspace,omitempty"`
 	Discovery                *DiscoveryOrigin       `json:"discovery,omitempty"`
 	RemoteAccount            *RemoteAccountState    `json:"remote_account,omitempty"`
 	ParentAssetID            string                 `json:"parent_asset_id,omitempty"`
@@ -78,6 +79,7 @@ type Asset struct {
 
 // Input is the create/update payload. Password is write-only.
 type Input struct {
+	SSHWorkspace         *string                `json:"ssh_workspace,omitempty"`
 	RDP                  *rdpclient.Settings    `json:"rdp,omitempty"`
 	Telnet               *telnetclient.Settings `json:"telnet,omitempty"`
 	Kubernetes           *kubeclient.Settings   `json:"kubernetes,omitempty"`

@@ -64,6 +64,10 @@ func registerFileRoutes(mux *http.ServeMux, service *corefiles.Service, assets *
 				writeAssetError(w, coreassets.ErrUnsupportedProtocol)
 				return
 			}
+			if asset.SSHWorkspace != "" {
+				writeJSON(w, http.StatusForbidden, map[string]string{"detail": "workspace_sftp_unavailable"})
+				return
+			}
 			method := ""
 			switch {
 			case r.Method == "PUT":

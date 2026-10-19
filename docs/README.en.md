@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[SSH execution workspaces](./SSH-WORKSPACES.en.md): native Linux directory-tree confinement for Web/CLI entrypoints; exact/regex directory command policies remain pending.
+
 [Software updates and native artifacts](./UPDATES.en.md): published stable checks, automatic policy, system permissions/revisions/receipts, download/archive verification and six-platform release packaging.
 
 [Controlled standalone installation](./INSTALLATION.en.md): encrypted checkpoints, offline preflight, first-start health/traffic gates, rollback before release and old-service resumption. New data is preserved after release. Automatic installation scheduling and historical-version migration acceptance remain pending.

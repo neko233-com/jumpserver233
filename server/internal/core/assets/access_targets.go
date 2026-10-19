@@ -80,10 +80,11 @@ func (s *Service) ResolveAccessTargets(ctx context.Context, selected []tickets.T
 			stable := func(a Asset) any {
 				return struct {
 					ID, Name, Host, Username, Protocol, NodeID, GatewayID, Fingerprint string
+					Workspace                                                          string `json:",omitempty"`
 					Port                                                               int
 					Settings                                                           []any
 					GatewayIDs                                                         []string
-				}{a.ID, a.Name, a.Host, a.Username, a.Protocol, a.NodeID, a.GatewayID, a.HostKeyFingerprint, a.Port, []any{a.RDP, a.Telnet, a.Kubernetes, a.PostgreSQL, a.MySQL, a.SQLServer, a.ClickHouse, a.Redis, a.MongoDB}, a.GatewayIDs}
+				}{a.ID, a.Name, a.Host, a.Username, a.Protocol, a.NodeID, a.GatewayID, a.HostKeyFingerprint, a.SSHWorkspace, a.Port, []any{a.RDP, a.Telnet, a.Kubernetes, a.PostgreSQL, a.MySQL, a.SQLServer, a.ClickHouse, a.Redis, a.MongoDB}, a.GatewayIDs}
 			}
 			route := []any{stable(endpoint)}
 			seen := map[string]bool{endpoint.ID: true}

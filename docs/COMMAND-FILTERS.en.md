@@ -30,4 +30,6 @@ The administrator queue is `GET /api/v1/command-reviews`; resolution uses `POST 
 
 Current regex rules match command input text, not directory permissions. Exact-directory, directory-tree and regex-directory rules are priorities for the [stable SSH release](./SSH-FIRST.en.md), but are not fully implemented. Trusted working directories and resolved paths need a remote Agent or controlled execution channel together with account permissions. A terminal prompt, `PWD` value or inferred `cd` history cannot be the sole security authority.
 
+Optional [SSH execution workspaces](./SSH-WORKSPACES.en.md) use a native helper and Linux kernel confinement for whole-tree content access. They compose with command filters without replacing exact/regex directory command rules.
+
 Filters operate on interactive PTY input bytes and recognize common shell prompts and input lines. They do not parse a shell AST or prove command execution semantics. Custom prompts, terminal applications, nested shells, compound commands, aliases/functions, multiline paste, and nonstandard key sequences can cause conservative denials or incomplete recognition. Rules do not constrain direct SSH connections that bypass the bastion. Command results/exit codes and full shell semantics are not implemented.

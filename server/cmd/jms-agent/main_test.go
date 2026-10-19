@@ -7,7 +7,7 @@ import (
 )
 
 func TestNativeAgentAcceptsOnlyBoundedRecoveryCommands(t *testing.T) {
-	for _, args := range [][]string{nil, {"sh"}, {"check", "--unknown", "value"}, {"restore", "--directory", "x", "extra"}} {
+	for _, args := range [][]string{nil, {"sh"}, {"check", "--unknown", "value"}, {"restore", "--directory", "x", "extra"}, {"workspace", "--directory", "/etc"}, {"workspace-check", "--directory", "/srv/work", "--exec-stdin"}, {"workspace", "--directory", "/srv/work", "--unknown"}} {
 		require.Equal(t, 2, run(args))
 	}
 	require.Equal(t, 1, run([]string{"check", "--directory", "relative", "--config-sha", "invalid"}))
