@@ -137,7 +137,7 @@ test("linked output receipts cannot overwrite another file", t => {
 
 test("Git excludes generated evidence and secrets while keeping product screenshots and source", () => {
   const root = fileURLToPath(new URL("..", import.meta.url));
-  for (const path of [".cache/qa-reports/new.png", "screenshots/qa.png", "web/test-results/trace.zip", "web/blob-report/report.zip", "server/coverage-unit.out", "server/profile.cpuprofile", "tmp/test.exe", "data/vault.key", "backup.jmsbackup"]) {
+  for (const path of [".cache/qa-reports/new.png", "screenshots/qa.png", "web/test-results/trace.zip", "web/blob-report/report.zip", "server/coverage-unit.out", "server/profile.cpuprofile", "tmp/test.exe", "data/vault.key", "backup.jmsbackup", ".jms233-stage-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/partial", "local/.jms233-releases.json", "local/.jms233-release.json"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 0, `${path} must be ignored`);
   }

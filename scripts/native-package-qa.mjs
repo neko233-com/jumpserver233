@@ -7,6 +7,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:net";
+import { createRequire } from "node:module";
 import { setTimeout as delay } from "node:timers/promises";
 import { inspectQAContainers, removeOwnedTree } from "./qa-lifecycle.mjs";
 import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
@@ -99,6 +100,31 @@ try {
   const html = await (await fetch(url + "/console/settings")).text();
   if (!html.includes("JumpServer233") || (await fetch(url + "/api/v1/assets")).status !== 401) throw new Error("Native web/auth isolation failed");
   report.linuxExecution = { arch: linuxArch, singlePort: true, protectedAPI: true, web: true, readOnlyRoot: true, stagedCandidate: true };
+  const { chromium, expect } = createRequire(new URL("../web/package.json", import.meta.url))("@playwright/test");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext({ locale: "en-US", viewport: { width: 1280, height: 900 } });
+    const page = await context.newPage(), errors = [];
+    page.on("pageerror", e => errors.push(e.message));
+    page.on("console", message => { if (["warning", "error"].includes(message.type())) errors.push(message.text()); });
+    await page.goto(url + "/login");
+    await page.getByRole("textbox", { name: "Username", exact: true }).fill("root");
+    await page.getByRole("textbox", { name: "Password", exact: true }).fill("root");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Assets", exact: true })).toBeVisible();
+    await page.goto(url + "/console/settings");
+    await page.getByRole("tab", { name: "Security", exact: true }).click();
+    const card = page.locator(".update-settings-card");
+    await expect(card.getByRole("heading", { name: "Software updates", exact: true })).toBeVisible();
+    await expect(card.getByText(report.testVersion, { exact: true })).toBeVisible();
+    const screenshots = resolve(cache, "qa-reports/staging"); mkdirSync(screenshots, { recursive: true });
+    await card.screenshot({ path: resolve(screenshots, "native-stage.en.png") });
+    await page.getByRole("button", { name: "中文", exact: true }).click();
+    await expect(card.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
+    await card.screenshot({ path: resolve(screenshots, "native-stage.zh.png") });
+    if (errors.length) throw new Error("Staged candidate browser reported runtime warnings or errors");
+    report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.testVersion, warningsOrErrors: errors.length, fromStagedCandidate: true };
+  } finally { await browser.close(); }
   // Repeating package creation must refuse replacement of an existing archive.
   let conflict = false;
   const repeatedArchive = resolve(packages, `jumpserver233-${report.testVersion}-linux-amd64.tar.gz`);
