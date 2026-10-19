@@ -44,6 +44,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "backup" {
+		return runBackup(args[1:])
+	}
 	if len(args) > 0 && args[0] == "discover" {
 		return runAssetDiscovery(args[1:])
 	}

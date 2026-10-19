@@ -57,6 +57,8 @@ Author the complete batch before unified verification. Cover idempotent retries,
 
 ## 5. Conventions
 
+Put generated evidence in ignored `.cache/qa-reports/`; put reusable QA entrypoints in `scripts/`. Browser and Docker runners automatically retain three completed disposable runs with at most two screenshots each. Use `node scripts/qa-retention.mjs --apply --legacy` for old named reports and known, closed ad hoc helpers; preview by omitting `--apply`. Read current source and final summaries first; ignored historical diagnostics are not implementation authority. Preserve referenced `docs/images/` assets.
+
 **Go (server/)**
 - Go 1.27, module `github.com/neko233-com/jumpserver233/server`, stdlib-first; add a dependency only after checking it is actually needed.
 - Routes live under `/api/v1` in JumpServer resource-path style; handlers stay thin, business logic goes into `internal/core`.

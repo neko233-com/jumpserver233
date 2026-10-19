@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+Native [`jms backup`](./docs/BACKUP.en.md) provides encrypted standalone export, verification and restoration, wrapped Vault keys, idempotent receipts, retained old data and interruption recovery. Stop the service before create/restore; no external backup program is required.
+
 An enterprise SSH bastion for daily operations, prioritizing standalone local persistence, few dependencies, Web SSH and a native CLI. The [stable SSH release scope](./docs/SSH-FIRST.en.md) prioritizes data-preserving updates, full backup/recovery, sensitive command audit/review and directory rules. Verify outstanding gaps individually; add complex Enterprise features as needed later.
 
 [Asset discovery and sync](./docs/ASSET-DISCOVERY.en.md) supports LAN, AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory, pinned SSH gateways, fingerprint preview/import, native schedules, idempotent receipts and organization isolation. Sync preserves rotated credentials; cloud keys are write-only. SSH IP migration for the same cloud instance requires explicit opt-in and continuity of existing host-key trust. Add other clouds and Enterprise extensions as needed later.

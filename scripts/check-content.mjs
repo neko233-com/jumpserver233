@@ -58,6 +58,7 @@ const documents = [
   "server/third_party/grdp/UPSTREAM.en.md",
 ];
 let links = 0;
+const referencedFiles = new Set();
 for (const document of documents) {
   const path = resolve(root, document);
   const source = readFileSync(path, "utf8");
@@ -75,9 +76,15 @@ for (const document of documents) {
     if (!target) continue;
     links++;
     try { target = decodeURIComponent(target); } catch { /* Check the literal path. */ }
+    referencedFiles.add(resolve(dirname(path), target));
     if (!existsSync(resolve(dirname(path), target)))
       errors.push(`Missing relative link: ${document}: ${target}`);
   }
+}
+
+const documentationImages = walk(resolve(root, "docs/images"));
+for (const image of documentationImages) {
+  if (!referencedFiles.has(image)) errors.push(`Unreferenced documentation image: ${relative(root, image)}`);
 }
 
 const driver = resolve(root, "server/third_party/go-mssqldb");
@@ -107,7 +114,7 @@ for(const line of rdpManifest.trim().split(/\r?\n/)){
 if(rdpModified.sort().join(",")!=="emission/emitter.go,protocol/pdu/pdu.go,protocol/sec/sec.go,protocol/t125/mcs.go")errors.push(`Unexpected RDP patches: ${rdpModified.join(", ")}`);
 console.log(JSON.stringify({
   translationKeysPerLocale: keys.length, bilingualDocuments: documents.length,
-  relativeLinks: links, originalDriverFiles: originalFiles,
+  relativeLinks: links, documentationImages: documentationImages.length, originalDriverFiles: originalFiles,
   documentedDriverPatches: modified, rdpOriginalFiles, documentedRDPPatches:rdpModified, errors,
 }, null, 2));
 if (errors.length) process.exitCode = 1;

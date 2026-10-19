@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
+import { retainQAArtifacts } from "./qa-retention.mjs";
 
 const args = process.argv.slice(2), command = args.shift() ?? "verify";
 if (!["up", "verify", "down"].includes(command)) throw new Error("Use up, verify or down");
@@ -50,6 +51,7 @@ if (args.length) throw new Error(`Unknown options: ${args.join(" ")}`);
 const cwd = fileURLToPath(new URL("..", import.meta.url));
 const output = resolve(cwd, ".cache/docker-qa", project);
 mkdirSync(output, { recursive: true });
+writeFileSync(resolve(output, "lifecycle.json"), JSON.stringify({ pid: process.pid, status: "running", at: new Date().toISOString() }));
 const log = createWriteStream(resolve(output, "verify.log"), { flags: "a" });
 const env = { ...process.env, JMS_QA_HOST: host, JMS_QA_WEB_PORT: webPort, JMS_QA_API_PORT: apiPort };
 const compose = ["compose", "-f", "compose.qa.yml", "-p", project];
@@ -188,11 +190,15 @@ try {
   } finally {
     writeFileSync(resolve(output, "summary.json"), JSON.stringify(receipt, null, 2));
     writeFileSync(resolve(output, `summary-${Date.now()}.json`), JSON.stringify(receipt, null, 2));
-    log.end(() => {
+    await new Promise(done => log.end(() => {
       const path = resolve(output, "verify.log");
       if (receipt.success && receipt.cleaned) rmSync(path, { force: true });
       else writeFileSync(path, readFileSync(path, "utf8").slice(-16_000));
-    });
+      done();
+    }));
+    writeFileSync(resolve(output, "lifecycle.json"), JSON.stringify({ pid: process.pid, status: receipt.success && receipt.cleaned ? "passed" : "failed", at: new Date().toISOString() }));
+    try { retainQAArtifacts(cwd, { currentRun: output }); }
+    catch { receipt.retentionError = "Artifact retention incomplete; retry node scripts/qa-retention.mjs --apply"; process.exitCode = 1; writeFileSync(resolve(output, "summary.json"), JSON.stringify(receipt, null, 2)); }
     console.log(JSON.stringify({ ...receipt, removedBuildHistory: receipt.removedBuildHistory?.length, prunedCache: receipt.prunedCache?.length }));
   }
 }

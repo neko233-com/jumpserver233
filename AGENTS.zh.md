@@ -57,6 +57,8 @@ docs/     PLAN / BASELINE / 约定（中英双语）
 
 ## 5. 约定
 
+生成的验证证据统一放在忽略的 `.cache/qa-reports/`，可复用 QA 入口放在 `scripts/`。浏览器与 Docker runner 自动保留最近三次已完成的独立验证，每次最多两张截图。旧专题报告和已结束的已知临时脚本使用 `node scripts/qa-retention.mjs --apply --legacy`；去掉 `--apply` 可预览。Agent 优先读取当前源码与最终摘要，不把忽略目录里的历史诊断当作实现依据。保留被引用的 `docs/images/` 资源。
+
 **Go（server/）**
 - Go 1.27，模块 `github.com/neko233-com/jumpserver233/server`，优先标准库；依赖确有必要才引入。
 - 路由按 JumpServer 资源路径风格挂在 `/api/v1` 下；handler 保持薄，业务逻辑进 `internal/core`。

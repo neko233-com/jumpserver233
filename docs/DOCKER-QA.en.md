@@ -6,7 +6,23 @@ Buildx metadata reads retry RPC Unavailable/EOF at most three times. Permission 
 
 Docker builds the production API and web application from source, with separate networks, named data volumes and localhost ports. Builds do not read host Go, Node, `node_modules` or generated native helpers. Runtime images contain only executables and web output. The API and Nginx run as ordinary users with read-only root filesystems.
 
+`node scripts/check-content.mjs` also rejects unreferenced `docs/images/` assets to prevent product screenshot accumulation. The automatic cleaner never deletes product screenshots.
+
 ## Fast verification
+
+Browser and Docker runners apply file retention on completion: each keeps the latest three completed, successfully cleaned disposable runs, with at most two PNGs per run, preferring one English and one Chinese image. Failed results retain compact summaries; Docker failures keep the existing 16,000-character diagnostic log. Active PIDs, incomplete fixture cleanup and intentionally retained debug environments are skipped. Expired disposable run directories are deleted; named feature JSON reports remain.
+
+Preview and clean historical files manually:
+
+```sh
+node scripts/qa-retention.mjs --legacy
+node scripts/qa-retention.mjs --apply --legacy
+node scripts/qa-retention.mjs --apply --legacy
+```
+
+`--legacy` also reduces screenshots/logs in successful named reports and removes known branding/discovery/migration/monitor-history ad hoc helpers directly under `.cache/`, older than one hour and without a recorded active QA run. Unknown tools are preserved. Default automatic retention only handles demonstrably completed browser/Docker report directories. Every candidate checks workspace boundaries, ancestors, links and file identity since preview; changes refuse deletion. The fixed `.cache/qa-reports/retention.json` receipt does not accumulate copies. Repeated cleanup should remove zero files.
+
+`.gitignore` and `.dockerignore` exclude backups/keys, browser output, profiles, temporary builds and QA evidence. Images are not globally ignored. Referenced product screenshots remain in `docs/images/`, outside the cleaner's scope. Commit reusable tools under `scripts/` and keep temporary work in ignored directories. File retention and resource cleanup are separate; the Docker resource commands below still check container/volume ownership.
 
 After testing, retain compact summaries and PNG evidence only: browser reports under `.cache/qa-reports/browser-*/`, Docker smoke reports under `.cache/docker-qa/<project>/`. Authentication request traces are disabled. Cleanup removes this run's temporary data, protocol containers/anonymous volumes, certificates, plugin test cache and unused QA images. Development dependencies, shared base images and unscoped shared BuildKit caches are excluded from global pruning.
 

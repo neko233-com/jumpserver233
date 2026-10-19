@@ -16,6 +16,7 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isMissingDockerResource } from "../../server/testsupport/docker-qa.mjs";
 import { stagePluginArtifacts } from "./plugin-artifact-cache.mjs";
+import { retainQAArtifacts } from "../../scripts/qa-retention.mjs";
 import {
   removeOwnedTree,
   removeUnusedQAImages,
@@ -40,9 +41,22 @@ const artifactCache = resolve(webDir, "node_modules/.cache/jumpserver233-plugin-
 const reportDir = resolve(webDir, "../.cache/qa-reports", `browser-${Date.now()}`);
 const fixtureImages = new Set();
 let exitCode = 1;
+const lifecycle = { startedAt: new Date().toISOString(), pid: process.pid, dataDirectory: absoluteDataDir, production };
+let lifecycleWriteFailed = false;
+function recordLifecycle(status, extra = {}) {
+  if (cleanupOnly) return;
+  Object.assign(lifecycle, { status, at: new Date().toISOString() }, extra);
+  try {
+    mkdirSync(reportDir, { recursive: true });
+    writeFileSync(resolve(reportDir, "lifecycle.json"), JSON.stringify(lifecycle, null, 2));
+  } catch {
+    lifecycleWriteFailed = true;
+  }
+}
 
 try {
   if (!cleanupOnly) {
+    recordLifecycle("preparing");
     mkdirSync(goTemporaryDir, { recursive: true });
     execFileSync("go", ["generate", "./internal/agentbundle"], {
       cwd: resolve(webDir, "../server"),
@@ -53,6 +67,7 @@ try {
   if (production) {
     await new Promise((done, reject) => {
       const build = spawn("pnpm build", { cwd: webDir, shell: true, stdio: "inherit" });
+      recordLifecycle("building", { buildPID: build.pid });
       build.once("error", reject);
       build.once("exit", (code) =>
         code === 0 ? done() : reject(new Error("Production frontend build failed")),
@@ -79,6 +94,7 @@ try {
           shell: true,
           stdio: "inherit",
         });
+        recordLifecycle("running", { playwrightPID: playwright.pid });
         playwright.once("error", (error) => {
           process.stderr.write(`Could not start Playwright: ${error.message}\n`);
           resolveExit(1);
@@ -206,11 +222,19 @@ try {
             cleaned,
             temporaryDataRemoved: !existsSync(absoluteDataDir),
             remainingDataDirectory: existsSync(absoluteDataDir) ? absoluteDataDir : undefined,
+            lifecycleRecorded: !lifecycleWriteFailed,
           },
           null,
           2,
         ),
       );
+      recordLifecycle(exitCode === 0 && cleaned ? "passed" : "failed", { exitCode, cleaned, temporaryDataRemoved: !existsSync(absoluteDataDir) });
+      try { retainQAArtifacts(resolve(webDir, ".."), { currentRun: reportDir }); }
+      catch {
+        process.stderr.write("QA artifact retention incomplete; retry node scripts/qa-retention.mjs --apply.\n");
+        exitCode = 1;
+        recordLifecycle("failed", { exitCode, artifactRetentionFailed: true });
+      }
       console.log(`QA report: ${reportDir}`);
     }
   }

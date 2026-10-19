@@ -10,6 +10,15 @@ web/dist/
 web/test-results/
 web/playwright-report/
 web/.auth/
+# Generated browser evidence belongs in .cache/qa-reports, never beside source.
+/test-results/
+/playwright-report/
+/blob-report/
+/screenshots/
+/artifacts/
+web/blob-report/
+web/e2e/screenshots/
+web/playwright/.cache/
 # Local CLI authentication capabilities and interrupted atomic writes
 *.jms-auth.json
 .jms-auth-*
@@ -21,6 +30,8 @@ web/.auth/
 *.tsbuildinfo
 __pycache__/
 *.pyc
+/tmp/
+/temp/
 
 # Local configuration and runtime state
 .env
@@ -29,6 +40,14 @@ __pycache__/
 !.env.*.example
 /data/
 /server/data/
+# Local backup archives, recovery control state and interrupted atomic writes
+*.jmsbackup
+vault.key
+.jms233-maintenance/
+.jms233-storage.json
+.jms233-restore-receipt.json
+.jms233-backup-*
+.jms233-write-*
 
 # Additional build / test outputs
 /dist/
@@ -36,6 +55,13 @@ __pycache__/
 /web/coverage/
 /server/coverage.out
 /server/coverage.html
+/server/coverage-*.out
+*.prof
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+*.dmp
+/server/*.a
 *.test
 *.test.exe
 /*.exe

@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Encrypted standalone backups](./BACKUP.en.md): native CLI, stopped-state exclusion, wrapped Vault key, integrity preflight, idempotent import, retained old data and interrupted-switch recovery. Unified verification passed.
+
 [Stable SSH release scope](./SSH-FIRST.en.md): standalone deployment, few dependencies, SSH first, data-preserving updates, full backup/recovery, sensitive command review and directory restrictions. Distinguishes existing capabilities from acceptance gaps; complex extensions follow actual need.
 
 [Asset discovery and sync](./ASSET-DISCOVERY.en.md): LAN, AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory, write-only cloud credentials, sync policies, SSH fingerprint preview/import, scheduling and organization permissions. See the document for basic HA and remaining cloud boundaries.

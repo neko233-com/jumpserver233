@@ -57,6 +57,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
+	"github.com/neko233-com/jumpserver233/server/internal/maintenance"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 	"github.com/neko233-com/jumpserver233/server/internal/webui"
 )
@@ -90,6 +91,22 @@ func main() {
 }
 
 func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error {
+	if !cfg.ClusterMode {
+		lock, err := maintenance.Acquire(cfg.DataDir)
+		if err != nil {
+			return err
+		}
+		defer lock.Close()
+		local := *cfg
+		local.DataDir = lock.DataDir
+		cfg = &local
+		if err = maintenance.Recover(ctx, cfg.DataDir); err != nil {
+			return err
+		}
+	}
+	if err := maintenance.RecordMode(cfg.DataDir, cfg.ClusterMode); err != nil {
+		return err
+	}
 	vaultKey, err := coreassets.LoadOrCreateVaultKey(cfg.DataDir, cfg.VaultKey)
 	if err != nil {
 		return err
@@ -417,6 +434,9 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		handler = ui
 	}
 	identityService.SetPrivilegedCheck(runtimes.isPrivileged)
+	if err = maintenance.RecordVaultKey(cfg.DataDir, vaultKey); err != nil {
+		return err
+	}
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	listener, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {

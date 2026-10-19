@@ -44,7 +44,7 @@ jobs:
         with:
           version: 12.9.1
       - name: Test owned fixture lifecycle helpers
-        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs
+        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs
       - name: Test macOS deployment state machine
         run: python3 -B -m unittest discover -s scripts -p macos_single_test.py
       - name: Build embedded native recovery agents

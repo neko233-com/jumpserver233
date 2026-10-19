@@ -6,7 +6,23 @@ Buildx 元数据只读查询遇到 RPC Unavailable/EOF 时最多尝试 3 次；�
 
 生产 API 和网页都在 Docker 中从源码构建，运行时使用独立网络、命名数据卷和本机端口。构建不读取宿主 Go、Node、`node_modules` 或已有原生组件。镜像仅保留运行程序和网页产物；API、Nginx 以普通账号运行，根文件系统只读。
 
+文档内容检查 `node scripts/check-content.mjs` 同时拒绝无引用的 `docs/images/` 资源，避免正式截图持续堆积；自动清理器不会擅自删除正式截图。
+
 ## 快速验证
+
+浏览器与 Docker runner 在结束时自动执行文件保留策略：各保留最近三次已完成并清理成功的独立验证，每次最多两张 PNG，优先各一张中英文截图。失败结果仍保留精简摘要；Docker 失败日志保留既有 16,000 字符诊断。活动 PID、清理未完成的夹具与刻意保留的调试环境会跳过。被淘汰的独立验证目录会删除；具名专题的 JSON 报告继续保留。
+
+手动预览和清理历史文件：
+
+```sh
+node scripts/qa-retention.mjs --legacy
+node scripts/qa-retention.mjs --apply --legacy
+node scripts/qa-retention.mjs --apply --legacy
+```
+
+`--legacy` 额外缩减已有成功专题的截图和日志，并清理 `.cache/` 根目录中 branding/discovery/migration/monitor-history 前缀、超过一小时且无已记录活动验证的临时脚本；不碰未知工具。默认自动策略只处理已证明结束的浏览器/Docker 验证目录。每个候选文件检查仓库边界、所有父目录、链接与预览后的文件身份；遇到变化拒绝删除。回执固定写入 `.cache/qa-reports/retention.json`，不会自我累积。重复执行应删除零项。
+
+`.gitignore` 与 `.dockerignore` 同步排除备份/密钥、浏览器输出、性能分析、临时构建和 QA 证据；不全局忽略图片。正式产品截图保存在被文档引用的 `docs/images/`，文件清理器不会访问该目录。复用工具提交到 `scripts/`；临时内容集中放在忽略目录。资源清理与文件保留分开，下面的 Docker 资源清理命令仍按归属检查容器与卷。
 
 测试结束只保留必要摘要和 PNG 证据：浏览器在 `.cache/qa-reports/browser-*/`，Docker 冒烟在 `.cache/docker-qa/<project>/`。不保留含认证请求正文的 trace。自动清理本轮临时数据、协议容器/匿名卷、证书、插件测试缓存和未被其他容器使用的 QA 镜像。开发依赖、共用基础镜像及无法证明归属的共享 BuildKit 缓存不做全局 prune。
 
