@@ -78,6 +78,7 @@ type LoginAccessReview = {
     | "database"
     | "kubernetes"
     | "telnet"
+    | "asset_discovery"
     | "account_discovery"
     | "remote_account";
   operator: string;
@@ -733,11 +734,13 @@ export default function SettingsPage() {
                   ? "database.reviewAction"
                   : review.action === "sftp"
                     ? "settings.sftpReviewAction"
-                    : review.action === "account_discovery"
-                      ? "accountSchedule.approval"
-                      : review.action === "remote_account"
-                        ? "remoteAccounts.approval"
-                        : "settings.sshReviewAction",
+                    : review.action === "asset_discovery"
+                      ? "settings.assetDiscoveryReviewAction"
+                      : review.action === "account_discovery"
+                        ? "accountSchedule.approval"
+                        : review.action === "remote_account"
+                          ? "remoteAccounts.approval"
+                          : "settings.sshReviewAction",
           ),
         }),
       )
@@ -1973,11 +1976,13 @@ export default function SettingsPage() {
                                 ? "database.reviewAction"
                                 : review.action === "sftp"
                                   ? "settings.sftpReviewAction"
-                                  : review.action === "account_discovery"
-                                    ? "accountSchedule.approval"
-                                    : review.action === "remote_account"
-                                      ? "remoteAccounts.approval"
-                                      : "settings.sshReviewAction",
+                                  : review.action === "asset_discovery"
+                                    ? "settings.assetDiscoveryReviewAction"
+                                    : review.action === "account_discovery"
+                                      ? "accountSchedule.approval"
+                                      : review.action === "remote_account"
+                                        ? "remoteAccounts.approval"
+                                        : "settings.sshReviewAction",
                         ),
                       })}
                     </p>

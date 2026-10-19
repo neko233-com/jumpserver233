@@ -50,6 +50,7 @@ const channels = [
   "exec",
   "scheduled_exec",
   "credential_rotation",
+  "asset_discovery",
   "upload",
   "download",
   "delete",

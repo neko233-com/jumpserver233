@@ -25,6 +25,7 @@ const (
 	ActionTelnet           = "telnet"
 	ActionRDP              = "rdp"
 	ActionAccountDiscovery = "account_discovery"
+	ActionAssetDiscovery   = "asset_discovery"
 	ActionRemoteAccount    = "remote_account"
 	StatePending           = "pending"
 	StateApproved          = "approved"
@@ -419,10 +420,17 @@ func validate(review Review) error {
 }
 
 func validAction(action string) bool {
-	return action == ActionSSH || action == ActionSFTP || action == ActionDatabase || action == ActionKubernetes || action == ActionTelnet || action == ActionRDP || action == ActionAccountDiscovery || action == ActionRemoteAccount
+	return action == ActionSSH || action == ActionSFTP || action == ActionDatabase || action == ActionKubernetes || action == ActionTelnet || action == ActionRDP || action == ActionAccountDiscovery || action == ActionRemoteAccount || action == ActionAssetDiscovery
 }
 
 func validScope(action, scope string) bool {
+	if action == ActionAssetDiscovery {
+		if !strings.HasPrefix(scope, "ad-") || len(scope) != 67 || strings.ToLower(scope) != scope {
+			return false
+		}
+		_, e := hex.DecodeString(scope[3:])
+		return e == nil
+	}
 	if action != ActionAccountDiscovery && action != ActionRemoteAccount {
 		return scope == ""
 	}

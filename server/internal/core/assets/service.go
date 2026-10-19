@@ -212,6 +212,7 @@ func (s *Service) Update(id string, input Input) (Asset, error) {
 	asset.KeyFingerprint = pin
 	asset.AccountName, asset.AccountRemark = current.AccountName, current.AccountRemark
 	asset.AccountDiscoveryID = current.AccountDiscoveryID
+	asset.Discovery = cloneAsset(current).Discovery
 	if asset.Username != current.Username || asset.Host != current.Host || asset.Port != current.Port || asset.HostKeyFingerprint != current.HostKeyFingerprint {
 		asset.AccountDiscoveryID = ""
 	}

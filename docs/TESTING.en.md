@@ -2,6 +2,19 @@
 
 > [中文](./TESTING.md) | English
 
+## LAN asset discovery and sync (2026-10-19)
+
+- Final full Go/Testify: 1324 passed, 48 skipped for protocol fixtures/platforms, zero failures; 74.7 seconds with isolated real PostgreSQL, including source/policy, asset and import-receipt takeover.
+- Final Linux Docker race: 12 affected packages, 559 passed, 8 skipped, zero failures; 328.2 seconds. These overlap native tests. Coverage includes pre-auth SSH pins, gateway reviews/revocation, concurrency/cancellation, inventory batches, credential preservation, one-use import, metadata revisions and DST deduplication.
+- Full production Playwright: 83/83 passed, zero failures/skips; 18.2 minutes. The new feature case took 9.4 seconds and exercised real OpenSSH, Web SSH, CLI, bilingual headers, 390px, one-use retries and scheduling. An initial run was interrupted after manual review found a translated heading collision; its test data was removed and the entire suite rerun after correction.
+- Subsequent schedule metadata protection passed final full Go/race and a new Docker build; scoped CSS received actual browser verification. All eight final Docker functional checks passed in 38.4 seconds, including credential/receipt recovery after API restart and no replay across a scheduler poll after renaming an executed one-time plan. Final local/Docker CSS SHA-256 values match exactly.
+- Initial JS: 499421 bytes, gzip 161456; all JS: 1582178; largest chunk: 482262. Discovery and both locales remain lazy, with unchanged 500000-byte entry/chunk limits. Initial Docker build/startup: 34.5/12.0 seconds; incremental UI builds about 5–6 seconds; final scheduling rebuild 47.9 seconds.
+- Local reports: `.cache/qa-reports/discovery/`; full browser results: `.cache/qa-reports/browser-1792388954970/`. Structured results, source digests and essential screenshots are retained. Interrupted data, Go temporary directories and race containers/volumes/networks were cleaned twice. Final Docker/helper cleanup is recorded in `cleanup.json`.
+- Earlier monitoring/branding files whose deletion was rejected by automatic approval remain as documented below. Those deletions were not retried through another mechanism.
+- Automatic approval also rejected this batch's helper-file deletion with `blocked by policy` before execution: 28 ignored scripts, logs and PID/root records total 1001857 bytes. `cleanup.json` lists them. Containers, volumes, networks and Go temporary directories were removed; rejected file deletions were not retried.
+
+No intranet deployment, tag or formal Release was created. Overall Enterprise parity remains in progress.
+
 ## Branding verification (2026-10-19)
 
 - Full Go/Testify: 1300 passed, 48 skipped for unavailable protocol fixtures/platforms, zero failures across 70 tested packages and 29 packages without tests; 75.0 seconds. A real isolated PostgreSQL fixture covers shared state, uncertain write acknowledgement recovery and leader takeover.

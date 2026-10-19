@@ -50,7 +50,7 @@ export function historicalQAResource(container, root, legacy = false) {
   return ownedCompose(container, root) || ownedFixture(container, root, legacy) && !/^jumpserver233-e2e-/.test(container.Config?.Labels?.["com.jumpserver233.qa.owner"] || "");
 }
 export function qaFixtureImage(record) {
-  return ({ "openssh-container.json": "jms233-openssh-qa:local", "systemdvm-container.json": "jms233-systemdvm-qa:local", "postgres-container.json": "jms233-postgres-qa:local", "rdp-container.json": "jms233-rdp-qa:local", "radius-container.json": "jms233-radius-qa:local", "telnet-container.json": "jms233-telnet-qa:local" })[record];
+  return ({ "discovery-container.json": "jms233-openssh-qa:local", "openssh-container.json": "jms233-openssh-qa:local", "systemdvm-container.json": "jms233-systemdvm-qa:local", "postgres-container.json": "jms233-postgres-qa:local", "rdp-container.json": "jms233-rdp-qa:local", "radius-container.json": "jms233-radius-qa:local", "telnet-container.json": "jms233-telnet-qa:local" })[record];
 }
 export function ownedImage(image, expectedProject = "") {
   const tags = image.RepoTags || [];

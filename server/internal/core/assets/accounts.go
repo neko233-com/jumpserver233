@@ -167,6 +167,7 @@ func accountFields(a Asset) Asset {
 }
 func inheritAccount(parent, account Asset) Asset {
 	a := cloneAsset(parent)
+	a.Discovery = nil
 	v := accountFields(account)
 	a.ID, a.ParentAssetID = v.ID, parent.ID
 	a.AccountName, a.AccountRemark = v.AccountName, v.AccountRemark

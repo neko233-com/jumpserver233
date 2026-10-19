@@ -36,6 +36,7 @@ const maxCredentialBackups = 10
 // Asset contains non-secret inventory fields. Credential material is encrypted
 // separately and never appears in API representations.
 type Asset struct {
+	Discovery                *DiscoveryOrigin       `json:"discovery,omitempty"`
 	RemoteAccount            *RemoteAccountState    `json:"remote_account,omitempty"`
 	ParentAssetID            string                 `json:"parent_asset_id,omitempty"`
 	AccountName              string                 `json:"account_name,omitempty"`
@@ -157,13 +158,15 @@ type pendingRotation struct {
 // Store persists assets and AES-GCM-encrypted credentials in a single-user
 // standalone file. The key is supplied separately from the data file.
 type Store struct {
-	mu        sync.RWMutex
-	path      string
-	documents *storage.Documents
-	aead      cipher.AEAD
-	assets    map[string]storedAsset
-	imports   []accountImportRecord
-	importKey []byte
+	mu                 sync.RWMutex
+	path               string
+	documents          *storage.Documents
+	aead               cipher.AEAD
+	assets             map[string]storedAsset
+	imports            []accountImportRecord
+	importKey          []byte
+	discoveryUncertain bool
+	discoveryStaging   bool // private in-memory transaction; never exposed by OpenStore
 }
 
 func OpenStore(path string, key []byte) (*Store, error) {
@@ -189,8 +192,12 @@ func openStore(path string, key []byte, documents *storage.Documents) (*Store, e
 	if err != nil {
 		return nil, fmt.Errorf("create vault AEAD: %w", err)
 	}
-	store := &Store{path: path, documents: documents, aead: aead, assets: make(map[string]storedAsset), importKey: accountImportKey(key)}
+	return openStoreWithCipher(path, aead, accountImportKey(key), documents)
+}
+func openStoreWithCipher(path string, aead cipher.AEAD, importKey []byte, documents *storage.Documents) (*Store, error) {
+	store := &Store{path: path, documents: documents, aead: aead, assets: make(map[string]storedAsset), importKey: append([]byte(nil), importKey...)}
 	var data []byte
+	var err error
 	if documents != nil {
 		data, err = documents.LoadOrImport("assets", path)
 	} else {
@@ -901,6 +908,12 @@ func credentialBackupAAD(assetID, backupID string) []byte {
 }
 
 func (s *Store) persistLocked() error {
+	if s.discoveryStaging {
+		return nil
+	}
+	if s.discoveryUncertain {
+		return ErrDiscoveryUncertain
+	}
 	if s.documents != nil {
 		return s.persistDocumentLocked()
 	}

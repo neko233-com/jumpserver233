@@ -99,6 +99,7 @@ try {
     cleaned = true;
     for (const [filename, prefix] of [
       ["openssh-container.json", "jms233-keyhost-"],
+      ["discovery-container.json", "jms233-keyhost-"],
       ["systemdvm-container.json", "jms233-systemdvm-"],
       ["postgres-container.json", "jms233-postgres-"],
       ["mysql-container.json", "jms233-mysql-"],

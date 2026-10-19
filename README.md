@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[LAN 资产发现与同步](./docs/ASSET-DISCOVERY.md)支持 IP 范围、固定 SSH 网关、指纹预览纳管、原生定时、幂等回执和组织隔离；同步保留已轮换的凭据。云厂商适配及企业版整体对齐仍在推进。
+
 [品牌外观](./docs/BRANDING.md)支持中英站点/登录标题、主题、LOGO/图标/登录图片及页脚，通过全局权限和修订审计管理。
 
 SSH 主机新增[七天监控历史](./docs/MONITOR-HISTORY.md)：加密分钟记录、当前资产授权、Web 曲线与 CLI，区分离线、缺失和真实零值。

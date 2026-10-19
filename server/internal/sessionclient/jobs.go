@@ -80,7 +80,7 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 		return fmt.Errorf("SSH job API request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusAccepted && !strings.Contains(target.Path, "/remote-account-tasks") && !strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-") {
+	if resp.StatusCode == http.StatusAccepted && !strings.Contains(target.Path, "/remote-account-tasks") && !strings.HasPrefix(target.Path, "/api/v1/asset-discovery/") && !strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-") {
 		var pending struct {
 			ReviewID string `json:"review_id"`
 		}

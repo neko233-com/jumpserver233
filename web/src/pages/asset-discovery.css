@@ -1,0 +1,153 @@
+.asset-discovery {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  max-width: 1440px;
+  margin: auto;
+  padding: 24px;
+}
+.asset-discovery h1 {
+  margin-top: 0;
+  text-wrap: balance;
+  margin-bottom: 8px;
+}
+.asset-discovery header p,
+.asset-discovery small {
+  color: var(--muted);
+}
+.asset-discovery p {
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+.discovery-tabs,
+.discovery-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+.discovery-tabs [aria-current] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.discovery-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+.asset-discovery table {
+  width: 100%;
+  min-width: 800px;
+  font-variant-numeric: tabular-nums;
+  border-collapse: collapse;
+  text-align: left;
+}
+.asset-discovery td,
+.asset-discovery th {
+  padding: 12px;
+  border-bottom: 1px solid var(--border, #333);
+  vertical-align: top;
+}
+.asset-discovery small {
+  display: block;
+  margin-top: 5px;
+}
+.asset-discovery button {
+  margin: 2px 4px 2px 0;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.asset-discovery button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.asset-discovery button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.asset-discovery :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.asset-discovery input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+.asset-discovery code {
+  white-space: nowrap;
+  font-size: 0.85em;
+}
+.asset-discovery pre {
+  max-width: 800px;
+  max-height: 280px;
+  overflow: auto;
+}
+.discovery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.discovery-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.discovery-toolbar > .discovery-field {
+  flex: 0 1 260px;
+}
+.discovery-field input,
+.discovery-field textarea,
+.discovery-field select {
+  min-height: 36px;
+  padding: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.discovery-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+.discovery-editor,
+.discovery-preview {
+  border: 1px solid var(--border, #444);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 24px;
+}
+.discovery-editor fieldset {
+  border: 0;
+  min-width: 0;
+  padding: 0;
+}
+.discovery-editor fieldset fieldset {
+  border: 1px solid var(--border, #444);
+  border-radius: 8px;
+  padding: 14px;
+  margin: 16px 0;
+}
+.discovery-editor details {
+  margin: 16px 0;
+}
+@media (max-width: 720px) {
+  .asset-discovery {
+    padding: 12px;
+  }
+  .discovery-grid {
+    grid-template-columns: 1fr;
+  }
+}

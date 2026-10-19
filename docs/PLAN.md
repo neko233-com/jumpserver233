@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+Phase 7 已落地 [LAN 资产发现与同步](./ASSET-DISCOVERY.md)：来源与策略、受限并发扫描、固定 SSH 网关、一次性纳管、元数据同步、缺失处理、原生定时、组织权限和中英 Web/CLI/SDK；分层验收结果见[自动化验证](./TESTING.md)。云厂商适配及其他企业功能仍待完成。已取消内网部署，整体确认后仅发布一次。
+
 Phase 7 已补齐[品牌外观](./BRANDING.md)：双语站点/登录标题、五种主题、四类图片、页脚备案、全局权限与审计、CLI/SDK 和 PostgreSQL 单活接管；统一验证结果见[自动化验证](./TESTING.md)。企业版整体仍在进行。
 
 Phase 3/5 新增[SSH 监控历史](./MONITOR-HISTORY.md)：加密小时分段、七天分钟数据、缺失/离线区分、当前绑定与资产查看授权、Web 原生曲线和 CLI/SDK，支持 PostgreSQL 单活接管读取。企业版整体目标继续推进。

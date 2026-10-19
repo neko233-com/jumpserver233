@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[LAN asset discovery and sync](./docs/ASSET-DISCOVERY.en.md) supports IP ranges, pinned SSH gateways, fingerprint preview/import, native schedules, idempotent receipts and organization isolation. Sync preserves rotated credentials. Cloud adapters and overall Enterprise parity remain in progress.
+
 [Branding](./docs/BRANDING.en.md) provides bilingual site/sign-in titles, themes, logos/icons/sign-in illustrations and footers, managed through global permissions and revision audit.
 
 SSH hosts support [seven-day monitoring history](./docs/MONITOR-HISTORY.en.md): encrypted minute records, current asset permissions, Web charts and CLI, with distinct offline, missing and genuine zero values.

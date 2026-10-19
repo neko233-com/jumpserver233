@@ -40,9 +40,13 @@ const history = "src/components/MonitorHistoryDialog.tsx";
 if (!manifest[history]?.isDynamicEntry || initial.has(history)) throw new Error("Monitoring history charts and feature locales must remain lazy");
 const branding="src/pages/BrandingPage.tsx";
 if(!manifest[branding]?.isDynamicEntry||initial.has(branding))throw new Error("Branding management and feature locales must remain lazy");
+const discovery="src/pages/AssetDiscoveryPage.tsx";
+if(!manifest[discovery]?.isDynamicEntry||initial.has(discovery))throw new Error("Asset discovery and its bilingual resources must remain lazy");
 // Allocate 25 kB for required password security screens and shared resources.
 // Keep counting every chunk and retain the existing initial/single-chunk limits.
 // Allocate 20 kB for global branding bootstrap, safe image/appearance controls,
 // bilingual editor and audit. Preserve the initial and individual chunk limits.
-if (largest > 500_000 || initialBytes > 500_000 || total > 1_545_000) throw new Error("Production JavaScript exceeds the recorded size budget");
+// LAN discovery adds 40,444 measured bytes for editors, scans, one-use import,
+// audit and both lazy locales. Allocate 42 kB; retain 500 kB entry/chunk limits.
+if (largest > 500_000 || initialBytes > 500_000 || total > 1_587_000) throw new Error("Production JavaScript exceeds the recorded size budget");
 console.log(JSON.stringify({ initialJavaScriptBytes: initialBytes, initialGzipBytes: initialGzip, totalJavaScriptBytes: total, largestChunkBytes: largest, lazyLogin: true }));

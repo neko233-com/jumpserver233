@@ -181,7 +181,7 @@ func randomID() (string, error) {
 }
 func textOK(s string, n int) bool { return len(s) <= n && strings.IndexFunc(s, unicode.IsControl) < 0 }
 func ValidMethod(method string) bool {
-	return slices.Contains([]string{"ssh", "sftp", "exec", "scheduled_exec", "credential_rotation", "upload", "download", "delete", "mkdir", "database", "kubernetes", "telnet", "rdp", "rdp_input", "rdp_clipboard_read", "rdp_clipboard_write"}, method)
+	return slices.Contains([]string{"ssh", "sftp", "exec", "scheduled_exec", "credential_rotation", "asset_discovery", "upload", "download", "delete", "mkdir", "database", "kubernetes", "telnet", "rdp", "rdp_input", "rdp_clipboard_read", "rdp_clipboard_write"}, method)
 }
 func normalize(in Input) (Input, error) {
 	in.Name = strings.TrimSpace(in.Name)
@@ -214,7 +214,7 @@ func normalize(in Input) (Input, error) {
 	if in.Kind != Asset && (in.AssetID != "" || in.NodeID != "" || in.Account != "") {
 		return Input{}, ErrInvalid
 	}
-	if in.Kind == Login && len(in.Methods) > 0 || in.Kind == Method && len(in.Methods) == 0 || len(in.Methods) > 15 {
+	if in.Kind == Login && len(in.Methods) > 0 || in.Kind == Method && len(in.Methods) == 0 || len(in.Methods) > 17 {
 		return Input{}, ErrInvalid
 	}
 	in.Methods = append([]string{}, in.Methods...)

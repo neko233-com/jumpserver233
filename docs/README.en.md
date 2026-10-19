@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[LAN asset discovery](./ASSET-DISCOVERY.en.md): sources, sync policies, SSH fingerprint preview/import, scheduling, organization permissions and HA recovery.
+
 [Branding](./BRANDING.en.md): bilingual titles, themes, logos/icons/sign-in illustrations, footers, global permission/audit, CLI and HA persistence.
 
 [SSH monitoring history](./MONITOR-HISTORY.en.md): encrypted hourly segments, seven-day minute records, current bindings/permissions, Web charts and native CLI.

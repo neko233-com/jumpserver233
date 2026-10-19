@@ -9,6 +9,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountrisks"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
+	"github.com/neko233-com/jumpserver233/server/internal/core/assetdiscovery"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/branding"
@@ -43,6 +44,7 @@ import (
 )
 
 type Dependencies struct {
+	AssetDiscovery        *assetdiscovery.Service
 	Branding              *branding.Store
 	Reports               *reporting.Store
 	PlatformNotifications bool
@@ -137,6 +139,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		registerMonitorHistoryRoutes(mux, dependencies[0], accessMu)
 		registerTicketRoutes(mux, dependencies[0], accessMu)
 		registerNotificationRoutes(mux, dependencies[0])
+		registerAssetDiscoveryRoutes(mux, dependencies[0])
 	}
 	if len(dependencies) > 0 && dependencies[0].RotationPlans != nil {
 		registerRotationPlanRoutes(mux, dependencies[0], accessMu)

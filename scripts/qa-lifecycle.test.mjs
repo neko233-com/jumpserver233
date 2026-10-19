@@ -57,7 +57,7 @@ test("cache cleanup selects only reclaimable project records and is idempotent",
   assert.equal((await pruneOwnedQACache(execute)).length, 1); assert.equal((await pruneOwnedQACache(execute)).length, 0); assert.equal(pruned, 1);
 });
 test("fixture records identify only fixed QA images after controllers already stopped", () => {
-  assert.equal(qaFixtureImage("openssh-container.json"), "jms233-openssh-qa:local"); assert.equal(qaFixtureImage("radius-container.json"), "jms233-radius-qa:local");
+  assert.equal(qaFixtureImage("discovery-container.json"), "jms233-openssh-qa:local"); assert.equal(qaFixtureImage("openssh-container.json"), "jms233-openssh-qa:local"); assert.equal(qaFixtureImage("radius-container.json"), "jms233-radius-qa:local");
   assert.equal(qaFixtureImage("mysql-container.json"), undefined); assert.equal(qaFixtureImage("foreign-container.json"), undefined);
 });
 test("build history cleanup is repository scoped, excludes active builds and repeats safely", async () => {

@@ -230,6 +230,33 @@ func markOccurrence(p *Plan) {
 		}
 	}
 }
+
+// CanonicalSchedule validates shape and UTC/default fields independently of
+// whether a schedule still has future occurrences.
+func CanonicalSchedule(c Schedule) (Schedule, error) { return normalizeSchedule(c, time.Time{}, true) }
+
+// AdvanceSchedule shares command-plan misfire/DST watermark semantics with
+// other native schedulers. An exhausted schedule returns a zero next instant.
+func AdvanceSchedule(c Schedule, now, scheduled time.Time, watermark string) (time.Time, string, error) {
+	c, e := normalizeSchedule(c, now, true)
+	if e != nil {
+		return time.Time{}, watermark, e
+	}
+	if c.Kind == "once" {
+		return time.Time{}, watermark, nil
+	}
+	if c.Kind != "interval" && c.Kind != "cron" {
+		return time.Time{}, watermark, ErrInvalid
+	}
+	p := Plan{NextRun: scheduled, CalendarWatermark: watermark}
+	applySchedule(&p.PlanInput, c)
+	markOccurrence(&p)
+	at, e := nextPlanOccurrence(p, now)
+	if errors.Is(e, errScheduleEnded) {
+		return time.Time{}, p.CalendarWatermark, nil
+	}
+	return at, p.CalendarWatermark, e
+}
 func PreviewSchedule(in PreviewInput, now time.Time) (SchedulePreview, error) {
 	c, e := normalizeSchedule(in.Schedule, now, true)
 	if e != nil {

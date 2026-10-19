@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { BrandingProvider } from "./branding/BrandingContext";
 
 const PasswordChangePage = lazy(() => import("./pages/PasswordChangePage"));
+const AssetDiscoveryPage = lazy(() => import("./pages/AssetDiscoveryPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
@@ -89,6 +90,7 @@ export default function App() {
               <Route path="notification-sources/:kind/:id" element={<NotificationSourcePage />} />
               <Route path="database-audit" element={<DatabaseAuditPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="asset-discovery" element={<AssetDiscoveryPage />} />
               <Route path="branding" element={<BrandingPage />} />
               <Route path="roles" element={<RolesPage />} />
               <Route path="users" element={<UsersPage />} />

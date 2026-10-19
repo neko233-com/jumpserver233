@@ -879,6 +879,7 @@ const zhCN = {
     channelsHint:
       "交互 SSH 同时约束 Web SSH 与 Agent CLI；文件动作先检查 SFTP 通道。资产策略留空表示全部通道。",
     methods: {
+      asset_discovery: "资产发现",
       rdp: "RDP 桌面",
       rdp_input: "RDP 键鼠输入",
       rdp_clipboard_read: "RDP 剪贴板读取",
@@ -1332,6 +1333,7 @@ const zhCN = {
     name: "JumpServer233",
   },
   nav: {
+    assetDiscovery: "资产发现",
     branding: "品牌外观",
     users: "平台用户",
     radius: "RADIUS 认证",
@@ -1793,6 +1795,7 @@ const zhCN = {
     loginReviewLoadError: "无法读取登录复核队列，请检查权限和服务状态。",
     loginReviewContext: "{{operator}} 请求 {{action}}，使用账号 {{account}}。",
     sshReviewAction: "SSH 登录",
+    assetDiscoveryReviewAction: "资产发现网关",
     sftpReviewAction: "SFTP 文件访问",
     approveLoginReviewConfirm:
       "批准 {{operator}} 对“{{asset}}”进行一次 {{action}} 吗？批准后会立即发放一次性许可。",

@@ -166,6 +166,10 @@ func validateDatabaseSettings(protocol string, p sqlclient.Settings) error {
 	return sqlclient.ValidateSettings(p)
 }
 func cloneAsset(a Asset) Asset {
+	if a.Discovery != nil {
+		v := *a.Discovery
+		a.Discovery = &v
+	}
 	a.RemoteAccount = cloneRemoteAccountState(a.RemoteAccount)
 	if a.RDP != nil {
 		copy := *a.RDP
@@ -191,6 +195,9 @@ func cloneAsset(a Asset) Asset {
 	return a
 }
 func validateProtocolAsset(a Asset) error {
+	if e := validateDiscoveryOrigin(a); e != nil {
+		return e
+	}
 	if IsRDP(a) {
 		if a.RDP == nil || a.Telnet != nil || a.Kubernetes != nil || assetConfigCount(a) != 0 || credentialType(a.CredentialType) != CredentialPassword || a.KeyRotationEnabled {
 			return ErrInvalidInput

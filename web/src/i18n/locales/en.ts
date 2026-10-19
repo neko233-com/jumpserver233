@@ -947,6 +947,7 @@ const en = {
     channelsHint:
       "Interactive SSH applies to Web SSH and Agent CLI. SFTP is checked before file actions. Empty selects all channels for an asset policy.",
     methods: {
+      asset_discovery: "Asset discovery",
       rdp: "RDP desktop",
       rdp_input: "RDP keyboard and mouse",
       rdp_clipboard_read: "RDP clipboard read",
@@ -1436,6 +1437,7 @@ const en = {
     name: "JumpServer233",
   },
   nav: {
+    assetDiscovery: "Asset discovery",
     branding: "Branding",
     users: "Platform users",
     radius: "RADIUS authentication",
@@ -1929,6 +1931,7 @@ const en = {
     loginReviewLoadError: "Could not load the login review queue. Check access and service status.",
     loginReviewContext: "{{operator}} requested {{action}} as account {{account}}.",
     sshReviewAction: "SSH login",
+    assetDiscoveryReviewAction: "Asset discovery gateway",
     sftpReviewAction: "SFTP file access",
     approveLoginReviewConfirm:
       "Approve one {{action}} request for {{operator}} on “{{asset}}”? Approval issues a one-time permit.",
