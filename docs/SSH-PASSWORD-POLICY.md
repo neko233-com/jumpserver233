@@ -4,6 +4,16 @@
 
 为组织内新发起的 SSH 随机改密设置长度、字符类别下限和排除字符。每七天自动改密、资产页手动改密及[账号改密计划](./ROTATION-PLANS.md)共用生成器。密码只进入加密 Vault/恢复日志和已授权的远端改密通道，Web、CLI、配置回执不返回生成密码。
 
+## 计划附加约束
+
+[改密计划](./ROTATION-PLANS.md)可用 `password_policy` 指定同结构的附加规则，不带组织策略的 `revision`。缺省或空规则继承组织配置。规则只能收紧：新密码同时满足计划和所有参与组织的要求；冲突停止该账号改密。运行记录固定计划规则快照，已有加密日志的密码不会重生。
+
+例如计划可使用以下公开元数据：
+
+```json
+{"name":"Weekly SSH operations","kind":"interval","enabled":false,"interval_hours":168,"only_due":true,"revision":0,"targets":[{"account_id":"managed-account-id"}],"password_policy":{"min_length":56,"max_length":80,"min_upper":6,"min_lower":5,"min_digits":8,"min_symbols":4,"exclude":"OI1l0"}}
+```
+
 ## 使用
 
 控制台 →「账号改密」→「SSH 生成密码策略」。展开规则，设置最短/最长长度、大写、小写、数字、特殊字符的最少数量及可选排除字符。独立权限 `accounts.password_policy.view` 与 `accounts.password_policy.manage` 分别控制查看/修改，支持组织角色授权；拥有策略权限而无计划权限的用户仍可访问策略卡片。
@@ -37,4 +47,4 @@ Go 客户端使用 `SSHPasswordPolicy` / `SaveSSHPasswordPolicy`，继续使用�
 
 ## 范围与证据
 
-竞品仍为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，其[官方功能说明](https://www.jumpserver.org/blog/tutorial-20250610.html)包含生成密码的长度与字符类别策略。这里采用 Go 原生生成和共享约束合并；逐计划覆盖、固定密码、其他协议改密及完整企业版对齐仍待完成。实际 Go/Testify、race、原生 SSH/备份和中英浏览器结果见[测试记录](./TESTING.md)。
+竞品仍为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，其[官方功能说明](https://www.jumpserver.org/blog/tutorial-20250610.html)包含生成密码的长度与字符类别策略。这里采用 Go 原生生成和共享约束合并；固定密码、其他协议改密及完整企业版对齐仍待完成。实际 Go/Testify、race、原生 SSH/备份和中英浏览器结果见[测试记录](./TESTING.md)。

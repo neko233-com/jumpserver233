@@ -3,6 +3,7 @@ package sessionclient
 import (
 	"context"
 	"encoding/json"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -10,6 +11,33 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestPlanPasswordPolicySDKPreservesConfigurationAndRunSnapshot(t *testing.T) {
+	rules := credentialpolicy.Defaults()
+	rules.MinLength = 56
+	rules.Exclude = "OI1l0"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer synthetic-token", r.Header.Get("Authorization"))
+		if r.Method == "POST" {
+			var in RotationPlanInput
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&in))
+			assert.Equal(t, rules, in.PasswordPolicy)
+			w.WriteHeader(201)
+			_ = json.NewEncoder(w).Encode(RotationPlan{ID: "policy-plan", RotationPlanInput: in})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(RotationRun{ID: "policy-run", PasswordPolicy: rules})
+	}))
+	defer server.Close()
+	client, e := New(server.URL, "synthetic-token")
+	require.NoError(t, e)
+	p, e := client.SaveRotationPlan(context.Background(), "", RotationPlanInput{Name: "Metadata", Kind: "manual", Targets: []RotationSelection{{AccountID: "account-a"}}, PasswordPolicy: rules})
+	require.NoError(t, e)
+	assert.Equal(t, rules, p.PasswordPolicy)
+	run, e := client.RotationRun(context.Background(), "policy-run")
+	require.NoError(t, e)
+	assert.Equal(t, rules, run.PasswordPolicy)
+}
 
 func TestRotationSDKAcceptsAsyncReceiptsAndPreservesScopeWithMetadataOnly(t *testing.T) {
 	for _, mode := range []string{"bearer", "access-key"} {

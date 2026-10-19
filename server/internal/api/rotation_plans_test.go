@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +40,10 @@ func TestRotationPlanAPIAuthorityCASMetadataAndLiveRevocation(t *testing.T) {
 	assert.Equal(t, 403, send("GET", "/api/v1/accounts/rotation-targets", nil, e.token))
 	role, err = e.d.RBAC.SaveRole(role.ID, rbac.RoleInput{Name: role.Name, Revision: role.Revision, Permissions: append(role.Permissions, "assets.view_all")}, e.admin.ID, e.admin.Username)
 	require.NoError(t, err)
-	input := rotationplans.PlanInput{Name: "=Synthetic rotation plan", Kind: "manual", Targets: []rotationplans.Selection{{AccountID: e.asset.ID}}}
+	rules := credentialpolicy.Defaults()
+	rules.MinLength = 56
+	rules.MinDigits = 8
+	input := rotationplans.PlanInput{PasswordPolicy: rules, Name: "=Synthetic rotation plan", Kind: "manual", Targets: []rotationplans.Selection{{AccountID: e.asset.ID}}}
 	created := e.send(t, "POST", "/api/v1/accounts/rotation-plans", input, e.token, "192.0.2.3:4000")
 	require.Equal(t, 201, created.Code, created.Body.String())
 	assert.NotContains(t, created.Body.String(), "synthetic-private-password")
@@ -49,12 +53,14 @@ func TestRotationPlanAPIAuthorityCASMetadataAndLiveRevocation(t *testing.T) {
 	assert.Equal(t, "192.0.2.3", plan.AccessOrigin.SourceIP)
 	assert.Equal(t, "credential_rotation", plan.AccessOrigin.Method)
 	assert.Equal(t, 1, plan.TargetCount)
+	assert.Equal(t, rules, plan.PasswordPolicy)
 	assert.Equal(t, 409, send("PUT", "/api/v1/accounts/rotation-plans/"+plan.ID, input, e.token))
 	assert.Equal(t, 400, send("POST", "/api/v1/accounts/rotation-plans", map[string]any{"access_origin": map[string]string{"source_ip": "127.0.0.1"}}, e.token))
 	row := e.send(t, "POST", "/api/v1/accounts/rotation-plans/"+plan.ID+"/runs", map[string]string{"request_id": "rotation-api-revoked"}, e.token, "192.0.2.3:4000")
 	require.Equal(t, 202, row.Code, row.Body.String())
 	var run rotationplans.Run
 	require.NoError(t, json.Unmarshal(row.Body.Bytes(), &run))
+	assert.Equal(t, rules, run.PasswordPolicy)
 	retry := e.send(t, "POST", "/api/v1/accounts/rotation-plans/"+plan.ID+"/runs", map[string]string{"request_id": "rotation-api-revoked"}, e.token, "198.51.100.3:4000")
 	require.Equal(t, 202, retry.Code)
 	assert.Contains(t, retry.Body.String(), run.ID)

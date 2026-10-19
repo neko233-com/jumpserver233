@@ -1,5 +1,11 @@
 export default {
   rotationPlans: {
+    passwordPolicy: "Plan password constraints",
+    customPasswordPolicy: "Add password generation constraints for this plan",
+    passwordPolicyHint:
+      "Applies to password accounts only. Intersected with every participating organization policy when selecting a new password. Incompatible rules stop that account before any remote change. Existing operations keep their selected credential.",
+    policySnapshot: "Password constraints captured when this run was created",
+    inheritedPolicy: "Inherits organization password policies",
     title: "Credential rotation plans",
     hint: "Rotate managed SSH passwords and keys across hosts, with per-account results and durable recovery.",
     coverage:
@@ -107,6 +113,8 @@ export default {
       unavailable: "The request could not be completed. Check execution history before retrying.",
     },
     itemErrors: {
+      password_policy_conflict:
+        "Password constraints conflict with an organization policy; no remote password was changed.",
       source_changed: "Host, account or route changed; review this target.",
       not_found: "The account no longer exists.",
       credential_pending: "A credential operation needs recovery.",

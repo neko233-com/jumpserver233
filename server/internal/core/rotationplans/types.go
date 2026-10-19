@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"regexp"
 	"time"
 	"unicode"
@@ -56,10 +57,11 @@ type Prepared struct {
 	RotatedAt time.Time
 }
 type Intent struct {
-	Origin    accesspolicies.Origin `json:"origin,omitempty"`
-	RequestID string                `json:"request_id"`
-	Actor     Actor                 `json:"actor"`
-	Target    Prepared              `json:"target"`
+	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
+	Origin         accesspolicies.Origin  `json:"origin,omitempty"`
+	RequestID      string                 `json:"request_id"`
+	Actor          Actor                  `json:"actor"`
+	Target         Prepared               `json:"target"`
 }
 type Outcome struct {
 	State    string    `json:"state"` // succeeded, failed, recovery_required, not_started, changed
@@ -68,15 +70,16 @@ type Outcome struct {
 	At       time.Time `json:"at,omitzero"`
 }
 type PlanInput struct {
-	Origin        accesspolicies.Origin `json:"-"`
-	Name          string                `json:"name"`
-	Targets       []Selection           `json:"targets,omitempty"`
-	Kind          string                `json:"kind"` // manual, once, interval
-	Enabled       bool                  `json:"enabled"`
-	RunAt         time.Time             `json:"run_at,omitzero"`
-	IntervalHours int                   `json:"interval_hours,omitempty"`
-	OnlyDue       bool                  `json:"only_due"`
-	Revision      int                   `json:"revision"`
+	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
+	Origin         accesspolicies.Origin  `json:"-"`
+	Name           string                 `json:"name"`
+	Targets        []Selection            `json:"targets,omitempty"`
+	Kind           string                 `json:"kind"` // manual, once, interval
+	Enabled        bool                   `json:"enabled"`
+	RunAt          time.Time              `json:"run_at,omitzero"`
+	IntervalHours  int                    `json:"interval_hours,omitempty"`
+	OnlyDue        bool                   `json:"only_due"`
+	Revision       int                    `json:"revision"`
 }
 type Plan struct {
 	TargetCount  int                   `json:"target_count"`
@@ -103,19 +106,20 @@ type Item struct {
 	FinishedAt     time.Time `json:"finished_at,omitzero"`
 }
 type Run struct {
-	AccessOrigin accesspolicies.Origin `json:"access_origin,omitempty"`
-	ID           string                `json:"id"`
-	PlanID       string                `json:"plan_id"`
-	PlanRevision int                   `json:"plan_revision"`
-	Name         string                `json:"name"`
-	Actor        Actor                 `json:"owner"`
-	RequestID    string                `json:"request_id"`
-	Scheduled    bool                  `json:"scheduled"`
-	Cancelled    bool                  `json:"cancelled"`
-	State        string                `json:"state"`
-	CreatedAt    time.Time             `json:"created_at"`
-	FinishedAt   time.Time             `json:"finished_at,omitzero"`
-	Items        []Item                `json:"items"`
+	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
+	AccessOrigin   accesspolicies.Origin  `json:"access_origin,omitempty"`
+	ID             string                 `json:"id"`
+	PlanID         string                 `json:"plan_id"`
+	PlanRevision   int                    `json:"plan_revision"`
+	Name           string                 `json:"name"`
+	Actor          Actor                  `json:"owner"`
+	RequestID      string                 `json:"request_id"`
+	Scheduled      bool                   `json:"scheduled"`
+	Cancelled      bool                   `json:"cancelled"`
+	State          string                 `json:"state"`
+	CreatedAt      time.Time              `json:"created_at"`
+	FinishedAt     time.Time              `json:"finished_at,omitzero"`
+	Items          []Item                 `json:"items"`
 }
 type Audit struct {
 	Origin   accesspolicies.Origin `json:"access_origin,omitempty"`
@@ -156,6 +160,9 @@ func validText(s string, n int) bool {
 	return true
 }
 func (in PlanInput) Validate() error {
+	if !in.PasswordPolicy.OptionalValid() {
+		return ErrInvalid
+	}
 	if !validText(in.Name, 240) || in.Name == "" || in.Revision < 0 || in.Revision > 1<<53-1 || len(in.Targets) < 1 || len(in.Targets) > MaxTargets {
 		return ErrInvalid
 	}

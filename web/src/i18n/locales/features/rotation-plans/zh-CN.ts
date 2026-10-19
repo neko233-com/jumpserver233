@@ -1,5 +1,11 @@
 export default {
   rotationPlans: {
+    passwordPolicy: "计划密码约束",
+    customPasswordPolicy: "为此计划增加密码生成约束",
+    passwordPolicyHint:
+      "仅用于密码账号。生成新密码时与所有参与组织的策略取交集，规则冲突时该账号停止改密且不修改远端。已有操作继续使用已选凭据。",
+    policySnapshot: "此运行创建时的密码约束快照",
+    inheritedPolicy: "继承组织密码策略",
     title: "账号改密计划",
     hint: "集中轮换多台主机的托管 SSH 密码与密钥，保留逐账号结果并支持故障恢复。",
     coverage:
@@ -104,6 +110,7 @@ export default {
       unavailable: "请求未完成，重试前请检查执行历史。",
     },
     itemErrors: {
+      password_policy_conflict: "密码约束与组织策略冲突，未修改远端密码。",
       source_changed: "主机、账号或连接路径已变更，请检查目标。",
       not_found: "账号已不存在。",
       credential_pending: "有凭据操作需要恢复。",

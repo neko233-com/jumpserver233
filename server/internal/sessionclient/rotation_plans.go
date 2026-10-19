@@ -3,6 +3,7 @@ package sessionclient
 import (
 	"context"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"io"
 	"net/http"
 	"net/url"
@@ -26,14 +27,15 @@ type RotationRef struct {
 	CollectorUsername string `json:"collector_username,omitempty"`
 }
 type RotationPlanInput struct {
-	Name          string              `json:"name"`
-	Targets       []RotationSelection `json:"targets,omitempty"`
-	Kind          string              `json:"kind"`
-	Enabled       bool                `json:"enabled"`
-	RunAt         time.Time           `json:"run_at,omitzero"`
-	IntervalHours int                 `json:"interval_hours,omitempty"`
-	OnlyDue       bool                `json:"only_due"`
-	Revision      int                 `json:"revision"`
+	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
+	Name           string                 `json:"name"`
+	Targets        []RotationSelection    `json:"targets,omitempty"`
+	Kind           string                 `json:"kind"`
+	Enabled        bool                   `json:"enabled"`
+	RunAt          time.Time              `json:"run_at,omitzero"`
+	IntervalHours  int                    `json:"interval_hours,omitempty"`
+	OnlyDue        bool                   `json:"only_due"`
+	Revision       int                    `json:"revision"`
 }
 type RotationOrigin struct {
 	SourceIP string `json:"source_ip"`
@@ -64,23 +66,24 @@ type RotationItem struct {
 	FinishedAt     time.Time `json:"finished_at,omitzero"`
 }
 type RotationRun struct {
-	ID           string             `json:"id"`
-	PlanID       string             `json:"plan_id"`
-	PlanRevision int                `json:"plan_revision"`
-	Name         string             `json:"name"`
-	Owner        AccountImportActor `json:"owner"`
-	RequestID    string             `json:"request_id"`
-	Scheduled    bool               `json:"scheduled"`
-	Cancelled    bool               `json:"cancelled"`
-	State        string             `json:"state"`
-	CreatedAt    time.Time          `json:"created_at"`
-	FinishedAt   time.Time          `json:"finished_at,omitzero"`
-	Items        []RotationItem     `json:"items"`
-	Total        int                `json:"total,omitempty"`
-	Succeeded    int                `json:"succeeded,omitempty"`
-	Failed       int                `json:"failed,omitempty"`
-	Skipped      int                `json:"skipped,omitempty"`
-	AccessOrigin RotationOrigin     `json:"access_origin"`
+	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
+	ID             string                 `json:"id"`
+	PlanID         string                 `json:"plan_id"`
+	PlanRevision   int                    `json:"plan_revision"`
+	Name           string                 `json:"name"`
+	Owner          AccountImportActor     `json:"owner"`
+	RequestID      string                 `json:"request_id"`
+	Scheduled      bool                   `json:"scheduled"`
+	Cancelled      bool                   `json:"cancelled"`
+	State          string                 `json:"state"`
+	CreatedAt      time.Time              `json:"created_at"`
+	FinishedAt     time.Time              `json:"finished_at,omitzero"`
+	Items          []RotationItem         `json:"items"`
+	Total          int                    `json:"total,omitempty"`
+	Succeeded      int                    `json:"succeeded,omitempty"`
+	Failed         int                    `json:"failed,omitempty"`
+	Skipped        int                    `json:"skipped,omitempty"`
+	AccessOrigin   RotationOrigin         `json:"access_origin"`
 }
 type RotationAudit struct {
 	Origin   RotationOrigin     `json:"access_origin,omitempty"`

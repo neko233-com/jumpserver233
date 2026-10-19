@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,6 +32,11 @@ func TestRotationPlanPostgresTakeoverReconcilesReceiptAndIsolatesOrganizations(t
 	require.NoError(t, e)
 	s.SetRunner(f.runner())
 	p := saveManual(t, s, "account-a")
+	in := p.PlanInput
+	in.PasswordPolicy = credentialpolicy.Defaults()
+	in.PasswordPolicy.MinLength = 56
+	p, e = s.Save(context.Background(), testActor(), p.ID, in, false)
+	require.NoError(t, e)
 	run, e := s.Submit(context.Background(), testActor(), p.ID, "pg-rotation-takeover", false)
 	require.NoError(t, e)
 	writes := 0
@@ -55,6 +61,7 @@ func TestRotationPlanPostgresTakeoverReconcilesReceiptAndIsolatesOrganizations(t
 	peer.SetRunner(f.runner())
 	result := drive(t, peer, run.ID)
 	assert.Equal(t, "succeeded", result.State)
+	assert.Equal(t, in.PasswordPolicy, result.PasswordPolicy)
 	assert.Equal(t, 1, f.calls)
 	other, e := Open(path, make([]byte, 32), b)
 	require.NoError(t, e)

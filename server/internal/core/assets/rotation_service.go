@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 )
 
 const (
@@ -378,8 +379,13 @@ func (s *Service) rotatePasswordToLocal(ctx context.Context, id, trigger, actor,
 			return ErrCredentialBackupNotFound
 		}
 	} else {
-		newPassword, err = s.generatePassword()
+		newPassword, err = s.generatePassword(ctx)
 		if err != nil {
+			if errors.Is(err, credentialpolicy.ErrConflict) {
+				s.finishRotationStatus(asset, "failed", "password_policy_conflict", now)
+				_ = s.appendRotationAuditDetails(asset, "completed", trigger, "failed", "password_policy_conflict", actor, backupID)
+				return err
+			}
 			return s.failRotationDetails(asset, trigger, "password_generation_failed", now, actor, backupID)
 		}
 	}

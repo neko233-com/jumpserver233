@@ -6,6 +6,10 @@ import { usePermissions } from "../auth/usePermissions";
 import "../i18n/locales/features/rotation-plans/register";
 import "./rotation-plans.css";
 import SSHPasswordPolicy from "../components/SSHPasswordPolicy";
+import SSHPasswordRuleFields, {
+  inheritedPasswordRules,
+  type SSHPasswordRules,
+} from "../components/SSHPasswordRuleFields";
 
 type Ref = {
   asset_id: string;
@@ -26,6 +30,7 @@ type Plan = {
   interval_hours?: number;
   run_at?: string;
   only_due: boolean;
+  password_policy?: SSHPasswordRules;
   revision: number;
   target_count: number;
   targets?: { account_id: string; collector_id?: string }[];
@@ -46,6 +51,7 @@ type Item = Ref & {
 type Run = {
   id: string;
   plan_id: string;
+  password_policy?: SSHPasswordRules;
   name: string;
   owner: Actor;
   request_id: string;
@@ -70,6 +76,7 @@ type Draft = {
   runAt: string;
   hours: number;
   onlyDue: boolean;
+  passwordPolicy: SSHPasswordRules | null;
   accounts: Record<string, Ref>;
 };
 type Confirm = {
@@ -358,6 +365,7 @@ export default function RotationPlansPage() {
           : "",
         hours: full?.interval_hours || 168,
         onlyDue: full?.only_due ?? true,
+        passwordPolicy: full?.password_policy || null,
         accounts: Object.fromEntries((full?.accounts || []).map((v) => [v.account_id, v])),
       });
       setSearch("");
@@ -389,6 +397,7 @@ export default function RotationPlansPage() {
         enabled: current.kind !== "manual" && current.enabled,
         interval_hours: current.kind === "interval" ? current.hours : 0,
         only_due: current.kind === "interval" && current.onlyDue,
+        ...(current.passwordPolicy ? { password_policy: current.passwordPolicy } : {}),
         ...(current.kind === "once" ? { run_at: new Date(current.runAt).toISOString() } : {}),
         targets: Object.values(current.accounts).map((v) => ({
           account_id: v.account_id,
@@ -757,6 +766,30 @@ export default function RotationPlansPage() {
                   </label>
                 </>
               )}
+              <fieldset className="rotation-password-policy">
+                <legend>{t("rotationPlans.passwordPolicy")}</legend>
+                <label className="rotation-check">
+                  <input
+                    type="checkbox"
+                    checked={draft.passwordPolicy !== null}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        passwordPolicy: e.target.checked ? { ...inheritedPasswordRules } : null,
+                      })
+                    }
+                  />
+                  {t("rotationPlans.customPasswordPolicy")}
+                </label>
+                <p className="settings-help">{t("rotationPlans.passwordPolicyHint")}</p>
+                {draft.passwordPolicy && (
+                  <SSHPasswordRuleFields
+                    rules={draft.passwordPolicy}
+                    disabled={busy}
+                    onChange={(passwordPolicy) => setDraft({ ...draft, passwordPolicy })}
+                  />
+                )}
+              </fieldset>
               {draft.kind !== "manual" && (
                 <label className="rotation-check">
                   <input
@@ -968,6 +1001,18 @@ export default function RotationPlansPage() {
       {selectedRun && (
         <Modal title={t("rotationPlans.runDetails")} close={() => setSelectedRun(null)} busy={busy}>
           <h3>{selectedRun.name}</h3>
+          {selectedRun.password_policy ? (
+            <details className="rotation-password-policy">
+              <summary>{t("rotationPlans.policySnapshot")}</summary>
+              <SSHPasswordRuleFields
+                rules={selectedRun.password_policy}
+                disabled
+                onChange={() => {}}
+              />
+            </details>
+          ) : (
+            <p className="settings-help">{t("rotationPlans.inheritedPolicy")}</p>
+          )}
           <p role="status">{state(selectedRun.state)}</p>
           <dl className="rotation-meta">
             <dt>{t("rotationPlans.request")}</dt>

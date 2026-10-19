@@ -29,6 +29,11 @@ type Rules struct {
 	Exclude    string `json:"exclude"`
 }
 
+// A zero optional rule set inherits the organization policy. Explicit rules
+// are additional constraints, merged at the time a new password is selected.
+func (r Rules) IsZero() bool        { return r == (Rules{}) }
+func (r Rules) OptionalValid() bool { return r.IsZero() || r.Valid() }
+
 func Defaults() Rules {
 	return Rules{MinLength: 43, MaxLength: 128, MinUpper: 1, MinLower: 1, MinDigits: 1, MinSymbols: 1}
 }

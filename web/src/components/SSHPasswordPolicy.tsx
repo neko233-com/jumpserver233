@@ -2,27 +2,11 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import "../i18n/locales/features/ssh-password-policy/register";
+import SSHPasswordRuleFields, { type SSHPasswordRules } from "./SSHPasswordRuleFields";
 
-type Policy = {
-  revision: number;
-  min_length: number;
-  max_length: number;
-  min_upper: number;
-  min_lower: number;
-  min_digits: number;
-  min_symbols: number;
-  exclude: string;
-};
+type Policy = SSHPasswordRules & { revision: number };
 type Audit = { at: string; actor: string; after: Policy };
 type State = { policy: Policy; audit: Audit[] };
-const fields = [
-  "min_length",
-  "max_length",
-  "min_upper",
-  "min_lower",
-  "min_digits",
-  "min_symbols",
-] as const;
 type Pending = { request_id: string; policy: Policy };
 export default function SSHPasswordPolicy({ view, manage }: { view: boolean; manage: boolean }) {
   const { t } = useTranslation(),
@@ -124,41 +108,14 @@ export default function SSHPasswordPolicy({ view, manage }: { view: boolean; man
           <details>
             <summary>{t("sshPasswordPolicy.configure")}</summary>
             <form onSubmit={(e) => void save(e)}>
-              <div className="ssh-password-policy-grid">
-                {fields.map((field) => (
-                  <label key={field} htmlFor={id + field}>
-                    {t(`sshPasswordPolicy.${field}`)}
-                    <input
-                      id={id + field}
-                      type="number"
-                      min={field === "min_length" || field === "max_length" ? 16 : 0}
-                      max="128"
-                      required
-                      disabled={!manage || busy}
-                      value={draft[field]}
-                      onChange={(e) => {
-                        pending.current = null;
-                        setDraft({ ...draft, [field]: Number(e.target.value) });
-                      }}
-                    />
-                  </label>
-                ))}
-              </div>
-              <label htmlFor={id + "exclude"}>
-                {t("sshPasswordPolicy.exclude")}
-                <input
-                  id={id + "exclude"}
-                  value={draft.exclude}
-                  maxLength={62}
-                  disabled={!manage || busy}
-                  autoComplete="off"
-                  onChange={(e) => {
-                    pending.current = null;
-                    setDraft({ ...draft, exclude: e.target.value });
-                  }}
-                />
-              </label>
-              <p className="settings-help">{t("sshPasswordPolicy.allowed")}</p>
+              <SSHPasswordRuleFields
+                rules={draft}
+                disabled={!manage || busy}
+                onChange={(rules) => {
+                  pending.current = null;
+                  setDraft({ ...draft, ...rules });
+                }}
+              />
               {manage && (
                 <button className="button-primary" disabled={busy} type="submit">
                   {t("sshPasswordPolicy.save")}

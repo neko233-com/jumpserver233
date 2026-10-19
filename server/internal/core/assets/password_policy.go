@@ -1,6 +1,9 @@
 package assets
 
-import "github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
+import (
+	"context"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
+)
 
 func (s *Store) SetPasswordPolicy(store *credentialpolicy.Store) {
 	s.mu.Lock()
@@ -21,6 +24,20 @@ func (s *Store) passwordRules() credentialpolicy.Rules {
 	}
 	return store.Snapshot().Rules
 }
-func (s *Service) generatePassword() (string, error) {
-	return credentialpolicy.Generate(s.store.passwordRules())
+func planPasswordRules(ctx context.Context) credentialpolicy.Rules {
+	if planned := managedContext(ctx); planned != nil {
+		return planned.Intent.PasswordPolicy
+	}
+	return credentialpolicy.Rules{}
+}
+func (s *Service) generatePassword(ctx context.Context) (string, error) {
+	rules := s.store.passwordRules()
+	if plan := planPasswordRules(ctx); !plan.IsZero() {
+		var err error
+		rules, err = credentialpolicy.Merge(rules, plan)
+		if err != nil {
+			return "", err
+		}
+	}
+	return credentialpolicy.Generate(rules)
 }

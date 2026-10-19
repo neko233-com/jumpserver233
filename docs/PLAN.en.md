@@ -3,7 +3,7 @@
 > [中文](./PLAN.md) | English
 
 
-Added [generated SSH password policy](./SSH-PASSWORD-POLICY.en.md): organization rules, shared seven-day/manual/planned generation, merged shared-account constraints, independent permissions, Web/CLI, encrypted receipts and backup retention. Per-plan overrides and full Enterprise parity remain in progress.
+Added [generated SSH password policy](./SSH-PASSWORD-POLICY.en.md): organization rules, shared seven-day/manual/planned generation, merged shared-account constraints, independent permissions, Web/CLI, encrypted receipts and backup retention. Per-plan additional constraints and immutable run snapshots are connected; full Enterprise parity remains in progress.
 
 ## Current priority: stable SSH release (user change, 2026-10-19)
 

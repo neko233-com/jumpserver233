@@ -6,7 +6,7 @@ import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 export async function verifySSHPasswordPolicy({run,owner,url,output,api,operator,sshHost,fingerprint,chromium,expect,report,stopSelected,startSelected,inContainer}){
  report.sshPasswordPolicyStep="configuration";
  const path="/api/v1/accounts/password-policy";
- let admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token;
+ let admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token, planProof;
  const initial=await api("GET",path,undefined,admin);
  await api("GET",path,undefined,await operator(),403);
  const target=await api("POST","/api/v1/assets",{name:"Password policy SSH",host:sshHost,port:22,username:"rotationqa",password:"synthetic-keyhost-password-233",host_key_fingerprint:fingerprint},admin,201);
@@ -25,12 +25,14 @@ export async function verifySSHPasswordPolicy({run,owner,url,output,api,operator
   await api("PUT",path,{...input,request_id:randomUUID()},admin,409);await api("PUT",path,input,await operator(),403);
   await panel.screenshot({path:resolve(output,"password-policy.en.png")});
   await page.getByRole("button",{name:"中文",exact:true}).click();await page.setViewportSize({width:390,height:844});const chinese=page.getByRole("region",{name:"SSH 生成密码策略",exact:true});await expect(chinese.getByLabel("最少数字",{exact:true})).toHaveValue("5");if(!await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))throw Error("SSH policy overflows mobile viewport");await chinese.screenshot({path:resolve(output,"password-policy.zh.png")});
+  report.sshPasswordPolicyStep="plan_browser";planProof=await verifyPlanPasswordPolicy({page,context,expect,api,admin,target,output});
  }finally{await browser.close()}
  if(errors.length)throw Error("SSH policy browser diagnostics failed");
  report.sshPasswordPolicyStep="rotation";
  const rotate=await api("POST",`/api/v1/assets/${target.id}/password-rotation`,undefined,admin);if(rotate.password_rotation?.state!=="scheduled")throw Error("Configured SSH password rotation failed");
  const ssh=async()=>{const job=await api("POST","/api/v1/ops/jobs",{asset_id:target.id,command:"printf policy_ssh_ok",timeout_seconds:15,request_id:randomUUID()},admin,201);for(let n=0;n<150;n++){const v=await api("GET","/api/v1/ops/jobs/"+job.id,undefined,admin);if(v.state==="succeeded"&&v.stdout==="policy_ssh_ok")return;if(["failed","denied","interrupted"].includes(v.state))throw Error("SSH after configured rotation failed");await delay(100)}throw Error("SSH policy job timed out")};await ssh();
  const cli=JSON.parse((await run("docker",["exec",owner,"sh","-ceu",'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/controller/jms account password-policy show'])).stdout);if(cli.policy.revision!==saved.policy.revision)throw Error("SSH policy CLI differs from Web");
+ const cliRun=JSON.parse((await run("docker",["exec",owner,"sh","-ceu",'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/controller/jms account rotation show-run "$1"',"qa-policy-cli",planProof.runID])).stdout);if(cliRun.password_policy?.min_length!==56)throw Error("Plan policy CLI snapshot differs from Web");
  await stopSelected();
  report.sshPasswordPolicyStep="backup";
  const passphrase="synthetic-policy-backup-passphrase";
@@ -38,10 +40,53 @@ export async function verifySSHPasswordPolicy({run,owner,url,output,api,operator
  const restored=JSON.parse((await inContainer(["backup","restore","--data-dir","/tmp/policy-restored","--file","/tmp/policy.jmsbackup","--passphrase-file","-"],passphrase)).stdout);
  const again=JSON.parse((await inContainer(["backup","restore","--data-dir","/tmp/policy-restored","--file","/tmp/policy.jmsbackup","--passphrase-file","-"],passphrase)).stdout);if(!again.unchanged||restored.backup_id!==again.backup_id)throw Error("SSH policy backup restore replay failed");
  const hashes=await run("docker",["exec",owner,"sha256sum","/tmp/data/ssh-password-policy.json","/tmp/policy-restored/ssh-password-policy.json"]);const [a,b]=hashes.stdout.trim().split("\n").map(s=>s.split(/\s+/)[0]);if(a!==b)throw Error("Backup lost encrypted SSH policy state");
+ const planHashes=await run("docker",["exec",owner,"sha256sum","/tmp/data/rotation-plans.json","/tmp/policy-restored/rotation-plans.json"]);const [pa,pb]=planHashes.stdout.trim().split("\n").map(s=>s.split(/\s+/)[0]);if(pa!==pb)throw Error("Backup lost encrypted plan policy snapshots");
  const installed=JSON.parse((await inContainer(["update","install-status","--root","/tmp/releases"])).stdout);
  await run("docker",["exec",owner,"sh","-ceu",'JMS_DATA_DIR=/tmp/policy-restored JMS_RELEASE_ROOT= exec "$1" --check-data',"sh",`/tmp/releases/releases/${installed.current.archive_sha256}/jms233-server`]);
  report.sshPasswordPolicyStep="restart";await startSelected("v0.0.7");admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token;await ssh();
  const final=await api("GET",path,undefined,admin);if(final.policy.revision!==saved.policy.revision||final.audit.length!==initial.audit.length+1)throw Error("Restart changed SSH policy audit/revision");
+ const finalPlan=await api("GET","/api/v1/accounts/rotation-plans/"+planProof.planID,undefined,admin),finalRun=await api("GET","/api/v1/accounts/rotation-runs/"+planProof.runID,undefined,admin);
+ if(finalPlan.password_policy?.min_length!==60||finalRun.password_policy?.min_length!==56||finalRun.state!=="succeeded")throw Error("Restart lost plan revision or immutable run policy snapshot");
+ await api("GET","/api/v1/accounts/rotation-plans/"+planProof.planID,undefined,await operator(),403);
  report.sshPasswordPolicy={defaultRevision:initial.policy.revision,configuredRevision:saved.policy.revision,webAndCLI:true,receiptReplay:true,staleRevisionRejected:true,nonAdminDenied:true,realSSHRotation:true,realSSHAfterRestart:true,encryptedBackupRestore:true,restoredDataPreflight:true,backupRestoreReplay:true,languages:["en","zh-CN"],mobileWidth:390,pageErrors:errors.length,expectedBrowserDiagnostics:diagnostics};
+ report.planPasswordPolicy={...planProof,webAndCLI:true,encryptedBackupRestore:true,restartSnapshotPreserved:true,nonAdminDenied:true};
  report.sshPasswordPolicyStep="complete";
+}
+
+async function verifyPlanPasswordPolicy({page,context,expect,api,admin,target,output}){
+ const root="/api/v1/accounts/rotation-",name="Native plan password constraints";
+ await page.getByRole("button",{name:"EN",exact:true}).click();await page.setViewportSize({width:1280,height:900});
+ await page.getByRole("button",{name:"Create plan",exact:true}).click();
+ const editor=page.getByRole("dialog",{name:"Create plan",exact:true});await editor.getByLabel("Plan name",{exact:true}).fill(name);
+ await editor.getByLabel("Add password generation constraints for this plan",{exact:true}).check();
+ for(const [label,value]of [["Minimum length",56],["Maximum length",64],["Minimum uppercase letters",6],["Minimum lowercase letters",5],["Minimum digits",9],["Minimum symbols",5]])await editor.getByLabel(label,{exact:true}).fill(String(value));
+ await editor.getByLabel("Excluded characters (optional)",{exact:true}).fill("XY");
+ await editor.getByLabel("Search host or username",{exact:true}).fill(target.name);await editor.getByRole("button",{name:"Search",exact:true}).click();
+ await editor.getByRole("checkbox",{name:`${target.name} · rotationqa`,exact:true}).check();
+ await editor.screenshot({path:resolve(output,"plan-password-policy.en.png")});
+ const [response]=await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname===root+"plans"&&r.request().method()==="POST"),editor.getByRole("button",{name:"Save plan",exact:true}).click()]);
+ if(response.status()!==201)throw Error("Plan password policy browser save failed");const plan=await response.json();
+ if(plan.password_policy?.min_length!==56||plan.password_policy?.min_digits!==9)throw Error("Plan policy configuration did not round trip");
+ await page.getByRole("button",{name:"中文",exact:true}).click();await page.setViewportSize({width:390,height:844});
+ await page.getByRole("row").filter({hasText:name}).getByRole("button",{name:"编辑计划",exact:true}).click();
+ const chinese=page.getByRole("dialog",{name:"编辑计划",exact:true});await expect(chinese.getByLabel("最少数字",{exact:true})).toHaveValue("9");
+ if(!await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)||!await chinese.evaluate(el=>el.scrollWidth<=el.clientWidth+1))throw Error("Plan password constraints overflow mobile viewport");
+ await chinese.screenshot({path:resolve(output,"plan-password-policy.zh.png")});
+ await chinese.getByRole("button",{name:"关闭",exact:true}).click();
+ await page.getByRole("button",{name:"EN",exact:true}).click();await page.setViewportSize({width:1280,height:900});
+ const row=page.getByRole("row").filter({hasText:name});await row.getByRole("button",{name:"Rotate now",exact:true}).click();
+ const confirmation=page.getByRole("dialog",{name:"Start credential rotation",exact:true});
+ const [reply]=await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname===root+`plans/${plan.id}/runs`&&r.request().method()==="POST"),confirmation.getByRole("button",{name:"Rotate now",exact:true}).click()]);
+ if(reply.status()!==202)throw Error("Plan policy browser submission failed");const submitted=await reply.json();
+ const finish=async(id)=>{for(let n=0;n<300;n++){const value=await api("GET",root+"runs/"+id,undefined,admin);if(!["queued","running"].includes(value.state))return value;await delay(100)}throw Error("Plan policy run timed out")};
+ const completed=await finish(submitted.id);if(completed.state!=="succeeded"||completed.password_policy?.min_length!==56)throw Error("Real SSH planned policy rotation failed");
+ const detail=page.getByRole("dialog",{name:"Rotation results",exact:true});await expect(detail.getByRole("status")).toHaveText("Succeeded",{timeout:45000});
+ await detail.getByText("Password constraints captured when this run was created",{exact:true}).click();await expect(detail.getByLabel("Minimum length",{exact:true})).toHaveValue("56");await detail.getByRole("button",{name:"Close",exact:true}).click();
+ const changed={name:plan.name,kind:plan.kind,enabled:false,only_due:false,revision:plan.revision,targets:plan.targets,password_policy:{...plan.password_policy,min_length:60}};
+ const updated=await api("PUT",root+"plans/"+plan.id,changed,admin);await api("PUT",root+"plans/"+plan.id,changed,admin,409);
+ const replay=await context.request.post(new URL(root+`plans/${plan.id}/runs`,page.url()).href,{data:{request_id:submitted.request_id}});if(replay.status()!==202||(await replay.json()).id!==completed.id)throw Error("Plan policy run replay changed operation");
+ const conflict=await api("POST",root+"plans",{...changed,name:"Incompatible plan constraints",revision:0,password_policy:{...plan.password_policy,min_length:16,max_length:32}},admin,201);
+ const rejected=await api("POST",root+`plans/${conflict.id}/runs`,{request_id:randomUUID()},admin,202),failed=await finish(rejected.id);
+ if(failed.state!=="failed"||failed.items?.[0]?.error_code!=="password_policy_conflict")throw Error("Incompatible plan policy was not refused");
+ return {planID:plan.id,runID:completed.id,configuredMinimum:56,editedMinimum:updated.password_policy?.min_length,immutableRunSnapshot:true,receiptReplay:true,staleRevisionRejected:true,conflictingRulesRefused:true,languages:["en","zh-CN"],mobileWidth:390};
 }

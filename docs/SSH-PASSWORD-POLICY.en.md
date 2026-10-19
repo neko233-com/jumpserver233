@@ -4,6 +4,16 @@
 
 Configure lengths, category minima and exclusions for new random SSH password rotations in an organization. Seven-day automatic rotation, manual asset rotation and [credential rotation plans](./ROTATION-PLANS.en.md) share the generator. Passwords go only to encrypted Vault/recovery journals and authorized remote rotation; Web, CLI and policy receipts never return generated passwords.
 
+## Additional plan constraints
+
+[Rotation plans](./ROTATION-PLANS.en.md) accept an optional `password_policy` with the same rules, without the organization policy revision. Omitted or empty rules inherit organization configuration. New passwords must satisfy both the plan and every participating organization policy; conflicts stop that account before changing it. Run records capture the plan rules and pending encrypted journals never regenerate their selected password.
+
+Example public plan metadata:
+
+```json
+{"name":"Weekly SSH operations","kind":"interval","enabled":false,"interval_hours":168,"only_due":true,"revision":0,"targets":[{"account_id":"managed-account-id"}],"password_policy":{"min_length":56,"max_length":80,"min_upper":6,"min_lower":5,"min_digits":8,"min_symbols":4,"exclude":"OI1l0"}}
+```
+
 ## Use
 
 Console → Credential rotation plans → Generated SSH password policy. Expand rules and set minimum/maximum length, uppercase/lowercase/digit/symbol minima and optional exclusions. Independent `accounts.password_policy.view` / `accounts.password_policy.manage` permissions support organization roles. Users with policy permissions can access the card without plan permissions.
@@ -37,4 +47,4 @@ Policy, audit and receipts are encrypted with the organization Vault key in `ssh
 
 ## Scope and evidence
 
-The competitor remains [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); its [official feature explanation](https://www.jumpserver.org/blog/tutorial-20250610.html) covers generated-password length/category policies. This implementation uses native Go generation and shared constraints. Per-plan overrides, fixed passwords, other protocol rotations and full Enterprise parity remain pending. Actual Go/Testify, race, native SSH/backup and bilingual browser results appear in [verification records](./TESTING.en.md).
+The competitor remains [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); its [official feature explanation](https://www.jumpserver.org/blog/tutorial-20250610.html) covers generated-password length/category policies. This implementation uses native Go generation and shared constraints. Fixed passwords, other protocol rotations and full Enterprise parity remain pending. Actual Go/Testify, race, native SSH/backup and bilingual browser results appear in [verification records](./TESTING.en.md).

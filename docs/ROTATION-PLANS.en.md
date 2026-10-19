@@ -12,6 +12,14 @@ The failed row deliberately omits a privileged account for an ordinary target, v
 
 The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html). This capability follows its [account change-secret plans](https://docs.fit2cloud.com/jumpserver/v3/guide/admin/account/account_change_secret/) using native Go SSH operations and durable receipts. Full Enterprise scope remains in progress under [PLAN](./PLAN.en.md).
 
+## Plan password constraints
+
+The plan editor can add length, character-class and excluded-character requirements. Omitted or empty rules inherit organization policies. Only password accounts use them; key-only plans reject password constraints. New passwords satisfy the intersection of these constraints and every participating organization policy at execution time. Conflicts return `password_policy_conflict` for that item before changing its remote password; other accounts in a mixed batch continue.
+
+`PlanInput.password_policy`, public run records and private execution intents retain rule metadata. Submission captures the plan revision and constraints; later edits cannot change an existing run. Replaying its request ID still returns that run. Pending operations retain the password already selected in their encrypted journal. Recovery checks the original constraint identity and does not regenerate after organization or plan changes. Run details expose a read-only snapshot. See [SSH password generation policy](./SSH-PASSWORD-POLICY.en.md) for organization defaults.
+
+Web, `jms account rotation create/update --file` and the Go SDK share the optional `password_policy` field. Omitting it on save restores organization inheritance. This metadata contains no passwords and uses existing plan management/execution permissions, without another service or dependency. Plans, runs, rotation receipts and shared recovery journals remain encrypted and are included in site backups.
+
 ## Usage
 
 Console → Credential rotation → Create plan:
@@ -24,7 +32,7 @@ Console → Credential rotation → Create plan:
 
 Passwords are generated strong values. SSH key accounts remain key accounts: the existing native engine generates Ed25519 keys, installs and verifies them, then revokes the old key. Privileged accounts apply only to password resets; key changes authenticate as the target account.
 
-Generated passwords use the organization's [SSH password policy](./SSH-PASSWORD-POLICY.en.md). Users with independent permissions can configure lengths, category minima and exclusions on this page; shared identities combine every participating policy. Per-plan overrides and fixed passwords remain pending.
+Generated passwords use the organization's [SSH password policy](./SSH-PASSWORD-POLICY.en.md). Users with independent permissions can configure lengths, category minima and exclusions on this page; shared identities combine every participating policy. Plans can add generation constraints and capture immutable run snapshots. Fixed passwords remain pending.
 
 Duplicate managed records for one remote account share one operation and linked results. Password copies for that identity must agree; conflicting credentials reject rotation. Shared copies use the existing [password](./PASSWORD-ROTATION.en.md) and [key](./SSH-KEY-ROTATION.en.md) coordinators, without granting visibility across organizations.
 
@@ -104,4 +112,4 @@ Updates and deletion require the current revision. `--file` strictly rejects unk
 
 Go/Testify covers idempotent and concurrent submissions, aliases, target binding, cancellation, permission revocation, explicit recovery, result write failures, encryption, format 4/import compatibility, PostgreSQL organization isolation and takeover. The real OpenSSH browser case is `web/e2e/rotation-plans.spec.ts`; commands and results are in [TESTING](./TESTING.en.md).
 
-This slice supports Linux SSH passwords and existing key accounts. Per-plan password-policy overrides/fixed passwords, Windows/database/network device rotation, notifications/external credential distribution, risk-driven automatic remediation, production HA failover acceptance and full Enterprise parity remain open. No CHANGELOG or release tag was generated.
+This slice supports Linux SSH passwords and existing key accounts. Fixed passwords, Windows/database/network device rotation, notifications/external credential distribution, risk-driven automatic remediation, production HA failover acceptance and full Enterprise parity remain open. No CHANGELOG or release tag was generated.

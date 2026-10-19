@@ -13,6 +13,13 @@ import (
 	"testing"
 )
 
+func TestPlanPasswordPolicyOptionalRules(t *testing.T) {
+	assert.True(t, (Rules{}).IsZero())
+	assert.True(t, (Rules{}).OptionalValid())
+	assert.True(t, Defaults().OptionalValid())
+	assert.False(t, (Rules{MinLength: 56}).OptionalValid())
+}
+
 func TestSSHPasswordPolicyRejectsIncompleteAuthenticatedState(t *testing.T) {
 	for _, missing := range []string{"policy", "audit", "receipts"} {
 		t.Run(missing, func(t *testing.T) {

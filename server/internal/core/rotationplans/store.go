@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 )
 
@@ -176,13 +177,21 @@ func validateState(d state) error {
 		if id != p.ID || !IDPattern.MatchString(id) || !ValidActor(p.Actor) || p.Validate() != nil || p.Revision < 1 || p.TargetCount != len(p.Targets) || len(p.Bindings) != len(p.Targets) || len(p.Refs) != len(p.Targets) || p.CreatedAt.IsZero() || p.UpdatedAt.IsZero() {
 			return ErrInvalid
 		}
+		hasPassword := false
 		for i, v := range p.Targets {
 			if !validRef(p.Refs[i]) || p.Refs[i].AccountID != v.AccountID || !digest(p.Bindings[v.AccountID]) {
 				return ErrInvalid
 			}
+			hasPassword = hasPassword || p.Refs[i].CredentialType == "password"
+		}
+		if !p.PasswordPolicy.IsZero() && !hasPassword {
+			return ErrInvalid
 		}
 	}
 	for id, r := range d.Runs {
+		if !r.PasswordPolicy.OptionalValid() {
+			return ErrInvalid
+		}
 		if r.Recovery != nil && (!ValidActor(r.Recovery.Actor) || r.Recovery.At.IsZero() || !validOrigin(r.Recovery.Origin)) {
 			return ErrInvalid
 		}
@@ -200,6 +209,13 @@ func validateState(d state) error {
 				leaders[v.ID] = true
 			}
 			if op, ok := r.Intents[v.ID]; ok {
+				expectedPolicy := r.PasswordPolicy
+				if v.CredentialType != "password" {
+					expectedPolicy = credentialpolicy.Rules{}
+				}
+				if op.PasswordPolicy != expectedPolicy {
+					return ErrInvalid
+				}
 				if v.LinkedTo != "" || op.RequestID != v.ID || op.Actor != r.Actor || op.Origin != r.AccessOrigin || op.Target.Ref != v.Ref || op.Target.Revision != v.BeforeRevision || validatePrepared(op.Target) != nil {
 					return ErrInvalid
 				}
@@ -358,12 +374,17 @@ func (s *Service) Save(ctx context.Context, actor Actor, id string, in PlanInput
 	}
 	binds := map[string]string{}
 	refs := make([]Ref, len(targets))
+	hasPassword := false
 	for i, v := range targets {
 		if validatePrepared(v) != nil || v.AccountID != in.Targets[i].AccountID {
 			return Plan{}, ErrInvalid
 		}
 		binds[v.AccountID] = v.Binding
 		refs[i] = v.Ref
+		hasPassword = hasPassword || v.CredentialType == "password"
+	}
+	if !in.PasswordPolicy.IsZero() && !hasPassword {
+		return Plan{}, ErrInvalid
 	}
 	if in.Enabled {
 		if e = r.Authorize(actor); e != nil {

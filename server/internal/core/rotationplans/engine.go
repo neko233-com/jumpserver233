@@ -152,6 +152,7 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 		return Run{}, e
 	}
 	out := Run{ID: id, PlanID: p.ID, PlanRevision: p.Revision, Name: p.Name, Actor: actor, RequestID: requestID, Scheduled: scheduled, State: "queued", CreatedAt: now, Items: []Item{}}
+	out.PasswordPolicy = p.PasswordPolicy
 	out.AccessOrigin = p.AccessOrigin
 	if !scheduled && len(origin) == 1 {
 		out.AccessOrigin = origin[0]
@@ -182,6 +183,11 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 			} else {
 				groups[v.Group] = itemID
 				intents[itemID] = Intent{RequestID: itemID, Actor: actor, Target: v, Origin: out.AccessOrigin}
+				if v.CredentialType == "password" {
+					op := intents[itemID]
+					op.PasswordPolicy = out.PasswordPolicy
+					intents[itemID] = op
+				}
 				if !groupDue[v.Group] {
 					item.State = "not_due"
 					item.FinishedAt = now

@@ -487,10 +487,13 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 		for _, p := range ps {
 			policies = append(policies, c.stores[p.Scope].passwordRules())
 		}
+		if plan := planPasswordRules(ctx); !plan.IsZero() {
+			policies = append(policies, plan)
+		}
 		var merged credentialpolicy.Rules
 		merged, e = credentialpolicy.Merge(policies...)
 		if e != nil {
-			return ErrSharedCredentialConflict
+			return errors.Join(ErrSharedCredentialConflict, e)
 		}
 		next, e = credentialpolicy.Generate(merged)
 	}
