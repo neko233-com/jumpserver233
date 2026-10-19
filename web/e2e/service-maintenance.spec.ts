@@ -1,7 +1,8 @@
-import { test, expect, request } from "@playwright/test";
+import { test, expect, request, type Page } from "@playwright/test";
+import { mkdir, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 test.use({ locale: "en-US" });
@@ -12,10 +13,21 @@ test("standalone drain preserves real OpenSSH, blocks new work and supports bili
   test.setTimeout(120_000);
   const api = await request.newContext({ baseURL: "http://127.0.0.1:8083" });
   const errors: string[] = [];
+  const consoleMessages: { level: string; code: string; source: string }[] = [];
+  const watchConsole = (target: Page) => target.on("console", message => {
+    if (message.type() !== "error" && message.type() !== "warning") return;
+    let source = ""; try { source = new URL(message.location().url).pathname; } catch {}
+    const text = message.text();
+    const expectedLocale = /503 \(Service Unavailable\)/.test(text) && /^\/api\/v1\/(?:platform-)?notifications\/locale$/.test(source);
+    const expectedGL = /^\[\.WebGL-/.test(text) && /GPU stall due to ReadPixels/.test(text);
+    consoleMessages.push({ level: message.type(), code: expectedLocale ? "drain_blocks_locale_write" : expectedGL ? "headless_readback" : "unexpected", source });
+  });
+  watchConsole(page);
   page.on("pageerror", e => errors.push(e.message));
   let asset = "";
   // The additional page keeps the live terminal attached while settings change.
   const control = await page.context().newPage();
+  watchConsole(control);
   control.on("pageerror", e => errors.push(e.message));
   try {
     const admin = { username: "e2e.admin", password: "synthetic-e2e-admin-password-2468" };
@@ -47,6 +59,9 @@ test("standalone drain preserves real OpenSSH, blocks new work and supports bili
     await terminal.getByRole("textbox", { name: "Terminal input", exact: true }).press("Enter");
     await expect(terminal.locator(".xterm-rows")).toContainText("drain_continued");
     await control.goto("/console/settings");
+    await expect(control).toHaveURL(/\/console\/settings$/);
+    await expect(control).toHaveTitle(/jumpserver233/i);
+    await expect(control.locator("vite-error-overlay")).toHaveCount(0);
     await control.getByRole("tab", { name: "Security", exact: true }).click();
     const panel = control.locator(".service-maintenance");
     await expect(panel.getByRole("button", { name: "Cancel draining", exact: true })).toBeVisible();
@@ -63,7 +78,11 @@ test("standalone drain preserves real OpenSSH, blocks new work and supports bili
     await panel.getByRole("button", { name: "取消排空", exact: true }).click();
     await expect(panel.getByRole("status")).toHaveText("正在接受新操作。");
     expect(errors).toEqual([]);
+    expect(consoleMessages.filter(message => message.code === "unexpected")).toEqual([]);
   } finally {
+    const consoleFile = info.outputPath("maintenance-console.json");
+    await mkdir(dirname(consoleFile), { recursive: true });
+    await writeFile(consoleFile, JSON.stringify({ messages: consoleMessages, pageErrors: errors.length }, null, 2), { mode: 0o600 });
     const value = await (await api.get(endpoint)).json() as Status;
     if (value.draining) expect((await api.put(endpoint, { data: { instance: value.instance, revision: value.revision, request_id: crypto.randomUUID(), draining: false } })).ok()).toBe(true);
     if (asset) expect((await api.delete(`/api/v1/assets/${asset}`)).ok()).toBe(true);

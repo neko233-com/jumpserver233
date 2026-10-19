@@ -1,6 +1,7 @@
 package hostplugins
 
 import (
+	"fmt"
 	"path"
 	"strings"
 )
@@ -84,7 +85,7 @@ func (p cronPlan) launcherWithMarker(base, state, check, id, marker string, pres
 // A second snapshot before replacing crontab also catches external edits that
 // occurred while preparing the update. crontab has no compare-and-swap API.
 func (p cronPlan) replace(base string, enable bool) string {
-	script := "cron_lock=" + quote(path.Join(base, "cron.lock")) + "; mkdir \"$cron_lock\"; trap 'rmdir \"$d/operation.lock\"; rmdir \"$cron_lock\"' EXIT; "
+	script := directoryLock("cron_lock", path.Join(base, "cron.lock"), 50) + "trap 'rmdir \"$d/operation.lock\"; rmdir \"$cron_lock\"' EXIT; "
 	script += cronRead() + p.classify() + "[ \"$summary\" != conflict ]; previous=$cron; "
 	script += `filtered=$(printf '%s\n' "$cron" | awk -v boot="$boot" -v tick="$tick" '$0!=boot && $0!=tick {print}'); `
 	if enable {
@@ -97,5 +98,12 @@ func (p cronPlan) replace(base string, enable bool) string {
 }
 
 func operationLock(dir string) string {
-	return "d=" + quote(dir) + "; mkdir \"$d/operation.lock\"; trap 'rmdir \"$d/operation.lock\"' EXIT; "
+	return "d=" + quote(dir) + "; " + directoryLock("operation_lock", path.Join(dir, "operation.lock"), 50) + "trap 'rmdir \"$d/operation.lock\"' EXIT; "
+}
+
+// A recovery tick briefly owns the same lock as interactive operations. Wait
+// for that holder without removing its lock or weakening crontab CAS checks.
+// The launcher itself remains nonblocking to avoid stacking recovery ticks.
+func directoryLock(variable, location string, attempts int) string {
+	return variable + "=" + quote(location) + "; lock_wait=0; while ! mkdir \"$" + variable + "\" 2>/dev/null; do [ ! -L \"$" + variable + "\" ] || exit 44; if [ -e \"$" + variable + "\" ]; then [ -d \"$" + variable + "\" ] && [ \"$(stat -c %u \"$" + variable + "\")\" = \"$(id -u)\" ] || exit 44; fi; [ \"$lock_wait\" -lt " + fmt.Sprint(attempts) + " ] || exit 44; sleep 0.1; lock_wait=$((lock_wait+1)); done; "
 }

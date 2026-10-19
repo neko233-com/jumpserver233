@@ -89,6 +89,12 @@ test("Agent CLI installs exporter, reads native metrics and returns JSON audit I
   expect((await cli("install")).installed).toBe(true); expect((await cli("start")).running).toBe(true);
   const result = await cli("metrics"); expect(result.output).toContain("node_cpu_seconds_total");
   expect((await cli("autostart_enable")).autostart).toBe(true);
+  // Force overlap with the account's short recovery/operation lock.
+  const labels = await execute("docker", ["inspect", "--format", "{{json .Config.Labels}}", hostName]);
+  expect(JSON.parse(labels.stdout)["com.jumpserver233.qa.owner"]).toBe(hostOwner);
+  const lock = "/home/pluginqa/.jumpserver233/plugins/node_exporter/operation.lock";
+  await execute("docker", ["exec", "--detach", "--user", "pluginqa", hostName, "sh", "-c", `set -eu; i=0; while ! mkdir '${lock}' 2>/dev/null; do i=$((i+1)); [ "$i" -lt 40 ]; sleep 0.05; done; trap 'rm -f "${lock}/qa-ready"; rmdir "${lock}"' EXIT; touch '${lock}/qa-ready'; sleep 2`]);
+  await expect.poll(async () => { try { await execute("docker", ["exec", "--user", "pluginqa", hostName, "test", "-f", lock + "/qa-ready"]); return true; } catch { return false; } }, { timeout: 3000, intervals: [25, 50] }).toBe(true);
   expect((await cli("autostart_disable")).autostart).toBe(false);
   expect((await cli("stop")).running).toBe(false);
   const operator = await api.post("http://127.0.0.1:8083/api/v1/users", { headers: { Authorization: `Bearer ${token}` }, data: { username: "plugin.viewer", password: "synthetic-plugin-viewer-password", role: "operator" } });
