@@ -45,6 +45,16 @@ test("monitoring rules track real SSH failure and recovery with native acknowled
     expect(response.ok()).toBe(true);
     return (await response.json()).monitor;
   };
+  const historyPath = () =>
+    `/api/v1/assets/${assetID}/monitor-history?${new URLSearchParams({ from: new Date(Date.now() - 3600_000).toISOString(), to: new Date(Date.now() + 1000).toISOString(), step: "60" })}`;
+  const history = async () => {
+    const response = await api.get(historyPath());
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(JSON.stringify(body)).not.toContain("synthetic-keyhost-password");
+    expect(JSON.stringify(body)).not.toContain("binding");
+    return body;
+  };
   const list = async () =>
     ((await (await api.get("/api/v1/monitoring/alerts?limit=100")).json()).results as any[]).filter(
       (v) => v.rule_id === ruleID,
@@ -95,6 +105,37 @@ test("monitoring rules track real SSH failure and recovery with native acknowled
       ).status(),
     ).toBe(200);
     expect((await probe()).state).toBe("online");
+    expect(
+      (await history()).results.some(
+        (v: any) => v.state === "online" && v.values.cpu_percent?.samples > 0,
+      ),
+    ).toBe(true);
+    await page.goto(ui + "/console");
+    const hostRow = page.getByRole("row").filter({ hasText: name });
+    const historyButton = hostRow.getByRole("button", { name: "History", exact: true });
+    await historyButton.click();
+    const historyDialog = page.getByRole("dialog", { name: "SSH monitoring history", exact: true });
+    await expect(historyDialog.getByRole("img")).toHaveCount(6);
+    await expect(historyDialog.getByRole("alert")).toHaveCount(0);
+    await historyDialog.getByRole("slider", { name: "Inspect an interval", exact: true }).focus();
+    await page.keyboard.press("Home");
+    await expect(historyDialog).toContainText("No data");
+    await page.keyboard.press("End");
+    await page.screenshot({ path: info.outputPath("monitor-history.en.png") });
+    await page.keyboard.press("Escape");
+    await expect(historyDialog).toHaveCount(0);
+    await expect(historyButton).toBeFocused();
+    await page.getByRole("button", { name: "中文", exact: true }).click();
+    await hostRow.getByRole("button", { name: "历史曲线", exact: true }).click();
+    const zhHistory = page.getByRole("dialog", { name: "SSH 监控历史", exact: true });
+    await expect(zhHistory.getByRole("img")).toHaveCount(6);
+    await zhHistory.getByRole("combobox", { name: "时间范围", exact: true }).selectOption("168");
+    await expect(zhHistory).toContainText("每区间 900 秒");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: info.outputPath("monitor-history.zh-CN.png") });
+    await page.keyboard.press("Escape");
+    await page.setViewportSize({ width: 1440, height: 1080 });
+    await page.getByRole("button", { name: "EN", exact: true }).click();
     await page.goto(ui + "/console/monitoring");
     await expect(
       page.getByRole("heading", { name: "Monitoring alerts", exact: true }),
@@ -106,8 +147,12 @@ test("monitoring rules track real SSH failure and recovery with native acknowled
     await editor.getByRole("combobox", { name: "Metric", exact: true }).selectOption("offline");
     await editor.getByRole("combobox", { name: "Scope", exact: true }).selectOption("assets");
     await editor.getByRole("checkbox", { name, exact: true }).check();
-    await editor.getByRole("spinbutton", { name: "Consecutive trigger samples", exact: true }).fill("1");
-    await editor.getByRole("spinbutton", { name: "Consecutive recovery samples", exact: true }).fill("1");
+    await editor
+      .getByRole("spinbutton", { name: "Consecutive trigger samples", exact: true })
+      .fill("1");
+    await editor
+      .getByRole("spinbutton", { name: "Consecutive recovery samples", exact: true })
+      .fill("1");
     await editor.getByRole("button", { name: "Save", exact: true }).click();
     await expect(editor).toHaveCount(0);
     const rules = await (await api.get("/api/v1/monitoring/rules")).json();
@@ -123,6 +168,12 @@ test("monitoring rules track real SSH failure and recovery with native acknowled
     await execute("docker", ["pause", hostName]);
     paused = true;
     expect((await probe()).state).toBe("offline");
+    const offlineHistory = await history();
+    // A query interval can span a UTC minute boundary and contain both states.
+    // Online values remain valid in mixed bins; pure offline bins stay missing.
+    expect(offlineHistory.results.some((v: any) => v.offline > 0)).toBe(true);
+    for (const point of offlineHistory.results.filter((v: any) => v.offline > 0 && v.online === 0))
+      expect(point.values).toEqual({});
     await expect
       .poll(async () => (await list()).filter((v) => v.state === "firing").length, {
         timeout: 15_000,
@@ -197,13 +248,18 @@ test("monitoring rules track real SSH failure and recovery with native acknowled
     });
     expect(grant.status()).toBe(201);
     grantID = (await grant.json()).id;
+    expect((await operator.request.get(base + historyPath())).status()).toBe(200);
     await op.goto(ui + `/console/monitoring?alert=${alert.id}`);
     await expect(op.getByRole("dialog")).toContainText(name);
     expect((await api.delete("/api/v1/grants/" + grantID)).status()).toBe(204);
     grantID = "";
-    await expect(op.getByRole("dialog").getByRole("alert")).toContainText("outside your current permissions", {
-      timeout: 10_000,
-    });
+    expect((await operator.request.get(base + historyPath())).status()).toBe(404);
+    await expect(op.getByRole("dialog").getByRole("alert")).toContainText(
+      "outside your current permissions",
+      {
+        timeout: 10_000,
+      },
+    );
     await expect(op.getByRole("dialog")).not.toContainText(name);
     await owned();
     await execute("docker", ["unpause", hostName]);
@@ -223,6 +279,19 @@ test("monitoring rules track real SSH failure and recovery with native acknowled
       },
     });
     expect(JSON.parse(cli.stdout).state).toBe("resolved");
+    const historyCLI = await execute("go", ["run", "./cmd/jms", "monitor", "history", assetID], {
+      cwd: fileURLToPath(new URL("../../server", import.meta.url)),
+      env: {
+        ...process.env,
+        JMS_SERVER_URL: base,
+        JMS_TOKEN: token,
+        JMS_ORG_ID: "",
+        JMS_ACCESS_KEY_ID: "",
+        JMS_ACCESS_KEY_SECRET: "",
+      },
+    });
+    expect(JSON.parse(historyCLI.stdout).results.some((v: any) => v.samples > 0)).toBe(true);
+    expect(historyCLI.stdout).not.toContain("synthetic-keyhost-password");
     expect(cli.stdout).not.toContain("synthetic-keyhost-password");
     expect(errors).toEqual([]);
     await info.attach("monitoring-result", {

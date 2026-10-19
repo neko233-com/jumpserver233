@@ -1452,6 +1452,7 @@ const zhCN = {
     mfaSaved: "MFA 设置已更新。",
   },
   assets: {
+    monitorHistory: "历史曲线",
     keyInstall: "安装 SSH 密钥",
     keyRotate: "轮换 SSH 密钥",
     keyResume: "继续 SSH 密钥操作",

@@ -1565,6 +1565,7 @@ const en = {
     mfaSaved: "MFA settings were updated.",
   },
   assets: {
+    monitorHistory: "History",
     keyInstall: "Install SSH key",
     keyRotate: "Rotate SSH key",
     keyResume: "Resume SSH key change",

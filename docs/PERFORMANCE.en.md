@@ -2,6 +2,12 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## SSH monitoring history (2026-10-18)
+
+Six SVG charts and feature translations load on demand with no new dependency. Final initial JavaScript is 494,346 bytes, gzip 159,510, largest chunk 477,187 and all JavaScript 1,520,506. Existing initial/single-chunk limits of 500,000 bytes and total limit of 1,525,000 remain unchanged. The build check now requires the history dialog to remain a dynamic entry. The Vite stage took 170 ms, excluding type checking.
+
+Hourly shards retain the last observation per minute, with at most eight hot shards. Queries cover at most seven days and 1440 intervals; each organization allows 100000 shards. These bounds and structures are not production throughput or capacity benchmarks. The final targeted Docker browser case passed in 25.7 seconds; cached build, startup and generic browser smoke took 4.32, 7.18 and 2.73 seconds respectively. A real API container restart and verification took 0.92 seconds, preserving eight closed-minute observations exactly. See [verification](./TESTING.en.md).
+
 ## Platform user lifecycle (2026-10-18)
 
 The final complete production browser suite passed 80/80 in 19.4 minutes; its lifecycle case took 12.9 seconds. Implementation was authored before verification, and selected source fingerprints remained unchanged during the suite.

@@ -49,6 +49,7 @@ const defaultKubernetes: KubernetesSettings = {
 const SSHTerminalDialog = lazy(() => import("../components/SSHTerminalDialog"));
 const SFTPFileManagerDialog = lazy(() => import("../components/SFTPFileManagerDialog"));
 const CredentialBackupsDialog = lazy(() => import("../components/CredentialBackupsDialog"));
+const MonitorHistoryDialog = lazy(() => import("../components/MonitorHistoryDialog"));
 
 type Metrics = {
   latency_ms: number;
@@ -303,6 +304,7 @@ export default function AssetInventoryPage() {
   const [keyFailed, setKeyFailed] = useState(false);
   const [rotationFailed, setRotationFailed] = useState(false);
   const [credentialBackupsAsset, setCredentialBackupsAsset] = useState<Asset | null>(null);
+  const [historyAsset, setHistoryAsset] = useState<Asset | null>(null);
   const [pluginAsset, setPluginAsset] = useState<Asset | null>(null);
   const [discoveryAsset, setDiscoveryAsset] = useState<Asset | null>(null);
   const [managedAccountsAsset, setManagedAccountsAsset] = useState<Asset | null>(null);
@@ -994,6 +996,15 @@ export default function AssetInventoryPage() {
                     <td className="asset-remark">{asset.remark || "—"}</td>
                     <td>
                       <div className="asset-actions">
+                        {isSSHProtocol(asset.protocol) && asset.permissions?.includes("view") && (
+                          <button
+                            type="button"
+                            className="button-text button-small"
+                            onClick={() => setHistoryAsset(asset)}
+                          >
+                            {t("assets.monitorHistory")}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="button-primary button-small"
@@ -1995,6 +2006,15 @@ export default function AssetInventoryPage() {
             request={request}
             onClose={() => setCredentialBackupsAsset(null)}
             onChanged={loadAssets}
+          />
+        </Suspense>
+      )}
+      {historyAsset && (
+        <Suspense fallback={null}>
+          <MonitorHistoryDialog
+            asset={historyAsset}
+            request={request}
+            onClose={() => setHistoryAsset(null)}
           />
         </Suspense>
       )}

@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 3/5 adds [SSH monitoring history](./MONITOR-HISTORY.en.md): encrypted hourly segments, seven-day minute records, missing/offline distinctions, current binding and asset-view authorization, native Web charts and CLI/SDK, with PostgreSQL single-active takeover reads. Overall Enterprise parity remains in progress.
+
 Added the BuildWorld intranet `builtin` macOS deployment entry and default `Jenkinsfile_mac_single`, with persistent data, same-port frontend, idempotent activation and recovery. See [deployment](./BUILDWORLD.en.md) for acceptance boundaries. Enterprise parity and production HA continue through the phased roadmap.
 
 Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./PASSWORD-SECURITY.en.md). Overall Enterprise parity remains in progress.
@@ -18,7 +20,7 @@ Phase 5 adds [operations reports](./REPORTS.en.md): 12 organization sources, exp
 
 Phase 5 adds [platform sign-in audit and independent platform notifications](./LOGIN-AUDIT.en.md): global authentication steps, MFA, commit before session delivery, native review cursors, permission filtering, CSV, Web/CLI/SDK and PostgreSQL single-active takeover. Native cloud SMS, IM and full Enterprise parity remain open.
 
-Phase 3/5 adds [native SSH monitoring alerts](./MONITOR-ALERTS.en.md): eight conditions, host/node scopes, sample counts and duration, recovery thresholds, maintenance mute, acknowledgement, notifications and Web/CLI/SDK. Organization encryption and PostgreSQL single-active recovery are integrated. Time-series charts, escalation policies and production HA acceptance remain open.
+Phase 3/5 adds [native SSH monitoring alerts](./MONITOR-ALERTS.en.md): eight conditions, host/node scopes, sample counts and duration, recovery thresholds, maintenance mute, acknowledgement, notifications and Web/CLI/SDK. Organization encryption and PostgreSQL single-active recovery are integrated. Escalation policies and production HA acceptance remain open.
 
 Phase 5 adds the [notification center](./NOTIFICATIONS.en.md): in-app unread messages, personal subscriptions/contact verification, TLS SMTP, signed HTTPS Webhooks, custom SMS gateway, ticket/SSH job/rotation results, delivery receipts and explicit retries, with organization encryption and PostgreSQL single-active recovery. Security messages now cover native asset/command reviews, blocked SSH input, risk scans, host monitoring and Agent repair reports, with current-permission inline review details. Platform sign-in aggregation now uses independent global notifications; native cloud SMS and instant messaging remain open.
 

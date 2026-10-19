@@ -43,4 +43,4 @@ HTTP 入口用于指定内网。公网使用受控 HTTPS 反向代理，再在�
 
 项目 49 的分组、GitHub `main` 和 `Jenkinsfile_mac_single` 已在浏览器保存并读回。Windows Go 静态服务/config/server 测试、vet、前端生产构建和双语检查通过。部署状态机在无网络、只读挂载的临时 Linux 容器中 10/10 通过（launchd 命令由测试替身提供），容器自动删除；Windows 上对应 8 项通过、2 项因符号链接权限跳过。
 
-真实 macOS SCM 校验连续两次在连接 `github.com:443` 约 19 秒后失败，尚未进入构建或部署。需要该节点可用的代理或内网 Git 镜像后继续验收；目前不能把项目创建、Linux 状态机测试或本地 Docker 成功描述成 macOS 服务已经上线。
+真实 macOS SCM 校验此前两次在连接 `github.com:443` 约 19 秒后失败，未进入构建或部署。随后用户要求停止内网发布：目前仅保留项目配置和默认流水线，不再尝试部署，也不等待代理或镜像。项目创建、Linux 状态机测试及本地 Docker 成功均不代表 macOS 服务上线。

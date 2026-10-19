@@ -208,6 +208,31 @@ func (d *Documents) Delete(key string) error {
 	return nil
 }
 
+// Keys lists a bounded set of names in this document scope only. Prefix is a
+// literal prefix, not a SQL LIKE expression. Bodies and other scopes stay private.
+func (d *Documents) Keys(prefix string, limit int) ([]string, error) {
+	qualified, err := d.documentKey(prefix)
+	if err != nil || limit < 1 || limit > 100001 {
+		return nil, ErrInvalidDocument
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), operationLimit)
+	defer cancel()
+	rows, err := d.db.QueryContext(ctx, `SELECT document_key FROM jms233_state_documents WHERE namespace=$1 AND left(document_key, char_length($2))=$2 ORDER BY document_key LIMIT $3`, d.namespace, qualified, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	keys := []string{}
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		keys = append(keys, strings.TrimPrefix(key, d.prefix))
+	}
+	return keys, rows.Err()
+}
+
 func (d *Documents) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), operationLimit)
 	defer cancel()

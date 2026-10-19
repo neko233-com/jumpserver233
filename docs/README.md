@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[SSH 监控历史](./MONITOR-HISTORY.md)：加密小时分段、七天分钟记录、当前绑定与授权、Web 曲线和原生 CLI。
+
 [BuildWorld 内网 macOS 单机部署](./BUILDWORLD.md)：默认 `Jenkinsfile_mac_single`、同端口静态网页、launchd、健康检查和回滚。
 
 平台本地密码策略、历史与有效期、受限改密、独立授权的密码/TOTP 恢复接入 Web/CLI/SDK，支持 v3 用户文档接管；见[密码安全](./PASSWORD-SECURITY.md)。企业版整体对齐保持进行中。

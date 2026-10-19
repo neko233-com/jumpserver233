@@ -28,6 +28,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/monitoralerts"
+	"github.com/neko233-com/jumpserver233/server/internal/core/monitorhistory"
 	"github.com/neko233-com/jumpserver233/server/internal/core/nodes"
 	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"github.com/neko233-com/jumpserver233/server/internal/core/operations"
@@ -175,6 +176,11 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return nil, e
 		}
 		d.Assets = coreassets.NewService(assetStore, nil)
+		history, openErr := monitorhistory.Open(filepath.Join(orgPath, "monitor-history"), orgKey, docs)
+		if openErr != nil {
+			return nil, openErr
+		}
+		d.Assets.SetMonitorHistory(history)
 		if e = d.Assets.CoordinatePasswords(r.passwords, id); e != nil {
 			return nil, e
 		}
@@ -495,6 +501,9 @@ func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) 
 	}
 	if current.done != nil {
 		<-current.done
+	}
+	if current.d.Assets != nil {
+		current.d.Assets.CloseMonitorHistory()
 	}
 }
 func (r *organizationRuntimes) close(abandon bool) {

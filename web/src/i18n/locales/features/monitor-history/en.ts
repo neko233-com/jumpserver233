@@ -1,0 +1,42 @@
+export default {
+  monitorHistory: {
+    title: "SSH monitoring history",
+    close: "Close",
+    range: "Time range",
+    refresh: "Refresh",
+    loading: "Loading observations…",
+    unavailableHost: "Host unavailable",
+    resolution:
+      "Retains the last observation per UTC minute for up to seven days. Larger intervals aggregate those minute observations. Gaps and unavailable rates remain missing; history follows the current host, node and gateway binding.",
+    denied: "This host is unavailable or your current permission no longer allows viewing it.",
+    unavailable: "Monitoring history is unavailable. Check service storage and retry.",
+    storageWarning:
+      "Some history writes or retention cleanup are incomplete. Check service storage.",
+    empty: "No observations for this host binding in the selected range.",
+    inspect: "Inspect an interval",
+    step: "{{seconds}} seconds per interval",
+    observations: "{{online}} online · {{offline}} offline minute observations",
+    metric: "Metric",
+    mean: "Mean",
+    minimum: "Minimum",
+    maximum: "Maximum",
+    count: "Samples",
+    missing: "—",
+    ranges: { "1": "Last hour", "6": "Last 6 hours", "24": "Last 24 hours", "168": "Last 7 days" },
+    units: { percent: "%", latency: "ms", rate: "B/s" },
+    states: {
+      online: "Online",
+      offline: "Offline",
+      mixed: "Online and offline",
+      no_data: "No data",
+    },
+    metrics: {
+      cpu_percent: "CPU",
+      memory_percent: "Memory",
+      disk_percent: "Root disk",
+      latency_ms: "SSH latency",
+      network_rx_bps: "Network receive",
+      network_tx_bps: "Network send",
+    },
+  },
+};

@@ -18,6 +18,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sqlclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/telnetclient"
+	"github.com/neko233-com/jumpserver233/server/internal/core/monitorhistory"
 )
 
 var hostLabelPattern = regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
@@ -75,6 +76,7 @@ type Service struct {
 	rotationStatus      map[string]PasswordRotationStatus
 	rotationRunning     map[string]bool
 	rotationAuditMux    sync.Mutex
+	monitorHistory      *monitorhistory.Store
 }
 
 func NewService(store *Store, probe ProbeFunc) *Service {
@@ -373,9 +375,11 @@ func (s *Service) Probe(ctx context.Context, id string) (ListItem, error) {
 		s.mu.Lock()
 		s.status[id] = status
 		s.mu.Unlock()
+		s.recordHistory(id, status)
 		return ListItem{Asset: asset, Monitor: status}, fmt.Errorf("SSH host probe failed")
 	}
 	status := s.recordMetrics(id, metrics, checkedAt, monitorTargetBinding(asset, target))
+	s.recordHistory(id, status)
 	return ListItem{Asset: asset, Monitor: status}, nil
 }
 
@@ -440,6 +444,7 @@ func (s *Service) Run(ctx context.Context, interval time.Duration) {
 	s.RecoverPendingSSHKeyChanges(ctx)
 	s.RecoverPendingPasswordRotations(ctx)
 	for {
+		s.pruneHistory()
 		s.RefreshAll(ctx)
 		s.RecoverPendingSSHKeyChanges(ctx)
 		s.RecoverPendingPasswordRotations(ctx)

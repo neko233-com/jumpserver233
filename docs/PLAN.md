@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+Phase 3/5 新增[SSH 监控历史](./MONITOR-HISTORY.md)：加密小时分段、七天分钟数据、缺失/离线区分、当前绑定与资产查看授权、Web 原生曲线和 CLI/SDK，支持 PostgreSQL 单活接管读取。企业版整体目标继续推进。
+
 新增 BuildWorld 内网 `builtin` macOS 单机部署入口和默认 `Jenkinsfile_mac_single`，使用持久化数据、同端口前端、幂等激活与失败回滚。部署验收边界见[说明](./BUILDWORLD.md)；整体企业版和生产 HA 目标继续按阶段推进。
 
 平台本地密码策略、历史与有效期、受限改密、独立授权的密码/TOTP 恢复接入 Web/CLI/SDK，支持 v3 用户文档接管；见[密码安全](./PASSWORD-SECURITY.md)。企业版整体对齐保持进行中。
@@ -18,7 +20,7 @@ Phase 5 新增[运营报表](./REPORTS.md)：12 类组织来源与显式全局�
 
 Phase 5 已接入[平台登录审计与独立平台通知](./LOGIN-AUDIT.md)：全局认证步骤、MFA、会话签发前提交、原生复核游标、权限过滤、CSV、Web/CLI/SDK 和 PostgreSQL 单活接管。原生云短信、IM 和完整企业版对齐仍在进行。
 
-Phase 3/5 新增[原生 SSH 监控告警](./MONITOR-ALERTS.md)：八类条件、主机/节点范围、连续样本与持续时间、恢复阈值、维护静默、确认、通知中心和 Web/CLI/SDK。组织加密和 PostgreSQL 单活恢复已接入；时序曲线、升级策略与生产 HA 验收仍待完成。
+Phase 3/5 新增[原生 SSH 监控告警](./MONITOR-ALERTS.md)：八类条件、主机/节点范围、连续样本与持续时间、恢复阈值、维护静默、确认、通知中心和 Web/CLI/SDK。组织加密和 PostgreSQL 单活恢复已接入；升级策略与生产 HA 验收仍待完成。
 
 Phase 5 新增[通知中心](./NOTIFICATIONS.md)：站内未读、个人订阅与联系方式验证、TLS SMTP、签名 HTTPS Webhook、自定义短信网关、工单/SSH 作业/改密结果、送达回执及显式重试，支持组织加密与 PostgreSQL 单活恢复。安全消息已覆盖资产/命令原生复核、SSH 命令阻断、风险扫描、主机监控和 Agent 修复报告；详情按当前权限直接复核。平台登录聚合已接入独立全局通知；原生云短信和即时通信渠道仍待完成。
 

@@ -2,6 +2,17 @@
 
 > [中文](./TESTING.md) | English
 
+## SSH monitoring history verification (2026-10-18)
+
+- Complete production browser regression: 81/81 passed, no failures/skips, 18.2 minutes; runner exit 0 with temporary data and protocol fixtures removed. The final chart corrections also have an independent targeted Docker result below.
+- Full Go: 69 tested packages, 1286 tests/subtests passed, 48 skipped for unavailable protocol fixtures/platforms, zero failures, 74.7 seconds; another 29 packages contain no tests. An isolated real PostgreSQL fixture covers organization scope, maximum-length keys, retention deletion and leader takeover. Other protocol fixtures were not configured for this native Go run; browser suites exercise real SSH and other business paths.
+- Linux Docker race: six affected packages, 401 passed, 8 skipped for unavailable fixtures, zero failures, 323.2 seconds, including real PostgreSQL takeover. These results overlap the native run and must not be added. The first Windows race invocation could not start with CGO disabled; isolated Linux supplied the completed race check.
+- Testify covers final minute observations, identical retries/conflicts, older samples, aggregation, gaps and genuine zeroes, encrypted reopening, wrong keys/corruption, eight-shard caching, capacity, persistence rollback, cancellation, concurrency, repeated physical cleanup, grant revocation, changed bindings, SDK/CLI input and secret omission. A distinctive synthetic historical value proves HA persistence; OpenSSH provides real collection evidence.
+- Final targeted Docker browser case: 1/1 passed, no skips, 25.7 seconds, covering real OpenSSH collection, failure/recovery, history API/CLI, current view grants/revocation, bilingual UI, 390px mobile, keyboard interval selection and Escape focus restoration. A real API container restart preserved eight closed-minute observations exactly, verified in about 0.92 seconds.
+- Browser review corrected vertical-axis placement. Lint then prompted removal of an unnecessary mutable chart-path closure; final lint has no warnings. One targeted assertion incorrectly treated a mixed interval spanning a UTC minute boundary as wholly offline. It now checks offline counts and separately verifies empty values in pure-offline intervals. The final build passed the targeted case again.
+- Go vet, frontend lint, strict application/E2E types, production build and bilingual/provenance checks pass. Charts and feature translations remain lazy, with unchanged size budgets. Compact reports and key screenshots reside in ignored `.cache/qa-reports/monitor-history/`.
+- Targeted containers, volumes, networks, dedicated images and the Linux race cache volume were removed; repeated cleanup passed. Windows automatic approval review rejected removal of the verified owned Go temporary directory and helper scripts; an earlier review also rejected `web/dist` removal. About 45MB of Go temporary files, ignored helpers and build output remain, with the exact boundary recorded in the cleanup report.
+
 ## Password security, idempotency and test cleanup (2026-10-18)
 
 - Final production browser cases: 81/81 passed, no failures/skips, 18.3 minutes. The password case took 17.8 seconds in the suite. Coverage includes real SSH, databases, RADIUS, systemd, Web/CLI and bilingual desktop/mobile flows.

@@ -36,6 +36,8 @@ if(!manifest[rotation]?.isDynamicEntry || initial.has(rotation)) throw new Error
 for (const entry of ["src/pages/PasswordChangePage.tsx", "src/components/PasswordSecuritySettings.tsx"]) {
   if (!manifest[entry]?.isDynamicEntry || initial.has(entry)) throw new Error("Password security screens must remain lazy");
 }
+const history = "src/components/MonitorHistoryDialog.tsx";
+if (!manifest[history]?.isDynamicEntry || initial.has(history)) throw new Error("Monitoring history charts and feature locales must remain lazy");
 // Allocate 25 kB for required password security screens and shared resources.
 // Keep counting every chunk and retain the existing initial/single-chunk limits.
 if (largest > 500_000 || initialBytes > 500_000 || total > 1_525_000) throw new Error("Production JavaScript exceeds the recorded size budget");

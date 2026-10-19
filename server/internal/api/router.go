@@ -127,6 +127,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		}
 		registerReportRoutes(mux, dependencies[0], accessMu)
 		registerMonitorAlertRoutes(mux, dependencies[0], accessMu)
+		registerMonitorHistoryRoutes(mux, dependencies[0], accessMu)
 		registerTicketRoutes(mux, dependencies[0], accessMu)
 		registerNotificationRoutes(mux, dependencies[0])
 	}

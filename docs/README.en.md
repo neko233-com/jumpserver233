@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[SSH monitoring history](./MONITOR-HISTORY.en.md): encrypted hourly segments, seven-day minute records, current bindings/permissions, Web charts and native CLI.
+
 [BuildWorld intranet macOS deployment](./BUILDWORLD.en.md): default `Jenkinsfile_mac_single`, same-port frontend, launchd, health checks and recovery.
 
 Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./PASSWORD-SECURITY.en.md). Overall Enterprise parity remains in progress.

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const monitorUsage = "usage: jms monitor rules|alerts|audit|health [--offset 0 --limit 25 --state firing --query TEXT] | alert ID | rule-save [ID] --file INPUT.json (or - for stdin) | rule-delete ID --revision N | mute ID --revision N --until RFC3339 [--comment TEXT] | unmute ID --revision N | acknowledge ID --revision N [--comment TEXT]"
+const monitorUsage = "usage: jms monitor history ASSET_ID [--from RFC3339 --to RFC3339 --step 60] | rules|alerts|audit|health [--offset 0 --limit 25 --state firing --query TEXT] | alert ID | rule-save [ID] --file INPUT.json (or - for stdin) | rule-delete ID --revision N | mute ID --revision N --until RFC3339 [--comment TEXT] | unmute ID --revision N | acknowledge ID --revision N [--comment TEXT]"
 
 func runMonitor(args []string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
@@ -30,7 +30,7 @@ func executeMonitor(ctx context.Context, c *sessionclient.Client, args []string,
 	}
 	action, id, start := args[0], "", 1
 	switch action {
-	case "alert", "rule-delete", "mute", "unmute", "acknowledge":
+	case "history", "alert", "rule-delete", "mute", "unmute", "acknowledge":
 		if len(args) < 2 {
 			return errors.New(monitorUsage)
 		}
@@ -47,6 +47,7 @@ func executeMonitor(ctx context.Context, c *sessionclient.Client, args []string,
 	revision := f.Int("revision", 0, "")
 	file := f.String("file", "", "")
 	until, comment := f.String("until", "", ""), f.String("comment", "", "")
+	from, to, step := f.String("from", "", ""), f.String("to", "", ""), f.Int("step", 60, "")
 	if f.Parse(args[start:]) != nil || f.NArg() != 0 || *offset < 0 || *limit < 1 || *limit > 200 {
 		return errors.New(monitorUsage)
 	}
@@ -57,6 +58,25 @@ func executeMonitor(ctx context.Context, c *sessionclient.Client, args []string,
 		return json.NewEncoder(output).Encode(v)
 	}
 	switch action {
+	case "history":
+		end := time.Now().UTC()
+		start := end.Add(-time.Hour)
+		var parseErr error
+		if *to != "" {
+			end, parseErr = time.Parse(time.RFC3339Nano, *to)
+			if parseErr != nil {
+				return errors.New(monitorUsage)
+			}
+			start = end.Add(-time.Hour)
+		}
+		if *from != "" {
+			start, parseErr = time.Parse(time.RFC3339Nano, *from)
+			if parseErr != nil {
+				return errors.New(monitorUsage)
+			}
+		}
+		v, e := c.MonitorHistory(ctx, id, start, end, *step)
+		return emit(v, e)
 	case "rules":
 		v, e := c.MonitorRules(ctx)
 		return emit(v, e)

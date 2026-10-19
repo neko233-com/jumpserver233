@@ -39,6 +39,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginaudit"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/monitoralerts"
+	"github.com/neko233-com/jumpserver233/server/internal/core/monitorhistory"
 	corenodes "github.com/neko233-com/jumpserver233/server/internal/core/nodes"
 	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
 	"github.com/neko233-com/jumpserver233/server/internal/core/oidclogin"
@@ -109,6 +110,12 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	assetService := coreassets.NewService(assetStore, nil)
+	historyStore, err := monitorhistory.Open(filepath.Join(cfg.DataDir, "monitor-history"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	defer historyStore.Close()
+	assetService.SetMonitorHistory(historyStore)
 	fileAudit, err := corefiles.OpenAuditStore(filepath.Join(cfg.DataDir, "file-transfers", "index.jsonl"))
 	if err != nil {
 		return err

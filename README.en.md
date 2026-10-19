@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+SSH hosts support [seven-day monitoring history](./docs/MONITOR-HISTORY.en.md): encrypted minute records, current asset permissions, Web charts and CLI, with distinct offline, missing and genuine zero values.
+
 Default BuildWorld intranet macOS pipeline: [Jenkinsfile_mac_single](./Jenkinsfile_mac_single), with unified checks, native packaging, persistence, idempotent activation and failure recovery. See [deployment](./docs/BUILDWORLD.en.md).
 
 Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./docs/PASSWORD-SECURITY.en.md). Overall Enterprise parity remains in progress.
