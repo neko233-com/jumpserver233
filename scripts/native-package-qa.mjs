@@ -125,7 +125,10 @@ try {
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(card.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
     await card.screenshot({ path: resolve(screenshots, "native-stage.zh.png") });
-    if (errors.length) throw new Error("Staged candidate browser reported runtime warnings or errors");
+    if (errors.length) {
+      report.browserDiagnostics = errors.slice(-10).map(message => fixtureDiagnostic(message));
+      throw new Error("Staged candidate browser reported runtime warnings or errors");
+    }
     report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.testVersion, warningsOrErrors: errors.length, fromStagedCandidate: true };
   } finally { await browser.close(); }
   // Repeating package creation must refuse replacement of an existing archive.
