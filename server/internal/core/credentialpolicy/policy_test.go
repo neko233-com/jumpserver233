@@ -1,6 +1,7 @@
 package credentialpolicy
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,6 +12,27 @@ import (
 	"sync"
 	"testing"
 )
+
+func TestSSHPasswordPolicyRejectsIncompleteAuthenticatedState(t *testing.T) {
+	for _, missing := range []string{"policy", "audit", "receipts"} {
+		t.Run(missing, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "policy.json")
+			key := make([]byte, 32)
+			s, e := Open(path, key, nil)
+			require.NoError(t, e)
+			data := map[string]any{"version": 1, "policy": s.Snapshot(), "audit": []Audit{}, "receipts": []receipt{}}
+			delete(data, missing)
+			plain, e := json.Marshal(data)
+			require.NoError(t, e)
+			nonce := make([]byte, s.aead.NonceSize()) // Synthetic test key; one envelope per fixture.
+			body, e := json.Marshal(envelope{Version: 1, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte("ssh-password-policy/v1"))})
+			require.NoError(t, e)
+			require.NoError(t, os.WriteFile(path, body, 0600))
+			_, e = Open(path, key, nil)
+			assert.ErrorIs(t, e, ErrInvalid)
+		})
+	}
+}
 
 type badRandom struct{}
 

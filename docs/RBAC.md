@@ -2,6 +2,8 @@
 
 > 中文 | [English](./RBAC.en.md)
 
+组织级 [SSH 生成密码策略](./SSH-PASSWORD-POLICY.md) 使用独立 `accounts.password_policy.view` / `accounts.password_policy.manage`；这些权限不授予查看凭据或执行改密。角色页提供中英标签，只有策略权限的用户也能访问配置卡片。
+
 主机插件新增 `plugins.inspect` 与 `plugins.manage`；它们仍需当前组织的目标账号 connect 授权。插件长任务在撤权后关闭 SSH，已分离的 Agent 需要显式停止，详见 [主机工具与 Agent](./HOST-PLUGINS.md)。
 
 数据库查询的跨操作人元数据审计与取消分别由 `database.audit.view_all`、`database.cancel_all` 授权，复核沿用 `reviews.command.manage`；结果行只对当前仍获授权的所属操作人开放。见 [PostgreSQL](./POSTGRESQL.md)。

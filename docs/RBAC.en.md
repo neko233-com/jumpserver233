@@ -2,6 +2,8 @@
 
 > [中文](./RBAC.md) | English
 
+Organization [generated SSH password policies](./SSH-PASSWORD-POLICY.en.md) use independent `accounts.password_policy.view` / `accounts.password_policy.manage`; neither grants credential access or rotation execution. Role controls have bilingual labels, and policy-only users can access the configuration card.
+
 Host plugins add `plugins.inspect` and `plugins.manage`, with target-account connect authorization still required in the current organization. Revocation closes a running task SSH transport; detached agents require explicit stopping. See [host tools and agents](./HOST-PLUGINS.en.md).
 
 Database metadata audit and cancellation across operators use `database.audit.view_all` and `database.cancel_all`; review uses `reviews.command.manage`. Result rows remain limited to the owner with current authorization. See [PostgreSQL](./POSTGRESQL.en.md).

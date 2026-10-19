@@ -2,6 +2,10 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Generated SSH password policy (2026-10-20)
+
+Native build of `cb29e96`: initial JS **499674** bytes (gzip **161544**), total JS **1640355**, largest chunk **482515**. Added **6724** bytes relative to the prior baseline. Policy controls and bilingual guidance load with account/role pages; no dependencies were added. An explicit 8 KB allocation raises total budget from 1637200 to 1645200, retaining 500000-byte entry/chunk limits. Clean Docker build took 39.58 seconds, startup 12.24 seconds and smoke 9.61 seconds; six-platform native packaging/full functional rehearsal took about 142.5 seconds. Cache state, platform and concurrent load affect timings; these observations do not establish cold-build acceleration.
+
 ## Branding (2026-10-19)
 
 Branding checkpoint, 2026-10-19: initial JavaScript 498,714 bytes (gzip 161,277), largest chunk 481,555, total JavaScript 1,541,734. Branding management and feature translations are lazy; public identity/theme bootstrap is shared. The total budget allocates another 20,000 bytes to these features (1,525,000 to 1,545,000); initial and individual chunk limits remain 500,000 bytes. This is an explicit feature allocation, not a size reduction. No dependency was added. This Docker production build took 34.87 seconds, startup 11.97 seconds and browser smoke 3.26 seconds; these observations do not establish a cold/warm speed comparison. Run-owned Go temporary directories are removed with test data, preserving shared native Go compilation and dependency caches.

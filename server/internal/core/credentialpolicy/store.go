@@ -92,9 +92,11 @@ func Open(path string, key []byte, docs *storage.Documents) (*Store, error) {
 	if e != nil {
 		return nil, ErrInvalid
 	}
-	if json.Unmarshal(plain, &s.data) != nil || s.data.Version != 1 || !s.data.Policy.Rules.Valid() || s.data.Policy.Revision < 1 || len(s.data.Audit) > 200 || len(s.data.Receipts) > 100 {
+	var loaded state
+	if json.Unmarshal(plain, &loaded) != nil || loaded.Version != 1 || !loaded.Policy.Rules.Valid() || loaded.Policy.Revision < 1 || loaded.Audit == nil || loaded.Receipts == nil || len(loaded.Audit) > 200 || len(loaded.Receipts) > 100 {
 		return nil, ErrInvalid
 	}
+	s.data = loaded
 	ids := map[string]bool{}
 	for _, v := range s.data.Receipts {
 		if !requestID.MatchString(v.Input.RequestID) || v.ActorID == "" || !v.Input.Policy.Rules.Valid() || v.Input.Policy.Revision < 1 || ids[v.Input.RequestID] {
