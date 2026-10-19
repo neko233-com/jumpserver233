@@ -2,6 +2,14 @@
 
 > [中文](./TESTING.md) | English
 
+## Per-plan SSH password constraints (2026-10-20)
+
+- Product source `8a5bf70`; `ec046cd` only expands the race entrypoint and source receipts, without server/web product changes. Unified verification after authoring the complete batch: Go/Testify **1690 passed, 111 platform/fixture skips, zero failures**; vet, frontend lint and application/E2E type checks passed. QA helpers **64/64**; browser renderer/cache helpers **6/6**.
+- Complete production browser suite: **87/87**, **zero failures/retries**, about 19.2 minutes. Initial Linux race covered 20 packages and **280** cases. A coverage check found the missing rotation-plan core package; `--rotation-plans-only` then ran all **12** core cases, including real PostgreSQL organization isolation/takeover. Combined: **21 packages, 292 passed, zero skips/failures**. The default entrypoint now includes the core package.
+- Six-platform native artifact verification, host Windows CLI and isolated Linux real SSH/native installation and recovery passed. New English/Chinese desktop/390px checks cover saved plan rules, real SSH rotation, conflicting-rule refusal, stale revisions, run replay, immutable snapshots after edits, CLI reads, organization permissions and rule/run retention after restart, encrypted site backup and repeated restoration. Two essential screenshots were visually inspected.
+- Independent source Docker build, exposed ports, login and browser smoke passed: build 32.4 seconds, startup 12.03, smoke 7.89. Initial JS 499674 bytes, total JS 1642703, largest chunk 482515, without a budget increase; see [performance baseline](./PERFORMANCE.en.md).
+- Owned temporary data, programs, containers/volumes, QA images and attributable caches were removed. Browser-root cleanup passed twice; repeated resource sweeps found no candidates or additional removals. Named evidence retains at most two screenshots and compact JSON; unfamiliar/incomplete historical evidence remains protected. Reports are ignored under `.cache/qa-reports/plan-password-policy/`, `plan-password-policy-core/` and `browser-1792452947376/`. This evidence does not establish fixed-password support, other-protocol rotation or full Enterprise completion.
+
 ## Generated SSH password policy (2026-10-20)
 
 - Implementation `83f1e5c`, effect scheduling fix `aec6bb5`, test fixture identity fix `cb29e96`, strict-state validation fix `b65aaa1`. Full Go/Testify: **1679 passed, 111 platform/fixture skips, zero failures**; vet passed. Linux/PostgreSQL race: **20 packages, 272 passed, zero skips/failures**, 123.9 seconds, including isolated organization documents and single-active reload/replay.

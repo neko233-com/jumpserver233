@@ -2,6 +2,10 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Per-plan SSH password constraints (2026-10-20)
+
+Product source `8a5bf70`: initial JS **499674** bytes (gzip **161540**), total JS **1642703**, largest chunk **482515**. Added **2348** bytes relative to the organization-policy baseline, retaining the existing **1645200** total budget and **500000** entry/chunk limits. No budget increase or dependency was added. Organization and plan editors reuse the same rule fields. Clean Docker verification ran with QA entrypoint `ec046cd`, with unchanged product source: build **32.4** seconds, startup **12.03**, browser smoke **7.89**; resources were removed. Complete browser, native-package and race checks have separate records. Cache state and concurrent load affect timings.
+
 ## Generated SSH password policy (2026-10-20)
 
 Native build of `b65aaa1`: initial JS **499674** bytes (gzip **161544**), total JS **1640355**, largest chunk **482515**. Added **6724** bytes relative to the prior baseline. Policy controls and bilingual guidance load with account/role pages; no dependencies were added. An explicit 8 KB allocation raises total budget from 1637200 to 1645200, retaining 500000-byte entry/chunk limits. Clean Docker build took 39.58 seconds, startup 12.24 seconds and smoke 9.61 seconds; six-platform native packaging/full functional rehearsal took about 145.6 seconds. Cache state, platform and concurrent load affect timings; these observations do not establish cold-build acceleration.
