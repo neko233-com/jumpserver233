@@ -153,15 +153,12 @@ jobs:
       - name: Frontend lint
         working-directory: web
         run: pnpm lint
-      - name: Frontend production build
-        working-directory: web
-        run: pnpm build
       - name: Install Playwright Chromium
         working-directory: web
         run: pnpm exec playwright install --with-deps chromium
-      - name: Browser end-to-end tests
+      - name: Production browser end-to-end tests (includes build)
         working-directory: web
-        run: pnpm test:e2e
+        run: pnpm test:e2e:production
       - name: Retain compact browser reports
         if: always()
         uses: actions/upload-artifact@v4

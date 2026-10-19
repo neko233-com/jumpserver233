@@ -14,6 +14,8 @@ Both backend and frontend CI runners are pinned to `ubuntu-22.04` and record `un
 
 Production browser builds use `web-dist/` under their owned temporary run root. Preview and bundle checks use that same directory, removed with the run data. Independent `pnpm build` keeps `web/dist/`, allowing parallel verification.
 
+Frontend CI reuses the single build in `pnpm test:e2e:production` while running the complete suite, removing the preceding duplicate standalone build. Backend state-machine checks explicitly select Python 3.11 for `hashlib.file_digest`; all ten state-machine cases passed in a read-only Linux container. These cases use a fake runtime and deploy no intranet service.
+
 Browser and Docker runners apply file retention on completion: each keeps the latest three completed, successfully cleaned disposable runs, with at most two screenshots (PNG/JPEG/WebP), preferring one English and one Chinese image. Current and historical native package/Linux race batches with valid runner receipts are also compacted after results and cleanup pass; runner and child PIDs protect concurrent runs. Successful named and Docker batches discard raw trace/ZIP/TAR files, videos, HTML/HAR, profiles and temporary test programs, retaining JSON reports and other unrecognized files. Failed results retain compact summaries; Docker failures keep the existing 16,000-character diagnostic log. Active PIDs, incomplete fixture cleanup and intentionally retained debug environments are skipped. Expired disposable run directories are deleted; named feature JSON reports remain.
 
 Preview and clean historical files manually:

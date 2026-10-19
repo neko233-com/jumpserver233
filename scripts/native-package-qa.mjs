@@ -518,6 +518,8 @@ try {
     await chineseDirectoryResult.screenshot({ path: resolve(output, "execution.zh.png") });
     const bounds = await chineseDirectoryResult.boundingBox();
     if (!bounds || bounds.x < 0 || bounds.x + bounds.width > 392) throw new Error("Mobile directory result overflows viewport");
+    const closeBounds = await chineseDirectoryResult.getByRole("button", { name: "关闭结果", exact: true }).boundingBox();
+    if (!closeBounds || closeBounds.width < 60 || closeBounds.height > 52) throw new Error("Mobile result close button is not readable on one line");
     report.executionDirectories.browserRuleCreationAndRealReviewedCommand = true;
     report.executionDirectories.browserBilingualDesktopAndMobile = true;
     await page.setViewportSize({ width: 1280, height: 900 });

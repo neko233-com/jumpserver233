@@ -287,8 +287,22 @@ export default function WorkbenchPage() {
             spellCheck={false}
           />
         </label>
+        <label>
+          {t("jobs.timeout")}
+          <input
+            type="number"
+            min={1}
+            max={300}
+            required
+            value={timeout}
+            onChange={(event) => {
+              setTimeoutSeconds(Number(event.target.value));
+              requestID.current = "";
+            }}
+          />
+        </label>
         {assets.find((asset) => asset.id === assetID)?.ssh_workspace && (
-          <label className="jobs-command">
+          <label className="jobs-directory">
             {t("directoryPolicy.workingDirectory")}
             <input
               aria-label={t("directoryPolicy.workingDirectory")}
@@ -307,20 +321,6 @@ export default function WorkbenchPage() {
             <small id="job-directory-hint">{t("directoryPolicy.workingHint")}</small>
           </label>
         )}
-        <label>
-          {t("jobs.timeout")}
-          <input
-            type="number"
-            min={1}
-            max={300}
-            required
-            value={timeout}
-            onChange={(event) => {
-              setTimeoutSeconds(Number(event.target.value));
-              requestID.current = "";
-            }}
-          />
-        </label>
         <button type="submit" disabled={busy || !assetID || !command.trim()}>
           {t("jobs.run")}
         </button>

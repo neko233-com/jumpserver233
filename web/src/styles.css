@@ -2787,6 +2787,9 @@ a {
   gap: 8px;
   font-size: 13px;
 }
+.jobs-directory {
+  grid-column: 1 / 4;
+}
 .jobs-form input,
 .jobs-form select {
   min-width: 0;
@@ -2919,11 +2922,30 @@ a {
   .jobs-form {
     grid-template-columns: 1fr 140px;
   }
-  .jobs-command {
+  .jobs-command,
+  .jobs-directory {
     grid-column: 1 / -1;
   }
   .jobs-page {
     padding: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .jobs-form {
+    grid-template-columns: 1fr;
+  }
+  .jobs-detail > header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .jobs-detail > header h2 {
+    margin: 0;
+  }
+  .jobs-detail > header button {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 }
 
