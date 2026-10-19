@@ -9,6 +9,7 @@ type Status = {
   revision: number;
   draining: boolean;
   ready: boolean;
+  stopping: boolean;
   activity: Record<string, number>;
 };
 type Input = { instance: string; revision: number; request_id: string; draining: boolean };
@@ -120,7 +121,7 @@ export default function ServiceMaintenance({ onChanged }: { onChanged?: () => vo
         <>
           <p role="status">
             {t(
-              `updates.maintenance.${!status.supported ? "unsupported" : status.ready ? "ready" : status.draining ? "draining" : "open"}`,
+              `updates.maintenance.${!status.supported ? "unsupported" : status.stopping ? "stopping" : status.ready ? "ready" : status.draining ? "draining" : "open"}`,
             )}
           </p>
           {status.draining && (
@@ -136,7 +137,7 @@ export default function ServiceMaintenance({ onChanged }: { onChanged?: () => vo
             <button
               type="button"
               className="button-primary"
-              disabled={busy || !status.supported}
+              disabled={busy || !status.supported || status.stopping}
               onClick={() => void change(!status.draining)}
             >
               {t(`updates.maintenance.${status.draining ? "cancel" : "start"}`)}

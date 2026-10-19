@@ -31,7 +31,8 @@ type Config struct {
 	// DataDir contains the encrypted standalone inventory and vault key.
 	DataDir string
 	// WebDir optionally serves a production frontend on the API listener.
-	WebDir string
+	WebDir      string
+	ReleaseRoot string
 	// VaultKey is optional base64-encoded 32-byte key material for shared deployments.
 	VaultKey string
 	// AdminToken protects inventory APIs when the listener is exposed beyond loopback.
@@ -63,6 +64,7 @@ func FromEnv() (*Config, error) {
 		ShutdownTimeout: 10 * time.Second,
 		DataDir:         getEnv("JMS_DATA_DIR", filepath.Join(userConfigDir, "JumpServer233")),
 		WebDir:          strings.TrimSpace(getEnv("JMS_WEB_DIR", "")),
+		ReleaseRoot:     strings.TrimSpace(getEnv("JMS_RELEASE_ROOT", "")),
 		VaultKey:        getEnv("JMS_VAULT_KEY", ""),
 		AdminToken:      getEnv("JMS_ADMIN_TOKEN", ""),
 		MonitorInterval: time.Minute,
@@ -112,6 +114,9 @@ func FromEnv() (*Config, error) {
 		return nil, err
 	}
 	cfg.ClusterMode = clusterMode
+	if cfg.ReleaseRoot != "" && (!filepath.IsAbs(cfg.ReleaseRoot) || cfg.ClusterMode) {
+		return nil, fmt.Errorf("JMS_RELEASE_ROOT requires an absolute standalone managed release root")
+	}
 	cfg.DatabaseURL = strings.TrimSpace(getEnv("JMS_DATABASE_URL", ""))
 	cfg.ClusterHealthAddr = getEnv("JMS_CLUSTER_HEALTH_ADDR", "0.0.0.0:8081")
 	if cfg.ClusterMode {

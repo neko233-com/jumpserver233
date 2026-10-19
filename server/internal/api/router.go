@@ -46,6 +46,8 @@ import (
 )
 
 type Dependencies struct {
+	ReleaseRoot           string
+	InstallationDataDir   string
 	Maintenance           *servicemaintenance.Controller
 	Updates               *updates.Store
 	AssetDiscovery        *assetdiscovery.Service
@@ -127,6 +129,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	mux.HandleFunc("GET /api/health", HealthHandler(version))
 	if len(dependencies) > 0 {
 		registerUpdateRoutes(mux, dependencies[0])
+		registerInstallationScheduleRoutes(mux, dependencies[0])
 		registerMaintenanceRoutes(mux, dependencies[0])
 		registerBrandingRoutes(mux, dependencies[0])
 	} else {

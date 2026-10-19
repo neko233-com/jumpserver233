@@ -14,9 +14,12 @@ import { buildQAImage } from "../server/testsupport/docker-qa.mjs";
 import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 import { retainQAArtifacts } from "./qa-retention.mjs";
+import { verifyScheduledInstallation } from "./scheduled-install-qa.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
-const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/execution-directories");
+const batch = process.argv.length===2 ? "execution-directories" : process.argv.length===4 && process.argv[2]==="--batch" && /^[a-z][a-z0-9-]{0,63}$/.test(process.argv[3]) ? process.argv[3] : null;
+if (!batch) throw new Error("Use [--batch lowercase-name]");
+const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/"+batch);
 mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
@@ -118,6 +121,12 @@ try {
   report.recoveryVersion = "v0.0.4";
   await run("go", ["run", "./cmd/jms-package", "--version", report.recoveryVersion, "--commit", report.commit, "--built-at", report.builtAt, "--target", `linux/${linuxArch}`, "--out", packages, "--web-dir", nativeWeb], { cwd: resolve(root, "server") });
   const recoveryArchive = resolve(packages, `jumpserver233-${report.recoveryVersion}-linux-${linuxArch}.tar.gz`), recoverySHA = createHash("sha256").update(readFileSync(recoveryArchive)).digest("hex");
+  await run("go", ["run", "./cmd/jms-package", "--version", "v0.0.5", "--commit", report.commit, "--built-at", report.builtAt, "--target", `linux/${linuxArch}`, "--out", packages, "--web-dir", nativeWeb], { cwd: resolve(root,"server") });
+  const scheduledArchive=resolve(packages,`jumpserver233-v0.0.5-linux-${linuxArch}.tar.gz`), scheduledSHA=createHash("sha256").update(readFileSync(scheduledArchive)).digest("hex");
+  const failedScheduledBinary=resolve(temporary,"fixture-scheduled-before"),failedScheduledArchive=resolve(packages,"fixture-scheduled-before.tar.gz");
+  await run("go",["build","-trimpath","-buildvcs=false","-ldflags","-s -w -X main.failureMode=before -X main.version=v0.0.6","-o",failedScheduledBinary,"./testsupport/activationfixture"],{cwd:resolve(root,"server"),env:{...process.env,GOOS:"linux",GOARCH:linuxArch,CGO_ENABLED:"0"}});
+  await run("go",["run","./testsupport/releasefixture","--base-dir",linuxBase,"--server-binary",failedScheduledBinary,"--out",failedScheduledArchive,"--version","v0.0.6"],{cwd:resolve(root,"server")});
+  const failedScheduledSHA=createHash("sha256").update(readFileSync(failedScheduledArchive)).digest("hex");
   const labels = ["--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`];
   await run("docker", ["network", "create", ...labels, owner]);
   await buildQAImage(run, ["build", "--tag", sshImage, ...labels, resolve(root, "server/testsupport/openssh")]);
@@ -133,6 +142,8 @@ try {
     "--mount", `type=bind,source=${upgradeArchive},target=/artifact/upgrade.tar.gz,readonly`,
     ...synthetic.flatMap(f => ["--mount", `type=bind,source=${f.path},target=/artifact/${f.mode}.tar.gz,readonly`]),
     "--mount", `type=bind,source=${recoveryArchive},target=/artifact/recovery.tar.gz,readonly`,
+    "--mount", `type=bind,source=${scheduledArchive},target=/artifact/scheduled.tar.gz,readonly`,
+    "--mount", `type=bind,source=${failedScheduledArchive},target=/artifact/scheduled-before.tar.gz,readonly`,
     "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", "JMS_WEB_DIR=/tmp/native/web", "--env", `JMS_PUBLIC_URL=http://127.0.0.10:${selectedPort}`, "--env", `JMS_QA_PACKAGE_SHA=${linuxSHA}`,
     "golang:1.27-bookworm", "sh", "-ceu", 'mkdir /tmp/native; tar -xzf /artifact/package.tar.gz -C /tmp/native; /tmp/native/jms233-server --check-data; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; exec sleep infinity']);
   const url = `http://127.0.0.10:${selectedPort}`;
@@ -538,6 +549,9 @@ try {
     }
     report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.recoveryVersion, applicationWarningsOrErrors: errors.length, expectedBrowserDiagnostics: diagnostics, fromInstalledCandidate: true };
   } finally { await browser.close(); }
+  await inContainer(["update","stage","--root","/tmp/releases","--file","/artifact/scheduled.tar.gz","--sha256",scheduledSHA]);
+  await inContainer(["update","stage","--root","/tmp/releases","--file","/artifact/scheduled-before.tar.gz","--sha256",failedScheduledSHA]);
+  await verifyScheduledInstallation({run,owner,url,root,output,api,admin:recoveredLogin.access_token,operator:recoveredOperator.access_token,sshHost:owner+"-ssh",fingerprint,candidate:{version:"v0.0.5",sha:scheduledSHA},failedCandidate:{version:"v0.0.6",sha:failedScheduledSHA},stopSelected,waitHealthy,chromium,expect,report});
   // Repeating package creation must refuse replacement of an existing archive.
   let conflict = false;
   const repeatedArchive = resolve(packages, `jumpserver233-${report.testVersion}-linux-amd64.tar.gz`);

@@ -105,6 +105,8 @@ func main() {
 }
 
 func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error {
+	ctx, stopService := context.WithCancel(ctx)
+	defer stopService()
 	admission := workgate.New()
 	ctx = workgate.WithGate(ctx, admission)
 	if (cfg.CheckData || cfg.ActivationID != "") && cfg.ClusterMode {
@@ -419,6 +421,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.AccessMu = &sync.RWMutex{}
 	root.Branding = brandStore
 	root.Updates = updateStore
+	root.ReleaseRoot, root.InstallationDataDir = cfg.ReleaseRoot, cfg.DataDir
 	root.Maintenance, err = servicemaintenance.New(admission, !cfg.ClusterMode, updateStore.RecordMaintenance)
 	if err != nil {
 		return err
@@ -442,6 +445,9 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.Organizations = orgStore
 	runtimes := &organizationRuntimes{cfg: cfg, ctx: ctx, key: vaultKey, documents: documents, root: root, store: orgStore, items: map[string]*organizationRuntime{}}
 	root.Maintenance.SetActivity(runtimes.activity)
+	if !cfg.ClusterMode && !cfg.CheckData {
+		root.Maintenance.SetStop(stopService)
+	}
 	defer runtimes.close(false)
 	if err = runtimes.initialize(); err != nil {
 		return err

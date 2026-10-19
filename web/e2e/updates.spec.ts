@@ -48,6 +48,7 @@ test("update settings persist without installing software and show bilingual rat
     await page.reload();
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     await expect(card.getByLabel("Check interval (hours)", { exact: true })).toHaveValue("48");
+    await expect(card.locator(".installation-schedule").getByRole("status")).toContainText("Managed native installation is not configured");
     await page.screenshot({ path: info.outputPath("updates.en.png") });
     // Deterministically exercise a UI error without consuming public API quota.
     // Provider checks, actual metadata and receipts are covered by Go/API tests.
@@ -63,6 +64,7 @@ test("update settings persist without installing software and show bilingual rat
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(page.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
     await expect(card.getByRole("alert")).toContainText("至少等待一分钟");
+    await expect(card.locator(".installation-schedule").getByRole("status")).toContainText("尚未配置原生受管安装");
     await page.screenshot({ path: info.outputPath("updates.zh-CN.png") });
     await page.setViewportSize({ width: 390, height: 844 });
     expect(

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import ServiceMaintenance from "./ServiceMaintenance";
+import InstallationSchedule from "./InstallationSchedule";
 
 type Settings = { automatic: boolean; interval_hours: number; revision: number };
 type Status = {
@@ -253,6 +254,7 @@ export default function UpdateSettings() {
                 .catch(() => {});
             }}
           />
+          <InstallationSchedule />
           <details>
             <summary>{t("updates.audit")}</summary>
             <ul>

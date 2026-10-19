@@ -102,7 +102,7 @@ func openStagingRoot(path, platform, arch string, create bool) (_ *stagingRoot, 
 		return nil, e
 	}
 	for _, row := range rows {
-		if row.Name() != stageRootFile && row.Name() != ".jms233-maintenance" && row.Name() != "releases" && row.Name() != installationFile && row.Name() != upgradeJournalFile && row.Name() != "backups" && !stageName.MatchString(row.Name()) && !stageWriteName.MatchString(row.Name()) {
+		if row.Name() != stageRootFile && row.Name() != ".jms233-maintenance" && row.Name() != "releases" && row.Name() != installationFile && row.Name() != upgradeJournalFile && row.Name() != scheduleFile && row.Name() != "backups" && !stageName.MatchString(row.Name()) && !stageWriteName.MatchString(row.Name()) {
 			return nil, ErrStageConflict
 		}
 		if row.Type()&os.ModeSymlink != 0 {

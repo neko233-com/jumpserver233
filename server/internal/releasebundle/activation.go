@@ -76,6 +76,7 @@ func nativeCommand(s *stagingRoot, v Installation, m Manifest, stdout, stderr io
 	dir := filepath.Join(s.path, "releases", v.Current.ArchiveSHA256)
 	cmd := exec.Command(filepath.Join(dir, nativeExecutable(m)), args...)
 	cmd.Env = runtimeEnvironment(v.DataDir, filepath.Join(dir, "web"))
+	cmd.Env = append(cmd.Env, "JMS_RELEASE_ROOT="+s.path)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd
@@ -194,6 +195,10 @@ func awaitNativeHealth(ctx context.Context, child *nativeChild, data string, j u
 // RunInstalledWithPassphrase owns and clears password after first-start
 // acceptance/rollback. Already-active restarts do not need a checkpoint key.
 func RunInstalledWithPassphrase(ctx context.Context, path string, password []byte, stdout, stderr io.Writer) error {
+	return runInstalledObserved(ctx, path, password, stdout, stderr, nil)
+}
+
+func runInstalledObserved(ctx context.Context, path string, password []byte, stdout, stderr io.Writer, running func(int, Selection)) error {
 	defer clear(password)
 	if stdout == nil {
 		stdout = io.Discard
@@ -261,6 +266,9 @@ func RunInstalledWithPassphrase(ctx context.Context, path string, password []byt
 		s.close()
 		closed = true
 		clear(password)
+		if running != nil {
+			running(child.command.Process.Pid, v.Current)
+		}
 		return child.wait(ctx)
 	}
 	if len(password) < 12 || len(password) > 1024 {
@@ -318,6 +326,9 @@ func RunInstalledWithPassphrase(ctx context.Context, path string, password []byt
 			s.close()
 			closed = true
 			clear(password)
+			if running != nil {
+				running(child.command.Process.Pid, v.Current)
+			}
 			return child.wait(ctx)
 		}
 	} else if activationErr == nil {
@@ -371,5 +382,5 @@ func RunInstalledWithPassphrase(ctx context.Context, path string, password []byt
 		return ErrActivationRolledBack
 	}
 	_, _ = io.WriteString(stderr, "upgrade_activation_rolled_back\n")
-	return RunInstalled(ctx, path, stdout, stderr)
+	return runInstalledObserved(ctx, path, nil, stdout, stderr, running)
 }

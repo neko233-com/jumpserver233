@@ -28,6 +28,7 @@ type Input struct {
 	Draining  bool   `json:"draining"`
 }
 type Event struct {
+	Stopping  bool   `json:"stopping,omitempty"`
 	Instance  string `json:"instance"`
 	RequestID string `json:"request_id"`
 	Revision  int    `json:"revision"`
@@ -42,6 +43,7 @@ type Status struct {
 	Revision        int            `json:"revision"`
 	Draining        bool           `json:"draining"`
 	Ready           bool           `json:"ready"`
+	Stopping        bool           `json:"stopping"`
 	Activity        map[string]int `json:"activity"`
 	ChangedAt       time.Time      `json:"changed_at"`
 	Actor           string         `json:"actor"`
@@ -52,6 +54,7 @@ type receipt struct {
 	input    Input
 	actor    string
 	revision int
+	stop     bool
 }
 type Controller struct {
 	mu       sync.Mutex
@@ -60,6 +63,18 @@ type Controller struct {
 	receipts []receipt
 	audit    func(Event) error
 	activity func() map[string]int
+	stop     func()
+}
+
+func (c *Controller) SetStop(fn func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if fn == nil {
+		c.stop = nil
+		return
+	}
+	var once sync.Once
+	c.stop = func() { once.Do(fn) }
 }
 
 func New(gate *workgate.Gate, supported bool, audit func(Event) error) (*Controller, error) {
@@ -119,7 +134,7 @@ func (c *Controller) Change(in Input, actorID, actor string) (Status, error) {
 		if receipt.input.RequestID != in.RequestID {
 			continue
 		}
-		if receipt.input != in || receipt.actor != actorID {
+		if receipt.input != in || receipt.actor != actorID || receipt.stop {
 			c.mu.Unlock()
 			return Status{}, ErrConflict
 		}
@@ -129,7 +144,7 @@ func (c *Controller) Change(in Input, actorID, actor string) (Status, error) {
 		out.AppliedRevision = receipt.revision
 		return out, nil
 	}
-	if in.Revision != c.status.Revision {
+	if in.Revision != c.status.Revision || c.status.Stopping {
 		c.mu.Unlock()
 		return Status{}, ErrConflict
 	}
@@ -154,4 +169,60 @@ func (c *Controller) Change(in Input, actorID, actor string) (Status, error) {
 	out := c.Snapshot()
 	out.AppliedRevision = revision
 	return out, nil
+}
+
+// Stop commits an irreversible process-local shutdown only after admission is
+// closed and tracked work has finished. The caller invokes the returned callback
+// after flushing the response. Cancellation cannot reopen a committed stop.
+func (c *Controller) Stop(in Input, actorID, actor string) (Status, func(), error) {
+	if !requestID.MatchString(in.RequestID) || len(in.Instance) != 32 || in.Revision < 1 || !in.Draining || actorID == "" || len(actorID) > 128 || len(actor) > 128 {
+		return Status{}, nil, ErrInvalid
+	}
+	snapshot := c.Snapshot()
+	c.mu.Lock()
+	if !c.status.Supported || c.stop == nil {
+		c.mu.Unlock()
+		return Status{}, nil, ErrUnsupported
+	}
+	if in.Instance != c.status.Instance {
+		c.mu.Unlock()
+		return Status{}, nil, ErrConflict
+	}
+	for _, r := range c.receipts {
+		if r.input.RequestID != in.RequestID {
+			continue
+		}
+		if r.input != in || r.actor != actorID || !r.stop {
+			c.mu.Unlock()
+			return Status{}, nil, ErrConflict
+		}
+		fn := c.stop
+		c.mu.Unlock()
+		out := c.Snapshot()
+		out.Replayed = true
+		out.AppliedRevision = r.revision
+		return out, fn, nil
+	}
+	if in.Revision != c.status.Revision || snapshot.Revision != c.status.Revision || !snapshot.Ready || c.status.Stopping {
+		c.mu.Unlock()
+		return Status{}, nil, ErrConflict
+	}
+	revision := c.status.Revision + 1
+	if e := c.audit(Event{Instance: in.Instance, RequestID: in.RequestID, Revision: revision, Draining: true, Stopping: true, ActorID: actorID, Actor: actor}); e != nil {
+		c.mu.Unlock()
+		return Status{}, nil, e
+	}
+	c.status.Revision = revision
+	c.status.Stopping = true
+	c.status.ChangedAt = time.Now().UTC()
+	c.status.Actor = actor
+	c.receipts = append(c.receipts, receipt{input: in, actor: actorID, revision: revision, stop: true})
+	if len(c.receipts) > 100 {
+		c.receipts = c.receipts[len(c.receipts)-100:]
+	}
+	fn := c.stop
+	c.mu.Unlock()
+	out := c.Snapshot()
+	out.AppliedRevision = revision
+	return out, fn, nil
 }

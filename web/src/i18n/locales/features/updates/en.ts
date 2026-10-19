@@ -46,6 +46,7 @@ export default {
       maintenance: "Service drain changed",
     },
     maintenance: {
+      stopping: "Shutdown committed. Waiting for the service to stop; cancellation is closed.",
       title: "Prepare for an upgrade",
       description:
         "Drain blocks new operations and pauses SSH monitoring and operation plans. Existing sessions and admitted work can finish. Counts represent active work, not unique connections. Stop the service before backup or installation. Draining resets on restart.",
@@ -75,6 +76,71 @@ export default {
         running_jobs: "Running jobs",
         database_queries: "Database queries",
         other: "Other active work",
+      },
+    },
+    installation: {
+      title: "Scheduled installation",
+      description:
+        "Install one verified staged version at a chosen time. The local supervisor drains sessions, stops this service, creates an encrypted checkpoint and validates startup. Existing sessions are never forcibly ended to meet a schedule.",
+      unconfigured:
+        "Managed native installation is not configured. Stage and install a baseline, then start jms update supervise with a protected checkpoint passphrase file.",
+      supervisor:
+        "Supervisor last reported: {{at}}. This timestamp does not prove it is still running.",
+      prepare: "Schedule a staged version",
+      staging:
+        "Prepare the stable package with jms update download and stage. This action never chooses a different release automatically.",
+      candidates: "Refresh verified candidates",
+      target: "Target version and digest",
+      choose: "Select a staged candidate",
+      at: "Install after (local time)",
+      timeout: "Maximum drain wait (seconds)",
+      schedule: "Schedule installation",
+      cancel: "Cancel installation",
+      refresh: "Refresh installation status",
+      history: "Recent installation activity",
+      phases: {
+        scheduled: "Scheduled",
+        draining: "Waiting for sessions to drain",
+        stopping: "Stopping service",
+        installing: "Checkpoint and offline preflight",
+        awaiting_start: "Validating candidate startup",
+        succeeded: "Installation accepted",
+        failed: "Installation stopped with an error",
+        cancelled: "Installation cancelled",
+      },
+      failures: {
+        activation_committed:
+          "The new version failed after irreversible activation. New data was retained; use forward repair.",
+        activation_failed:
+          "Candidate startup could not complete. Inspect installation recovery state.",
+        checkpoint_passphrase_unavailable:
+          "The protected checkpoint passphrase could not be read. The service was retained.",
+        installation_changed:
+          "The managed installation revision changed. Review the current selection.",
+        candidate_changed: "Candidate bytes could not be verified. The service was retained.",
+        maintenance_unavailable:
+          "The supervisor could not authorize maintenance on its own child. Check its platform identity and loopback URL.",
+        drain_start_failed:
+          "Drain start was not confirmed. Check the current drain state before retrying.",
+        maintenance_changed:
+          "Another operator changed maintenance. The supervisor did not override that decision.",
+        drain_timeout:
+          "Sessions did not finish within the wait period. Installation was cancelled and admission reopened.",
+        reopen_failed:
+          "Admission could not be reopened automatically. Inspect the current drain state.",
+        service_exited:
+          "The service exited before a confirmed stop. No scheduled installation was performed.",
+        stop_unconfirmed: "Shutdown was not confirmed. Inspect the service before retrying.",
+        service_stop_failed: "Service shutdown failed. Installation was not continued.",
+        service_stop_timeout:
+          "The service did not exit within the stop deadline. Installation was not continued.",
+        installation_failed:
+          "Installation failed. Inspect native installation status and recovery receipts.",
+        supervisor_interrupted:
+          "The supervisor was interrupted. This one-shot plan will not retry automatically.",
+        activation_rolled_back:
+          "Candidate startup failed before activation; the previous managed service was restored.",
+        unknown: "Inspect the native installation and recovery status before continuing.",
       },
     },
   },

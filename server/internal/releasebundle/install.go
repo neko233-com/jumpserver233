@@ -198,7 +198,7 @@ func runtimeEnvironment(data, web string) []string {
 	for _, v := range os.Environ() {
 		k, _, _ := strings.Cut(v, "=")
 		switch strings.ToUpper(k) {
-		case "JMS_DATA_DIR", "JMS_WEB_DIR", "JMS_VERSION", "JMS_CLUSTER_MODE", "JMS_DATABASE_URL":
+		case "JMS_DATA_DIR", "JMS_WEB_DIR", "JMS_VERSION", "JMS_CLUSTER_MODE", "JMS_DATABASE_URL", "JMS_RELEASE_ROOT":
 			continue
 		}
 		env = append(env, v)

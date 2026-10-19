@@ -17,3 +17,8 @@ func (c *Client) SetMaintenance(ctx context.Context, in servicemaintenance.Input
 	e := c.jobRequest(ctx, "PUT", maintenancePath, in, &out)
 	return out, e
 }
+func (c *Client) StopMaintenance(ctx context.Context, in servicemaintenance.Input) (servicemaintenance.Status, error) {
+	var out servicemaintenance.Status
+	e := c.jobRequest(ctx, "POST", maintenancePath+"/stop", in, &out)
+	return out, e
+}

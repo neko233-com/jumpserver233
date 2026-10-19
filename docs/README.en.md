@@ -8,7 +8,7 @@
 
 [Drain before upgrading](./SERVICE-MAINTENANCE.en.md): standalone Web/CLI control, cross-organization activity, admission gates, admitted-work completion, cancellation and process-instance binding.
 
-[Controlled standalone installation](./INSTALLATION.en.md): encrypted checkpoints, offline preflight, first-start health/traffic gates, rollback before release and old-service resumption. New data is preserved after release. Automatic installation scheduling and historical-version migration acceptance remain pending.
+[Controlled standalone installation](./INSTALLATION.en.md): encrypted checkpoints, offline preflight, first-start health/traffic gates, rollback before release and old-service resumption. New data is preserved after release. [Scheduled standalone installation](./INSTALLATION-SCHEDULE.en.md) adds controlled shutdown. Automatic download policies and historical-version migration acceptance remain pending.
 
 [Encrypted standalone backups](./BACKUP.en.md): native CLI, stopped-state exclusion, wrapped Vault key, integrity preflight, idempotent import, retained old data and interrupted-switch recovery. Unified verification passed.
 

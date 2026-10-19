@@ -17,7 +17,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
 )
 
-const updateUsage = "usage: jms update check | download --version vX.Y.Z --out NEW.tar.gz [--os OS --arch ARCH] | verify --file ARCHIVE --sha256 SHA [--os OS --arch ARCH] | stage --file ARCHIVE --sha256 SHA --root RELEASE_ROOT [--os OS --arch ARCH] | stage-status --root RELEASE_ROOT --sha256 SHA [--os OS --arch ARCH] | stage-clean --root RELEASE_ROOT [--os OS --arch ARCH] | status | audit | drain-status | drain-start --instance ID --revision N --request-id ID [--wait 60s] | drain-cancel --instance ID --revision N --request-id ID | policy --revision N --automatic=true|false --interval-hours N | check-server --revision N --request-id ID; staging never executes software or changes the active version or application data"
+const updateUsage = "usage: jms update check | download --version vX.Y.Z --out NEW.tar.gz [--os OS --arch ARCH] | verify --file ARCHIVE --sha256 SHA [--os OS --arch ARCH] | stage --file ARCHIVE --sha256 SHA --root RELEASE_ROOT [--os OS --arch ARCH] | stage-status --root RELEASE_ROOT --sha256 SHA [--os OS --arch ARCH] | stage-clean --root RELEASE_ROOT [--os OS --arch ARCH] | schedule-status --root ROOT | schedule --root ROOT --sha256 SHA --revision N --installation-revision N --request-id ID --at RFC3339 | schedule-cancel --root ROOT --revision N --request-id ID --plan-id ID | supervise --root ROOT --passphrase-file PRIVATE_FILE | status | audit | drain-status | drain-start --instance ID --revision N --request-id ID [--wait 60s] | drain-cancel --instance ID --revision N --request-id ID | policy --revision N --automatic=true|false --interval-hours N | check-server --revision N --request-id ID; staging never executes software or changes the active version or application data"
 
 func printBuildVersion(out io.Writer) error {
 	return json.NewEncoder(out).Encode(map[string]string{"version": buildinfo.Version, "commit": buildinfo.Commit, "built_at": buildinfo.BuiltAt, "os": runtime.GOOS, "arch": runtime.GOARCH})
@@ -28,6 +28,9 @@ func runUpdate(args []string) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if args[0] == "schedule" || args[0] == "schedule-status" || args[0] == "schedule-cancel" || args[0] == "supervise" {
+		return executeSchedule(ctx, args, os.Stdout, os.Stderr)
+	}
 	if args[0] == "install" || args[0] == "install-status" || args[0] == "install-recover" || args[0] == "run" {
 		return executeInstallation(ctx, args, os.Stdin, os.Stdout, os.Stderr, promptBackupPassphrase)
 	}

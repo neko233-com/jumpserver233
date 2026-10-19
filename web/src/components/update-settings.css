@@ -58,3 +58,14 @@
 .service-maintenance code {
   word-break: break-all;
 }
+.installation-schedule form {
+  margin-top: 12px;
+}
+.installation-schedule select,
+.installation-schedule input {
+  max-width: 100%;
+  min-width: 0;
+}
+.installation-schedule summary {
+  cursor: pointer;
+}

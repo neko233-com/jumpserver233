@@ -19,6 +19,33 @@ func registerMaintenanceRoutes(mux *http.ServeMux, d Dependencies) {
 		setNoStore(w)
 		writeJSON(w, 200, d.Maintenance.Snapshot())
 	}))
+	mux.Handle("POST "+maintenancePath+"/stop", protect(func(w http.ResponseWriter, r *http.Request) {
+		setNoStore(w)
+		var in servicemaintenance.Input
+		if decodeRequestJSON(w, r, &in) != nil {
+			writeJSON(w, 400, map[string]string{"error_code": "invalid"})
+			return
+		}
+		u, _ := PrincipalFromContext(r.Context())
+		out, stop, e := d.Maintenance.Stop(in, u.ID, u.Username)
+		if e != nil {
+			code, status := "unavailable", 503
+			if errors.Is(e, servicemaintenance.ErrInvalid) {
+				code, status = "invalid", 400
+			}
+			if errors.Is(e, servicemaintenance.ErrConflict) {
+				code, status = "conflict", 409
+			}
+			if errors.Is(e, servicemaintenance.ErrUnsupported) {
+				code, status = "unsupported", 409
+			}
+			writeJSON(w, status, map[string]string{"error_code": code})
+			return
+		}
+		writeJSON(w, 200, out)
+		_ = http.NewResponseController(w).Flush()
+		stop()
+	}))
 	mux.Handle("PUT "+maintenancePath, protect(func(w http.ResponseWriter, r *http.Request) {
 		setNoStore(w)
 		var input struct {
@@ -53,7 +80,7 @@ func registerMaintenanceRoutes(mux *http.ServeMux, d Dependencies) {
 
 func maintenanceExempt(r *http.Request) bool {
 	p := r.URL.Path
-	if p == maintenancePath || strings.HasPrefix(p, "/api/v1/authentication/") || strings.HasPrefix(p, "/api/v1/login-reviews") {
+	if p == maintenancePath || p == maintenancePath+"/stop" || p == "/api/v1/settings/security/updates/installation/cancel" && r.Method == http.MethodPost || strings.HasPrefix(p, "/api/v1/authentication/") || strings.HasPrefix(p, "/api/v1/login-reviews") {
 		return true
 	}
 	// Cancellation and session interruption remain available during draining.
