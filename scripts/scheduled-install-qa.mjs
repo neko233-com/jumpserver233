@@ -4,11 +4,20 @@ import { setTimeout as delay } from "node:timers/promises";
 import { randomUUID } from "node:crypto";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 
-export async function verifyScheduledInstallation({ run, owner, url, root, output, api, admin, operator, sshHost, fingerprint, candidate, failedCandidate, stopSelected, waitHealthy, chromium, expect, report }) {
+export async function verifyScheduledInstallation({ run, owner, url, root, output, api, admin, operator, refreshOperator, sshHost, fingerprint, candidate, failedCandidate, stopSelected, waitHealthy, chromium, expect, report }) {
   const endpoint = "/api/v1/settings/security/updates/installation", maintenance = "/api/v1/settings/security/maintenance";
   const local = args => run("docker", ["exec", owner, "/tmp/native/jms", ...args]);
   const supervise = () => run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 exec /tmp/native/jms update supervise --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']);
-  const status = () => api("GET", endpoint, undefined, admin);
+  const status = async () => {
+    try { return await api("GET", endpoint, undefined, admin); }
+    catch (e) {
+      if (!String(e.message).includes("API status 401")) throw e;
+      // Standalone browser sessions are process-local. Reauthenticate the same
+      // platform user after restart; never weaken server session semantics.
+      admin = (await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" })).access_token;
+      return api("GET", endpoint, undefined, admin);
+    }
+  };
   const waitPlan = async phase => { for (let n = 0; n < 600; n++) { try { const value = await status(); if (value.plan?.phase === phase) return value; if (value.plan?.phase === "failed" && phase !== "failed") throw new Error("Scheduled installation failed: " + value.plan.error); } catch (e) { if (String(e.message).startsWith("Scheduled installation failed")) throw e; } await delay(100); } throw new Error("Scheduled installation phase timed out: " + phase); };
   const queue = async (target, seconds = 30) => { const s = await status(); const input = { revision: s.revision, installation_revision: s.installation_revision, archive_sha256: target.sha, request_id: randomUUID(), not_before: new Date(Date.now() + 750).toISOString(), drain_timeout_seconds: seconds }; return api("POST", endpoint, input, admin); };
   const waitOpen = async () => { for (let n = 0; n < 80; n++) { if (!(await api("GET", maintenance, undefined, admin)).draining) return; await delay(100); } throw new Error("Admission did not reopen after cancellation"); };
@@ -17,6 +26,7 @@ export async function verifyScheduledInstallation({ run, owner, url, root, outpu
   const asset = await api("POST", "/api/v1/assets", { name: "Scheduled upgrade SSH", host: sshHost, port: 22, username: "keyqa", password: "synthetic-keyhost-password-233", host_key_fingerprint: fingerprint }, admin, 201);
   await api("GET", endpoint, undefined, operator, 403);
   await stopSelected(); await supervise(); await waitHealthy(report.recoveryVersion);
+  await status(); operator = await refreshOperator();
   let duplicate = false;
   try { await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 exec /tmp/native/jms update supervise --root /tmp/releases --passphrase-file /tmp/checkpoint-passphrase']); } catch (e) { duplicate = String(e.stderr).includes("data directory is in use"); }
   if (!duplicate) throw new Error("Competing update supervisor was admitted");

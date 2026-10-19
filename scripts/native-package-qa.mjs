@@ -551,7 +551,7 @@ try {
   } finally { await browser.close(); }
   await inContainer(["update","stage","--root","/tmp/releases","--file","/artifact/scheduled.tar.gz","--sha256",scheduledSHA]);
   await inContainer(["update","stage","--root","/tmp/releases","--file","/artifact/scheduled-before.tar.gz","--sha256",failedScheduledSHA]);
-  await verifyScheduledInstallation({run,owner,url,root,output,api,admin:recoveredLogin.access_token,operator:recoveredOperator.access_token,sshHost:owner+"-ssh",fingerprint,candidate:{version:"v0.0.5",sha:scheduledSHA},failedCandidate:{version:"v0.0.6",sha:failedScheduledSHA},stopSelected,waitHealthy,chromium,expect,report});
+  await verifyScheduledInstallation({run,owner,url,root,output,api,admin:recoveredLogin.access_token,operator:recoveredOperator.access_token,refreshOperator:async ()=>(await api("POST","/api/v1/authentication/auth/",{username:operator.username,password:operatorPassword})).access_token,sshHost:owner+"-ssh",fingerprint,candidate:{version:"v0.0.5",sha:scheduledSHA},failedCandidate:{version:"v0.0.6",sha:failedScheduledSHA},stopSelected,waitHealthy,chromium,expect,report});
   // Repeating package creation must refuse replacement of an existing archive.
   let conflict = false;
   const repeatedArchive = resolve(packages, `jumpserver233-${report.testVersion}-linux-amd64.tar.gz`);
