@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "qa:preview": "node ../scripts/qa-retention.mjs --legacy",
+    "qa:clean": "node ../scripts/qa-retention.mjs --apply --legacy",
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node ../scripts/check-web-bundle.mjs",
     "preview": "vite preview",

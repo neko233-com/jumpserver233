@@ -3,6 +3,13 @@
 .codely-cli
 CODELY.md
 **/node_modules
+**/.pnpm-store
+**/.npm
+**/.vite
+**/.vite-temp
+**/.nyc_output
+**/.gocache
+**/.gomodcache
 **/dist
 **/.cache
 **/*.tsbuildinfo
@@ -19,6 +26,7 @@ server/internal/agentbundle/artifacts/.build-*
 web/test-results
 web/playwright-report
 web/.auth
+web/artifacts
 **/__pycache__
 **/*.pyc
 **/*.prof
@@ -26,6 +34,12 @@ web/.auth
 **/*.heapprofile
 **/*.heapsnapshot
 **/*.dmp
+**/npm-debug.log*
+**/pnpm-debug.log*
+**/.DS_Store
+**/._*
+**/Thumbs.db
+**/Desktop.ini
 **/coverage
 **/coverage*.out
 **/coverage*.html

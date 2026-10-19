@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync, readdirSync, readFileSync, existsSync, lstatS
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { ownedCompose, historicalQAResource, ownedImage, removeOwnedContainer, pruneOwnedQACache, removeLocalBuildHistory, inspectQAContainers, inspectQAImages, inspectQAVolumes, inspectQANetworks } from "./qa-lifecycle.mjs";
+import { retainQAArtifacts } from "./qa-retention.mjs";
 
 const execute = promisify(execFile), root = fileURLToPath(new URL("..", import.meta.url));
 const args = new Set(process.argv.slice(2));
@@ -24,10 +25,10 @@ if (legacy && existsSync(historicalLogs) && !lstatSync(historicalLogs).isSymboli
     if (existsSync(log) && !lstatSync(log).isSymbolicLink() && lstatSync(log).size < 8 * 1024 * 1024 && readFileSync(log, "utf8").includes(entry.name)) projects.add(entry.name);
   }
 }
-const out = resolve(root, ".cache/qa-reports"); mkdirSync(out, { recursive: true });
+const out = resolve(root, ".cache/qa-reports");
 // Retain ownership evidence when a partial cleanup removed containers before
 // a daemon failure. A later invocation can still clean their orphaned volumes.
-for (const name of readdirSync(out).filter(n => /^cleanup-\d+\.json$/.test(n))) {
+for (const name of (existsSync(out) ? readdirSync(out) : []).filter(n => /^cleanup-\d+\.json$/.test(n))) {
   const old = JSON.parse(readFileSync(resolve(out, name), "utf8"));
   if (old.root !== root || !old.applied) continue;
   for (const c of old.composeEvidence || []) if (ownedCompose(c, root)) projects.add(c.Config.Labels["com.docker.compose.project"]);
@@ -69,5 +70,12 @@ try {
     if (args.has("--test-caches")) { report.removedBuildHistory = await removeLocalBuildHistory(execute, root); report.prunedCache = await pruneOwnedQACache(execute); }
   }
 } catch (error) { report.error = error.message; process.exitCode = 1; }
-finally { report.after = await run(["system", "df"]); writeFileSync(reportPath, JSON.stringify(report, null, 2)); }
-console.log(JSON.stringify({ applied: apply, selected: { containers: selected.length, volumes: selectedVolumes.length, networks: selectedNetworks.length }, removed: report.removed, report: reportPath, error: report.error }));
+finally {
+  report.after = await run(["system", "df"]);
+  if (apply) {
+    mkdirSync(out, { recursive: true }); writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    try { retainQAArtifacts(root); }
+    catch { report.retentionError = "Artifact retention incomplete; retry node scripts/qa-retention.mjs --apply"; process.exitCode = 1; writeFileSync(reportPath, JSON.stringify(report, null, 2)); }
+  }
+}
+console.log(JSON.stringify({ applied: apply, selected: { containers: selected.length, volumes: selectedVolumes.length, networks: selectedNetworks.length }, removed: report.removed, report: apply ? reportPath : undefined, error: report.error, retentionError: report.retentionError }));

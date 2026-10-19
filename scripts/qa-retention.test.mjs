@@ -122,6 +122,62 @@ test("changed files, forged source paths and linked artifact ancestors are rejec
   assert.ok(planRetention(root).selected.every(f => !f.path.includes("1792499999999")));
 });
 
+test("completed native runners compact their current evidence and preserve other named reports", t => {
+  const { root, put } = fixture(t), folder = ".cache/qa-reports/native";
+  put(`${folder}/native-packages.json`, { pid: process.pid, status: "passed", cleanup: { removed: true, idempotent: true, temporaryArtifactsRemoved: true } });
+  put(`${folder}/linux-race.json`, { status: "passed", cleanup: { removed: true, idempotent: true } });
+  for (const name of ["files.en.jpeg", "files.zh.webp", "extra.png", "run.log"]) put(`${folder}/${name}`);
+  const other = put(".cache/qa-reports/other/report.json", { status: "passed" });
+  const otherImage = put(".cache/qa-reports/other/extra.png");
+  const currentRun = resolve(root, folder);
+  assert.equal(planRetention(root).selected.length, 0);
+  assert.equal(retainQAArtifacts(root, { currentRun }).removedFiles, 2);
+  assert.ok(existsSync(resolve(root, folder, "files.en.jpeg")));
+  assert.ok(existsSync(resolve(root, folder, "files.zh.webp")));
+  assert.ok(existsSync(other)); assert.ok(existsSync(otherImage));
+  assert.equal(retainQAArtifacts(root, { currentRun }).removedFiles, 0);
+});
+
+test("native child PIDs, failed race checks and incomplete cleanup protect diagnostics", t => {
+  const { root, put } = fixture(t), folder = ".cache/qa-reports/native";
+  const native = { status: "passed", cleanup: { removed: true, idempotent: true, temporaryArtifactsRemoved: true } };
+  const report = put(`${folder}/native-packages.json`, native);
+  const log = put(`${folder}/run.log`);
+  const currentRun = resolve(root, folder);
+  const options = { currentRun, legacy: true, isAlive: pid => pid === 12345 };
+  put(`${folder}/linux-race.json`, { status: "running", childPID: 12345 });
+  assert.equal(planRetention(root, options).selected.length, 0);
+  assert.match(planRetention(root, options).skipped[0].reason, /active process/);
+  put(`${folder}/linux-race.json`, { status: "failed", cleanup: { removed: true, idempotent: true } });
+  assert.equal(planRetention(root, options).selected.length, 0);
+  put(`${folder}/linux-race.json`, { status: "passed", cleanup: { removed: true, idempotent: true } });
+  writeFileSync(report, JSON.stringify({ ...native, cleanup: { removed: false } }));
+  assert.equal(planRetention(root, options).selected.length, 0);
+  assert.ok(existsSync(log));
+});
+
+test("only three completed read-only cleanup snapshots survive; recovery receipts remain", t => {
+  const { root, put } = fixture(t);
+  const base = { root, applied: false, after: "synthetic disk summary", removed: { containers: 0, volumes: 0, networks: 0, images: 0 } };
+  const previews = Array.from({ length: 6 }, (_, i) => {
+    const path = put(`.cache/qa-reports/cleanup-${1792400000000 + i}.json`, base);
+    utimesSync(path, new Date(1000 + i), new Date(1000 + i)); return path;
+  });
+  const keep = [
+    put(".cache/qa-reports/cleanup-1792400000100.json", { ...base, applied: true, composeEvidence: [{ ownership: "keep for retry" }] }),
+    put(".cache/qa-reports/cleanup-1792400000101.json", { ...base, error: "daemon unavailable" }),
+    put(".cache/qa-reports/cleanup-1792400000102.json", { ...base, root: resolve(root, "foreign") }),
+    put(".cache/qa-reports/cleanup-1792400000103.json", { ...base, after: undefined }),
+    put(".cache/qa-reports/cleanup-1792400000104.json", { ...base, removed: { images: 1 } }),
+    put(".cache/qa-reports/cleanup-1792400000105.json", { ...base, removed: null }),
+  ];
+  assert.equal(planRetention(root).selected.length, 3);
+  assert.equal(retainQAArtifacts(root).removedFiles, 3);
+  previews.slice(0, 3).forEach(path => assert.equal(existsSync(path), false));
+  [...previews.slice(3), ...keep].forEach(path => assert.ok(existsSync(path)));
+  assert.equal(retainQAArtifacts(root).removedFiles, 0);
+});
+
 test("linked output receipts cannot overwrite another file", t => {
   const { root, put } = fixture(t), outside = put("important.txt", "keep");
   mkdirSync(resolve(root, ".cache/qa-reports"), { recursive: true });
@@ -141,10 +197,16 @@ test("Git excludes generated evidence and secrets while keeping product screensh
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 0, `${path} must be ignored`);
   }
-  for (const path of ["docs/images/inventory.en.png", "web/src/main.tsx", "scripts/qa-retention.mjs", "web/.env.example"]) {
+  for (const path of ["scripts/node_modules/local/index.js", "web/.vite-temp/config.mjs", "web/.vite/cache.js", ".pnpm-store/package", ".npm/_cacache/index", "server/.gocache/entry", ".gomodcache/cache", "web/.nyc_output/unit.json", "server/coverage/index.html", "web/screenshots/qa.jpeg", "web/artifacts/report.json", "server/test-results/run.json", "pnpm-debug.log.1", "Desktop.ini"]) {
+    const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
+    assert.equal(result.status, 0, `${path} must be ignored`);
+  }
+  for (const path of ["docs/images/inventory.en.png", "web/src/main.tsx", "scripts/qa-retention.mjs", "web/.env.example", "web/src/components/icon.png", "server/testsupport/fixture.json", "release-please-config.json", "web/pnpm-lock.yaml"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 1, `${path} must remain visible`);
   }
+  const tracked = spawnSync("git", ["ls-files", "-ci", "--exclude-standard"], { cwd: root, encoding: "utf8" });
+  assert.equal(tracked.status, 0); assert.equal(tracked.stdout.trim(), "", "Ignore rules must not hide tracked source");
 });
 
 test("content checks reject newly orphaned product images and the negative fixture is removed", () => {

@@ -57,7 +57,7 @@ Author the complete batch before unified verification. Cover idempotent retries,
 
 ## 5. Conventions
 
-Put generated evidence in ignored `.cache/qa-reports/`; put reusable QA entrypoints in `scripts/`. Browser and Docker runners automatically retain three completed disposable runs with at most two screenshots each. Use `node scripts/qa-retention.mjs --apply --legacy` for old named reports and known, closed ad hoc helpers; preview by omitting `--apply`. Read current source and final summaries first; ignored historical diagnostics are not implementation authority. Preserve referenced `docs/images/` assets.
+Put generated evidence in ignored `.cache/qa-reports/`; put reusable QA entrypoints in `scripts/`. Browser and Docker runners automatically retain three completed disposable runs with at most two screenshots each. Native package/race runners compact their completed, cleaned current batch; active processes, failed diagnostics and incomplete cleanup are protected. Use `make qa-preview` / `make qa-clean` (or `cd web && pnpm qa:preview` / `pnpm qa:clean`) for old named reports and known, closed ad hoc helpers. Docker resource preview writes no report; old read-only snapshots are capped at three while applied/recovery receipts remain. Read current source and final summaries first; ignored historical diagnostics are not implementation authority. Search ignored evidence only for a specific unresolved question. Preserve referenced `docs/images/` assets.
 
 **Go (server/)**
 - Go 1.27, module `github.com/neko233-com/jumpserver233/server`, stdlib-first; add a dependency only after checking it is actually needed.

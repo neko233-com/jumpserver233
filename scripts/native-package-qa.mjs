@@ -13,6 +13,7 @@ import { inspectQAContainers, inspectQAImages, inspectQANetworks, removeUnusedQA
 import { buildQAImage } from "../server/testsupport/docker-qa.mjs";
 import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
+import { retainQAArtifacts } from "./qa-retention.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
 const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/confined-sftp");
@@ -348,5 +349,7 @@ try {
     catch { report.cleanup.error = "Owned native QA cleanup incomplete"; report.status = "cleanup_failed"; process.exitCode = 1; }
   }
   report.cleanup.temporaryArtifactsRemoved = !existsSync(temporary); save();
+  try { retainQAArtifacts(root, { currentRun: output }); }
+  catch { report.retentionError = "Artifact retention incomplete; retry node scripts/qa-retention.mjs --apply"; process.exitCode = 1; save(); }
   console.log(JSON.stringify(report));
 }

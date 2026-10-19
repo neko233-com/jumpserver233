@@ -7,6 +7,7 @@ const browserName = /^browser-\d{13}$/;
 const dockerName = /^jms233-[a-z0-9][a-z0-9-]{0,48}$/;
 const legacyHelper = /^(?:branding|discovery|migration|monitor-history)(?:-[\w-]+\.mjs|\.playwright\.config\.mjs)$/;
 const terminal = new Set(["passed", "failed", "interrupted", "timedout"]);
+const screenshot = /\.(?:png|jpe?g|webp)$/i;
 const identity = s => `${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}`;
 const alive = pid => { if (!Number.isSafeInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; } };
 
@@ -42,7 +43,7 @@ function files(root, folder) {
   return out;
 }
 function evidence(rows) {
-  const pngs = rows.filter(f => /\.png$/i.test(f.path)).sort((a, b) => b.modified - a.modified || a.path.localeCompare(b.path));
+  const pngs = rows.filter(f => screenshot.test(f.path)).sort((a, b) => b.modified - a.modified || a.path.localeCompare(b.path));
   const kept = new Set();
   for (const locale of [/\.en(?:[.-]|$)/, /\.(?:zh-CN|zh)(?:[.-]|$)/]) {
     const match = pngs.find(f => locale.test(basename(f.path)));
@@ -68,12 +69,13 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
       const folder = resolve(parent, row.name);
       try {
         const items = files(root, folder), lifecycle = json(resolve(folder, "lifecycle.json"));
+        const native = json(resolve(folder, "native-packages.json")), race = json(resolve(folder, "linux-race.json"));
         const current = currentRun && resolve(currentRun) === folder;
-        const pids = lifecycle ? [lifecycle.pid, lifecycle.buildPID, lifecycle.playwrightPID] : [];
-        if (pids.some(pid => isAlive(pid) && !(current && pid === process.pid && terminal.has(lifecycle.status)))) {
+        const states = [lifecycle, native, race].filter(Boolean);
+        if (states.some(state => [state.pid, state.buildPID, state.playwrightPID, state.childPID].some(pid => isAlive(pid) && !(current && pid === process.pid && terminal.has(state.status))))) {
           liveRun = true; plan.skipped.push({ name: row.name, reason: "active process" }); continue;
         }
-        const summary = json(resolve(folder, "summary.json")) || json(resolve(folder, "report.json")), cleanup = json(resolve(folder, "cleanup.json"));
+        const summary = json(resolve(folder, "summary.json")) || json(resolve(folder, "report.json")) || native || race, cleanup = json(resolve(folder, "cleanup.json"));
         if (type === "browser" && pattern.test(row.name)) {
           if (!cleanup?.cleaned || !cleanup.temporaryDataRemoved || !terminal.has(summary?.status || lifecycle?.status)) {
             plan.skipped.push({ name: row.name, reason: "incomplete cleanup or result" }); continue;
@@ -84,9 +86,13 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
             plan.skipped.push({ name: row.name, reason: "retained environment or incomplete cleanup" }); continue;
           }
           buckets.push({ folder, items, type, success: summary.success, time: lstatSync(resolve(folder, "summary.json")).mtimeMs, expire: /^jms233-qa-[a-f0-9-]{36}$/.test(row.name) });
-        } else if (legacy) {
+        } else if (legacy || current) {
           // Named historical evidence is not a disposable run: keep all JSON receipts.
-          if (!summary || summary.status && summary.status !== "passed" || summary.success === false || summary.browser?.failed > 0) continue;
+          const passed = summary?.status === "passed" || summary?.success === true || summary?.browser?.passed > 0 && summary.browser.failed === 0;
+          if (!passed || summary.status && summary.status !== "passed" || summary.success === false || summary.browser?.failed > 0) continue;
+          if (native && !(native.status === "passed" && native.cleanup?.removed && native.cleanup?.idempotent && native.cleanup?.temporaryArtifactsRemoved) || race && !(race.status === "passed" && race.cleanup?.removed && race.cleanup?.idempotent)) {
+            plan.skipped.push({ name: row.name, reason: "incomplete native result or cleanup" }); continue;
+          }
           buckets.push({ folder, items, type: "named", expire: false });
         }
       } catch (e) { plan.skipped.push({ name: row.name, reason: e.message }); }
@@ -103,8 +109,21 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
     const kept = evidence(b.items);
     for (const f of b.items) {
       const name = basename(f.path);
-      if (/\.png$/i.test(name) && !kept.has(f.path) || b.type === "browser" && !["summary.json", "cleanup.json", "lifecycle.json"].includes(name) && !kept.has(f.path) || b.type === "docker" && (/^summary-\d+\.json$/.test(name) || name === "verify.log" && b.success === true) || b.type === "named" && /\.log$/i.test(name)) select(f);
+      if (screenshot.test(name) && !kept.has(f.path) || b.type === "browser" && !["summary.json", "cleanup.json", "lifecycle.json"].includes(name) && !kept.has(f.path) || b.type === "docker" && (/^summary-\d+\.json$/.test(name) || name === "verify.log" && b.success === true) || b.type === "named" && /\.log$/i.test(name)) select(f);
     }
+  }
+  // Old read-only Docker previews contain no recovery evidence. Applied and
+  // failed receipts remain intact because later cleanup may need ownership.
+  if (existsSync(reportRoot)) {
+    const previews = [];
+    for (const row of readdirSync(checked(root, reportRoot), { withFileTypes: true })) {
+      if (!row.isFile() || !/^cleanup-\d+\.json$/.test(row.name)) continue;
+      const path = checked(root, resolve(reportRoot, row.name)), report = json(path);
+      if (!report || typeof report.root !== "string" || resolve(report.root) !== root || report.applied !== false || report.error || typeof report.after !== "string" || !report.removed || Object.values(report.removed).some(n => n !== 0)) continue;
+      const info = lstatSync(path);
+      previews.push({ path, size: info.size, modified: info.mtimeMs, identity: identity(info) });
+    }
+    previews.sort((a, b) => b.modified - a.modified || b.path.localeCompare(a.path)).slice(3).forEach(select);
   }
   const cache = resolve(root, ".cache");
   if (legacy && !liveRun && existsSync(cache)) for (const row of readdirSync(checked(root, cache), { withFileTypes: true })) {

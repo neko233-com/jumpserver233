@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 import { inspectQAContainers, inspectQANetworks } from "./qa-lifecycle.mjs";
+import { retainQAArtifacts } from "./qa-retention.mjs";
 
 const execute = promisify(execFile), root = fileURLToPath(new URL("..", import.meta.url));
 const id = randomUUID(), owner = `jms233-updates-race-${id}`, db = `${owner}-db`, runner = `${owner}-go`, password = randomUUID();
@@ -54,5 +55,8 @@ try {
 finally {
   report.testStatus = report.status;
   for (let round = 0; round < 2; round++) { try { await cleanup(); report.cleanup[round ? "idempotent" : "removed"] = true; } catch { report.cleanup.error = "Owned QA cleanup incomplete"; report.status = "cleanup_failed"; process.exitCode = 1; } }
-  save(); console.log(JSON.stringify({ status: report.status, code: report.code, passed: report.tests.filter(t => t.status === "pass").length, failed: report.tests.filter(t => t.status === "fail").length, skipped: report.tests.filter(t => t.status === "skip").length, durationMs: report.durationMs, cleanup: report.cleanup }));
+  save();
+  try { retainQAArtifacts(root, { currentRun: resolve(output, "..") }); }
+  catch { report.retentionError = "Artifact retention incomplete; retry node scripts/qa-retention.mjs --apply"; process.exitCode = 1; save(); }
+  console.log(JSON.stringify({ status: report.status, code: report.code, passed: report.tests.filter(t => t.status === "pass").length, failed: report.tests.filter(t => t.status === "fail").length, skipped: report.tests.filter(t => t.status === "skip").length, durationMs: report.durationMs, cleanup: report.cleanup, retentionError: report.retentionError }));
 }
