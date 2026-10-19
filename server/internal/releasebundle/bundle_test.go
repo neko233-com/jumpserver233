@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,21 @@ func fixture(t *testing.T, kind string) (string, string) {
 	tw := tar.NewWriter(gz)
 	m := Manifest{Schema: 1, Version: "v1.2.3", Commit: strings.Repeat("a", 40), BuiltAt: time.Now().UTC(), Platform: "linux", Architecture: "amd64", Files: map[string]File{}}
 	names := []string{"jms", "jms233-server", "web/index.html"}
+	if strings.HasPrefix(kind, "install") {
+		m.Platform = runtime.GOOS
+		m.Architecture = runtime.GOARCH
+		m.PreflightProtocol = 1
+		if strings.HasPrefix(kind, "install-v") {
+			m.Version = strings.TrimPrefix(kind, "install-")
+		}
+		if kind == "install-legacy" {
+			m.PreflightProtocol = 0
+		}
+		if m.Platform == "windows" {
+			names[0] += ".exe"
+			names[1] += ".exe"
+		}
+	}
 	if kind == "traversal" {
 		names[2] = "../outside"
 	}
@@ -36,12 +52,35 @@ func fixture(t *testing.T, kind string) (string, string) {
 		body := []byte("synthetic-" + name)
 		executable := !strings.Contains(name, "/")
 		if executable {
-			body = make([]byte, 64)
+			body = make([]byte, 128)
 			copy(body, "\x7fELF")
 			body[4] = 2
 			body[5] = 1
 			binary.LittleEndian.PutUint16(body[16:18], 2)
 			binary.LittleEndian.PutUint16(body[18:20], 62)
+			if m.Architecture == "arm64" {
+				binary.LittleEndian.PutUint16(body[18:20], 183)
+			}
+			if m.Platform == "darwin" {
+				binary.LittleEndian.PutUint32(body[:4], 0xfeedfacf)
+				cpu := uint32(0x01000007)
+				if m.Architecture == "arm64" {
+					cpu = 0x0100000c
+				}
+				binary.LittleEndian.PutUint32(body[4:8], cpu)
+				binary.LittleEndian.PutUint32(body[12:16], 2)
+			}
+			if m.Platform == "windows" {
+				copy(body, "MZ")
+				binary.LittleEndian.PutUint32(body[60:64], 64)
+				copy(body[64:68], "PE\x00\x00")
+				machine := uint16(0x8664)
+				if m.Architecture == "arm64" {
+					machine = 0xaa64
+				}
+				binary.LittleEndian.PutUint16(body[68:70], machine)
+				binary.LittleEndian.PutUint16(body[88:90], 0x20b)
+			}
 			if kind == "wrong-binary" {
 				binary.LittleEndian.PutUint16(body[18:20], 183)
 			}

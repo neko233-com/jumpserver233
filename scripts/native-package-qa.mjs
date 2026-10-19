@@ -9,22 +9,30 @@ import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import { createRequire } from "node:module";
 import { setTimeout as delay } from "node:timers/promises";
-import { inspectQAContainers, removeOwnedTree } from "./qa-lifecycle.mjs";
+import { inspectQAContainers, inspectQAImages, inspectQANetworks, removeUnusedQAImages, removeLocalBuildHistory, pruneOwnedQACache, removeOwnedTree } from "./qa-lifecycle.mjs";
+import { buildQAImage } from "../server/testsupport/docker-qa.mjs";
 import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
-const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/updates");
+const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/installation");
 mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
+const sshImage = owner + "-ssh:qa";
 const report = { at: new Date().toISOString(), pid: process.pid, owner, temporaryDirectory: temporary, status: "running", packages: [], cleanup: {} };
 const save = () => writeFileSync(resolve(output, "native-packages.json"), JSON.stringify(report, null, 2));
 const run = (command, args, options = {}) => execute(command, args, { cwd: root, windowsHide: true, maxBuffer: 2 * 1024 * 1024, ...options });
+const runInput = (command, args, input, options = {}) => { const pending = run(command, args, options); pending.child.stdin.on("error", () => {}); pending.child.stdin.end(input); return pending; };
 const accept = c => c.Config?.Labels?.["com.jumpserver233.qa.owner"] === owner && c.Config?.Labels?.["com.jumpserver233.qa.workspace"] === root;
 async function cleanup() {
-  const [container] = await inspectQAContainers(run, [owner]);
-  if (container) { if (!accept(container)) throw new Error("Native QA container changed ownership"); await run("docker", ["rm", "--force", "--volumes", container.Id]); }
+  for (const container of await inspectQAContainers(run, [owner, owner + "-ssh"])) { if (!accept(container)) throw new Error("Native QA container changed ownership"); await run("docker", ["rm", "--force", "--volumes", container.Id]); }
+  const [network] = await inspectQANetworks(run, [owner]);
+  if (network) { if (network.Labels?.["com.jumpserver233.qa.owner"] !== owner || network.Labels?.["com.jumpserver233.qa.workspace"] !== root) throw new Error("Native QA network changed ownership"); await run("docker", ["network", "rm", network.Id]); }
+  const [image] = await inspectQAImages(run, [sshImage]);
+  if (image) { if (!accept(image) || image.RepoTags?.length !== 1 || image.RepoTags[0] !== sshImage) throw new Error("Native QA image changed ownership"); report.cleanup.removedImages = (report.cleanup.removedImages || 0) + await removeUnusedQAImages(run, [image.Id]); }
+  report.cleanup.removedBuildHistory = [...(report.cleanup.removedBuildHistory || []), ...await removeLocalBuildHistory(run, root)];
+  report.cleanup.prunedCache = [...(report.cleanup.prunedCache || []), ...await pruneOwnedQACache(run, owner)];
   removeOwnedTree(temporary, cache, "native-package-qa-");
 }
 async function port() {
@@ -78,26 +86,72 @@ try {
   try { await run(cli, stageArgs); } catch (e) { stageConflict = String(e.stderr).includes("release staging directory is unmanaged, changed or incompatible"); }
   if (!stageConflict || readFileSync(sentinel, "utf8") !== "preserve-application-data") throw new Error("Native staging replaced changed files or application data");
   report.hostStaging = { verified: true, idempotent: true, changedCandidateRefused: true, candidateCLIExecuted: true, dataSentinelUnchanged: true, noOrphanStages: true };
+  const hostEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.toUpperCase().startsWith("JMS_")));
+  const hostData = resolve(temporary, "host-data"), hostInstall = resolve(temporary, "host-install");
+  hostEnv.JMS_DATA_DIR = hostData; hostEnv.JMS_WEB_DIR = resolve(extracted, "web");
+  await run(resolve(extracted, process.platform === "win32" ? "jms233-server.exe" : "jms233-server"), ["--check-data"], { env: hostEnv });
+  await run(cli, ["update", "stage", "--root", hostInstall, "--file", hostArchive, "--sha256", hostSHA], { env: hostEnv });
+  const password = "synthetic-native-install-checkpoint";
+  const hostInstallArgs = ["update", "install", "--root", hostInstall, "--data-dir", hostData, "--sha256", hostSHA, "--revision", "0", "--request-id", "native-install-host-001", "--passphrase-file", "-"];
+  const hostSelected = JSON.parse((await runInput(cli, hostInstallArgs, password, { env: hostEnv })).stdout);
+  const hostAgain = JSON.parse((await runInput(cli, hostInstallArgs, password, { env: hostEnv })).stdout);
+  if (hostSelected.status !== "selected" || hostSelected.revision !== 1 || !hostAgain.unchanged || hostAgain.transaction_id !== hostSelected.transaction_id) throw new Error("Native host installation/checkpoint replay failed");
+  report.hostInstallation = { encryptedCheckpoint: true, actualTargetPreflight: true, selected: true, idempotent: true };
   const arch = (await run("docker", ["info", "--format", "{{.Architecture}}"])).stdout.trim();
   const linuxArch = arch === "x86_64" ? "amd64" : arch === "aarch64" ? "arm64" : arch;
   if (!["amd64", "arm64"].includes(linuxArch)) throw new Error("Unsupported Docker host architecture");
   const archive = resolve(packages, `jumpserver233-${report.testVersion}-linux-${linuxArch}.tar.gz`), selectedPort = await port();
   const linuxSHA = createHash("sha256").update(readFileSync(archive)).digest("hex");
+  report.upgradeVersion = "v0.0.1";
+  await run("go", ["run", "./cmd/jms-package", "--version", report.upgradeVersion, "--commit", report.commit, "--built-at", report.builtAt, "--target", `linux/${linuxArch}`, "--out", packages, "--web-dir", nativeWeb], { cwd: resolve(root, "server") });
+  const upgradeArchive = resolve(packages, `jumpserver233-${report.upgradeVersion}-linux-${linuxArch}.tar.gz`), upgradeSHA = createHash("sha256").update(readFileSync(upgradeArchive)).digest("hex");
+  const labels = ["--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`];
+  await run("docker", ["network", "create", ...labels, owner]);
+  await buildQAImage(run, ["build", "--tag", sshImage, ...labels, resolve(root, "server/testsupport/openssh")]);
+  await run("docker", ["run", "--detach", "--name", owner + "-ssh", ...labels, "--network", owner, sshImage]);
+  let fingerprint = "";
+  for (let attempt = 0; attempt < 100; attempt++) { try { fingerprint = (await run("docker", ["exec", owner + "-ssh", "ssh-keygen", "-l", "-E", "sha256", "-f", "/run/keyhost-ed25519.pub"])).stdout.trim().split(/\s+/)[1]; if (fingerprint?.startsWith("SHA256:")) break; } catch { /* bounded fixture readiness */ } await delay(100); }
+  if (!fingerprint?.startsWith("SHA256:")) throw new Error("Native installation OpenSSH fixture unavailable");
   const token = randomUUID() + randomUUID();
   await run("docker", ["run", "--detach", "--pull", "missing", "--name", owner,
-    "--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`,
+    ...labels, "--network", owner,
     "--read-only", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=512m", "--publish", `127.0.0.10:${selectedPort}:8080`,
     "--mount", `type=bind,source=${archive},target=/artifact/package.tar.gz,readonly`,
-    "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", `JMS_PUBLIC_URL=http://127.0.0.10:${selectedPort}`, "--env", `JMS_QA_PACKAGE_SHA=${linuxSHA}`,
-    "golang:1.27-bookworm", "sh", "-ceu", 'mkdir /tmp/native; tar -xzf /artifact/package.tar.gz -C /tmp/native; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; /tmp/native/jms update stage-status --root /tmp/releases --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; export JMS_WEB_DIR="/tmp/releases/releases/$JMS_QA_PACKAGE_SHA/web"; exec "/tmp/releases/releases/$JMS_QA_PACKAGE_SHA/jms233-server"']);
+    "--mount", `type=bind,source=${upgradeArchive},target=/artifact/upgrade.tar.gz,readonly`,
+    "--env", "JMS_ADDR=0.0.0.0:8080", "--env", `JMS_ADMIN_TOKEN=${token}`, "--env", "JMS_DATA_DIR=/tmp/data", "--env", "JMS_WEB_DIR=/tmp/native/web", "--env", `JMS_PUBLIC_URL=http://127.0.0.10:${selectedPort}`, "--env", `JMS_QA_PACKAGE_SHA=${linuxSHA}`,
+    "golang:1.27-bookworm", "sh", "-ceu", 'mkdir /tmp/native; tar -xzf /artifact/package.tar.gz -C /tmp/native; /tmp/native/jms233-server --check-data; /tmp/native/jms update stage --root /tmp/releases --file /artifact/package.tar.gz --sha256 "$JMS_QA_PACKAGE_SHA" >/dev/null; exec sleep infinity']);
   const url = `http://127.0.0.10:${selectedPort}`;
-  let healthy = false;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    try { const response = await fetch(url + "/api/health", { signal: AbortSignal.timeout(1000) }); const data = await response.json(); if (response.ok && data.version === report.testVersion) { healthy = true; break; } } catch { /* bounded readiness */ }
-    const [container] = await inspectQAContainers(run, [owner]); if (!container || !accept(container)) throw new Error("Native QA container exited or changed ownership");
-    await delay(100);
-  }
-  if (!healthy) throw new Error("Native single-port server not healthy");
+  const inContainer = (args, input) => input === undefined ? run("docker", ["exec", owner, "/tmp/native/jms", ...args]) : runInput("docker", ["exec", "-i", owner, "/tmp/native/jms", ...args], input);
+  const installArgs = (sha, revision, id) => ["update", "install", "--root", "/tmp/releases", "--data-dir", "/tmp/data", "--sha256", sha, "--revision", String(revision), "--request-id", id, "--passphrase-file", "-"];
+  // The container's bounded bootstrap must finish before invoking its CLI.
+  for (let attempt = 0; ; attempt++) { try { await inContainer(["update", "stage-status", "--root", "/tmp/releases", "--sha256", linuxSHA]); break; } catch { if (attempt === 99) throw new Error("Native bootstrap did not complete"); await delay(100); } }
+  const initial = JSON.parse((await inContainer(installArgs(linuxSHA, 0, "native-linux-initial"), password)).stdout);
+  if (initial.status !== "selected") throw new Error("Native Linux initial selection failed");
+  const waitHealthy = async version => { for (let attempt = 0; attempt < 100; attempt++) { try { const response = await fetch(url + "/api/health", { signal: AbortSignal.timeout(1000) }); if (response.ok && (await response.json()).version === version) return; } catch { /* bounded readiness */ } await delay(100); } throw new Error("Selected native server did not become healthy"); };
+  const startSelected = async version => { await run("docker", ["exec", "--detach", owner, "sh", "-ceu", 'echo $$ >/tmp/launcher.pid; exec /tmp/native/jms update run --root /tmp/releases']); await waitHealthy(version); };
+  const stopSelected = async () => { await run("docker", ["exec", owner, "sh", "-ceu", 'pid=$(cat /tmp/launcher.pid); case "$pid" in ""|*[!0-9]*) exit 1;; esac; kill -INT "$pid"']); for (let attempt = 0; attempt < 150; attempt++) { try { await run("docker", ["exec", owner, "sh", "-ceu", 'pid=$(cat /tmp/launcher.pid); kill -0 "$pid"']); } catch { return; } await delay(100); } throw new Error("Native launcher did not stop"); };
+  await startSelected(report.testVersion);
+  const api = async (method, path, body, bearer, status = 200) => { const response = await fetch(url + path, { method, headers: { "Content-Type": "application/json", ...(bearer ? { Authorization: "Bearer " + bearer } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000) }); if (response.status !== status) throw new Error("Native installation API status differs at " + path); return response.json(); };
+  const loginBefore = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
+  const asset = await api("POST", "/api/v1/assets", { name: "Native upgrade SSH", host: owner + "-ssh", port: 22, username: "keyqa", password: "synthetic-keyhost-password-233", host_key_fingerprint: fingerprint }, loginBefore.access_token, 201);
+  const execSSH = async (bearer, text) => { const job = await api("POST", "/api/v1/ops/jobs", { asset_id: asset.id, command: "printf " + text, timeout_seconds: 10, request_id: randomUUID() }, bearer, 201); for (let attempt = 0; attempt < 100; attempt++) { const state = await api("GET", "/api/v1/ops/jobs/" + job.id, undefined, bearer); if (state.state === "succeeded" && state.stdout === text) return job.id; if (["failed", "interrupted", "denied"].includes(state.state)) throw new Error("Native installation real SSH failed"); await delay(100); } throw new Error("Native installation SSH timed out"); };
+  const originalJob = await execSSH(loginBefore.access_token, "native-before-upgrade");
+  await inContainer(["update", "stage", "--root", "/tmp/releases", "--file", "/artifact/upgrade.tar.gz", "--sha256", upgradeSHA]);
+  let busy = false; try { await inContainer(installArgs(upgradeSHA, 1, "native-linux-busy"), password); } catch (e) { busy = String(e.stderr).includes("data directory is in use"); } if (!busy) throw new Error("Running data was not protected from upgrade");
+  await stopSelected();
+  const users = (await run("docker", ["exec", owner, "cat", "/tmp/data/users.json"])).stdout;
+  await runInput("docker", ["exec", "-i", owner, "sh", "-ceu", "cat > /tmp/data/users.json"], "synthetic invalid store");
+  let rolledBack = false; try { await inContainer(installArgs(upgradeSHA, 1, "native-linux-failed"), password); } catch (e) { const receipt = JSON.parse(e.stdout); rolledBack = receipt.status === "rolled_back" && receipt.current.version === report.testVersion; }
+  if (!rolledBack || (await run("docker", ["exec", owner, "cat", "/tmp/data/users.json"])).stdout !== "synthetic invalid store") throw new Error("Failed native preflight did not preserve its original checkpoint");
+  await runInput("docker", ["exec", "-i", owner, "sh", "-ceu", "cat > /tmp/data/users.json"], users);
+  const upgraded = JSON.parse((await inContainer(installArgs(upgradeSHA, 1, "native-linux-upgrade"), password)).stdout);
+  const replayed = JSON.parse((await inContainer(installArgs(upgradeSHA, 1, "native-linux-upgrade"), password)).stdout);
+  if (upgraded.status !== "selected" || upgraded.revision !== 2 || !replayed.unchanged || replayed.transaction_id !== upgraded.transaction_id) throw new Error("Native upgrade selection replay failed");
+  await startSelected(report.upgradeVersion);
+  const loginAfter = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
+  if (loginAfter.user.id !== loginBefore.user.id || (await api("GET", "/api/v1/ops/jobs/" + originalJob, undefined, loginAfter.access_token)).state !== "succeeded") throw new Error("Native upgrade lost identity or command audit");
+  await execSSH(loginAfter.access_token, "native-after-upgrade");
+  report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true };
   const html = await (await fetch(url + "/console/settings")).text();
   if (!html.includes("JumpServer233") || (await fetch(url + "/api/v1/assets")).status !== 401) throw new Error("Native web/auth isolation failed");
   report.linuxExecution = { arch: linuxArch, singlePort: true, protectedAPI: true, web: true, readOnlyRoot: true, stagedCandidate: true };
@@ -124,8 +178,8 @@ try {
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     const card = page.locator(".update-settings-card");
     await expect(card.getByRole("heading", { name: "Software updates", exact: true })).toBeVisible();
-    await expect(card.getByText(report.testVersion, { exact: true })).toBeVisible();
-    const screenshots = resolve(cache, "qa-reports/staging"); mkdirSync(screenshots, { recursive: true });
+    await expect(card.getByText(report.upgradeVersion, { exact: true })).toBeVisible();
+    const screenshots = output;
     await card.screenshot({ path: resolve(screenshots, "native-stage.en.png") });
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(card.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
@@ -134,7 +188,7 @@ try {
       report.browserDiagnostics = errors.slice(-10).map(message => fixtureDiagnostic(message));
       throw new Error("Staged candidate browser reported runtime warnings or errors");
     }
-    report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.testVersion, applicationWarningsOrErrors: errors.length, expectedBrowserDiagnostics: diagnostics, fromStagedCandidate: true };
+    report.browser = { languages: ["en", "zh-CN"], authenticated: true, displayedVersion: report.upgradeVersion, applicationWarningsOrErrors: errors.length, expectedBrowserDiagnostics: diagnostics, fromInstalledCandidate: true };
   } finally { await browser.close(); }
   // Repeating package creation must refuse replacement of an existing archive.
   let conflict = false;

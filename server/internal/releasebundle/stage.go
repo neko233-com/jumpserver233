@@ -28,6 +28,7 @@ const stageRootFile = ".jms233-releases.json"
 const stageReceiptFile = ".jms233-release.json"
 
 var stageName = regexp.MustCompile(`^\.jms233-stage-[a-f0-9]{32}$`)
+var stageWriteName = regexp.MustCompile(`^\.jms233-write-[a-f0-9]{32}$`)
 
 type stageOwner struct {
 	Schema       int    `json:"schema"`
@@ -101,7 +102,7 @@ func openStagingRoot(path, platform, arch string, create bool) (_ *stagingRoot, 
 		return nil, e
 	}
 	for _, row := range rows {
-		if row.Name() != stageRootFile && row.Name() != ".jms233-maintenance" && row.Name() != "releases" && !stageName.MatchString(row.Name()) {
+		if row.Name() != stageRootFile && row.Name() != ".jms233-maintenance" && row.Name() != "releases" && row.Name() != installationFile && row.Name() != upgradeJournalFile && row.Name() != "backups" && !stageName.MatchString(row.Name()) && !stageWriteName.MatchString(row.Name()) {
 			return nil, ErrStageConflict
 		}
 		if row.Type()&os.ModeSymlink != 0 {
@@ -191,6 +192,9 @@ func writeStageJSON(root *os.Root, name string, body any, exclusive bool) error 
 	data, e := json.Marshal(body)
 	if e != nil {
 		return e
+	}
+	if len(data) > 8<<20 {
+		return ErrStageConflict
 	}
 	target := name
 	if !exclusive {

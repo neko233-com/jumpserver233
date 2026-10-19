@@ -28,6 +28,9 @@ func runUpdate(args []string) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if args[0] == "install" || args[0] == "install-status" || args[0] == "install-recover" || args[0] == "run" {
+		return executeInstallation(ctx, args, os.Stdin, os.Stdout, os.Stderr, promptBackupPassphrase)
+	}
 	if args[0] == "stage" || args[0] == "stage-status" || args[0] == "stage-clean" {
 		return executeStage(ctx, args, os.Stdout)
 	}

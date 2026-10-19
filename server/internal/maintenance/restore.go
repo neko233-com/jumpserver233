@@ -20,6 +20,7 @@ type receipt struct {
 	BackupID    string    `json:"backup_id"`
 	ManifestSHA string    `json:"manifest_sha256"`
 	AppliedAt   time.Time `json:"applied_at"`
+	Previous    string    `json:"previous_data_name,omitempty"`
 }
 type stagedState struct {
 	Manifest    manifest `json:"manifest"`
@@ -45,7 +46,7 @@ func receiptAt(dataDir string) (receipt, error) {
 	if e != nil {
 		return r, e
 	}
-	if json.Unmarshal(b, &r) != nil || len(r.BackupID) != 32 || len(r.ManifestSHA) != 64 || r.AppliedAt.IsZero() {
+	if json.Unmarshal(b, &r) != nil || len(r.BackupID) != 32 || len(r.ManifestSHA) != 64 || r.AppliedAt.IsZero() || r.Previous != "" && !ownedControl(r.Previous, "previous") {
 		return r, ErrIntegrity
 	}
 	return r, nil
@@ -110,11 +111,48 @@ func Restore(ctx context.Context, opt Options) (Result, error) {
 		return Result{}, e
 	}
 	defer lock.Close()
+	if e = CheckNoUpgradePending(lock.DataDir); e != nil {
+		return Result{}, e
+	}
+	return RestoreLocked(ctx, opt, lock)
+}
+
+// RestoreLocked restores an upgrade checkpoint without releasing its OS lock.
+// The upgrade guard remains in the control directory throughout the restore.
+func RestoreLocked(ctx context.Context, opt Options, lock *Lock) (Result, error) {
+	return restoreLocked(ctx, opt, lock, false)
+}
+
+// RestoreUpgradeCheckpoint can replace a damaged target-version mode marker
+// only while the caller holds the exact pending upgrade guard and data lock.
+func RestoreUpgradeCheckpoint(ctx context.Context, opt Options, lock *Lock, rootID, id string) (Result, error) {
+	if lock == nil || lock.file == nil {
+		return Result{}, ErrBusy
+	}
+	g, e := ReadUpgradeGuard(lock.DataDir)
+	if e != nil {
+		return Result{}, e
+	}
+	if g.RootID != rootID || g.ID != id || g.Phase != "pending" {
+		return Result{}, ErrConflict
+	}
+	return restoreLocked(ctx, opt, lock, true)
+}
+func restoreLocked(ctx context.Context, opt Options, lock *Lock, upgrade bool) (Result, error) {
+	if lock == nil || lock.file == nil {
+		return Result{}, ErrBusy
+	}
+	if e := ctx.Err(); e != nil {
+		return Result{}, e
+	}
+	var e error
 	if _, _, e = recoverJournal(ctx, lock.DataDir); e != nil {
 		return Result{}, e
 	}
-	if e = standaloneMode(lock.DataDir, false); e != nil {
-		return Result{}, e
+	if !upgrade {
+		if e = standaloneMode(lock.DataDir, false); e != nil {
+			return Result{}, e
+		}
 	}
 	id, e := randomID()
 	if e != nil {
@@ -151,6 +189,9 @@ func Restore(ctx context.Context, opt Options) (Result, error) {
 			return Result{}, ErrConflict
 		}
 		m.Result.Unchanged = true
+		if r.Previous != "" {
+			m.Result.PreviousDataDir = filepath.Join(controlDir(lock.DataDir), r.Previous)
+		}
 		return m.Result, nil
 	}
 	old, e := topEntries(lock.DataDir)
@@ -172,7 +213,11 @@ func Restore(ctx context.Context, opt Options) (Result, error) {
 	if e = atomicPrivate(filepath.Join(stage, "manifest.json"), body); e != nil {
 		return Result{}, e
 	}
-	raw, _ := json.Marshal(receipt{BackupID: m.Result.BackupID, ManifestSHA: hash, AppliedAt: time.Now().UTC()})
+	restoredReceipt := receipt{BackupID: m.Result.BackupID, ManifestSHA: hash, AppliedAt: time.Now().UTC()}
+	if len(old) > 0 {
+		restoredReceipt.Previous = previous
+	}
+	raw, _ := json.Marshal(restoredReceipt)
 	if e = atomicPrivate(filepath.Join(data, receiptName), raw); e != nil {
 		return Result{}, e
 	}

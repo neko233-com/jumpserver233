@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
+	"flag"
 	"log/slog"
 	"net"
 	"net/http"
@@ -78,6 +79,13 @@ func main() {
 		slog.Error("invalid config", "err", err)
 		os.Exit(1)
 	}
+	flags := flag.NewFlagSet("jms233-server", flag.ContinueOnError)
+	flags.BoolVar(&cfg.CheckData, "check-data", false, "validate standalone data without listeners or external work")
+	flags.StringVar(&cfg.UpgradeID, "upgrade-id", "", "offline upgrade transaction identifier")
+	if flags.Parse(os.Args[1:]) != nil || flags.NArg() != 0 || cfg.UpgradeID != "" && !cfg.CheckData || cfg.CheckData && cfg.ClusterMode {
+		slog.Error("invalid offline preflight arguments")
+		os.Exit(1)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -86,13 +94,16 @@ func main() {
 	} else {
 		err = runNode(ctx, cfg, nil)
 	}
-	if err != nil && !errors.Is(err, context.Canceled) {
+	if err != nil && (cfg.CheckData || !errors.Is(err, context.Canceled)) {
 		slog.Error("server stopped", "err", err)
 		os.Exit(1)
 	}
 }
 
 func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error {
+	if cfg.CheckData && cfg.ClusterMode {
+		return maintenance.ErrCluster
+	}
 	if !cfg.ClusterMode {
 		lock, err := maintenance.Acquire(cfg.DataDir)
 		if err != nil {
@@ -102,6 +113,16 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		local := *cfg
 		local.DataDir = lock.DataDir
 		cfg = &local
+		binarySHA := ""
+		if _, guardErr := maintenance.ReadUpgradeGuard(cfg.DataDir); !errors.Is(guardErr, os.ErrNotExist) {
+			binarySHA, err = maintenance.ExecutableSHA256()
+			if err != nil {
+				return err
+			}
+		}
+		if err = maintenance.CheckUpgradeGuard(cfg.DataDir, cfg.UpgradeID, binarySHA); err != nil {
+			return err
+		}
 		if err = maintenance.Recover(ctx, cfg.DataDir); err != nil {
 			return err
 		}
@@ -443,6 +464,9 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	identityService.SetPrivilegedCheck(runtimes.isPrivileged)
 	if err = maintenance.RecordVaultKey(cfg.DataDir, vaultKey); err != nil {
 		return err
+	}
+	if cfg.CheckData {
+		return ctx.Err()
 	}
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	listener, err := net.Listen("tcp", cfg.Addr)

@@ -410,7 +410,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		d.AssetDiscovery = assetdiscovery.NewService(store, assetdiscovery.Hooks{})
 	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
-	if id != organizations.DefaultID {
+	if id != organizations.DefaultID && !r.cfg.CheckData {
 		ctx, cancel := context.WithCancel(r.ctx)
 		runtime.cancel = cancel
 		runtime.done = make(chan struct{})
@@ -556,7 +556,9 @@ func (r *organizationRuntimes) initialize() error {
 			}
 		}
 	}
-	r.passwords.Recover(r.ctx)
+	if !r.cfg.CheckData {
+		r.passwords.Recover(r.ctx)
+	}
 	for _, o := range r.store.List(false) {
 		if !o.Enabled {
 			continue

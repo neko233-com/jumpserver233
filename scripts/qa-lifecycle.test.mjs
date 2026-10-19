@@ -60,6 +60,16 @@ test("fixture records identify only fixed QA images after controllers already st
   assert.equal(qaFixtureImage("discovery-container.json"), "jms233-openssh-qa:local"); assert.equal(qaFixtureImage("openssh-container.json"), "jms233-openssh-qa:local"); assert.equal(qaFixtureImage("radius-container.json"), "jms233-radius-qa:local");
   assert.equal(qaFixtureImage("mysql-container.json"), undefined); assert.equal(qaFixtureImage("foreign-container.json"), undefined);
 });
+
+test("native cache cleanup is limited to its unique owner", async () => {
+  const owner = "jms233-native-package-00000000-0000-0000-0000-000000000000";
+  const own = { ID: "native123", Reclaimable: true, Description: "LABEL com.jumpserver233.qa.owner=" + owner };
+  let present = true;
+  const execute = async (_, args) => { if (args[1] === "du") return { stdout: [present ? own : null, { ID: "other123", Reclaimable: true, Description: 'cached mount id "/jms233-go-build"' }].filter(Boolean).map(r => JSON.stringify(r)).join("\n") }; assert.equal(args[4], "id~=^(native123)$"); present = false; return { stdout: "" }; };
+  assert.equal((await pruneOwnedQACache(execute, owner)).length, 1);
+  assert.equal((await pruneOwnedQACache(execute, owner)).length, 0);
+  await assert.rejects(pruneOwnedQACache(execute, "other project"), /Invalid QA cache owner/);
+});
 test("build history cleanup is repository scoped, excludes active builds and repeats safely", async () => {
   let removed = false;
   const execute = async (_, args, options) => { assert.equal(options.cwd, root); if (args[2] === "ls") { assert.ok(args.includes("--local")); return { stdout: (removed ? [] : [{ ref: "builder/node/completed", name: "server", status: "Completed" }, { ref: "builder/node/active", status: "Running" }]).map(r => JSON.stringify(r)).join("\n") }; } assert.deepEqual(args, ["buildx", "history", "rm", "--builder", "builder", "completed"]); removed = true; return { stdout: "" }; };

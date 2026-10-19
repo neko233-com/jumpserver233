@@ -47,7 +47,7 @@ func run(args []string) (resultErr error) {
 	if !ok || *v != version || len(parts) != 2 || !updates.Supported(parts[0], parts[1]) || e != nil {
 		return errors.New("stable version, commit, RFC3339 build time and OS/architecture are required")
 	}
-	m := releasebundle.Manifest{Schema: 1, Version: version, Commit: *commit, BuiltAt: at, Platform: parts[0], Architecture: parts[1], Files: map[string]releasebundle.File{}}
+	m := releasebundle.Manifest{Schema: 1, Version: version, Commit: *commit, BuiltAt: at, Platform: parts[0], Architecture: parts[1], PreflightProtocol: 1, Files: map[string]releasebundle.File{}}
 	// Validate metadata before compiling anything.
 	m.Files = map[string]releasebundle.File{"web/index.html": {SHA256: strings.Repeat("0", 64)}, "jms": {SHA256: strings.Repeat("0", 64), Bytes: 1, Executable: true}, "jms233-server": {SHA256: strings.Repeat("0", 64), Bytes: 1, Executable: true}}
 	if m.Platform == "windows" {

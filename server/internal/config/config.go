@@ -17,6 +17,9 @@ import (
 
 // Config holds process-level settings loaded from the environment.
 type Config struct {
+	// CheckData opens and validates stores without listeners or external work.
+	CheckData bool
+	UpgradeID string
 	// Addr is the HTTP listen address, e.g. ":8080".
 	Addr string
 	// Version is reported by the health endpoint.

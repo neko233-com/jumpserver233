@@ -23,9 +23,10 @@ const modeFile = ".jms233-storage.json"
 const controlName = ".jms233-maintenance"
 
 type modeRecord struct {
-	Version        int    `json:"version"`
-	Mode           string `json:"mode"`
-	VaultKeySHA256 string `json:"vault_key_sha256,omitempty"`
+	Version         int    `json:"version"`
+	Mode            string `json:"mode"`
+	VaultKeySHA256  string `json:"vault_key_sha256,omitempty"`
+	UpgradeProtocol int    `json:"upgrade_protocol,omitempty"`
 }
 
 // The control directory stays in place during restore, including Docker mounts.
@@ -108,7 +109,7 @@ func RecordMode(dataDir string, cluster bool) error {
 	if cluster {
 		mode = "postgres"
 	}
-	body, _ := json.Marshal(modeRecord{Version: 1, Mode: mode})
+	body, _ := json.Marshal(modeRecord{Version: 1, Mode: mode, UpgradeProtocol: 1})
 	return atomicPrivate(filepath.Join(dataDir, modeFile), body)
 }
 

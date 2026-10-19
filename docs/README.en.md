@@ -2,7 +2,9 @@
 
 > [中文](./README.md) | English
 
-[Software updates and native artifacts](./UPDATES.en.md): published stable checks, automatic policy, system permissions/revisions/receipts, download/archive verification and six-platform release packaging. Controlled installation and migration rollback remain pending.
+[Software updates and native artifacts](./UPDATES.en.md): published stable checks, automatic policy, system permissions/revisions/receipts, download/archive verification and six-platform release packaging.
+
+[Controlled standalone installation](./INSTALLATION.en.md): encrypted checkpoints, target-binary offline preflight, version selection, data guards, failure/interruption recovery and native startup. Rollback after live health failure and automatic installation scheduling remain pending.
 
 [Encrypted standalone backups](./BACKUP.en.md): native CLI, stopped-state exclusion, wrapped Vault key, integrity preflight, idempotent import, retained old data and interrupted-switch recovery. Unified verification passed.
 

@@ -20,33 +20,34 @@ import (
 const backupUsage = "usage: jms backup create|verify|restore --file BACKUP.jmsbackup [--data-dir DIR] [--passphrase-file FILE|-] [--replace] | jms backup recover --data-dir DIR [--rollback]; stop the standalone service before create/restore; passphrases are never command arguments"
 
 func runBackup(args []string) error {
-	return executeBackup(context.Background(), args, os.Stdin, os.Stdout, os.Stderr, func(confirm bool) ([]byte, error) {
-		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return nil, errors.New("use --passphrase-file - for protected stdin")
-		}
-		fmt.Fprint(os.Stderr, "Backup passphrase (12-1024 bytes): ")
-		password, e := term.ReadPassword(int(os.Stdin.Fd()))
+	return executeBackup(context.Background(), args, os.Stdin, os.Stdout, os.Stderr, promptBackupPassphrase)
+}
+func promptBackupPassphrase(confirm bool) ([]byte, error) {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return nil, errors.New("use --passphrase-file - for protected stdin")
+	}
+	fmt.Fprint(os.Stderr, "Backup passphrase (12-1024 bytes): ")
+	password, e := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Fprintln(os.Stderr)
+	if e != nil {
+		return nil, e
+	}
+	if confirm {
+		fmt.Fprint(os.Stderr, "Confirm backup passphrase: ")
+		again, e := term.ReadPassword(int(os.Stdin.Fd()))
 		fmt.Fprintln(os.Stderr)
+		same := bytes.Equal(password, again)
+		clear(again)
 		if e != nil {
+			clear(password)
 			return nil, e
 		}
-		if confirm {
-			fmt.Fprint(os.Stderr, "Confirm backup passphrase: ")
-			again, e := term.ReadPassword(int(os.Stdin.Fd()))
-			fmt.Fprintln(os.Stderr)
-			same := bytes.Equal(password, again)
-			clear(again)
-			if e != nil {
-				clear(password)
-				return nil, e
-			}
-			if !same {
-				clear(password)
-				return nil, errors.New("backup passphrases do not match")
-			}
+		if !same {
+			clear(password)
+			return nil, errors.New("backup passphrases do not match")
 		}
-		return password, nil
-	})
+	}
+	return password, nil
 }
 func executeBackup(ctx context.Context, args []string, input io.Reader, output, diagnostic io.Writer, prompt func(bool) ([]byte, error)) error {
 	if len(args) == 0 {

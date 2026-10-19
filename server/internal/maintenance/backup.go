@@ -125,6 +125,22 @@ func Create(ctx context.Context, opt Options) (result Result, err error) {
 		return result, e
 	}
 	defer lock.Close()
+	if e = CheckNoUpgradePending(lock.DataDir); e != nil {
+		return result, e
+	}
+	return CreateLocked(ctx, opt, lock)
+}
+
+// CreateLocked keeps the caller's existing OS data lock across an offline
+// upgrade checkpoint. The caller must retain this live lock for the operation.
+func CreateLocked(ctx context.Context, opt Options, lock *Lock) (result Result, err error) {
+	if lock == nil || lock.file == nil {
+		return result, ErrBusy
+	}
+	if e := ctx.Err(); e != nil {
+		return result, e
+	}
+	var e error
 	if e = standaloneMode(lock.DataDir, true); e != nil {
 		return result, e
 	}

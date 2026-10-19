@@ -119,9 +119,10 @@ export async function removeLocalBuildHistory(execute, root) {
   }
   throw new Error("Build history cleanup capacity exceeded");
 }
-export async function pruneOwnedQACache(execute) {
+export async function pruneOwnedQACache(execute, owner = "") {
+  if (owner && !/^jms233-[a-z0-9-]+$/.test(owner)) throw new Error("Invalid QA cache owner");
   const { stdout } = await readBuildxMetadata(execute, ["buildx", "du", "--format", "json"], { maxBuffer: 16 * 1024 * 1024 });
-  const records = stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)).filter(ownedCache);
+  const records = stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)).filter(record => ownedCache(record) && (!owner || String(record.Description).includes(owner)));
   if (!records.length) return [];
   await execute("docker", ["buildx", "prune", "--force", "--filter", `id~=^(${records.map(r => r.ID).join("|")})$`], { maxBuffer: 16 * 1024 * 1024 });
   const after = await readBuildxMetadata(execute, ["buildx", "du", "--format", "json"], { maxBuffer: 16 * 1024 * 1024 });

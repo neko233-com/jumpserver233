@@ -54,6 +54,8 @@ vault.key
 .jms233-releases.json
 .jms233-release.json
 .jms233-stage-*
+.jms233-installation.json
+.jms233-upgrade.json
 
 # Additional build / test outputs
 /dist/
