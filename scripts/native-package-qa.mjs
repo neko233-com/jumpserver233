@@ -478,7 +478,7 @@ try {
     const directoryForm = page.locator("form").filter({ has: page.getByRole("heading", { name: "Add command filter", exact: true }) });
     await directoryForm.getByRole("textbox", { name: "Rule name", exact: true }).fill("Browser verified directory");
     await directoryForm.getByRole("combobox", { name: "Asset scope", exact: true }).selectOption("asset");
-    await directoryForm.getByRole("combobox", { name: "Asset", exact: true }).selectOption(asset.id);
+    await directoryForm.getByRole("combobox", { name: "SSH asset and account", exact: true }).selectOption(asset.id);
     await directoryForm.getByRole("combobox", { name: "Match type", exact: true }).selectOption("exact");
     await directoryForm.getByRole("textbox", { name: "Command or pattern", exact: true }).fill("printf browser-directory");
     await directoryForm.getByRole("combobox", { name: "Execution directory scope", exact: true }).selectOption("exact");
