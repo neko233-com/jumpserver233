@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Software update checks](./docs/UPDATES.en.md) provide published stable-release checks, optional automatic checks, verified native downloads and Web/CLI/SDK access, with Linux/macOS/Windows release packaging. Controlled installation, migration and automatic rollback remain in progress.
+
 Native [`jms backup`](./docs/BACKUP.en.md) provides encrypted standalone export, verification and restoration, wrapped Vault keys, idempotent receipts, retained old data and interruption recovery. Stop the service before create/restore; no external backup program is required.
 
 An enterprise SSH bastion for daily operations, prioritizing standalone local persistence, few dependencies, Web SSH and a native CLI. The [stable SSH release scope](./docs/SSH-FIRST.en.md) prioritizes data-preserving updates, full backup/recovery, sensitive command audit/review and directory rules. Verify outstanding gaps individually; add complex Enterprise features as needed later.

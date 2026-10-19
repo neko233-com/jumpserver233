@@ -39,11 +39,13 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
+	"github.com/neko233-com/jumpserver233/server/internal/core/updates"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 )
 
 type Dependencies struct {
+	Updates               *updates.Store
 	AssetDiscovery        *assetdiscovery.Service
 	Branding              *branding.Store
 	Reports               *reporting.Store
@@ -122,6 +124,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 
 	mux.HandleFunc("GET /api/health", HealthHandler(version))
 	if len(dependencies) > 0 {
+		registerUpdateRoutes(mux, dependencies[0])
 		registerBrandingRoutes(mux, dependencies[0])
 	} else {
 		registerBrandingRoutes(mux, Dependencies{})

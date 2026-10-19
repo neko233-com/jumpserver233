@@ -1,0 +1,40 @@
+.update-artifact {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.update-artifact code {
+  word-break: break-all;
+}
+
+.update-settings-card form {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.update-settings-card .settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.update-settings-card input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+.update-settings-card dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 12px;
+}
+.update-settings-card dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.update-settings-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}

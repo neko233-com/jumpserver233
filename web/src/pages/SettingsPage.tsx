@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 const PasswordSecuritySettings = lazy(() => import("../components/PasswordSecuritySettings"));
 const SessionSecuritySettings = lazy(() => import("../components/SessionSecuritySettings"));
+const UpdateSettings = lazy(() => import("../components/UpdateSettings"));
 
 type User = { id: string; username: string; role: "admin" | "operator"; created_at: string };
 type MFAEnforcementMode = "disabled" | "admins" | "all";
@@ -850,6 +851,7 @@ export default function SettingsPage() {
               <Suspense fallback={null}>
                 <SessionSecuritySettings />
                 <PasswordSecuritySettings />
+                <UpdateSettings />
               </Suspense>
               <form
                 className="settings-card settings-form"

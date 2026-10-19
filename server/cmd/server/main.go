@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -55,6 +56,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
+	"github.com/neko233-com/jumpserver233/server/internal/core/updates"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/maintenance"
@@ -373,9 +375,14 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	if err != nil {
 		return err
 	}
+	updateStore, err := updates.Open(filepath.Join(cfg.DataDir, "updates.json"), documents, updates.NewFeed(cfg.Version, runtime.GOOS, runtime.GOARCH, nil))
+	if err != nil {
+		return err
+	}
 	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, RADIUS: radiusService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
 	root.Branding = brandStore
+	root.Updates = updateStore
 	root.AccountDiscovery = discoveredAccounts
 	root.AssetDiscovery = assetDiscoveryService
 	root.AccountRisks = accountRisks
@@ -444,6 +451,9 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 
 	nodeCtx, cancelNode := context.WithCancel(ctx)
+	updateDone := make(chan struct{})
+	go func() { defer close(updateDone); updateStore.Run(nodeCtx) }()
+	defer func() { cancelNode(); <-updateDone }()
 	if err = assetDiscoveryService.Start(nodeCtx); err != nil {
 		cancelNode()
 		return err

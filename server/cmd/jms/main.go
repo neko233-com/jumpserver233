@@ -44,6 +44,12 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "update" {
+		return runUpdate(args[1:])
+	}
+	if len(args) == 1 && (args[0] == "--version" || args[0] == "version") {
+		return printBuildVersion(os.Stdout)
+	}
 	if len(args) > 0 && args[0] == "backup" {
 		return runBackup(args[1:])
 	}

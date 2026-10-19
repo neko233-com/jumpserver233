@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/neko233-com/jumpserver233/server/internal/buildinfo"
 )
 
 // Config holds process-level settings loaded from the environment.
@@ -52,7 +54,7 @@ func FromEnv() (*Config, error) {
 	}
 	cfg := &Config{
 		Addr:            getEnv("JMS_ADDR", "127.0.0.1:8080"),
-		Version:         getEnv("JMS_VERSION", "dev"),
+		Version:         getEnv("JMS_VERSION", buildinfo.Version),
 		ShutdownTimeout: 10 * time.Second,
 		DataDir:         getEnv("JMS_DATA_DIR", filepath.Join(userConfigDir, "JumpServer233")),
 		WebDir:          strings.TrimSpace(getEnv("JMS_WEB_DIR", "")),

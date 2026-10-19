@@ -82,6 +82,9 @@ async function httpSmoke() {
   assert.ok(cookie, "Browser session cookie is missing");
   const me = await (await get(`${webURL}/api/v1/users/me`, { headers: { Cookie: cookie } })).json();
   assert.equal(me.username, "root");
+  const updates = await (await get(`${webURL}/api/v1/settings/security/updates`, { headers: { Cookie: cookie } })).json();
+  assert.equal(updates.settings.automatic, false);
+  assert.equal(updates.repository, "neko233-com/jumpserver233");
 }
 async function browserSmoke() {
   const { chromium, expect } = createRequire(new URL("../web/package.json", import.meta.url))("@playwright/test");
@@ -150,6 +153,13 @@ async function browserSmoke() {
     await page.getByRole("button",{name:"EN",exact:true}).click();
     await expect(page.getByRole("heading",{name:"Access requests",exact:true})).toBeVisible();
     await page.screenshot({path:resolve(output,"tickets.en.png")});
+    await page.goto(webURL + "/console/settings");
+    await page.getByRole("tab", { name: "Security", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Software updates", exact: true })).toBeVisible();
+    await page.screenshot({ path: resolve(output, "updates.en.png") });
+    await page.getByRole("button", { name: "中文", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "软件更新", exact: true })).toBeVisible();
+    await page.screenshot({ path: resolve(output, "updates.zh-CN.png") });
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }
 }

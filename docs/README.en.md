@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Software updates and native artifacts](./UPDATES.en.md): published stable checks, automatic policy, system permissions/revisions/receipts, download/archive verification and six-platform release packaging. Controlled installation and migration rollback remain pending.
+
 [Encrypted standalone backups](./BACKUP.en.md): native CLI, stopped-state exclusion, wrapped Vault key, integrity preflight, idempotent import, retained old data and interrupted-switch recovery. Unified verification passed.
 
 [Stable SSH release scope](./SSH-FIRST.en.md): standalone deployment, few dependencies, SSH first, data-preserving updates, full backup/recovery, sensitive command review and directory restrictions. Distinguishes existing capabilities from acceptance gaps; complex extensions follow actual need.

@@ -1,0 +1,58 @@
+name: native-release-artifacts
+
+on:
+  release:
+    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-release-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    if: github.event_name != 'release' || (!github.event.release.draft && !github.event.release.prerelease)
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+      - name: Build production frontend once
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Prepare native recovery helpers
+        working-directory: server
+        run: go generate ./internal/agentbundle
+      - name: Build and verify six native archives
+        working-directory: server
+        run: |
+          commit="$(git rev-parse HEAD)"
+          built_at="$(git show -s --format=%cI HEAD)"
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            go run ./cmd/jms-package --version "$RELEASE_TAG" --commit "$commit" --built-at "$built_at" --target "$target"
+          done
+      - name: Publish immutable artifacts to the existing stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-release.mjs --tag "$RELEASE_TAG" --directory dist --publish

@@ -1,0 +1,45 @@
+export default {
+  updates: {
+    checksum: "SHA-256",
+    title: "Software updates",
+    description: "Check published stable releases from the official JumpServer233 repository.",
+    loading: "Loading update settings…",
+    current: "Running version",
+    lastAttempt: "Last attempt",
+    lastSuccess: "Last successful check",
+    nextCheck: "Next automatic check",
+    never: "Not yet",
+    soon: "Within one minute",
+    unknownBuild:
+      "This build has no stable release version. Version comparison is unavailable; use a versioned official package for release tracking.",
+    check: "Check for updates",
+    checking: "Checking…",
+    releaseNotes: "Release notes",
+    artifact: "Native package and checksum",
+    artifactPending: "The native package for this system is not available yet.",
+    automatic: "Automatically check for updates",
+    interval: "Check interval (hours)",
+    checkOnly:
+      "Checks never install software or change business data. Stop the service and export a full backup before an upgrade.",
+    save: "Save update settings",
+    saved: "Update settings saved.",
+    audit: "Recent update activity",
+    states: {
+      not_checked: "No release check yet.",
+      no_release: "No published stable release is available.",
+      current_unknown: "Latest stable release:",
+      up_to_date: "No newer stable release. Latest:",
+      update_available: "A newer stable release is available:",
+    },
+    errors: {
+      conflict: "Settings changed. The current revision has been reloaded; review it and retry.",
+      busy: "Another check is running. Try again shortly.",
+      rate_limited: "Checks are rate limited. Wait at least one minute and try again.",
+      invalid_release: "Release metadata could not be verified. No package was installed.",
+      network:
+        "The official release service is unavailable. The previous successful result is retained.",
+      unavailable: "Could not load or save update information. Check permissions and retry.",
+    },
+    actions: { settings: "Settings changed", check: "Release check" },
+  },
+};

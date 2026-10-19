@@ -1,10 +1,13 @@
 // Inspect the production graph, including shared imports, without hiding chunks
 // behind a raised warning limit. Login animation stays outside the console entry.
 import { readFileSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve, sep } from "node:path";
 import { gzipSync } from "node:zlib";
 
-const root = new URL("../web/dist/", import.meta.url);
+const args=process.argv.slice(2);
+if(args.length && (args.length!==2||args[0]!=="--dir"||!args[1]))throw new Error("Use [--dir PRODUCTION_OUTPUT]");
+const root = args.length ? pathToFileURL(resolve(args[1])+sep) : new URL("../web/dist/", import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL(".vite/manifest.json", root), "utf8"));
 const initial = new Set();
 function visit(key) {
@@ -42,6 +45,8 @@ const branding="src/pages/BrandingPage.tsx";
 if(!manifest[branding]?.isDynamicEntry||initial.has(branding))throw new Error("Branding management and feature locales must remain lazy");
 const discovery="src/pages/AssetDiscoveryPage.tsx";
 if(!manifest[discovery]?.isDynamicEntry||initial.has(discovery))throw new Error("Asset discovery and its bilingual resources must remain lazy");
+const updates="src/components/UpdateSettings.tsx";
+if(!manifest[updates]?.isDynamicEntry||initial.has(updates))throw new Error("Update settings and bilingual release information must remain lazy");
 // Allocate 25 kB for required password security screens and shared resources.
 // Keep counting every chunk and retain the existing initial/single-chunk limits.
 // Allocate 20 kB for global branding bootstrap, safe image/appearance controls,
@@ -50,5 +55,7 @@ if(!manifest[discovery]?.isDynamicEntry||initial.has(discovery))throw new Error(
 // audit and both lazy locales. Allocate 42 kB; retain 500 kB entry/chunk limits.
 // AWS source controls and both lazy locales add 5,738 measured bytes. Allocate
 // 6 kB while keeping the unchanged 500 kB initial/single-chunk limits.
-if (largest > 500_000 || initialBytes > 500_000 || total > 1_593_000) throw new Error("Production JavaScript exceeds the recorded size budget");
+// Stable-release controls and both lazy locales add approximately 8.6 kB.
+// Allocate 9 kB for the required feature; initial/single-chunk limits stay fixed.
+if (largest > 500_000 || initialBytes > 500_000 || total > 1_602_000) throw new Error("Production JavaScript exceeds the recorded size budget");
 console.log(JSON.stringify({ initialJavaScriptBytes: initialBytes, initialGzipBytes: initialGzip, totalJavaScriptBytes: total, largestChunkBytes: largest, lazyLogin: true }));

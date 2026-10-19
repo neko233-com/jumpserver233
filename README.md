@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[软件更新检查](./docs/UPDATES.md)提供正式稳定版检查、可选自动检查、原生下载校验与 Web/CLI/SDK，配套 Linux/macOS/Windows 原生 Release 打包。受控安装、迁移和自动回滚继续完善。
+
 原生 [`jms backup`](./docs/BACKUP.md) 支持单机整站加密导出、校验和恢复，封装 Vault key，提供幂等回执、旧数据保留和中断恢复；创建/恢复前先停止服务，无需外置备份程序。
 
 面向日常运维的企业级 SSH 跳板机：优先单机本地持久化、少依赖、Web SSH 和原生 CLI。近期按[SSH 稳定版范围](./docs/SSH-FIRST.md)收敛：升级保数、整站备份恢复、敏感命令审计/复核与目录规则优先；相关缺口逐项验收，其他复杂企业功能后续按需补齐。

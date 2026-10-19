@@ -46,6 +46,8 @@ web/.auth
 **/.jms233-restore-receipt.json
 **/.jms233-backup-*
 **/.jms233-write-*
+**/.jms233-update-*
+**/.jms233-package-*
 docs/images
 docs
 server/testsupport
