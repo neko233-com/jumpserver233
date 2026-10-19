@@ -3,6 +3,7 @@ import "./update-settings.css";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
+import ServiceMaintenance from "./ServiceMaintenance";
 
 type Settings = { automatic: boolean; interval_hours: number; revision: number };
 type Status = {
@@ -243,6 +244,15 @@ export default function UpdateSettings() {
             </button>
             {notice && <p role="status">{t("updates.saved")}</p>}
           </form>
+          <ServiceMaintenance
+            onChanged={() => {
+              void fetch(endpoint + "/audit", { headers: auth })
+                .then(async (response) => {
+                  if (response.ok) setAudit((await response.json()) as Audit[]);
+                })
+                .catch(() => {});
+            }}
+          />
           <details>
             <summary>{t("updates.audit")}</summary>
             <ul>

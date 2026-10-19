@@ -14,3 +14,11 @@ test('QA image build does not retry deterministic failures',async()=>{
 test('QA image build stops after three transient failures',async()=>{
  let calls=0;await assert.rejects(buildQAImage(async()=>{calls++;throw new Error('EOF');},['build']),/EOF/);assert.equal(calls,3);
 });
+test('QA image preparation retries only a Windows Docker context metadata sharing violation',async()=>{
+ let calls=0;const success={stdout:'built'};
+ const detail='Failed to initialize: unable to resolve docker endpoint: context "desktop-linux": open C:/synthetic/.docker/contexts/meta/id/meta.json: The process cannot access the file because it is being used by another process.';
+ assert.equal(await buildQAImage(async()=>{if(++calls===1)throw Object.assign(new Error('context'),{stderr:detail});return success},['build']),success);assert.equal(calls,2);
+ for(const message of ['open Dockerfile: The process cannot access the file because it is being used by another process.','unable to resolve docker endpoint: context "desktop-linux": open C:/meta.json: Access is denied.']){
+  calls=0;await assert.rejects(buildQAImage(async()=>{calls++;throw new Error(message)},['build']));assert.equal(calls,1);
+ }
+});

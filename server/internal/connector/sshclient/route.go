@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/workgate"
 	"net"
 	"strconv"
 	"sync"
@@ -25,10 +26,11 @@ func (e *GatewayError) Error() string { return "SSH gateway connection failed" }
 func (e *GatewayError) Unwrap() error { return e.cause }
 
 type routeResources struct {
-	mu     sync.Mutex
-	closed bool
-	raw    []net.Conn
-	ssh    []xssh.Conn
+	mu      sync.Mutex
+	closed  bool
+	raw     []net.Conn
+	ssh     []xssh.Conn
+	release func()
 }
 
 func (r *routeResources) addRaw(c net.Conn) bool {
@@ -67,6 +69,9 @@ func (r *routeResources) close() {
 	for _, c := range conns {
 		_ = c.Close()
 	}
+	if r.release != nil {
+		r.release()
+	}
 }
 
 type routeConn struct {
@@ -75,6 +80,7 @@ type routeConn struct {
 }
 
 func (c *routeConn) Close() error { c.resources.close(); return nil }
+func (c *routeConn) Wait() error  { e := c.Conn.Wait(); c.resources.close(); return e }
 
 // Every hop uses an independent pinned handshake. Only direct-tcpip channels
 // are opened on gateways; no shell or agent forwarding is requested there.
@@ -87,7 +93,15 @@ func dialRoute(ctx context.Context, target Target, credentials Credentials, time
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	resources := &routeResources{}
+	admission := target.Admission
+	if admission == nil {
+		admission = workgate.FromContext(ctx)
+	}
+	ctx, release, e := admission.Enter(ctx, "ssh_routes")
+	if e != nil {
+		return nil, 0, e
+	}
+	resources := &routeResources{release: release}
 	stop := context.AfterFunc(ctx, resources.close)
 	success := false
 	defer func() {

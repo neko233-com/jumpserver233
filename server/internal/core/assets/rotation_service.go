@@ -324,6 +324,11 @@ func (s *Service) rotatePassword(ctx context.Context, id, trigger string) error 
 }
 
 func (s *Service) rotatePasswordTo(ctx context.Context, id, trigger, actor, backupID string) error {
+	ctx, release, admissionErr := s.store.admissionGate().Enter(ctx, "credential_operations")
+	if admissionErr != nil {
+		return admissionErr
+	}
+	defer release()
 	if s.passwordCoordinator != nil {
 		return s.passwordCoordinator.rotate(ctx, s, id, trigger, actor, backupID)
 	}

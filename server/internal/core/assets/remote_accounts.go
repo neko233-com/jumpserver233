@@ -599,6 +599,7 @@ func (s *Service) ExecuteRemoteAccount(ctx context.Context, op hostagent.Account
 			return result, e
 		}
 		target := sshTarget(a)
+		target.Admission = s.store.admissionGate()
 		target.Gateways = route.Gateways
 		credentials := decodeCredentials(a.CredentialType, plain)
 		if e = s.verifyPassword(ctx, target, credentials, 8*time.Second); e != nil {

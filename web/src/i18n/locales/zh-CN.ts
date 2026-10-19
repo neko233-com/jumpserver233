@@ -1318,6 +1318,7 @@ const zhCN = {
     },
     errors: {
       ssh_failed: "SSH 执行失败，请检查主机、账号及固定主机密钥。",
+      service_draining: "服务正在排空，此新作业未执行。",
       access_policy_denied: "当前访问策略或授权已阻止执行。",
       remote_exit: "远端命令返回非零退出码。",
       cancelled: "执行已取消。",

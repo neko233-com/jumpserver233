@@ -95,6 +95,9 @@ func (r *organizationRuntimes) assetStore(id string) (*coreassets.Store, error) 
 	if e = r.passwords.Register(id, st); e != nil {
 		return nil, e
 	}
+	if r.root.Maintenance != nil {
+		st.SetAdmissionGate(r.root.Maintenance.Gate())
+	}
 	return st, nil
 }
 
@@ -143,6 +146,7 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 	}
 	d := api.Dependencies{SessionPolicy: r.root.SessionPolicy, Tenant: true, OrganizationID: id, Organizations: r.store, Auth: r.root.Auth, AdminToken: r.root.AdminToken, PublicURL: r.root.PublicURL, TrustedProxies: r.root.TrustedProxies, GlobalRBAC: r.root.RBAC, GlobalGroups: r.root.Groups, GlobalPolicies: r.root.AccessPolicies}
 	d.OrganizationAllowed = func(u coreauth.User) bool { return r.allowed(id, u) }
+	d.Maintenance = r.root.Maintenance
 	d.GlobalAccessMu = r.root.AccessMu
 	d.LoginAudit = r.root.LoginAudit
 	orgKey := r.key
@@ -409,6 +413,10 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return nil, err
 		}
 		d.AssetDiscovery = assetdiscovery.NewService(store, assetdiscovery.Hooks{})
+	}
+	if d.Maintenance != nil {
+		d.Jobs.SetAdmissionGate(d.Maintenance.Gate())
+		d.Operations.SetAdmissionGate(d.Maintenance.Gate())
 	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID && !r.suspended {

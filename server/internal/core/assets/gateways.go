@@ -65,6 +65,7 @@ func (s *Store) connectionForProtocolBound(id string, requireSSH bool, binding s
 		return Asset{}, sshclient.Target{}, sshclient.Credentials{}, e
 	}
 	target := sshTarget(record.Asset)
+	target.Admission = s.admission
 	current := record
 	hops := []sshclient.Hop{}
 	ids := []string{}

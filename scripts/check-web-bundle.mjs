@@ -61,5 +61,7 @@ if(!manifest[updates]?.isDynamicEntry||initial.has(updates))throw new Error("Upd
 // Verified execution-directory controls, review metadata, terminal notices and
 // both lazy locales add 4,045 measured bytes. Allocate 4.2 kB without changing
 // the initial/single-chunk limits or adding frontend dependencies.
-if (largest > 500_000 || initialBytes > 500_000 || total > 1_606_200) throw new Error("Production JavaScript exceeds the recorded size budget");
+// Standalone drain UI and both lazy locales receive a 9 kB feature allowance.
+// Keep the 500 kB entry and individual-chunk limits unchanged.
+if (largest > 500_000 || initialBytes > 500_000 || total > 1_615_200) throw new Error("Production JavaScript exceeds the recorded size budget");
 console.log(JSON.stringify({ initialJavaScriptBytes: initialBytes, initialGzipBytes: initialGzip, totalJavaScriptBytes: total, largestChunkBytes: largest, lazyLogin: true }));

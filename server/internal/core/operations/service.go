@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/workgate"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -163,6 +164,7 @@ type envelope struct {
 	Ciphertext []byte `json:"ciphertext"`
 }
 type Service struct {
+	admission         *workgate.Gate
 	mu                sync.Mutex
 	tickMu            sync.Mutex
 	path              string
@@ -698,6 +700,14 @@ func (s *Service) Start(submit SubmitFunc) {
 	}()
 }
 func (s *Service) Tick() {
+	s.mu.Lock()
+	admission := s.admission
+	s.mu.Unlock()
+	_, release, e := admission.Enter(s.ctx, "plan_dispatch")
+	if e != nil {
+		return
+	}
+	defer release()
 	s.tickMu.Lock()
 	defer s.tickMu.Unlock()
 	if s.ctx.Err() != nil {

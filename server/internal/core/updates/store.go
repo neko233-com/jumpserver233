@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/neko233-com/jumpserver233/server/internal/core/servicemaintenance"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,13 +21,14 @@ type Settings struct {
 	Revision      int  `json:"revision"`
 }
 type Audit struct {
-	At      time.Time `json:"at"`
-	ActorID string    `json:"actor_id"`
-	Actor   string    `json:"actor"`
-	Action  string    `json:"action"`
-	Error   string    `json:"error,omitempty"`
-	Before  *Settings `json:"before,omitempty"`
-	After   *Settings `json:"after,omitempty"`
+	Maintenance *servicemaintenance.Event `json:"maintenance,omitempty"`
+	At          time.Time                 `json:"at"`
+	ActorID     string                    `json:"actor_id"`
+	Actor       string                    `json:"actor"`
+	Action      string                    `json:"action"`
+	Error       string                    `json:"error,omitempty"`
+	Before      *Settings                 `json:"before,omitempty"`
+	After       *Settings                 `json:"after,omitempty"`
 }
 type receipt struct {
 	ID       string `json:"id"`
@@ -163,6 +165,10 @@ func (s *Store) Audit() []Audit {
 	defer s.mu.Unlock()
 	out := append([]Audit{}, s.data.Audit...)
 	for i := range out {
+		if out[i].Maintenance != nil {
+			v := *out[i].Maintenance
+			out[i].Maintenance = &v
+		}
 		if out[i].Before != nil {
 			v := *out[i].Before
 			out[i].Before = &v

@@ -38,3 +38,23 @@
   overflow-wrap: anywhere;
   font-size: 13px;
 }
+
+.service-maintenance {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.maintenance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.service-maintenance ul {
+  padding-inline-start: 20px;
+}
+.service-maintenance code {
+  word-break: break-all;
+}

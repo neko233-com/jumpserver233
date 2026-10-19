@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/workgate"
 	"os"
 	"path/filepath"
 	"sort"
@@ -77,6 +78,7 @@ type Job struct {
 }
 type Executor func(context.Context, string, string) (sshclient.ExecResult, error)
 type Service struct {
+	admission         *workgate.Gate
 	mu                sync.Mutex
 	path              string
 	documents         *storage.Documents
@@ -465,18 +467,22 @@ func (s *Service) launchLocked(j Job) {
 	}
 	timeoutCtx, timeoutCancel := context.WithTimeout(s.ctx, time.Duration(j.TimeoutSeconds)*time.Second)
 	ctx, causeCancel := context.WithCancelCause(timeoutCtx)
+	ctx, release, admissionErr := s.admission.Enter(ctx, "ssh_jobs")
 	cancel := func() { causeCancel(context.Canceled); timeoutCancel() }
 	s.running[j.ID] = cancel
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 		defer cancel()
+		if release != nil {
+			defer release()
+		}
 		var result sshclient.ExecResult
-		var err error
-		if j.PlaybookStep != nil && guard == nil {
+		err := admissionErr
+		if err == nil && j.PlaybookStep != nil && guard == nil {
 			err = ErrAccessDenied
 		}
-		if guard != nil {
+		if err == nil && guard != nil {
 			err = guard(j)
 		}
 		if err == nil {
@@ -557,6 +563,9 @@ func (s *Service) launchLocked(j Job) {
 		case errors.Is(err, ErrAccessDenied):
 			current.State = "failed"
 			current.ErrorCode = "access_policy_denied"
+		case errors.Is(err, workgate.ErrDraining):
+			current.State = "failed"
+			current.ErrorCode = "service_draining"
 		case err != nil:
 			current.State = "failed"
 			current.ErrorCode = "ssh_failed"

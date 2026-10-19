@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/workgate"
 	"net"
 	"strconv"
 	"strings"
@@ -14,7 +15,8 @@ import (
 
 // Target identifies a Linux SSH endpoint and its out-of-band verified host key.
 type Target struct {
-	Gateways           []Hop `json:"-"`
+	Admission          *workgate.Gate `json:"-"`
+	Gateways           []Hop          `json:"-"`
 	HostKeyFingerprint string
 	Host               string
 	Username           string

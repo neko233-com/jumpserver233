@@ -86,6 +86,43 @@ async function httpSmoke() {
   assert.equal(typeof updates.settings.automatic, "boolean");
   if (command === "verify") assert.equal(updates.settings.automatic, false);
   assert.equal(updates.repository, "neko233-com/jumpserver233");
+  if (command === "verify") {
+    const path = `${webURL}/api/v1/settings/security/maintenance`;
+    const headers = { Cookie: cookie, Origin: webURL, "Content-Type": "application/json" };
+    const original = await (await get(path, { headers })).json();
+    assert.equal(original.supported, true);
+    const input = { instance: original.instance, revision: original.revision, request_id: randomUUID(), draining: true };
+    const change = async data => (await get(path, { method: "PUT", headers, body: JSON.stringify(data) })).json();
+    let status = await change(input);
+    assert.equal((await change(input)).replayed, true);
+    assert.equal((await fetch(`${webURL}/api/v1/assets`, { method: "POST", headers, body: "{}" })).status, 503);
+    const waitReady = async () => {
+      for (let i = 0; i < 30; i++) {
+        const current = await (await get(path, { headers })).json();
+        if (current.ready) return current;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error("Tracked Docker work did not drain");
+    };
+    status = await waitReady();
+    status = await change({ instance: status.instance, revision: status.revision, request_id: randomUUID(), draining: false });
+    assert.equal(status.draining, false);
+    assert.equal((await change(input)).draining, false, "Old start receipt must not restart draining");
+    const finalInput = { instance: status.instance, revision: status.revision, request_id: randomUUID(), draining: true };
+    await change(finalInput); await waitReady();
+    await docker(["restart", "api"]);
+    let healthy = false;
+    for (let i = 0; i < 50; i++) { try { if ((await fetch(`${apiURL}/api/health`, { signal: AbortSignal.timeout(1000) })).ok) { healthy = true; break; } } catch {} await new Promise(resolve => setTimeout(resolve, 100)); }
+    assert.ok(healthy, "Restarted Docker API did not become healthy");
+    const freshLogin = await get(`${webURL}/api/v1/authentication/auth/`, { method: "POST", headers: { "Content-Type": "application/json", Origin: webURL }, body: JSON.stringify({ username: "root", password: "root" }) });
+    headers.Cookie = freshLogin.headers.getSetCookie().map(v => v.split(";")[0]).join("; ");
+    const restarted = await (await get(path, { headers })).json();
+    assert.notEqual(restarted.instance, original.instance); assert.equal(restarted.draining, false);
+    assert.equal((await fetch(path, { method: "PUT", headers, body: JSON.stringify(finalInput) })).status, 409);
+    const audit = await (await get(`${webURL}/api/v1/settings/security/updates/audit`, { headers })).json();
+    assert.equal(audit.filter(row => row.action === "maintenance").length, 3);
+    receipt.maintenance = { restartResetsAdmission: true, oldInstanceRejected: true, auditEvents: 3, replaySafe: true };
+  }
 }
 async function browserSmoke() {
   const { chromium, expect } = createRequire(new URL("../web/package.json", import.meta.url))("@playwright/test");

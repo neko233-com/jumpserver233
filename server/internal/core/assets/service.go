@@ -292,6 +292,11 @@ func (s *Service) currentMonitorStatus(id string) MonitorStatus {
 }
 
 func (s *Service) Probe(ctx context.Context, id string) (ListItem, error) {
+	ctx, release, err := s.store.admissionGate().Enter(ctx, "probes")
+	if err != nil {
+		return ListItem{}, err
+	}
+	defer release()
 	if a, e := s.Get(id); e == nil && IsRDP(a) {
 		started := time.Now()
 		e = s.ProbeRDP(ctx, id)
@@ -461,12 +466,16 @@ func (s *Service) Run(ctx context.Context, interval time.Duration) {
 	s.RecoverPendingSSHKeyChanges(ctx)
 	s.RecoverPendingPasswordRotations(ctx)
 	for {
-		s.pruneHistory()
-		s.RefreshAll(ctx)
-		s.RecoverPendingSSHKeyChanges(ctx)
-		s.RecoverPendingPasswordRotations(ctx)
-		s.RotateDuePasswords(ctx)
-		s.RotateDueSSHKeys(ctx)
+		cycle, release, e := s.store.admissionGate().Enter(ctx, "asset_cycles")
+		if e == nil {
+			s.pruneHistory()
+			s.RefreshAll(cycle)
+			s.RecoverPendingSSHKeyChanges(cycle)
+			s.RecoverPendingPasswordRotations(cycle)
+			s.RotateDuePasswords(cycle)
+			s.RotateDueSSHKeys(cycle)
+			release()
+		}
 		timer := time.NewTimer(interval)
 		select {
 		case <-ctx.Done():

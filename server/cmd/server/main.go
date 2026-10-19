@@ -55,6 +55,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
+	"github.com/neko233-com/jumpserver233/server/internal/core/servicemaintenance"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/core/updates"
@@ -63,6 +64,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/maintenance"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 	"github.com/neko233-com/jumpserver233/server/internal/webui"
+	"github.com/neko233-com/jumpserver233/server/internal/workgate"
 )
 
 const (
@@ -103,6 +105,8 @@ func main() {
 }
 
 func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error {
+	admission := workgate.New()
+	ctx = workgate.WithGate(ctx, admission)
 	if (cfg.CheckData || cfg.ActivationID != "") && cfg.ClusterMode {
 		return maintenance.ErrCluster
 	}
@@ -162,6 +166,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	assetService := coreassets.NewService(assetStore, nil)
+	assetStore.SetAdmissionGate(admission)
 	historyStore, err := monitorhistory.Open(filepath.Join(cfg.DataDir, "monitor-history"), vaultKey, documents)
 	if err != nil {
 		return err
@@ -414,6 +419,10 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.AccessMu = &sync.RWMutex{}
 	root.Branding = brandStore
 	root.Updates = updateStore
+	root.Maintenance, err = servicemaintenance.New(admission, !cfg.ClusterMode, updateStore.RecordMaintenance)
+	if err != nil {
+		return err
+	}
 	root.AccountDiscovery = discoveredAccounts
 	root.AssetDiscovery = assetDiscoveryService
 	root.AccountRisks = accountRisks
@@ -432,6 +441,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.GlobalPolicies = policyStore
 	root.Organizations = orgStore
 	runtimes := &organizationRuntimes{cfg: cfg, ctx: ctx, key: vaultKey, documents: documents, root: root, store: orgStore, items: map[string]*organizationRuntime{}}
+	root.Maintenance.SetActivity(runtimes.activity)
 	defer runtimes.close(false)
 	if err = runtimes.initialize(); err != nil {
 		return err

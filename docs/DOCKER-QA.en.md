@@ -6,6 +6,8 @@ Buildx metadata reads retry RPC Unavailable/EOF at most three times. Permission 
 
 Docker builds the production API and web application from source, with separate networks, named data volumes and localhost ports. Builds do not read host Go, Node, `node_modules` or generated native helpers. Runtime images contain only executables and web output. The API and Nginx run as ordinary users with read-only root filesystems.
 
+Idempotent QA image preparation retries Windows Docker context `meta.json` sharing violations at most three times. Ordinary file locks and permission failures are not retried; container creation and remote commands are never replayed by this helper.
+
 `node scripts/check-content.mjs` also rejects unreferenced `docs/images/` assets to prevent product screenshot accumulation. The automatic cleaner never deletes product screenshots.
 
 ## Fast verification

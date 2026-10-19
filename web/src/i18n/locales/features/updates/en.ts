@@ -40,6 +40,42 @@ export default {
         "The official release service is unavailable. The previous successful result is retained.",
       unavailable: "Could not load or save update information. Check permissions and retry.",
     },
-    actions: { settings: "Settings changed", check: "Release check" },
+    actions: {
+      settings: "Settings changed",
+      check: "Release check",
+      maintenance: "Service drain changed",
+    },
+    maintenance: {
+      title: "Prepare for an upgrade",
+      description:
+        "Drain blocks new operations and pauses SSH monitoring and operation plans. Existing sessions and admitted work can finish. Counts represent active work, not unique connections. Stop the service before backup or installation. Draining resets on restart.",
+      start: "Start draining",
+      cancel: "Cancel draining",
+      refresh: "Refresh drain status",
+      open: "Accepting operations.",
+      draining: "Draining. End remaining sessions or cancel running jobs to continue.",
+      ready: "Tracked work has drained. Stop the service before backup or installation.",
+      unsupported:
+        "Drain control requires standalone mode. Coordinate cluster maintenance separately.",
+      unavailable: "Could not read or change drain status. Check permissions and retry.",
+      conflict:
+        "The process or revision changed. Current status was reloaded; review it before retrying.",
+      instance: "Process instance for CLI control",
+      revision: "Revision {{revision}} · PID {{pid}}",
+      activity: {
+        ssh_routes: "SSH transports",
+        http_requests: "Admitted requests and sockets",
+        asset_cycles: "Inventory monitor cycles",
+        credential_operations: "Credential operations",
+        ssh_jobs: "Executing SSH jobs",
+        probes: "Host probes",
+        plan_dispatch: "Plan dispatch cycles",
+        terminal_sessions: "Terminal sessions and tickets",
+        desktop_sessions: "Desktop sessions",
+        running_jobs: "Running jobs",
+        database_queries: "Database queries",
+        other: "Other active work",
+      },
+    },
   },
 };

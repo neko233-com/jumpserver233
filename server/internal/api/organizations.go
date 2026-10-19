@@ -60,7 +60,7 @@ func organizationHeader(r *http.Request) (string, error) {
 // saved policy checks the current owner membership before terminal attachment.
 func NewOrganizationRouter(version string, d Dependencies, resources func(string) (http.Handler, error)) http.Handler {
 	global := NewRouter(version, d)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return withMaintenance(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, e := organizationHeader(r)
 		if e != nil {
 			writeOrganizationError(w, e)
@@ -130,7 +130,7 @@ func NewOrganizationRouter(version string, d Dependencies, resources func(string
 			return
 		}
 		handler.ServeHTTP(w, r)
-	})
+	}), d.Maintenance)
 }
 func registerOrganizationRoutes(mux *http.ServeMux, d Dependencies) {
 	protect := func(h http.HandlerFunc) http.Handler { return protectAuthenticatedAPI(h, d.AdminToken, d.Auth) }

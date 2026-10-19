@@ -1420,6 +1420,7 @@ const en = {
     },
     errors: {
       ssh_failed: "SSH execution failed. Check the host, account, and pinned host key.",
+      service_draining: "Service draining prevented this new job from starting.",
       access_policy_denied: "Execution was blocked by the current access policy or authorization.",
       remote_exit: "The remote command returned a nonzero exit code.",
       cancelled: "Execution was cancelled.",

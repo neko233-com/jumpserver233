@@ -128,6 +128,11 @@ func (s *Service) claimKeyChange(id string) error {
 	return nil
 }
 func (s *Service) RotateSSHKey(ctx context.Context, id, requestID string, revision uint64, actor string) (ListItem, error) {
+	ctx, release, admissionErr := s.store.admissionGate().Enter(ctx, "credential_operations")
+	if admissionErr != nil {
+		return ListItem{}, admissionErr
+	}
+	defer release()
 	if c := s.passwordCoordinator; c != nil {
 		return c.withKeyChange(ctx, s, id, false, func(ctx context.Context) (ListItem, error) {
 			return s.rotateSSHKeyLocal(ctx, id, requestID, revision, actor)
