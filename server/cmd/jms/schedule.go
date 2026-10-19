@@ -15,6 +15,7 @@ import (
 )
 
 const scheduleUsage = "usage: jms update schedule-status --root ROOT | schedule --root ROOT --sha256 SHA --revision N --installation-revision N --request-id ID --at RFC3339 [--drain-timeout 60s] | schedule-cancel --root ROOT --revision N --request-id ID --plan-id ID | supervise --root ROOT --passphrase-file PRIVATE_FILE; supervise requires a global platform identity and loopback JMS_SERVER_URL"
+const automaticUsage = "usage: jms update auto-status --root ROOT | auto-policy --root ROOT --revision N --request-id ID --mode off|prepare|install [--interval-hours 24 --hour-utc 2 --minute-utc 0 --window-minutes 30 --drain-timeout 60s]"
 
 func executeSchedule(ctx context.Context, args []string, out, diagnostic io.Writer) error {
 	if len(args) == 0 {
@@ -31,11 +32,21 @@ func executeSchedule(ctx context.Context, args []string, out, diagnostic io.Writ
 	timeout := f.Duration("drain-timeout", time.Minute, "")
 	plan := f.String("plan-id", "", "")
 	passwordFile := f.String("passphrase-file", "", "")
+	mode := f.String("mode", "off", "")
+	hours := f.Int("interval-hours", 24, "")
+	hour := f.Int("hour-utc", 2, "")
+	minute := f.Int("minute-utc", 0, "")
+	window := f.Int("window-minutes", 30, "")
 	if f.Parse(args[1:]) != nil || f.NArg() != 0 || *root == "" {
 		return errors.New(scheduleUsage)
 	}
 	allowed := map[string]bool{"root": true}
 	switch args[0] {
+	case "auto-policy":
+		for _, n := range []string{"revision", "request-id", "mode", "interval-hours", "hour-utc", "minute-utc", "window-minutes", "drain-timeout"} {
+			allowed[n] = true
+		}
+	case "auto-status":
 	case "schedule":
 		for _, n := range []string{"sha256", "revision", "installation-revision", "request-id", "at", "drain-timeout"} {
 			allowed[n] = true
@@ -68,6 +79,19 @@ func executeSchedule(ctx context.Context, args []string, out, diagnostic io.Writ
 	}
 	var result any
 	switch args[0] {
+	case "auto-status":
+		result, e = releasebundle.AutomaticStatus(ctx, *root)
+	case "auto-policy":
+		specified := false
+		f.Visit(func(v *flag.Flag) {
+			if v.Name == "mode" {
+				specified = true
+			}
+		})
+		if !specified || *timeout%time.Second != 0 {
+			return errors.New(automaticUsage)
+		}
+		result, e = releasebundle.SaveAutomaticPolicy(ctx, *root, releasebundle.AutomaticPolicyInput{RequestID: *id, Policy: releasebundle.AutomaticPolicy{Revision: *revision, Mode: *mode, IntervalHours: *hours, HourUTC: *hour, MinuteUTC: *minute, WindowMinutes: *window, DrainTimeoutSeconds: int(*timeout / time.Second)}}, "local-operator", "local-operator")
 	case "schedule-status":
 		result, e = releasebundle.ScheduleState(ctx, *root)
 	case "schedule":

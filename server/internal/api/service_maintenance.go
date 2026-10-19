@@ -80,7 +80,7 @@ func registerMaintenanceRoutes(mux *http.ServeMux, d Dependencies) {
 
 func maintenanceExempt(r *http.Request) bool {
 	p := r.URL.Path
-	if p == maintenancePath || p == maintenancePath+"/stop" || p == "/api/v1/settings/security/updates/installation/cancel" && r.Method == http.MethodPost || strings.HasPrefix(p, "/api/v1/authentication/") || strings.HasPrefix(p, "/api/v1/login-reviews") {
+	if p == maintenancePath || p == maintenancePath+"/stop" || p == "/api/v1/settings/security/updates/installation/cancel" && r.Method == http.MethodPost || p == "/api/v1/settings/security/updates/installation/automatic" && r.Method == http.MethodPut || strings.HasPrefix(p, "/api/v1/authentication/") || strings.HasPrefix(p, "/api/v1/login-reviews") {
 		return true
 	}
 	// Cancellation and session interruption remain available during draining.

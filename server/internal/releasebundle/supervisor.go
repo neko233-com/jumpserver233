@@ -21,6 +21,7 @@ type MaintenanceClient interface {
 	StopMaintenance(context.Context, servicemaintenance.Input) (servicemaintenance.Status, error)
 }
 type SupervisorOptions struct {
+	automaticFeed  func(string) automaticFeed
 	Root           string
 	Client         MaintenanceClient
 	ReadPassphrase func() ([]byte, error)
@@ -66,6 +67,12 @@ func SuperviseInstalled(ctx context.Context, opt SupervisorOptions) error {
 		return e
 	}
 	defer lock.Close()
+	if e = cleanAutomaticDownloads(ctx, opt.Root); e != nil {
+		return e
+	}
+	if e = recoverAutomatic(ctx, opt.Root); e != nil {
+		return e
+	}
 	worker, e := stageID()
 	if e != nil {
 		return e
@@ -151,6 +158,8 @@ func settleStartFailure(path, worker string, cause error) {
 }
 
 func superviseChild(ctx context.Context, opt SupervisorOptions, worker string, child observedChild, done <-chan error) (bool, error) {
+	automatic := &automaticWorker{}
+	defer automatic.stop()
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 	var heartbeat time.Time
@@ -162,6 +171,7 @@ func superviseChild(ctx context.Context, opt SupervisorOptions, worker string, c
 			return false, ctx.Err()
 		case <-ticker.C:
 		}
+		automaticDiagnostic(opt.Stderr, automatic.tick(ctx, opt, child))
 		if time.Since(heartbeat) > 5*time.Second {
 			if e := touchSupervisor(ctx, opt.Root); e != nil {
 				if errors.Is(e, maintenance.ErrBusy) {
@@ -182,6 +192,7 @@ func superviseChild(ctx context.Context, opt SupervisorOptions, worker string, c
 		if p == nil || p.Phase != "scheduled" || time.Now().Before(p.Input.NotBefore) {
 			continue
 		}
+		automatic.stop()
 		stopped, e := performScheduledInstall(ctx, opt, worker, child, *p, done)
 		if e != nil || stopped {
 			return stopped, e
@@ -255,6 +266,12 @@ func performScheduledInstall(ctx context.Context, opt SupervisorOptions, worker 
 	timer := time.NewTimer(time.Duration(p.Input.DrainTimeoutSeconds) * time.Second)
 	defer timer.Stop()
 	for {
+		if p.AutomaticRevision > 0 {
+			if _, e = queueAutomatic(ctx, opt.Root, time.Now()); e != nil {
+				_ = reopen()
+				return false, e
+			}
+		}
 		current, e := ScheduleState(ctx, opt.Root)
 		if e != nil {
 			_ = reopen()

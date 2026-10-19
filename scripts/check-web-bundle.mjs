@@ -65,5 +65,7 @@ if(!manifest[updates]?.isDynamicEntry||initial.has(updates))throw new Error("Upd
 // Keep the 500 kB entry and individual-chunk limits unchanged.
 // Revision-bound scheduled installation controls and lazy bilingual guidance.
 // Allocate 12 kB; preserve the initial and individual chunk caps.
-if (largest > 500_000 || initialBytes > 500_000 || total > 1_627_200) throw new Error("Production JavaScript exceeds the recorded size budget");
+// Opt-in automatic release policy controls and lazy bilingual guidance.
+// Allocate 10 kB while retaining the initial and individual chunk caps.
+if (largest > 500_000 || initialBytes > 500_000 || total > 1_637_200) throw new Error("Production JavaScript exceeds the recorded size budget");
 console.log(JSON.stringify({ initialJavaScriptBytes: initialBytes, initialGzipBytes: initialGzip, totalJavaScriptBytes: total, largestChunkBytes: largest, lazyLogin: true }));

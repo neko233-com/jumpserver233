@@ -72,3 +72,23 @@
 .installation-schedule summary {
   cursor: pointer;
 }
+.automatic-updates {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding-block: 12px;
+  margin-block: 12px;
+  min-width: 0;
+}
+.automatic-updates h5 {
+  margin-block: 0 8px;
+}
+.automatic-updates details {
+  margin-block: 12px;
+}
+.automatic-updates code {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.automatic-updates ul {
+  padding-inline-start: 20px;
+}

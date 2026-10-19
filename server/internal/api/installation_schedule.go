@@ -83,6 +83,36 @@ func registerInstallationScheduleRoutes(mux *http.ServeMux, d Dependencies) {
 		}
 		return true
 	}
+	mux.Handle("GET "+installationSchedulePath+"/automatic", protect(func(w http.ResponseWriter, r *http.Request) {
+		if !bound(w, r) {
+			return
+		}
+		v, e := releasebundle.AutomaticStatus(r.Context(), d.ReleaseRoot)
+		if e != nil {
+			installationScheduleError(w, e)
+			return
+		}
+		v.Receipts = nil
+		writeJSON(w, 200, v)
+	}))
+	mux.Handle("PUT "+installationSchedulePath+"/automatic", protect(func(w http.ResponseWriter, r *http.Request) {
+		if !bound(w, r) {
+			return
+		}
+		var in releasebundle.AutomaticPolicyInput
+		if decodeRequestJSON(w, r, &in) != nil {
+			installationScheduleError(w, releasebundle.ErrInvalid)
+			return
+		}
+		u, _ := PrincipalFromContext(r.Context())
+		v, e := releasebundle.SaveAutomaticPolicy(r.Context(), d.ReleaseRoot, in, u.ID, u.Username)
+		if e != nil {
+			installationScheduleError(w, e)
+			return
+		}
+		v.Receipts = nil
+		writeJSON(w, 200, v)
+	}))
 	mux.Handle("GET "+installationSchedulePath+"/candidates", protect(func(w http.ResponseWriter, r *http.Request) {
 		if !bound(w, r) {
 			return

@@ -45,6 +45,63 @@ export default {
       check: "Release check",
       maintenance: "Service drain changed",
     },
+    automaticInstall: {
+      title: "Automatic release preparation and installation",
+      description:
+        "Opt in to prepare official stable releases. Installation also requires the native supervisor and a maintenance window. Each policy revision and digest is attempted once.",
+      disabled: "Automatic preparation and installation are off.",
+      prepared: "Verified staged version: {{version}}",
+      lastAttempt: "Last preparation attempt",
+      nextAttempt: "Next preparation check",
+      configure: "Configure automatic updates",
+      mode: "Automatic update mode",
+      modes: {
+        off: "Off",
+        prepare: "Prepare only",
+        install: "Install within the maintenance window",
+      },
+      interval: "Preparation interval (hours)",
+      window: "Daily window starts (UTC)",
+      width: "Window length (minutes)",
+      windowHelp:
+        "UTC is fixed across timezone/daylight-saving changes. Work must drain before shutdown is committed within this window. A committed transaction continues to acceptance or recovery.",
+      save: "Save automatic update policy",
+      refresh: "Refresh preparation status",
+      phases: {
+        idle: "Waiting for preparation.",
+        checking: "Checking the official stable release.",
+        downloading: "Downloading the pinned archive.",
+        staging: "Verifying and staging candidate files.",
+        ready: "Candidate ready. Preparation alone does not install it.",
+        failed: "Automatic preparation stopped with an error.",
+        no_update: "No newer installable release was prepared.",
+        attempted:
+          "This policy/digest has already been attempted. Inspect installation results before authorizing another policy revision.",
+      },
+      failures: {
+        attempt_limit: "The current policy reached its attempt limit. Inspect results and save an explicit new revision.",
+        authorization:
+          "The supervisor cannot authorize its own child. Check the persistent platform credential and loopback URL.",
+        network: "The official release service was unavailable. The running service was retained.",
+        invalid_release: "Official release metadata could not be verified.",
+        integrity: "The archive or activation protocols did not match the pinned release.",
+        rate_limited:
+          "The official release service is rate limited. The next attempt remains scheduled.",
+        interrupted:
+          "Preparation was interrupted. Owned temporary downloads are recovered by the next supervisor.",
+        canceled: "Preparation was cancelled.",
+        unavailable:
+          "Preparation or owned temporary cleanup could not complete. Inspect the native status before continuing.",
+      },
+      events: {
+        policy: "Policy changed",
+        check: "Release preparation started",
+        ready: "Candidate verified",
+        failed: "Preparation failed",
+        no_update: "No candidate",
+        attempted: "Candidate already attempted",
+      },
+    },
     maintenance: {
       stopping: "Shutdown committed. Waiting for the service to stop; cancellation is closed.",
       title: "Prepare for an upgrade",

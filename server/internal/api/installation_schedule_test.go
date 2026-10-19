@@ -12,10 +12,12 @@ import (
 func TestInstallationScheduleGlobalPermissionsAndUnconfiguredState(t *testing.T) {
 	e := monitoringEnv(t)
 	e.router = NewOrganizationRouter("test", e.d, func(string) (http.Handler, error) { t.Fatal("installation selected tenant runtime"); return nil, nil })
-	for _, path := range []string{installationSchedulePath, installationSchedulePath + "/candidates"} {
+	for _, path := range []string{installationSchedulePath, installationSchedulePath + "/candidates", installationSchedulePath + "/automatic"} {
 		require.Equal(t, 401, e.send(t, "GET", path, nil, "", "192.0.2.1:12").Code)
 		require.Equal(t, 403, e.send(t, "GET", path, nil, e.token, "192.0.2.1:12").Code)
 	}
+	require.Equal(t, 403, e.send(t, "PUT", installationSchedulePath+"/automatic", map[string]any{}, e.token, "192.0.2.1:12").Code)
+	require.Equal(t, 409, e.send(t, "PUT", installationSchedulePath+"/automatic", map[string]any{}, e.adminToken, "192.0.2.1:12").Code)
 	r := e.send(t, "GET", installationSchedulePath, nil, e.adminToken, "192.0.2.1:12")
 	require.Equal(t, 200, r.Code)
 	require.Contains(t, r.Body.String(), `"configured":false`)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
+import AutomaticUpdates from "./AutomaticUpdates";
 
 type Selection = { version: string; archive_sha256: string; commit: string };
 type Plan = {
@@ -159,139 +160,144 @@ export default function InstallationSchedule() {
   }
   const phase = status?.plan?.phase || "";
   return (
-    <div className="installation-schedule">
-      <h4>{t("updates.installation.title")}</h4>
-      <p className="settings-help">{t("updates.installation.description")}</p>
-      {error && (
-        <p role="alert" className="asset-error">
-          {t(`updates.errors.${error}`)}
-        </p>
-      )}
-      {!status && !error && <p role="status">{t("updates.loading")}</p>}
-      {status && !status.configured && (
-        <p role="status">{t("updates.installation.unconfigured")}</p>
-      )}
-      {status?.configured && (
-        <>
-          <p className="settings-help">
-            {t("updates.installation.supervisor", { at: date(status.supervisor_seen_at) })}
+    <>
+      <div className="installation-schedule">
+        <h4>{t("updates.installation.title")}</h4>
+        <p className="settings-help">{t("updates.installation.description")}</p>
+        {error && (
+          <p role="alert" className="asset-error">
+            {t(`updates.errors.${error}`)}
           </p>
-          {status.plan && (
-            <div role="status">
-              <strong>
-                {t(`updates.installation.phases.${phases.has(phase) ? phase : "failed"}`)}
-              </strong>
-              <p>
-                {status.plan.target.version} · {date(status.plan.input.not_before)}
-              </p>
-              <code>{status.plan.target.archive_sha256}</code>
-              {status.plan.error && (
-                <p className="asset-error">
-                  {t(
-                    `updates.installation.failures.${codes.has(status.plan.error) ? status.plan.error : "unknown"}`,
-                  )}
+        )}
+        {!status && !error && <p role="status">{t("updates.loading")}</p>}
+        {status && !status.configured && (
+          <p role="status">{t("updates.installation.unconfigured")}</p>
+        )}
+        {status?.configured && (
+          <>
+            <p className="settings-help">
+              {t("updates.installation.supervisor", { at: date(status.supervisor_seen_at) })}
+            </p>
+            {status.plan && (
+              <div role="status">
+                <strong>
+                  {t(`updates.installation.phases.${phases.has(phase) ? phase : "failed"}`)}
+                </strong>
+                <p>
+                  {status.plan.target.version} · {date(status.plan.input.not_before)}
                 </p>
-              )}
-            </div>
-          )}
-          <div className="maintenance-actions">
-            {(phase === "scheduled" || phase === "draining") && (
-              <button type="button" disabled={busy} onClick={() => void change(true)}>
-                {t("updates.installation.cancel")}
-              </button>
+                <code>{status.plan.target.archive_sha256}</code>
+                {status.plan.error && (
+                  <p className="asset-error">
+                    {t(
+                      `updates.installation.failures.${codes.has(status.plan.error) ? status.plan.error : "unknown"}`,
+                    )}
+                  </p>
+                )}
+              </div>
             )}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                void read()
-                  .then(() => setError(""))
-                  .catch(() => setError("unavailable"))
-              }
-            >
-              {t("updates.installation.refresh")}
-            </button>
-          </div>
-          {!running && (
-            <details>
-              <summary>{t("updates.installation.prepare")}</summary>
-              <p className="settings-help">{t("updates.installation.staging")}</p>
-              <button type="button" disabled={busy} onClick={() => void refreshCandidates()}>
-                {t("updates.installation.candidates")}
-              </button>
-              <form onSubmit={submit}>
-                <label>
-                  {t("updates.installation.target")}
-                  <select
-                    required
-                    value={sha}
-                    disabled={busy}
-                    onChange={(e) => {
-                      setSHA(e.target.value);
-                      pending.current = null;
-                    }}
-                  >
-                    <option value="">{t("updates.installation.choose")}</option>
-                    {candidates.map((c) => (
-                      <option key={c.archive_sha256} value={c.archive_sha256}>
-                        {c.version} · {c.archive_sha256.slice(0, 12)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  {t("updates.installation.at")}
-                  <input
-                    type="datetime-local"
-                    required
-                    value={when}
-                    disabled={busy}
-                    onChange={(e) => {
-                      setWhen(e.target.value);
-                      pending.current = null;
-                    }}
-                  />
-                </label>
-                <label>
-                  {t("updates.installation.timeout")}
-                  <input
-                    type="number"
-                    min={5}
-                    max={86400}
-                    required
-                    value={timeout}
-                    disabled={busy}
-                    onChange={(e) => {
-                      setTimeoutSeconds(e.target.valueAsNumber);
-                      pending.current = null;
-                    }}
-                  />
-                </label>
-                <button type="submit" className="button-primary" disabled={busy || !sha}>
-                  {t("updates.installation.schedule")}
+            <div className="maintenance-actions">
+              {(phase === "scheduled" || phase === "draining") && (
+                <button type="button" disabled={busy} onClick={() => void change(true)}>
+                  {t("updates.installation.cancel")}
                 </button>
-              </form>
-            </details>
-          )}
-          {!!status.events?.length && (
-            <details>
-              <summary>{t("updates.installation.history")}</summary>
-              <ul>
-                {status.events
-                  .slice(-5)
-                  .reverse()
-                  .map((e, i) => (
-                    <li key={`${e.at}-${i}`}>
-                      {date(e.at)} ·{" "}
-                      {t(`updates.installation.phases.${phases.has(e.phase) ? e.phase : "failed"}`)}{" "}
-                      · {e.actor}
-                    </li>
-                  ))}
-              </ul>
-            </details>
-          )}
-        </>
-      )}
-    </div>
+              )}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  void read()
+                    .then(() => setError(""))
+                    .catch(() => setError("unavailable"))
+                }
+              >
+                {t("updates.installation.refresh")}
+              </button>
+            </div>
+            {!running && (
+              <details>
+                <summary>{t("updates.installation.prepare")}</summary>
+                <p className="settings-help">{t("updates.installation.staging")}</p>
+                <button type="button" disabled={busy} onClick={() => void refreshCandidates()}>
+                  {t("updates.installation.candidates")}
+                </button>
+                <form onSubmit={submit}>
+                  <label>
+                    {t("updates.installation.target")}
+                    <select
+                      required
+                      value={sha}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setSHA(e.target.value);
+                        pending.current = null;
+                      }}
+                    >
+                      <option value="">{t("updates.installation.choose")}</option>
+                      {candidates.map((c) => (
+                        <option key={c.archive_sha256} value={c.archive_sha256}>
+                          {c.version} · {c.archive_sha256.slice(0, 12)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    {t("updates.installation.at")}
+                    <input
+                      type="datetime-local"
+                      required
+                      value={when}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setWhen(e.target.value);
+                        pending.current = null;
+                      }}
+                    />
+                  </label>
+                  <label>
+                    {t("updates.installation.timeout")}
+                    <input
+                      type="number"
+                      min={5}
+                      max={86400}
+                      required
+                      value={timeout}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setTimeoutSeconds(e.target.valueAsNumber);
+                        pending.current = null;
+                      }}
+                    />
+                  </label>
+                  <button type="submit" className="button-primary" disabled={busy || !sha}>
+                    {t("updates.installation.schedule")}
+                  </button>
+                </form>
+              </details>
+            )}
+            {!!status.events?.length && (
+              <details>
+                <summary>{t("updates.installation.history")}</summary>
+                <ul>
+                  {status.events
+                    .slice(-5)
+                    .reverse()
+                    .map((e, i) => (
+                      <li key={`${e.at}-${i}`}>
+                        {date(e.at)} ·{" "}
+                        {t(
+                          `updates.installation.phases.${phases.has(e.phase) ? e.phase : "failed"}`,
+                        )}{" "}
+                        · {e.actor}
+                      </li>
+                    ))}
+                </ul>
+              </details>
+            )}
+          </>
+        )}
+      </div>
+      {status?.configured && <AutomaticUpdates />}
+    </>
   );
 }

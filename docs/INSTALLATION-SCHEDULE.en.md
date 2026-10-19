@@ -2,7 +2,7 @@
 
 > [中文](./INSTALLATION-SCHEDULE.md) | English
 
-A managed native installation can schedule one fixed staged digest, installation revision and time. A foreground supervisor drains work, stops the service, checkpoints encrypted data, runs offline preflight and accepts first startup. Scheduling is opt-in and never changes its target when another release appears. Automatic checks still read published stable Releases; existing commands download and stage packages. Unattended download policies, historical data migrations and cluster updates remain outstanding.
+A managed native installation can schedule one fixed staged digest, installation revision and time. A foreground supervisor drains work, stops the service, checkpoints encrypted data, runs offline preflight and accepts first startup. Scheduling is opt-in and never changes its target when another release appears. Automatic checks still read published stable Releases. Separate [automatic preparation/window policies](./AUTOMATIC-UPDATES.en.md) are available; manual plans keep their original digest. Historical data migrations and cluster updates remain outstanding.
 
 ## Start the supervisor
 

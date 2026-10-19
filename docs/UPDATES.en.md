@@ -2,6 +2,8 @@
 
 > [中文](./UPDATES.md) | English
 
+Managed native installations also have [automatic preparation/window installation](./AUTOMATIC-UPDATES.en.md): Off, Prepare only or Window installation. It is configured independently of automatic release checks; installation is opt-in.
+
 System settings → Security → Software updates shows versions, stable releases, optional automatic checks, native packages/checksums and activity. External checks default off; enabled intervals are 1–168 hours, default 24. Checks/downloads/staging never execute archived programs or replace data. The [standalone transaction](./INSTALLATION.en.md) adds encrypted checkpoints, offline preflight, first-start health/traffic gates, rollback before release and old-service resumption. After release, new data is preserved. [Scheduled installation](./INSTALLATION-SCHEDULE.en.md) executes fixed verified candidates through a separate supervisor.
 
 ## Source and permissions

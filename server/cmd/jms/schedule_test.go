@@ -12,3 +12,8 @@ func TestScheduledInstallationCLIRejectsAmbiguousInputs(t *testing.T) {
 		require.Error(t, executeSchedule(context.Background(), args, io.Discard, io.Discard))
 	}
 }
+func TestAutomaticUpdateCLIRejectsAmbiguousInputs(t *testing.T) {
+	for _, args := range [][]string{{"auto-policy", "--root", "x"}, {"auto-policy", "--root", "x", "--mode", "prepare", "--drain-timeout", "5.5s"}, {"auto-status", "--root", "x", "--mode", "off"}, {"auto-policy", "--root", "x", "--mode", "off", "--file", "unexpected"}} {
+		require.Error(t, executeSchedule(context.Background(), args, io.Discard, io.Discard))
+	}
+}

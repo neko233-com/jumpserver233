@@ -28,15 +28,16 @@ type CancelScheduleInput struct {
 	PlanID    string `json:"plan_id"`
 }
 type InstallPlan struct {
-	ID        string        `json:"id"`
-	Input     ScheduleInput `json:"input"`
-	Target    Selection     `json:"target"`
-	ActorID   string        `json:"actor_id"`
-	Actor     string        `json:"actor"`
-	Phase     string        `json:"phase"`
-	Error     string        `json:"error,omitempty"`
-	WorkerID  string        `json:"worker_id,omitempty"`
-	ChangedAt time.Time     `json:"changed_at"`
+	AutomaticRevision int           `json:"automatic_revision,omitempty"`
+	ID                string        `json:"id"`
+	Input             ScheduleInput `json:"input"`
+	Target            Selection     `json:"target"`
+	ActorID           string        `json:"actor_id"`
+	Actor             string        `json:"actor"`
+	Phase             string        `json:"phase"`
+	Error             string        `json:"error,omitempty"`
+	WorkerID          string        `json:"worker_id,omitempty"`
+	ChangedAt         time.Time     `json:"changed_at"`
 }
 type ScheduleEvent struct {
 	At     time.Time `json:"at"`
@@ -82,7 +83,7 @@ func (s *stagingRoot) readSchedule() (ScheduleStatus, error) {
 	if v.Schema != 1 || v.RootID != s.owner.ID || v.Revision < 1 || len(v.Events) > 100 || len(v.Receipts) > 100 {
 		return v, ErrInstallConflict
 	}
-	if p := v.Plan; p != nil && (!validID(p.ID) || !validPlanPhase(p.Phase) || !p.Target.valid() || p.Target.ArchiveSHA256 != p.Input.ArchiveSHA256 || !validScheduleInput(p.Input) || p.ActorID == "" || len(p.ActorID) > 128 || len(p.Actor) > 128 || p.WorkerID != "" && !validID(p.WorkerID)) {
+	if p := v.Plan; p != nil && (p.AutomaticRevision < 0 || !validID(p.ID) || !validPlanPhase(p.Phase) || !p.Target.valid() || p.Target.ArchiveSHA256 != p.Input.ArchiveSHA256 || !validScheduleInput(p.Input) || p.ActorID == "" || len(p.ActorID) > 128 || len(p.Actor) > 128 || p.WorkerID != "" && !validID(p.WorkerID)) {
 		return v, ErrInstallConflict
 	}
 	ids := map[string]bool{}
@@ -255,6 +256,20 @@ func transitionSchedule(ctx context.Context, path, id, worker, from, to, code st
 	}
 	if v.Plan == nil || v.Plan.ID != id || v.Plan.Phase != from || !validID(worker) || !validPlanPhase(to) || len(code) > 80 {
 		return v, ErrInstallConflict
+	}
+	if v.Plan.AutomaticRevision > 0 && (to == "draining" || to == "stopping") {
+		a, e := s.readAutomatic()
+		if e != nil {
+			return v, e
+		}
+		if a.Policy.Mode != "install" || a.Policy.Revision != v.Plan.AutomaticRevision || !automaticWindow(a.Policy, time.Now()) {
+			v.Plan.Phase = "cancelled"
+			s.scheduleEvent(&v, "local-update-supervisor")
+			if e = s.saveSchedule(v); e != nil {
+				return v, e
+			}
+			return v, ErrInstallConflict
+		}
 	}
 	v.Plan.WorkerID = worker
 	v.Plan.Phase = to

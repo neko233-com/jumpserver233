@@ -38,6 +38,10 @@ func fixture(t *testing.T, kind string) (string, string) {
 		if kind == "install-legacy" {
 			m.PreflightProtocol = 0
 		}
+		if kind == "install-future-legacy" {
+			m.Version = "v1.2.4"
+			m.PreflightProtocol = 0
+		}
 		if m.Platform == "windows" {
 			names[0] += ".exe"
 			names[1] += ".exe"
