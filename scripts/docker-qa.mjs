@@ -10,6 +10,7 @@ import { performance } from "node:perf_hooks";
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
 import { retainQAArtifacts } from "./qa-retention.mjs";
+import { fixtureDiagnostic } from "../server/testsupport/ci-health.mjs";
 
 const args = process.argv.slice(2), command = args.shift() ?? "verify";
 if (!["up", "verify", "down"].includes(command)) throw new Error("Use up, verify or down");
@@ -219,18 +220,23 @@ async function browserSmoke() {
 const started = performance.now();
 let built = 0, ready = 0;
 let receipt = { project, webURL, apiURL, success: false, cleaned: false };
+let verificationPhase="initialization";
 try {
   if (command === "down") { await docker(["down", ...(keepData ? [] : ["--volumes"]), "--remove-orphans"]); receipt.success = true; receipt.cleaned = !keepData; }
   else {
     console.log(`Docker QA ${project}: building with shared dependency caches`);
+    verificationPhase="build";
     await docker(["build"]); built = performance.now();
+    verificationPhase="startup";
     await docker(["up", "--detach", "--wait", "--wait-timeout", "90"]); ready = performance.now();
+    verificationPhase="http_smoke";
     await httpSmoke();
-    if (browser) await browserSmoke();
+    if (browser) { verificationPhase="browser_smoke"; await browserSmoke(); }
     receipt = { ...receipt, success: true, buildSeconds: +((built-started)/1000).toFixed(2), startupSeconds: +((ready-built)/1000).toFixed(2), smokeSeconds: +((performance.now()-ready)/1000).toFixed(2), browser, parallelBrowser: Boolean(peerURL), retained: command === "up" };
   }
-} catch {
+} catch (error) {
   receipt.verificationError = "Docker QA verification failed; inspect the bounded stage log";
+  receipt.failure={phase:verificationPhase,message:fixtureDiagnostic(String(error?.message||"verification failed")).slice(0,600)};
   process.exitCode = 1;
 } finally {
   let cleanupPhase = "containers and volumes";
