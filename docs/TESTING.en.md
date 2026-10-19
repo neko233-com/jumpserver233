@@ -2,6 +2,17 @@
 
 > [中文](./TESTING.md) | English
 
+## Standalone installation transactions and offline preflight (2026-10-19)
+
+- Full Go/Testify: 1546 passed, 109 external-fixture/platform skips, zero failures, 16.5 seconds; Go vet passed. Isolated Linux/PostgreSQL race across eight packages: 90 passed, no skips/failures, 63.7 seconds. Coverage includes checkpoint exclusion, guards, wrong keys/damaged formats, revision/request replay, recovery around the commit point, preservation of new writes, retained previous-data locations and recovery after forcibly terminating a real process.
+- Windows amd64 actually created encrypted checkpoints, executed target-binary offline preflight and selected its native package; repeats did not upgrade again. Linux amd64 used a read-only container root and tmpfs data, starting the selection through `jms update run`. Running-service installation was refused. Failed preflight restored its original checkpoint bytes/selection, followed by successful selection and idempotent replay.
+- The native rehearsal injects `v0.0.0` → `v0.0.1` into the same source; it does not establish format migration between historical formal releases. The failure case damaged a synthetic user store, verified preflight refusal/original checkpoint restoration, then repaired that owned fixture to continue. Separate Testify cases simulate failed target migration writes and a damaged mode marker, proving full original-data restoration with the failed state retained.
+- Independent real OpenSSH commands succeeded before/after selection, preserving existing user IDs and command audit. An ordinary operator retained asset-view authorization and received SSH-session HTTP 403 both before/after upgrade, with no privilege increase. Playwright Chromium logged into the actual installed candidate with HTTP 200 and displayed the new synthetic version in English/Chinese. Zero application warnings/exceptions; expected anonymous-session 401/headless readback diagnostics were recorded separately.
+- All six platform packages were rebuilt/verified. Production web build, lint, application/E2E types, six renderer/cache tests, 41 QA/publication helpers and macOS helpers (eight passed/two platform skips) passed. Content checks cover 144 bilingual documents, 3461 keys per language, 1312 relative links and 85 referenced images. No dependency/frontend business-code changes; initial/total JS remain 499421/1600370 bytes. The 19-minute complete UI suite was not repeated; the prior 86/86 remains a previous baseline only.
+- Compact reports/two bilingual captures are in ignored `.cache/qa-reports/installation/`. Owned temporary programs/data, containers, networks, archives, isolated SSH images and attributable build records were removed with repeated cleanup. Shared base images/caches remain. No intranet deployment, tag or formal Release. Live health-failure rollback, automatic installation scheduling, real historical-version migrations and strong directory rules remain pending.
+
+See [controlled standalone installation](./INSTALLATION.en.md) for commands and trust boundaries.
+
 ## Native candidate staging and interruption cleanup (2026-10-19)
 
 - Full Go/Testify regression: 1521 passed, 109 external-fixture/platform skips, zero failures, 5.5 seconds using the existing Go cache; Go vet passed. The initial sole failure compared Windows short/canonical paths as strings. Comparing canonical paths fixed the test.

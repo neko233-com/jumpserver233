@@ -22,7 +22,7 @@ jms update run --root /srv/jumpserver233-releases
 
 The initial revision is `0`; successful selections increment it. Subsequent operations use the current status revision. Initial adoption can record a baseline with `--source-version`; existing managed installations use their actually selected source version. `install` never starts production service automatically. Configure normal startup as `jms update run --root …`: it rechecks candidate contents and starts the server with bound data/web paths and its built-in version, retaining listener/public-origin/auth/Vault configuration and enforcing standalone mode.
 
-The same request ID, target SHA, original revision and data path returns its original receipt without repeating checkpoint/preflight/restore. Changed request contents conflict. Stale revisions conflict for new requests. The current identical package is unchanged; another package with the same version, downgrades and changed data bindings refuse installation. Private local metadata retains the latest 100 request receipts.
+The same request ID, target SHA, original revision and data path returns its original receipt without repeating checkpoint/preflight/restore. Changed request contents conflict. Stale revisions conflict for new requests. The current identical package is unchanged. Existing managed versions refuse same-version rebuilds, downgrades and changed data bindings. Initial adoption checks format through target preflight without inferring migration compatibility from a `--source-version` declaration. Private local metadata retains the latest 100 request receipts.
 
 ## Transaction and guard
 
@@ -32,6 +32,8 @@ The same request ID, target SHA, original revision and data path returns its ori
 4. Reacquire the lock. Failure validates the recorded archive SHA/passphrase and restores the previous data, retaining failed content at `previous_data_dir`. Success atomically persists the selection, changes the guard to the active binary, then removes the journal.
 
 The data-volume guard is `.jms233-maintenance/upgrade.json` and is excluded from backups. Pending transactions admit only offline preflight matching the transaction ID and executable SHA-256. Completed transactions admit normal startup only for the selected binary digest, preventing a racing old launch from opening newly migrated data after lock release. Transaction IDs are local identifiers, not authentication credentials. File ownership/ACLs are the trust boundary; arbitrary same-privilege local modification is not isolated.
+
+Preparation failure, unavailable data locks or failed recovery verification leave the transaction pending, retaining its journal and blocking service startup. `install` still exits nonzero after successfully rolling a failed target back. `install-recover` exits successfully after completing recovery, identifying `rolled_back`, `aborted` or `selected` in JSON.
 
 `run` forwards termination signals and waits; it kills a child that has not exited within 12 seconds. Windows does not guarantee console interrupt forwarding and may take the termination path. This does not establish graceful shutdown acceptance for every platform. Drain SSH/jobs and verify shutdown using the platform's deployment procedure.
 
