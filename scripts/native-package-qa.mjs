@@ -312,10 +312,10 @@ try {
   const pwdRuleInput = ruleInput("Verified directory review", "pwd", "review", "exact", deployDirectory);
   let pwdRule = await api("POST", "/api/v1/command-filters", pwdRuleInput, recoveredLogin.access_token, 201);
   for (const input of [
-    ruleInput("Exact directory denial", "touch rejected-exact", "deny", "exact", deployDirectory),
-    ruleInput("Tree directory denial", "touch rejected-tree", "deny", "tree", deployDirectory),
-    ruleInput("Regex directory denial", "touch rejected-regex", "deny", "regex", deployDirectory + "/releases/[0-9]+"),
-    ruleInput("Unverified terminal denial", "touch terminal-blocked", "deny", "exact", deployDirectory),
+    ruleInput("Exact directory denial", "mkdir rejected-exact", "deny", "exact", deployDirectory),
+    ruleInput("Tree directory denial", "mkdir rejected-tree", "deny", "tree", deployDirectory),
+    ruleInput("Regex directory denial", "mkdir rejected-regex", "deny", "regex", deployDirectory + "/releases/[0-9]+"),
+    ruleInput("Unverified terminal denial", "mkdir terminal-blocked", "deny", "exact", deployDirectory),
   ]) await api("POST", "/api/v1/command-filters", input, recoveredLogin.access_token, 201);
   const directoryInput = (command, directory) => ({ asset_id: asset.id, command, working_directory: directory, timeout_seconds: 10, request_id: randomUUID() });
   const waitDirectoryJob = async (id, expected) => {
@@ -333,16 +333,16 @@ try {
     throw new Error("Controlled directory job timed out");
   };
   for (const [command, directory, expected] of [
-    ["touch rejected-exact", deployDirectory, "denied"],
-    ["touch rejected-tree", releaseDirectory, "denied"],
-    ["touch rejected-regex", releaseDirectory, "denied"],
-    ["touch rejected-exact", siblingDirectory, "succeeded"],
+    ["mkdir rejected-exact", deployDirectory, "denied"],
+    ["mkdir rejected-tree", releaseDirectory, "denied"],
+    ["mkdir rejected-regex", releaseDirectory, "denied"],
+    ["mkdir rejected-exact", siblingDirectory, "succeeded"],
   ]) {
     const job = await api("POST", "/api/v1/ops/jobs", directoryInput(command, directory), recoveredLogin.access_token, 201);
     await waitDirectoryJob(job.id, expected);
   }
   for (const file of [deployDirectory + "/rejected-exact", releaseDirectory + "/rejected-tree", releaseDirectory + "/rejected-regex"]) await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", file]);
-  await run("docker", ["exec", owner + "-ssh", "test", "-f", siblingDirectory + "/rejected-exact"]);
+  await run("docker", ["exec", owner + "-ssh", "test", "-d", siblingDirectory + "/rejected-exact"]);
   await api("POST", "/api/v1/ops/jobs", directoryInput("pwd", "/home/keyqa/protected"), recoveredLogin.access_token, 400);
   await api("POST", "/api/v1/ops/jobs", directoryInput("pwd", workspace + "/escape"), recoveredLogin.access_token, 412);
 
@@ -418,7 +418,7 @@ try {
 	await terminal.locator(".xterm-helper-textarea").pressSequentially("printf '\\167\\157\\162\\153\\163\\160\\141\\143\\145\\055\\160\\164\\171\\055\\157\\153\\012'");
 	await page.keyboard.press("Enter");
 	await expect.poll(() => terminalOutput).toContain("workspace-pty-ok");
-	await terminal.locator(".xterm-helper-textarea").pressSequentially("touch terminal-blocked");
+	await terminal.locator(".xterm-helper-textarea").pressSequentially("mkdir terminal-blocked");
 	await page.keyboard.press("Enter");
 	await expect.poll(() => terminalNotices.some(notice => notice.type === "command_blocked" && notice.directory_required === true)).toBe(true);
 	await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", workspace + "/terminal-blocked"]);
