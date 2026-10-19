@@ -8,6 +8,8 @@ Docker builds the production API and web application from source, with separate 
 
 Idempotent QA image preparation retries Windows Docker context `meta.json` sharing violations at most three times. Ordinary file locks and permission failures are not retried; container creation and remote commands are never replayed by this helper.
 
+Cleanup identities include streaming SHA-256 with a fixed 64 KiB buffer, detecting changed content even when size and modification time match. Per-deletion runner checks only fingerprint PID files and required receipts, avoiding repeated reads of unrelated large artifacts.
+
 `node scripts/check-content.mjs` also rejects unreferenced `docs/images/` assets to prevent product screenshot accumulation. The automatic cleaner never deletes product screenshots.
 
 ## Fast verification

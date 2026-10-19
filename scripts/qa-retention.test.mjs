@@ -108,9 +108,13 @@ test("legacy named reports preserve JSON receipts and only two screenshots", t =
 
 test("changed files, forged source paths and linked artifact ancestors are rejected", t => {
   const { root, browser, put } = fixture(t);
-  browser(0);
-  const plan = planRetention(root), file = plan.selected[0];
+  const folder = browser(0), trace = resolve(folder, "trace.zip");
+  utimesSync(trace, 42, 42);
+  const plan = planRetention(root), file = plan.selected.find(file => file.path === trace);
+  assert.equal(file.size, Buffer.byteLength("changed after preview"));
   writeFileSync(file.path, "changed after preview");
+  // Equal size and an intentionally identical mtime must still detect content changes.
+  utimesSync(file.path, 42, 42);
   assert.throws(() => applyRetention(plan), e => /changed since preview/.test(e.message) && e.retention.removedFiles === 0 && Boolean(e.retention.error));
   const source = put("server/main.go");
   assert.throws(() => applyRetention({ root, selected: [{ path: source }], directories: [] }), /Unowned/);

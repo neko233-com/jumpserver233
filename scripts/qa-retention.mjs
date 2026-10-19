@@ -1,4 +1,5 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,6 +15,19 @@ const disposableSidecar = new Set(["error-context.md", ".last-run.json"]);
 const pidArtifact = /\.pid(?:\.lock)?$/i;
 const receiptNames = ["lifecycle.json", "native-packages.json", "linux-race.json", "summary.json", "report.json", "cleanup.json"];
 const identity = s => `${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}`;
+const hashBuffer = Buffer.allocUnsafe(64 * 1024);
+function fingerprint(path, info = lstatSync(path)) {
+  if (!info.isFile() || info.isSymbolicLink()) throw new Error("Artifact is not a regular file");
+  const before = identity(info), hash = createHash("sha256");
+  const fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
+  try {
+    if (identity(fstatSync(fd)) !== before) throw new Error("Artifact changed during fingerprint");
+    let bytes;
+    while ((bytes = readSync(fd, hashBuffer, 0, hashBuffer.length, null)) > 0) hash.update(hashBuffer.subarray(0, bytes));
+    if (identity(fstatSync(fd)) !== before || identity(lstatSync(path)) !== before) throw new Error("Artifact changed during fingerprint");
+    return `${before}:${hash.digest("hex")}`;
+  } finally { closeSync(fd); }
+}
 const alive = pid => { if (!Number.isSafeInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; } };
 
 // Validate each ancestor, including junctions. Never follow an artifact link.
@@ -36,13 +50,13 @@ function json(path) {
   if (!info.isFile() || info.isSymbolicLink() || info.size > 2 * 1024 * 1024) return null;
   try { return JSON.parse(readFileSync(path, "utf8")); } catch { return null; }
 }
-function files(root, folder) {
+function files(root, folder, pidOnly = false) {
   checked(root, folder);
   const out = [];
   for (const row of readdirSync(folder, { withFileTypes: true })) {
     const path = checked(root, resolve(folder, row.name)), info = lstatSync(path);
-    if (info.isDirectory()) out.push(...files(root, path));
-    else if (info.isFile()) out.push({ path, size: info.size, modified: info.mtimeMs, identity: identity(info) });
+    if (info.isDirectory()) out.push(...files(root, path, pidOnly));
+    else if (info.isFile()) { if (!pidOnly || pidArtifact.test(row.name)) out.push({ path, size: info.size, modified: info.mtimeMs, identity: fingerprint(path, info) }); }
     else throw new Error("Special artifacts are never cleaned");
   }
   return out;
@@ -87,7 +101,7 @@ function runnerGuard(root, folder, current, items) {
 function validateRunner(root, guard, isAlive, removed = new Set()) {
   checked(root, guard.folder);
   if (!existsSync(guard.folder)) return;
-  const pids = files(root, guard.folder).filter(file => pidArtifact.test(file.path));
+  const pids = files(root, guard.folder, true);
   const expected = (guard.pidFiles || []).filter(file => !removed.has(file.path));
   if (pids.length !== expected.length || pids.some(file => !expected.some(old => old.path === file.path && old.identity === file.identity))) throw new Error("Runner PID files changed since preview; rerun retention");
   for (const file of pids) {
@@ -96,7 +110,7 @@ function validateRunner(root, guard, isAlive, removed = new Set()) {
   }
   for (const file of guard.receipts) {
     const path = checked(root, file.path);
-    const actual = existsSync(path) ? identity(lstatSync(path)) : null;
+    const actual = existsSync(path) ? fingerprint(path) : null;
     if (actual === null && removed.has(path)) continue;
     if (actual !== file.identity) throw new Error("Runner receipt changed since preview; rerun retention");
   }
@@ -191,7 +205,7 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
       const preview = report.applied === false && !report.error && typeof report.after === "string" && report.removed && Object.values(report.removed).every(n => n === 0);
       if (!preview && !emptyCleanup(report, root)) continue;
       const info = lstatSync(path);
-      (preview ? previews : noops).push({ path, size: info.size, modified: info.mtimeMs, identity: identity(info) });
+      (preview ? previews : noops).push({ path, size: info.size, modified: info.mtimeMs, identity: fingerprint(path, info) });
     }
     for (const group of [previews, noops]) group.sort((a, b) => b.modified - a.modified || b.path.localeCompare(a.path)).slice(3).forEach(select);
   }
@@ -199,7 +213,7 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
   if (legacy && !liveRun && existsSync(cache)) for (const row of readdirSync(checked(root, cache), { withFileTypes: true })) {
     if (!row.isFile() || !legacyHelper.test(row.name)) continue;
     const path = checked(root, resolve(cache, row.name)), info = lstatSync(path);
-    if (now - info.mtimeMs >= 60 * 60 * 1000) select({ path, size: info.size, modified: info.mtimeMs, identity: identity(info) });
+    if (now - info.mtimeMs >= 60 * 60 * 1000) select({ path, size: info.size, modified: info.mtimeMs, identity: fingerprint(path, info) });
   }
   return plan;
 }
@@ -217,7 +231,7 @@ export function applyRetention(plan, { isAlive = alive } = {}) {
       if (!rel.startsWith(".cache/qa-reports/") && !rel.startsWith(".cache/docker-qa/") && !(dirname(path) === resolve(root, ".cache") && legacyHelper.test(basename(path)))) throw new Error("Unowned artifact deletion rejected");
       if (!existsSync(path)) return null;
       const info = lstatSync(path);
-      if (!info.isFile() || identity(info) !== file.identity) throw new Error("Artifact changed since preview; rerun retention");
+      if (!info.isFile() || fingerprint(path, info) !== file.identity) throw new Error("Artifact changed since preview; rerun retention");
       return { path, rel };
     }
     plan.selected.forEach(validateFile);

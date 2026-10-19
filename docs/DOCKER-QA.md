@@ -8,6 +8,8 @@ Buildx 元数据只读查询遇到 RPC Unavailable/EOF 时最多尝试 3 次；�
 
 幂等 QA 镜像准备对 Windows Docker context `meta.json` 的共享占用错误最多尝试三次；普通文件占用、权限错误不重试，不重放容器创建或远端命令。
 
+清理身份包含流式 SHA-256，64 KiB 缓冲区不会随归档体积增长；同长度、同修改时间的内容变更也会拒绝删除。每次删除前重查 runner 时只扫描 PID 文件及必要回执，避免重复读取其他大型产物。
+
 文档内容检查 `node scripts/check-content.mjs` 同时拒绝无引用的 `docs/images/` 资源，避免正式截图持续堆积；自动清理器不会擅自删除正式截图。
 
 ## 快速验证
