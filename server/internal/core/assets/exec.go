@@ -14,5 +14,8 @@ func (s *Service) Exec(ctx context.Context, id, command string) (sshclient.ExecR
 	if asset.SSHWorkspace != "" {
 		return s.execWorkspace(ctx, target, credentials, asset.SSHWorkspace, command)
 	}
-	return sshclient.Exec(ctx, target, credentials, command)
+	if expectedWorkingDirectory(ctx).directory != "" {
+		return sshclient.ExecResult{ExitCode: -1}, ErrConnectionChanged
+	}
+	return sshclient.ExecWithGuard(ctx, target, credentials, command, func() error { return checkExecution(ctx) })
 }

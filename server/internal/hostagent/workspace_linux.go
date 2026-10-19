@@ -43,6 +43,28 @@ func openWorkspace(directory string) (int, error) {
 }
 
 func CheckWorkspace(directory string) (WorkspaceStatus, error) {
+	return CheckWorkspaceAt(directory, "")
+}
+
+func openWorkingDirectory(root int, workspace, directory string) (int, error) {
+	if ValidateWorkingDirectory(workspace, directory) != nil {
+		return -1, ErrWorkspaceInvalid
+	}
+	relative := "."
+	if directory != workspace {
+		relative = strings.TrimPrefix(directory, workspace+"/")
+	}
+	fd, err := unix.Openat2(root, relative, &unix.OpenHow{Flags: unix.O_PATH | unix.O_DIRECTORY | unix.O_CLOEXEC, Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_SYMLINKS | unix.RESOLVE_NO_MAGICLINKS})
+	if err != nil {
+		return -1, ErrWorkspaceInvalid
+	}
+	return fd, nil
+}
+
+func CheckWorkspaceAt(directory, workingDirectory string) (WorkspaceStatus, error) {
+	if workingDirectory == "" {
+		workingDirectory = directory
+	}
 	fd, e := openWorkspace(directory)
 	if e != nil {
 		return WorkspaceStatus{}, e
@@ -56,7 +78,16 @@ func CheckWorkspace(directory string) (WorkspaceStatus, error) {
 	if e != nil {
 		return WorkspaceStatus{}, e
 	}
-	return WorkspaceStatus{Format: "jms233-workspace-v1", Directory: directory, LandlockABI: abi, Identity: identity}, nil
+	cwd, e := openWorkingDirectory(fd, directory, workingDirectory)
+	if e != nil {
+		return WorkspaceStatus{}, e
+	}
+	defer unix.Close(cwd)
+	cwdIdentity, e := workspaceIdentity(cwd)
+	if e != nil {
+		return WorkspaceStatus{}, e
+	}
+	return WorkspaceStatus{Format: "jms233-workspace-v1", Directory: directory, LandlockABI: abi, Identity: identity, WorkingDirectory: workingDirectory, WorkingIdentity: cwdIdentity}, nil
 }
 
 // Read identity from the held descriptor, never from PWD or terminal text.
@@ -109,6 +140,13 @@ func ExecWorkspace(directory, command string, interactive bool, expected ...stri
 	return execWorkspace(directory, "/bin/sh", args, false, expected...)
 }
 
+func ExecWorkspaceAt(directory, workingDirectory, command, rootIdentity, workingIdentity string) error {
+	if len(command) == 0 || len(command) > 8192 || !ValidWorkspaceIdentity(rootIdentity) || !ValidWorkspaceIdentity(workingIdentity) {
+		return ErrWorkspaceInvalid
+	}
+	return execWorkspaceAt(directory, workingDirectory, "/bin/sh", []string{"sh", "-c", command}, false, rootIdentity, workingIdentity)
+}
+
 func ExecWorkspaceSFTP(directory string, expected ...string) error {
 	self, e := os.Executable()
 	if e != nil {
@@ -121,6 +159,14 @@ func execWorkspace(directory, executable string, args []string, nativeSFTP bool,
 	if len(expected) > 1 || len(expected) == 1 && expected[0] != "" && !ValidWorkspaceIdentity(expected[0]) {
 		return ErrWorkspaceInvalid
 	}
+	rootIdentity := ""
+	if len(expected) == 1 {
+		rootIdentity = expected[0]
+	}
+	return execWorkspaceAt(directory, directory, executable, args, nativeSFTP, rootIdentity, "")
+}
+
+func execWorkspaceAt(directory, workingDirectory, executable string, args []string, nativeSFTP bool, rootIdentity, workingIdentity string) error {
 	self, e := os.Executable()
 	if e != nil || ValidateWorkspaceControl(directory, self) != nil {
 		return ErrWorkspaceInvalid
@@ -133,9 +179,20 @@ func execWorkspace(directory, executable string, args []string, nativeSFTP bool,
 		return e
 	}
 	defer unix.Close(root)
-	if len(expected) == 1 && expected[0] != "" {
+	if rootIdentity != "" {
 		identity, err := workspaceIdentity(root)
-		if err != nil || identity != expected[0] {
+		if err != nil || identity != rootIdentity {
+			return ErrWorkspaceInvalid
+		}
+	}
+	cwd, e := openWorkingDirectory(root, directory, workingDirectory)
+	if e != nil {
+		return e
+	}
+	defer unix.Close(cwd)
+	if workingIdentity != "" {
+		identity, err := workspaceIdentity(cwd)
+		if err != nil || identity != workingIdentity {
 			return ErrWorkspaceInvalid
 		}
 	}
@@ -214,9 +271,9 @@ func execWorkspace(directory, executable string, args []string, nativeSFTP bool,
 			return ErrWorkspaceUnavailable
 		}
 	}
-	environment := []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C", "HOME=" + directory, "PWD=" + directory, "TMPDIR=" + directory, "TERM=xterm-256color", "ENV=/dev/null", "BASH_ENV=/dev/null"}
+	environment := []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C", "HOME=" + directory, "PWD=" + workingDirectory, "TMPDIR=" + directory, "TERM=xterm-256color", "ENV=/dev/null", "BASH_ENV=/dev/null"}
 	runtime.LockOSThread() // Landlock and seccomp apply to this thread and its descendants.
-	if e = unix.Fchdir(root); e != nil {
+	if e = unix.Fchdir(cwd); e != nil {
 		return ErrWorkspaceInvalid
 	}
 	if os.Geteuid() == 0 {

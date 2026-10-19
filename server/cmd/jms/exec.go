@@ -39,7 +39,7 @@ func runExec(args []string, selected ...string) error {
 }
 func executeCommand(ctx context.Context, client *sessionclient.Client, args []string, stdout, stderr io.Writer) error {
 	if len(args) < 3 {
-		return fmt.Errorf("usage: jms exec <asset-id> [--timeout 60] [--json] -- <command>")
+		return fmt.Errorf("usage: jms exec <asset-id> [--directory /workspace/subdir] [--timeout 60] [--json] -- <command>")
 	}
 	input := jobs.Input{AssetID: args[0], TimeoutSeconds: 60}
 	asJSON := false
@@ -51,6 +51,12 @@ func executeCommand(ctx context.Context, client *sessionclient.Client, args []st
 			i = len(args)
 		case "--json":
 			asJSON = true
+		case "--directory":
+			i++
+			if i >= len(args) || args[i] == "" {
+				return jobs.ErrInvalid
+			}
+			input.WorkingDirectory = args[i]
 		case "--timeout":
 			i++
 			if i >= len(args) {

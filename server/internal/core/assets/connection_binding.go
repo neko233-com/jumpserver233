@@ -11,6 +11,9 @@ var ErrConnectionChanged = errors.New("SSH connection authorization changed")
 
 type connectionBindingKey struct{}
 type workspaceIdentityKey struct{}
+type workingDirectoryKey struct{}
+type executionCheckKey struct{}
+type workingDirectoryProof struct{ directory, identity string }
 
 type connectionSnapshot struct {
 	ID, ParentID, Host, Username, Protocol, Fingerprint, Workspace, Gateway, Node string
@@ -31,6 +34,22 @@ func WithConnectionBinding(ctx context.Context, binding string) context.Context 
 }
 func WithWorkspaceIdentity(ctx context.Context, identity string) context.Context {
 	return context.WithValue(ctx, workspaceIdentityKey{}, identity)
+}
+func WithWorkingDirectory(ctx context.Context, directory, identity string) context.Context {
+	return context.WithValue(ctx, workingDirectoryKey{}, workingDirectoryProof{directory, identity})
+}
+func expectedWorkingDirectory(ctx context.Context) workingDirectoryProof {
+	value, _ := ctx.Value(workingDirectoryKey{}).(workingDirectoryProof)
+	return value
+}
+func WithExecutionCheck(ctx context.Context, check func() error) context.Context {
+	return context.WithValue(ctx, executionCheckKey{}, check)
+}
+func checkExecution(ctx context.Context) error {
+	if check, ok := ctx.Value(executionCheckKey{}).(func() error); ok && check != nil {
+		return check()
+	}
+	return nil
 }
 
 func (s *Service) BindConnection(asset Asset) (string, error) {

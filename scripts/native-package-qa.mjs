@@ -16,7 +16,7 @@ import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 import { retainQAArtifacts } from "./qa-retention.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
-const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/connection-approval");
+const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/execution-directories");
 mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
@@ -304,6 +304,83 @@ try {
   }
   if (!approvedExecDone) throw new Error("Approved scoped exec timed out");
   report.connectionApproval = { idempotentReview: true, realDirectoryReplacementRefused: true, issuedPermitRejectsReplacedDirectory: true, configurationChangeInvalidatesPermit: true, independentSSHAndSFTPApprovals: true, realApprovedSSH: true, oneTimeSSHApproval: true, approvedExecIsConfinedAndIdempotent: true };
+
+  const deployDirectory = workspace + "/deploy", releaseDirectory = deployDirectory + "/releases/12", siblingDirectory = workspace + "/deploy-other";
+  const makeDirectory = async directory => { await run("docker", ["exec", owner + "-ssh", "mkdir", "-p", directory]); await run("docker", ["exec", owner + "-ssh", "chown", "-R", "keyqa:keyqa", directory]); };
+  for (const directory of [releaseDirectory, siblingDirectory]) await makeDirectory(directory);
+  const ruleInput = (name, pattern, action, mode, directory) => ({ name, asset_id: asset.id, account: asset.username, match: "exact", pattern, action, priority: 100, directory_match: mode, directory_pattern: directory });
+  const pwdRuleInput = ruleInput("Verified directory review", "pwd", "review", "exact", deployDirectory);
+  let pwdRule = await api("POST", "/api/v1/command-filters", pwdRuleInput, recoveredLogin.access_token, 201);
+  for (const input of [
+    ruleInput("Exact directory denial", "touch rejected-exact", "deny", "exact", deployDirectory),
+    ruleInput("Tree directory denial", "touch rejected-tree", "deny", "tree", deployDirectory),
+    ruleInput("Regex directory denial", "touch rejected-regex", "deny", "regex", deployDirectory + "/releases/[0-9]+"),
+    ruleInput("Unverified terminal denial", "touch terminal-blocked", "deny", "exact", deployDirectory),
+  ]) await api("POST", "/api/v1/command-filters", input, recoveredLogin.access_token, 201);
+  const directoryInput = (command, directory) => ({ asset_id: asset.id, command, working_directory: directory, timeout_seconds: 10, request_id: randomUUID() });
+  const waitDirectoryJob = async (id, expected) => {
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const job = await api("GET", "/api/v1/ops/jobs/" + id, undefined, recoveredLogin.access_token);
+      if (["succeeded", "failed", "denied", "interrupted", "timed_out"].includes(job.state)) {
+        if (job.state !== expected) throw new Error("Controlled directory job did not reach expected state");
+        return job;
+      }
+      await delay(100);
+    }
+    throw new Error("Controlled directory job timed out");
+  };
+  for (const [command, directory, expected] of [
+    ["touch rejected-exact", deployDirectory, "denied"],
+    ["touch rejected-tree", releaseDirectory, "denied"],
+    ["touch rejected-regex", releaseDirectory, "denied"],
+    ["touch rejected-exact", siblingDirectory, "succeeded"],
+  ]) {
+    const job = await api("POST", "/api/v1/ops/jobs", directoryInput(command, directory), recoveredLogin.access_token, 201);
+    await waitDirectoryJob(job.id, expected);
+  }
+  for (const file of [deployDirectory + "/rejected-exact", releaseDirectory + "/rejected-tree", releaseDirectory + "/rejected-regex"]) await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", file]);
+  await run("docker", ["exec", owner + "-ssh", "test", "-f", siblingDirectory + "/rejected-exact"]);
+  await api("POST", "/api/v1/ops/jobs", directoryInput("pwd", "/home/keyqa/protected"), recoveredLogin.access_token, 400);
+  await api("POST", "/api/v1/ops/jobs", directoryInput("pwd", workspace + "/escape"), recoveredLogin.access_token, 412);
+
+  const directoryUser = await api("POST", "/api/v1/users", { username: "native.directory.operator", password: "synthetic-directory-test-password", role: "operator" }, recoveredLogin.access_token, 201);
+  await api("POST", "/api/v1/grants", { user_id: directoryUser.id, asset_id: asset.id, account: asset.username, actions: ["view", "connect"] }, recoveredLogin.access_token, 201);
+  const directoryLogin = await api("POST", "/api/v1/authentication/auth/", { username: directoryUser.username, password: "synthetic-directory-test-password" });
+  const pendingDirectoryInput = directoryInput("pwd", deployDirectory);
+  const initialDirectoryReview = await api("POST", "/api/v1/ops/jobs", pendingDirectoryInput, directoryLogin.access_token, 202);
+  const repeatedDirectoryReview = await api("POST", "/api/v1/ops/jobs", pendingDirectoryInput, directoryLogin.access_token, 202);
+  if (initialDirectoryReview.review_id !== repeatedDirectoryReview.review_id) throw new Error("Directory login retry created duplicate approval");
+  await approve(initialDirectoryReview.review_id);
+  await run("docker", ["exec", owner + "-ssh", "mv", deployDirectory, deployDirectory + "-before-login"]); await makeDirectory(deployDirectory);
+  const replacedDirectoryReview = await api("POST", "/api/v1/ops/jobs", pendingDirectoryInput, directoryLogin.access_token, 202);
+  if (replacedDirectoryReview.review_id === initialDirectoryReview.review_id) throw new Error("Replaced cwd reused login approval");
+  const unusedApproval = await api("GET", "/api/v1/access-reviews/" + initialDirectoryReview.review_id, undefined, directoryLogin.access_token);
+  if (unusedApproval.state !== "approved") throw new Error("Old directory approval was consumed for replacement");
+  await approve(replacedDirectoryReview.review_id);
+  const pendingDirectoryJob = await api("POST", "/api/v1/ops/jobs", pendingDirectoryInput, directoryLogin.access_token, 201);
+  if (pendingDirectoryJob.state !== "pending_review" || pendingDirectoryJob.execution_directory !== deployDirectory) throw new Error("Directory review lost verified cwd");
+  await run("docker", ["exec", owner + "-ssh", "mv", deployDirectory, deployDirectory + "-before-command"]); await makeDirectory(deployDirectory);
+  await api("POST", "/api/v1/ops/jobs/" + pendingDirectoryJob.id + "/review", { approve: true }, recoveredLogin.access_token, 428);
+
+  const stalePolicy = await api("POST", "/api/v1/ops/jobs", directoryInput("pwd", deployDirectory), recoveredLogin.access_token, 201);
+  await api("DELETE", "/api/v1/command-filters/" + pwdRule.id, undefined, recoveredLogin.access_token, 204);
+  pwdRule = await api("POST", "/api/v1/command-filters", pwdRuleInput, recoveredLogin.access_token, 201);
+  await api("POST", "/api/v1/ops/jobs/" + stalePolicy.id + "/review", { approve: true }, recoveredLogin.access_token, 403);
+  const successfulDirectoryInput = directoryInput("pwd", deployDirectory);
+  const approvedDirectoryJob = await api("POST", "/api/v1/ops/jobs", successfulDirectoryInput, recoveredLogin.access_token, 201);
+  await api("POST", "/api/v1/ops/jobs/" + approvedDirectoryJob.id + "/review", { approve: true }, recoveredLogin.access_token, 200);
+  const directoryResult = await waitDirectoryJob(approvedDirectoryJob.id, "succeeded");
+  if (directoryResult.stdout.trim() !== deployDirectory || directoryResult.execution_directory !== deployDirectory) throw new Error("Approved command did not execute in verified cwd");
+  await run("docker", ["pause", owner + "-ssh"]);
+  try {
+    const started = performance.now();
+    const duplicate = await api("POST", "/api/v1/ops/jobs", successfulDirectoryInput, recoveredLogin.access_token, 201);
+    await api("POST", "/api/v1/ops/jobs", { ...successfulDirectoryInput, working_directory: siblingDirectory }, recoveredLogin.access_token, 409);
+    if (duplicate.id !== approvedDirectoryJob.id || performance.now() - started > 2500) throw new Error("Receipt retry attempted a new SSH probe");
+  } finally { await run("docker", ["unpause", owner + "-ssh"]); }
+  const cwdCLI = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/native/jms exec "$1" --directory "$2" --json -- pwd -P', "sh", asset.id, deployDirectory])).stdout);
+  if (cwdCLI.state !== "succeeded" || cwdCLI.stdout.trim() !== deployDirectory) throw new Error("Native CLI did not select actual cwd");
+  report.executionDirectories = { exactTreeAndRegex: true, deniedCommandsNeverCreatedFiles: true, pathBoundaryPreserved: true, symlinkAndOutsideRefused: true, loginReviewReplacementCreatesNewApproval: true, loginRetryIdempotent: true, commandReviewReplacementRefused: true, sameNamePolicyReplacementRefused: true, approvedCwdVerified: true, retryWithoutLiveSSH: true, changedDirectoryRetryConflict: true, nativeCLI: true };
   report.activation = { privateReadinessAndHTTPProbe: true, businessGateBeforeCommit: true, preCommitFailureRolledBack: true, oldServiceAutomaticallyResumed: true, failedTrialWriteRemoved: trialWriteAbsent, monotonicRollbackRevision: 4, postCommitFailurePreservedVersionAndData: true, forwardRecoveryVersion: report.recoveryVersion, finalRevision: 6, realSSHAfterRollbackAndForwardRecovery: true };
   report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true, operatorViewGrantPreserved: true, operatorConnectDeniedBeforeAndAfter: true };
   const html = await (await fetch(url + "/console/settings")).text();
@@ -329,8 +406,8 @@ try {
     report.browserLoginStatus = (await login).status();
     if (report.browserLoginStatus !== 200) throw new Error("Staged candidate browser login status was " + report.browserLoginStatus);
     await expect(page.getByRole("heading", { name: "Assets", exact: true })).toBeVisible();
-	let terminalOutput = "";
-	page.on("websocket", socket => socket.on("framereceived", event => { if (Buffer.isBuffer(event.payload)) terminalOutput += event.payload.toString("utf8"); }));
+	let terminalOutput = ""; const terminalNotices = [];
+	page.on("websocket", socket => socket.on("framereceived", event => { if (Buffer.isBuffer(event.payload)) terminalOutput += event.payload.toString("utf8"); else { try { terminalNotices.push(JSON.parse(event.payload)); } catch { /* Text notices only. */ } } }));
 	const row = page.getByRole("row").filter({ hasText: "Native upgrade SSH" });
 	await row.getByRole("button", { name: "Connect", exact: true }).click();
 	const terminal = page.locator(".ssh-terminal-dialog");
@@ -338,6 +415,12 @@ try {
 	await terminal.locator(".xterm-helper-textarea").pressSequentially("printf '\\167\\157\\162\\153\\163\\160\\141\\143\\145\\055\\160\\164\\171\\055\\157\\153\\012'");
 	await page.keyboard.press("Enter");
 	await expect.poll(() => terminalOutput).toContain("workspace-pty-ok");
+	await terminal.locator(".xterm-helper-textarea").pressSequentially("touch terminal-blocked");
+	await page.keyboard.press("Enter");
+	await expect.poll(() => terminalNotices.some(notice => notice.type === "command_blocked" && notice.directory_required === true)).toBe(true);
+	await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", workspace + "/terminal-blocked"]);
+	await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", deployDirectory + "/terminal-blocked"]);
+	report.executionDirectories.browserUnverifiedPTYRefused = true;
 	const deletedSession = page.waitForResponse(response => response.request().method() === "DELETE" && /\/api\/v1\/sessions\/[^/]+$/.test(new URL(response.url()).pathname));
 	await terminal.getByRole("button", { name: "Close terminal", exact: true }).click();
 	if ((await deletedSession).status()!==204) throw new Error("Closing the browser session was not idempotent");
@@ -374,10 +457,10 @@ try {
     await page.getByRole("tab", { name: /^Login review\s*\d+$/ }).click();
     const approvalCard = page.locator("article.settings-card").filter({ hasText: approvalUser.username });
     await expect(approvalCard.locator("code")).toHaveText(workspace);
-    await approvalCard.screenshot({ path: resolve(output, "approval.en.png") });
+    await approvalCard.screenshot({ path: resolve(output, "execution.en.png") });
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(approvalCard.locator("code")).toHaveText(workspace);
-    await approvalCard.screenshot({ path: resolve(output, "approval.zh.png") });
+    await approvalCard.screenshot({ path: resolve(output, "execution.zh.png") });
     page.once("dialog", dialog => dialog.accept());
     const approvedResponse = page.waitForResponse(response => response.url().endsWith(`/access-reviews/${browserReview.review_id}/approve`) && response.request().method() === "POST");
     await approvalCard.getByRole("button", { name: "批准并提交", exact: true }).click();
@@ -388,6 +471,46 @@ try {
     if (!approvedFiles.entries.some(file => file.name === "sftp-browser.txt")) throw new Error("Browser approval did not authorize confined file access");
     report.connectionApproval.browserBilingualDirectoryAndApproval = true;
     await page.getByRole("button", { name: "EN", exact: true }).click();
+    await page.getByRole("tab", { name: "Command filters", exact: true }).click();
+    const directoryForm = page.locator("form").filter({ has: page.getByRole("heading", { name: "Add command filter", exact: true }) });
+    await directoryForm.getByRole("textbox", { name: "Rule name", exact: true }).fill("Browser verified directory");
+    await directoryForm.getByRole("combobox", { name: "Asset scope", exact: true }).selectOption("asset");
+    await directoryForm.getByRole("combobox", { name: "Asset", exact: true }).selectOption(asset.id);
+    await directoryForm.getByRole("combobox", { name: "Match type", exact: true }).selectOption("exact");
+    await directoryForm.getByRole("textbox", { name: "Command or pattern", exact: true }).fill("printf browser-directory");
+    await directoryForm.getByRole("combobox", { name: "Execution directory scope", exact: true }).selectOption("exact");
+    await directoryForm.getByRole("textbox", { name: "Directory path or pattern", exact: true }).fill(deployDirectory);
+    await directoryForm.getByRole("combobox", { name: "When matched", exact: true }).selectOption("review");
+    const createdFilter = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/command-filters");
+    await directoryForm.getByRole("button", { name: "Add command filter", exact: true }).click();
+    if ((await createdFilter).status() !== 201) throw new Error("Browser directory rule creation failed");
+    await expect(page.getByRole("row").filter({ hasText: "Browser verified directory" })).toContainText(deployDirectory);
+    await page.goto(url + "/workbench");
+    await expect(page.getByRole("heading", { name: "SSH jobs", exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: "Asset", exact: true }).selectOption(asset.id);
+    await page.getByRole("textbox", { name: "Command", exact: true }).fill("printf browser-directory");
+    await page.getByRole("textbox", { name: "Execution directory (optional)", exact: true }).fill(deployDirectory);
+    await page.getByRole("button", { name: "Run command", exact: true }).click();
+    const directoryResultPanel = page.getByRole("region", { name: "Execution result", exact: true });
+    await expect(directoryResultPanel).toContainText("Awaiting command review");
+    await expect(directoryResultPanel).toContainText(deployDirectory);
+    await directoryResultPanel.getByRole("button", { name: "Approve command", exact: true }).click();
+    await expect(directoryResultPanel).toContainText("Succeeded", { timeout: 20000 });
+    await expect(directoryResultPanel.locator("pre").first()).toHaveText("browser-directory");
+    await directoryResultPanel.screenshot({ path: resolve(output, "execution.en.png") });
+    await page.getByRole("button", { name: "中文", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "执行目录（可选）", exact: true })).toHaveValue(deployDirectory);
+    const chineseDirectoryResult = page.getByRole("region", { name: "执行结果", exact: true });
+    await expect(chineseDirectoryResult).toContainText("已验证的执行目录");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await chineseDirectoryResult.screenshot({ path: resolve(output, "execution.zh.png") });
+    const bounds = await chineseDirectoryResult.boundingBox();
+    if (!bounds || bounds.x < 0 || bounds.x + bounds.width > 392) throw new Error("Mobile directory result overflows viewport");
+    report.executionDirectories.browserRuleCreationAndRealReviewedCommand = true;
+    report.executionDirectories.browserBilingualDesktopAndMobile = true;
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole("button", { name: "EN", exact: true }).click();
+    await page.goto(url + "/console/settings");
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     const card = page.locator(".update-settings-card");
     await expect(card.getByRole("heading", { name: "Software updates", exact: true })).toBeVisible();

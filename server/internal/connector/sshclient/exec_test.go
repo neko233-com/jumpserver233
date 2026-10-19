@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +17,7 @@ import (
 	xssh "golang.org/x/crypto/ssh"
 )
 
-func TestExecCapturesStreamsExitStatusLimitAndCancellation(t *testing.T) {
+func TestExecCapturesStreamsExitStatusLimitCancellationAndExecGuard(t *testing.T) {
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 	signer, err := xssh.NewSignerFromKey(private)
@@ -30,6 +32,7 @@ func TestExecCapturesStreamsExitStatusLimitAndCancellation(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer listener.Close()
+	var execRequests atomic.Int32
 	go func() {
 		for {
 			connection, err := listener.Accept()
@@ -58,6 +61,7 @@ func TestExecCapturesStreamsExitStatusLimitAndCancellation(t *testing.T) {
 								continue
 							}
 							_ = req.Reply(true, nil)
+							execRequests.Add(1)
 							if input.Command == "stall" {
 								for range requests {
 								}
@@ -98,6 +102,13 @@ func TestExecCapturesStreamsExitStatusLimitAndCancellation(t *testing.T) {
 	defer cancel()
 	_, err = Exec(ctx, target, credentials, "stall")
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	before := execRequests.Load()
+	denied := errors.New("authorization changed during connection")
+	result, err = ExecWithGuard(context.Background(), target, credentials, "must-not-execute", func() error { return denied })
+	require.ErrorIs(t, err, denied)
+	assert.Equal(t, before, execRequests.Load())
+	assert.Equal(t, -1, result.ExitCode)
+	assert.Empty(t, result.Stdout)
 	target.HostKeyFingerprint = "SHA256:wrong"
 	_, err = Exec(context.Background(), target, credentials, "exit7")
 	require.Error(t, err)

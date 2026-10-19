@@ -73,10 +73,11 @@ type CreateRequest struct {
 }
 
 type CommandPolicyDecision struct {
-	PolicyKey     string
-	Allowed       bool
-	RequireReview bool
-	RuleName      string
+	DirectoryRequired bool
+	PolicyKey         string
+	Allowed           bool
+	RequireReview     bool
+	RuleName          string
 }
 
 type CommandPolicy func(command string, supported bool, at time.Time) CommandPolicyDecision
@@ -733,9 +734,10 @@ func (b *Broker) prepareTerminalInput(ctx context.Context, conn *websocket.Conn,
 		}
 		blockedOffsets = append(blockedOffsets, submission.Offset)
 		message, err := json.Marshal(struct {
-			Type     string `json:"type"`
-			RuleName string `json:"rule_name,omitempty"`
-		}{Type: "command_blocked", RuleName: decision.RuleName})
+			Type              string `json:"type"`
+			RuleName          string `json:"rule_name,omitempty"`
+			DirectoryRequired bool   `json:"directory_required,omitempty"`
+		}{Type: "command_blocked", RuleName: decision.RuleName, DirectoryRequired: decision.DirectoryRequired})
 		if err != nil {
 			return nil, fmt.Errorf("encode command filter notice: %w", err)
 		}

@@ -237,7 +237,7 @@ func registerSessionShareRoutes(mux *http.ServeMux, b *gateway.Broker, adminToke
 					nodes = d.Nodes.AncestorIDs(asset.NodeID)
 				}
 				v := d.CommandFilters.Decide(commandfilters.Scope{UserID: principal.ID, GroupIDs: groups, AssetID: assets.ResourceID(asset), NodeIDs: nodes, Account: asset.Username}, command, supported, at)
-				return gateway.CommandPolicyDecision{Allowed: v.Allowed, RequireReview: v.Action == commandfilters.ActionReview, RuleName: v.RuleName}
+				return gateway.CommandPolicyDecision{Allowed: v.Allowed, RequireReview: v.Action == commandfilters.ActionReview, RuleName: v.RuleName, PolicyKey: v.PolicyKey, DirectoryRequired: v.DirectoryRequired}
 			}
 		}
 		created, e := b.JoinShare(r.Context(), r.PathValue("shareID"), in.Code, shareActor(r), guard, policy)

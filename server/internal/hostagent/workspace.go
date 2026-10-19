@@ -41,10 +41,21 @@ func ValidateWorkspaceControl(directory, control string) error {
 }
 
 type WorkspaceStatus struct {
-	Format      string `json:"format"`
-	Directory   string `json:"directory"`
-	LandlockABI int    `json:"landlock_abi"`
-	Identity    string `json:"identity"`
+	Format           string `json:"format"`
+	Directory        string `json:"directory"`
+	LandlockABI      int    `json:"landlock_abi"`
+	Identity         string `json:"identity"`
+	WorkingDirectory string `json:"working_directory,omitempty"`
+	WorkingIdentity  string `json:"working_identity,omitempty"`
+}
+
+// ValidateWorkingDirectory accepts only a canonical absolute path within the
+// configured workspace. The Linux helper separately verifies the opened object.
+func ValidateWorkingDirectory(workspace, directory string) error {
+	if ValidateWorkspace(workspace) != nil || ValidateWorkspace(directory) != nil || directory != workspace && !strings.HasPrefix(directory, workspace+"/") {
+		return ErrWorkspaceInvalid
+	}
+	return nil
 }
 
 func ValidWorkspaceIdentity(identity string) bool {

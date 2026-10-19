@@ -74,7 +74,7 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 						}
 						scope := corecommandfilters.Scope{UserID: principal.ID, GroupIDs: currentGroups, AssetID: coreassets.ResourceID(current), NodeIDs: currentNodes, Account: current.Username}
 						decision := commandFilters.Decide(scope, command, supported, at)
-						return gateway.CommandPolicyDecision{Allowed: decision.Allowed, RequireReview: decision.Action == corecommandfilters.ActionReview, RuleName: decision.RuleName}
+						return gateway.CommandPolicyDecision{Allowed: decision.Allowed, RequireReview: decision.Action == corecommandfilters.ActionReview, RuleName: decision.RuleName, PolicyKey: decision.PolicyKey, DirectoryRequired: decision.DirectoryRequired}
 					}
 				}
 				if !hasPermission(r, "assets.connect_all") {

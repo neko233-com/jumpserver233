@@ -102,9 +102,10 @@ func runShare(args []string) error {
 				continue
 			}
 			var message struct {
-				Type       string `json:"type"`
-				Controller string `json:"controller"`
-				RuleName   string `json:"rule_name"`
+				Type              string `json:"type"`
+				Controller        string `json:"controller"`
+				RuleName          string `json:"rule_name"`
+				DirectoryRequired bool   `json:"directory_required"`
 			}
 			if json.Unmarshal(data, &message) != nil {
 				return errors.New("invalid shared terminal frame")
@@ -159,7 +160,7 @@ func runShare(args []string) error {
 			case "share_control_busy":
 				return errors.New(shareText("A command review is pending; join without --control or retry after the review finishes.", "当前有命令等待复核，请先以只读方式加入或在复核结束后重试。"))
 			case "command_blocked":
-				fmt.Fprint(os.Stderr, commandBlockedNotice(message.RuleName))
+				fmt.Fprint(os.Stderr, commandBlockedNotice(message.RuleName, message.DirectoryRequired))
 			case "command_review_pending", "command_review_approved", "command_review_denied", "command_review_timed_out":
 				fmt.Fprint(os.Stderr, commandReviewNotice(message.Type, message.RuleName))
 			default:

@@ -33,6 +33,32 @@ func (s *Service) WorkspaceIdentity(ctx context.Context, id string) (string, err
 	return identity, err
 }
 
+// WorkspaceDetails opens and identifies the configured root and selected cwd
+// without executing an operator command. The proof is checked again at exec.
+func (s *Service) WorkspaceDetails(ctx context.Context, id, workingDirectory string) (hostagent.WorkspaceStatus, error) {
+	asset, target, credentials, err := s.store.connectionForProtocolBound(id, true, expectedConnectionBinding(ctx))
+	if err != nil {
+		return hostagent.WorkspaceStatus{}, err
+	}
+	if workingDirectory == "" {
+		workingDirectory = asset.SSHWorkspace
+	}
+	if hostagent.ValidateWorkingDirectory(asset.SSHWorkspace, workingDirectory) != nil {
+		return hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
+	}
+	h, err := sshclient.OpenManagedHost(ctx, target, credentials)
+	if err != nil {
+		return hostagent.WorkspaceStatus{}, err
+	}
+	defer h.Close()
+	expected := expectedWorkingDirectory(ctx)
+	if expected.directory != "" && expected.directory != workingDirectory {
+		return hostagent.WorkspaceStatus{}, ErrConnectionChanged
+	}
+	_, state, err := prepareWorkspaceStatus(WithWorkingDirectory(ctx, workingDirectory, expected.identity), h, asset.SSHWorkspace, true)
+	return state, err
+}
+
 // Only the server calls this preparation path. The operator never receives an
 // unconfined file/command channel or the asset's SSH credential.
 func (s *Service) workspaceStartup(ctx context.Context, target sshclient.Target, credentials sshclient.Credentials, directory string, execInput bool) (string, error) {
@@ -46,8 +72,13 @@ func (s *Service) workspaceStartup(ctx context.Context, target sshclient.Target,
 }
 
 func prepareWorkspace(ctx context.Context, h *sshclient.ManagedHost, directory string, execInput bool) (string, string, error) {
+	startup, state, err := prepareWorkspaceStatus(ctx, h, directory, execInput)
+	return startup, state.Identity, err
+}
+
+func prepareWorkspaceStatus(ctx context.Context, h *sshclient.ManagedHost, directory string, execInput bool) (string, hostagent.WorkspaceStatus, error) {
 	if hostagent.ValidateWorkspace(directory) != nil {
-		return "", "", hostagent.ErrWorkspaceInvalid
+		return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
 	}
 	check := func(script string) (string, error) {
 		out, e := h.Run(ctx, "set -eu; umask 077; "+script)
@@ -65,25 +96,25 @@ func prepareWorkspace(ctx context.Context, h *sshclient.ManagedHost, directory s
 		platform = "linux-arm64"
 	}
 	if e != nil || platform == "" {
-		return "", "", hostagent.ErrWorkspaceUnavailable
+		return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceUnavailable
 	}
 	binary, e := agentbundle.Get(platform)
 	if e != nil {
-		return "", "", e
+		return "", hostagent.WorkspaceStatus{}, e
 	}
 	home := h.Root()
 	if !path.IsAbs(home) || path.Clean(home) != home || len(home) > 2048 || strings.ContainsAny(home, "\r\n\x00") {
-		return "", "", hostagent.ErrWorkspaceInvalid
+		return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
 	}
 	base := path.Join(home, ".jumpserver233")
 	if hostagent.ValidateWorkspaceControl(directory, base) != nil {
-		return "", "", hostagent.ErrWorkspaceInvalid
+		return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
 	}
 	dir := path.Join(base, "workspace")
 	for _, name := range []string{base, dir} {
 		q := workspaceQuote(name)
 		if _, e = check("[ ! -L " + q + " ]; if [ ! -e " + q + " ]; then mkdir -m 700 " + q + "; fi; [ -d " + q + " ]; [ \"$(stat -c %u " + q + ")\" = \"$(id -u)\" ]; chmod 700 " + q); e != nil {
-			return "", "", e
+			return "", hostagent.WorkspaceStatus{}, e
 		}
 	}
 	file := path.Join(dir, "jms-agent-"+binary.SHA256)
@@ -91,42 +122,62 @@ func prepareWorkspace(ctx context.Context, h *sshclient.ManagedHost, directory s
 	verify := "[ ! -L " + q + " ]; [ -f " + q + " ]; [ \"$(sha256sum " + q + " | cut -d ' ' -f 1)\" = " + workspaceQuote(binary.SHA256) + " ]; "
 	present, e := check("[ ! -L " + q + " ]; if [ -e " + q + " ]; then " + verify + "printf present; else printf missing; fi")
 	if e != nil {
-		return "", "", e
+		return "", hostagent.WorkspaceStatus{}, e
 	}
 	if present == "missing" {
 		var nonce [16]byte
 		if _, e = rand.Read(nonce[:]); e != nil {
-			return "", "", e
+			return "", hostagent.WorkspaceStatus{}, e
 		}
 		stage := path.Join(dir, "upload-"+hex.EncodeToString(nonce[:]))
 		if _, e = check("mkdir -m 700 " + workspaceQuote(stage)); e != nil {
-			return "", "", e
+			return "", hostagent.WorkspaceStatus{}, e
 		}
 		defer func() {
 			_, _ = check("rm -f -- " + workspaceQuote(path.Join(stage, "binary")) + "; rmdir -- " + workspaceQuote(stage))
 		}()
 		if e = h.Upload(ctx, path.Join(stage, "binary"), bytes.NewReader(binary.Data)); e != nil {
-			return "", "", e
+			return "", hostagent.WorkspaceStatus{}, e
 		}
 		staged := workspaceQuote(path.Join(stage, "binary"))
 		if _, e = check("[ \"$(sha256sum " + staged + " | cut -d ' ' -f 1)\" = " + workspaceQuote(binary.SHA256) + " ]; chmod 700 " + staged + "; if ln " + staged + " " + q + " 2>/dev/null; then :; else " + verify + ":; fi"); e != nil {
-			return "", "", e
+			return "", hostagent.WorkspaceStatus{}, e
 		}
 	}
 	command := "env -i PATH=/usr/bin:/bin LANG=C " + q
-	status, e := check(verify + command + " workspace-check --directory " + workspaceQuote(directory))
+	working := expectedWorkingDirectory(ctx)
+	checkCommand := verify + command + " workspace-check --directory " + workspaceQuote(directory)
+	if working.directory != "" {
+		if hostagent.ValidateWorkingDirectory(directory, working.directory) != nil {
+			return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
+		}
+		checkCommand += " --working-directory " + workspaceQuote(working.directory)
+	}
+	status, e := check(checkCommand)
 	var state hostagent.WorkspaceStatus
 	if e != nil || json.Unmarshal([]byte(status), &state) != nil || state.Format != "jms233-workspace-v1" || state.Directory != directory || state.LandlockABI < 3 || !hostagent.ValidWorkspaceIdentity(state.Identity) {
-		return "", "", hostagent.ErrWorkspaceUnavailable
+		return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceUnavailable
 	}
 	if expected := expectedWorkspaceIdentity(ctx); expected != "" && expected != state.Identity {
-		return "", "", ErrConnectionChanged
+		return "", hostagent.WorkspaceStatus{}, ErrConnectionChanged
+	}
+	if working.directory != "" && (state.WorkingDirectory != working.directory || !hostagent.ValidWorkspaceIdentity(state.WorkingIdentity)) {
+		return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceUnavailable
+	}
+	if working.identity != "" && working.identity != state.WorkingIdentity {
+		return "", hostagent.WorkspaceStatus{}, ErrConnectionChanged
 	}
 	startup := "set -eu; " + verify + "exec " + command + " workspace --directory " + workspaceQuote(directory) + " --identity " + workspaceQuote(state.Identity)
+	if working.directory != "" {
+		if !execInput {
+			return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
+		}
+		startup += " --working-directory " + workspaceQuote(state.WorkingDirectory) + " --working-identity " + workspaceQuote(state.WorkingIdentity)
+	}
 	if execInput {
 		startup += " --exec-stdin"
 	}
-	return startup, state.Identity, nil
+	return startup, state, nil
 }
 
 func (s *Service) openWorkspaceSFTP(ctx context.Context, target sshclient.Target, credentials sshclient.Credentials, directory string) (*sshclient.SFTP, error) {
@@ -153,6 +204,9 @@ func (s *Service) execWorkspace(ctx context.Context, target sshclient.Target, cr
 	defer h.Close()
 	startup, _, e := prepareWorkspace(ctx, h, directory, true)
 	if e != nil {
+		return sshclient.ExecResult{ExitCode: -1}, e
+	}
+	if e = checkExecution(ctx); e != nil {
 		return sshclient.ExecResult{ExitCode: -1}, e
 	}
 	request, e := json.Marshal(struct {

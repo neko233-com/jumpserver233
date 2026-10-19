@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Terminal } from "@xterm/xterm";
+import "../i18n/locales/features/workspaces/register";
 import "@xterm/xterm/css/xterm.css";
 import { useAuth } from "../auth/AuthContext";
 import { toggleLang } from "../i18n";
@@ -88,6 +89,7 @@ function SharedTerminal({ connection }: { connection: Connection }) {
               rows: number;
               controller?: string;
               review_pending?: boolean;
+              directory_required?: boolean;
             };
             if (msg.type === "share_state") {
               setReviewBusy(!!msg.review_pending);
@@ -120,7 +122,7 @@ function SharedTerminal({ connection }: { connection: Connection }) {
                 "command_review_timed_out",
               ].includes(msg.type)
             )
-              setNotice(msg.type);
+              setNotice(msg.directory_required ? "directory_required" : msg.type);
           } catch {
             setState("failed");
             conn.close();
@@ -140,6 +142,7 @@ function SharedTerminal({ connection }: { connection: Connection }) {
     };
   }, [connection]);
   const notices: Record<string, string> = {
+    directory_required: "directoryPolicy.terminalNotice",
     command_blocked: "terminal.commandBlocked",
     command_review_pending: "terminal.commandReviewPending",
     command_review_approved: "terminal.commandReviewApproved",

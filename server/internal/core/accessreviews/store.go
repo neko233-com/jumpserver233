@@ -49,20 +49,21 @@ var (
 // Review is safe to return to clients. It contains the request and decision
 // history but no session ticket, credential, or approval permit.
 type Review struct {
-	ID           string     `json:"id"`
-	UserID       string     `json:"user_id"`
-	Operator     string     `json:"operator"`
-	AssetID      string     `json:"asset_id"`
-	AssetName    string     `json:"asset_name"`
-	Account      string     `json:"account"`
-	Action       string     `json:"action,omitempty"`
-	RequestScope string     `json:"request_scope,omitempty"`
-	Workspace    string     `json:"workspace,omitempty"`
-	State        string     `json:"state"`
-	RequestedAt  time.Time  `json:"requested_at"`
-	ExpiresAt    time.Time  `json:"expires_at"`
-	ReviewedAt   *time.Time `json:"reviewed_at,omitempty"`
-	ReviewedBy   string     `json:"reviewed_by,omitempty"`
+	ID               string     `json:"id"`
+	UserID           string     `json:"user_id"`
+	Operator         string     `json:"operator"`
+	AssetID          string     `json:"asset_id"`
+	AssetName        string     `json:"asset_name"`
+	Account          string     `json:"account"`
+	Action           string     `json:"action,omitempty"`
+	RequestScope     string     `json:"request_scope,omitempty"`
+	Workspace        string     `json:"workspace,omitempty"`
+	WorkingDirectory string     `json:"working_directory,omitempty"`
+	State            string     `json:"state"`
+	RequestedAt      time.Time  `json:"requested_at"`
+	ExpiresAt        time.Time  `json:"expires_at"`
+	ReviewedAt       *time.Time `json:"reviewed_at,omitempty"`
+	ReviewedBy       string     `json:"reviewed_by,omitempty"`
 }
 
 type record struct {
@@ -181,6 +182,7 @@ func (s *Store) RequestScopedAction(userID, operator, assetID, assetName, accoun
 	}
 	if connection, err := ParseConnectionScope(scope); err == nil {
 		review.Workspace = connection.Workspace
+		review.WorkingDirectory = connection.WorkingDirectory
 	}
 	candidate[id] = record{Review: review}
 	if err := s.persistLocked(candidate); err != nil {
@@ -412,12 +414,12 @@ func validate(review Review) error {
 	if !validAction(review.Action) || !validScope(review.Action, review.RequestScope) {
 		return ErrInvalid
 	}
-	if strings.HasPrefix(review.RequestScope, "cx1-") {
+	if strings.HasPrefix(review.RequestScope, "cx1-") || strings.HasPrefix(review.RequestScope, "cx2-") {
 		connection, err := ParseConnectionScope(review.RequestScope)
-		if err != nil || connection.Workspace != review.Workspace {
+		if err != nil || connection.Workspace != review.Workspace || connection.WorkingDirectory != review.WorkingDirectory {
 			return ErrInvalid
 		}
-	} else if review.Workspace != "" {
+	} else if review.Workspace != "" || review.WorkingDirectory != "" {
 		return ErrInvalid
 	}
 	switch review.State {

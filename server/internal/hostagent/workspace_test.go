@@ -22,3 +22,12 @@ func TestWorkspaceControlCacheCannotOverlapAnExecutionTree(t *testing.T) {
 		require.NoError(t, ValidateWorkspaceControl(pair[0], pair[1]))
 	}
 }
+
+func TestExecutionDirectoryMustStayInsideCanonicalWorkspace(t *testing.T) {
+	for _, directory := range []string{"", "/srv/app-other", "/srv/app/../other", "/srv/app//sub", "/srv/app/sub/", "/etc", "sub", "/srv/app/sub\n"} {
+		require.ErrorIs(t, ValidateWorkingDirectory("/srv/app", directory), ErrWorkspaceInvalid, directory)
+	}
+	for _, directory := range []string{"/srv/app", "/srv/app/sub", "/srv/app/业务 folder"} {
+		require.NoError(t, ValidateWorkingDirectory("/srv/app", directory))
+	}
+}

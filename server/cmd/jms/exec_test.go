@@ -22,6 +22,7 @@ func TestExecWithoutTTYUsesOnlyAPICredentialAndPreservesRemoteExit(t *testing.T)
 		var input jobs.Input
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&input))
 		assert.Equal(t, "printf hello", input.Command)
+		assert.Equal(t, "/srv/work/app", input.WorkingDirectory)
 		assert.NotEmpty(t, input.RequestID)
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(jobs.Job{ID: "job-one", State: "failed", ErrorCode: "remote_exit", ExecResult: sshclient.ExecResult{Stdout: "hello", Stderr: "problem", ExitCode: 7}})
@@ -30,7 +31,7 @@ func TestExecWithoutTTYUsesOnlyAPICredentialAndPreservesRemoteExit(t *testing.T)
 	client, err := sessionclient.New(server.URL, "api-only")
 	require.NoError(t, err)
 	var out, stderr bytes.Buffer
-	err = executeCommand(context.Background(), client, []string{"asset", "--timeout", "20", "--", "printf", "hello"}, &out, &stderr)
+	err = executeCommand(context.Background(), client, []string{"asset", "--directory", "/srv/work/app", "--timeout", "20", "--", "printf", "hello"}, &out, &stderr)
 	var remote *remoteExitError
 	require.ErrorAs(t, err, &remote)
 	assert.Equal(t, 7, remote.Code)

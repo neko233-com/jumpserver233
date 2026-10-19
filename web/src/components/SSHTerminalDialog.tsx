@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { BrandMark } from "../branding/BrandingContext";
 import { Terminal } from "@xterm/xterm";
+import "../i18n/locales/features/workspaces/register";
 import { useTranslation } from "react-i18next";
 import { toggleLang } from "../i18n";
 import "@xterm/xterm/css/xterm.css";
@@ -207,6 +208,7 @@ export default function SSHTerminalDialog({
               const notice = JSON.parse(event.data) as {
                 type?: string;
                 rule_name?: string;
+                directory_required?: boolean;
                 controller?: string;
               };
               if (notice.type === "share_control_required" || notice.type === "share_controller") {
@@ -220,6 +222,10 @@ export default function SSHTerminalDialog({
                   ? translations.current("terminal.commandBlockedRule", { rule: notice.rule_name })
                   : translations.current("terminal.commandBlocked");
                 terminal.write(`\r\n${message}\r\n`);
+                if (notice.directory_required)
+                  terminal.write(
+                    `\r\n${translations.current("directoryPolicy.terminalNotice")}\r\n`,
+                  );
               } else if (notice.type === "command_review_pending") {
                 const message = notice.rule_name
                   ? translations.current("terminal.commandReviewPendingRule", {

@@ -23,7 +23,7 @@ Ordinary SSH jobs, including `jms exec`, batches and Playbook SSH steps, also re
 
 The 30-minute SFTP token retains the same configuration binding and directory proof. Every file API checks current grants/configuration; the real channel starts with the retained proof. A mismatch returns `428`; reopen the file manager. The native helper holds a directory FD opened without symlinks, checks identity before confinement, and uses that same object for cwd and the Landlock grant.
 
-The internal canonical `request_scope` and displayed `workspace` path are not credentials. Legacy unscoped records remain readable; new SSH/SFTP requests do not consume unscoped permits. Tokens remain digest-only and process-local. Directory proofs require a trusted remote kernel and filesystem birth-time support through `statx`; missing capabilities fail closed. This authorizes the workspace root object. Command-level cwd binding and exact/regex directory command policies remain open. See [workspaces](./SSH-WORKSPACES.en.md).
+The internal canonical `request_scope` and displayed `workspace` path are not credentials. Legacy unscoped records remain readable; new SSH/SFTP requests do not consume unscoped permits. Tokens remain digest-only and process-local. Directory proofs require a trusted remote kernel and filesystem birth-time support through `statx`; missing capabilities fail closed. This authorizes the workspace root object. Ordinary exec adds a `cx2-` context binding the verified starting-directory object and current command policy. Complete interactive cwd proof remains open. See [controlled execution directories](./EXECUTION-DIRECTORIES.en.md).
 
 ## API and storage
 

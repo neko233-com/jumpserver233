@@ -43,6 +43,12 @@ func (w *limitedOutput) Write(p []byte) (int, error) {
 // Exec runs one non-PTY command on a pinned SSH host. Cancellation closes the
 // transport; it cannot guarantee termination of detached remote descendants.
 func Exec(ctx context.Context, target Target, credentials Credentials, command string) (ExecResult, error) {
+	return ExecWithGuard(ctx, target, credentials, command, nil)
+}
+
+// ExecWithGuard rechecks authorization after SSH setup, before sending any
+// operator command. It does not require the host's optional SFTP subsystem.
+func ExecWithGuard(ctx context.Context, target Target, credentials Credentials, command string, guard func() error) (ExecResult, error) {
 	result := ExecResult{ExitCode: -1}
 	client, _, err := dial(ctx, target, credentials, 12*time.Second)
 	if err != nil {
@@ -59,6 +65,11 @@ func Exec(ctx context.Context, target Target, credentials Credentials, command s
 	budget := &outputBudget{remaining: MaxExecOutput}
 	out, stderr := &limitedOutput{budget: budget}, &limitedOutput{budget: budget}
 	session.Stdout, session.Stderr = out, stderr
+	if guard != nil {
+		if err = guard(); err != nil {
+			return result, err
+		}
+	}
 	err = session.Run(command)
 	result.Stdout, result.Stderr, result.Truncated = string(out.data), string(stderr.data), budget.truncated
 	if ctx.Err() != nil {

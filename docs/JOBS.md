@@ -16,6 +16,8 @@ Go 原生 Playbook 支持工作空间版本、组织发布、源码快照、顺�
 # JMS_TOKEN 使用平台短期 Bearer Token；也可使用既有 AccessKey 环境变量。
 $env:JMS_SERVER_URL = 'http://127.0.0.1:8080'
 go run ./cmd/jms exec <asset-id> --timeout 60 --json -- 'uname -a'
+# 已配置 SSH 工作区时可选择起始目录，详见执行目录文档。
+go run ./cmd/jms exec <asset-id> --directory /srv/work/deploy --json -- pwd
 ```
 
 CLI 默认将远端 stdout/stderr 分别写到本地对应流，作业 ID 写入 stderr。`--json` 输出完整作业结果。远端退出码 1–255 由编译后的 CLI 原样返回；`go run` 自身会包装子进程失败，脚本应使用编译后的 `jms`。执行超时、拒绝和连接错误返回非零状态。
@@ -59,7 +61,7 @@ CLI 默认将远端 stdout/stderr 分别写到本地对应流，作业 ID 写入
 
 ## 连接与工作区审批证明
 
-普通 SSH 作业记录服务端生成的 `connection_scope`，请求正文不能设置该字段。登录/命令复核作业在提交时固定真实工作区根身份，执行时经原生 helper 的 FD 校验；配置或目录变更会阻止使用旧证明。证明作为作业的一部分加密保存，新记录使用认证加密 envelope v5，继续读取 v1–v4。缺少上下文校验器不会回退普通执行；旧版没有证明的待命令审批普通作业需要取消后重新提交。重复 request ID 保留原作业与结果，不启动第二次执行。
+普通 SSH 作业记录服务端生成的 `connection_scope`，请求正文不能设置该字段。登录/命令复核作业在提交时固定真实工作区根身份，执行时经原生 helper 的 FD 校验；配置或目录变更会阻止使用旧证明。证明作为作业的一部分加密保存，新目录/策略证明记录使用认证加密 envelope v6，继续读取 v1–v5。单命令 Web/CLI 支持 `working_directory`，审批绑定真实起始目录与活动策略；字段与边界见[受控执行目录](./EXECUTION-DIRECTORIES.md)。缺少上下文校验器不会回退普通执行；旧版没有当前策略证明的待命令审批普通作业需要取消后重新提交。重复 request ID 保留原作业与结果，不启动第二次执行。
 
 这固定的是整个工作区根，未实现命令实际 cwd 或精确/正则目录命令规则。插件、发现和远端账号操作沿用单独的类型化执行器。详见[登录复核](./ACCESS-REVIEWS.md)与[工作区](./SSH-WORKSPACES.md)。
 

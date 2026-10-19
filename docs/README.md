@@ -2,7 +2,7 @@
 
 > 中文 | [English](./README.en.md)
 
-[SSH 执行工作区](./SSH-WORKSPACES.md)：原生 Linux helper 的目录树文件限制与 Web/CLI 入口；精确/正则目录命令规则仍待完成。
+[SSH 执行工作区](./SSH-WORKSPACES.md)：原生 Linux helper 的目录树文件限制与 Web/CLI 入口。新增[受控执行目录](./EXECUTION-DIRECTORIES.md)：单命令作业的真实起始目录、精确/子树/正则规则和审批绑定；完整交互式 cwd 仍待完成。
 
 [软件更新与原生制品](./UPDATES.md)：正式稳定版检查、自动检查策略、平台权限/修订/回执、下载与归档校验及六平台 Release 打包。
 

@@ -13,6 +13,7 @@ Administrators manage rules in **Settings → Command Filters**. Each rule has a
 - User, group, asset, and node scopes may be left empty to mean any. A rule cannot specify both a user and a group or both an asset and a node.
 - A node rule applies to the node and descendant assets. Account `*` matches the SSH account configured on the asset; any other value is an exact account match.
 - Match types are exact command, contains text, and Go RE2 regular expression. Patterns are limited to 256 bytes.
+- Optional `directory_match` and `directory_pattern` scope commands to a remotely verified starting directory. Unverified terminals conservatively deny matching directory-scoped commands. Priority and first-match semantics remain unchanged.
 - Priority ranges from 0 to 9999. Lower numbers run first; ties use creation time and ID for stable ordering. The first matching rule decides. Unmatched commands are allowed.
 - Active time windows are inclusive at the start and exclusive at the end. No start means immediately; no end means no expiry.
 - The `review` action holds command submission for an administrator decision in **Settings → Command Review**. Approval submits Enter to the remote PTY; denial sends Ctrl+C to clear the pending line. Unresolved requests are denied after five minutes.
@@ -28,7 +29,7 @@ The administrator queue is `GET /api/v1/command-reviews`; resolution uses `POST 
 
 ## Current limits
 
-Current regex rules match command input text, not directory permissions. Exact-directory, directory-tree and regex-directory rules are priorities for the [stable SSH release](./SSH-FIRST.en.md), but are not fully implemented. Trusted working directories and resolved paths need a remote Agent or controlled execution channel together with account permissions. A terminal prompt, `PWD` value or inferred `cd` history cannot be the sole security authority.
+Current regex rules match command input text, not directory permissions. [Controlled execution directories](./EXECUTION-DIRECTORIES.en.md) are connected to single-command Web jobs and `jms exec`, including exact/subtree/full-path RE2 rules and approval binding. Complete interactive cwd proofs remain outstanding. Trusted working directories and resolved paths need a remote Agent or controlled execution channel together with account permissions. A terminal prompt, `PWD` value or inferred `cd` history cannot be the sole security authority.
 
 Optional [SSH execution workspaces](./SSH-WORKSPACES.en.md) use a native helper and Linux kernel confinement for whole-tree content access. They compose with command filters without replacing exact/regex directory command rules.
 

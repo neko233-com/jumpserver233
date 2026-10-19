@@ -36,39 +36,42 @@ var (
 )
 
 type Input struct {
-	ConnectionScope string                      `json:"-"`
-	PlaybookStep    *playbooks.Execution        `json:"-"`
-	RemoteAccount   *hostagent.AccountOperation `json:"-"`
-	Discovery       *accountdiscovery.Operation `json:"-"`
-	Plugin          *hostplugins.Operation      `json:"-"`
-	Origin          accesspolicies.Origin       `json:"-"`
-	AssetID         string                      `json:"asset_id"`
-	Command         string                      `json:"command"`
-	TimeoutSeconds  int                         `json:"timeout_seconds"`
-	RequestID       string                      `json:"request_id"`
+	WorkingDirectory string                      `json:"working_directory,omitempty"`
+	ConnectionScope  string                      `json:"-"`
+	PlaybookStep     *playbooks.Execution        `json:"-"`
+	RemoteAccount    *hostagent.AccountOperation `json:"-"`
+	Discovery        *accountdiscovery.Operation `json:"-"`
+	Plugin           *hostplugins.Operation      `json:"-"`
+	Origin           accesspolicies.Origin       `json:"-"`
+	AssetID          string                      `json:"asset_id"`
+	Command          string                      `json:"command"`
+	TimeoutSeconds   int                         `json:"timeout_seconds"`
+	RequestID        string                      `json:"request_id"`
 }
 type Job struct {
-	ConnectionScope string                      `json:"connection_scope,omitempty"`
-	PlaybookStep    *playbooks.Execution        `json:"playbook_step,omitempty"`
-	RemoteAccount   *hostagent.AccountOperation `json:"remote_account,omitempty"`
-	Discovery       *accountdiscovery.Operation `json:"account_discovery,omitempty"`
-	Plugin          *hostplugins.Operation      `json:"plugin,omitempty"`
-	AccessOrigin    accesspolicies.Origin       `json:"access_origin,omitempty"`
-	ID              string                      `json:"id"`
-	AssetID         string                      `json:"asset_id"`
-	AssetName       string                      `json:"asset_name"`
-	Account         string                      `json:"account"`
-	OperatorID      string                      `json:"operator_id"`
-	Operator        string                      `json:"operator"`
-	Command         string                      `json:"command"`
-	TimeoutSeconds  int                         `json:"timeout_seconds"`
-	RequestID       string                      `json:"request_id,omitempty"`
-	State           string                      `json:"state"`
-	RuleName        string                      `json:"rule_name,omitempty"`
-	ReviewedBy      string                      `json:"reviewed_by,omitempty"`
-	CreatedAt       time.Time                   `json:"created_at"`
-	StartedAt       time.Time                   `json:"started_at,omitzero"`
-	FinishedAt      time.Time                   `json:"finished_at,omitzero"`
+	WorkingDirectory   string                      `json:"working_directory,omitempty"`
+	ExecutionDirectory string                      `json:"execution_directory,omitempty"`
+	ConnectionScope    string                      `json:"connection_scope,omitempty"`
+	PlaybookStep       *playbooks.Execution        `json:"playbook_step,omitempty"`
+	RemoteAccount      *hostagent.AccountOperation `json:"remote_account,omitempty"`
+	Discovery          *accountdiscovery.Operation `json:"account_discovery,omitempty"`
+	Plugin             *hostplugins.Operation      `json:"plugin,omitempty"`
+	AccessOrigin       accesspolicies.Origin       `json:"access_origin,omitempty"`
+	ID                 string                      `json:"id"`
+	AssetID            string                      `json:"asset_id"`
+	AssetName          string                      `json:"asset_name"`
+	Account            string                      `json:"account"`
+	OperatorID         string                      `json:"operator_id"`
+	Operator           string                      `json:"operator"`
+	Command            string                      `json:"command"`
+	TimeoutSeconds     int                         `json:"timeout_seconds"`
+	RequestID          string                      `json:"request_id,omitempty"`
+	State              string                      `json:"state"`
+	RuleName           string                      `json:"rule_name,omitempty"`
+	ReviewedBy         string                      `json:"reviewed_by,omitempty"`
+	CreatedAt          time.Time                   `json:"created_at"`
+	StartedAt          time.Time                   `json:"started_at,omitzero"`
+	FinishedAt         time.Time                   `json:"finished_at,omitzero"`
 	sshclient.ExecResult
 	ErrorCode string `json:"error_code,omitempty"`
 }
@@ -126,7 +129,7 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 	}
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 5 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 6 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid encrypted job store")
 		}
@@ -141,6 +144,10 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 			return nil, fmt.Errorf("invalid job records")
 		}
 		for _, j := range records {
+			if !validJobDirectory(j, e.Version) {
+				cancel()
+				return nil, ErrInvalid
+			}
 			if j.PlaybookStep != nil && (e.Version < 4 || j.PlaybookStep.Validate() != nil || j.RemoteAccount != nil || j.Discovery != nil || j.Plugin != nil) {
 				cancel()
 				return nil, ErrInvalid
@@ -196,6 +203,9 @@ func validState(v string) bool {
 	return false
 }
 func Validate(in Input) (Input, error) {
+	if in.WorkingDirectory != "" && (hostagent.ValidateWorkspace(in.WorkingDirectory) != nil || in.Plugin != nil || in.Discovery != nil || in.RemoteAccount != nil || in.PlaybookStep != nil) {
+		return in, ErrInvalid
+	}
 	if in.ConnectionScope != "" {
 		if _, err := accessreviews.ParseConnectionScope(in.ConnectionScope); err != nil || in.RemoteAccount != nil || in.Discovery != nil || in.Plugin != nil {
 			return in, ErrInvalid
@@ -254,6 +264,12 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 	if err != nil {
 		return Job{}, err
 	}
+	if in.WorkingDirectory != "" && decision != "deny" {
+		proof, err := accessreviews.ParseConnectionScope(in.ConnectionScope)
+		if err != nil || proof.WorkingDirectory != in.WorkingDirectory {
+			return Job{}, ErrInvalid
+		}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.expireLocked(); err != nil {
@@ -264,7 +280,7 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 	}
 	for _, j := range s.jobs {
 		if in.RequestID != "" && j.OperatorID == actorID && j.RequestID == in.RequestID {
-			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery) || !sameRemoteAccount(j.RemoteAccount, in.RemoteAccount) || !samePlaybookStep(j.PlaybookStep, in.PlaybookStep)) {
+			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || j.WorkingDirectory != in.WorkingDirectory || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery) || !sameRemoteAccount(j.RemoteAccount, in.RemoteAccount) || !samePlaybookStep(j.PlaybookStep, in.PlaybookStep)) {
 				return Job{}, ErrConflict
 			}
 			return cloneJob(j), nil
@@ -278,6 +294,10 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 		return Job{}, err
 	}
 	j := Job{ConnectionScope: in.ConnectionScope, PlaybookStep: in.PlaybookStep, RemoteAccount: in.RemoteAccount, Discovery: in.Discovery, Plugin: in.Plugin, AccessOrigin: in.Origin, ID: "job-" + hex.EncodeToString(raw[:]), AssetID: in.AssetID, AssetName: assetName, Account: account, OperatorID: actorID, Operator: actor, Command: in.Command, TimeoutSeconds: in.TimeoutSeconds, RequestID: in.RequestID, RuleName: rule, CreatedAt: time.Now().UTC(), ExecResult: sshclient.ExecResult{ExitCode: -1}}
+	j.WorkingDirectory = in.WorkingDirectory
+	if proof, err := accessreviews.ParseConnectionScope(in.ConnectionScope); err == nil {
+		j.ExecutionDirectory = proof.WorkingDirectory
+	}
 	switch decision {
 	case "deny":
 		j.State = "denied"
@@ -573,7 +593,7 @@ func (s *Service) FindRequest(owner string, in Input) (Job, bool, error) {
 	defer s.mu.Unlock()
 	for _, j := range s.jobs {
 		if in.RequestID != "" && j.OperatorID == owner && j.RequestID == in.RequestID {
-			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery) || !sameRemoteAccount(j.RemoteAccount, in.RemoteAccount) || !samePlaybookStep(j.PlaybookStep, in.PlaybookStep)) {
+			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || j.WorkingDirectory != in.WorkingDirectory || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery) || !sameRemoteAccount(j.RemoteAccount, in.RemoteAccount) || !samePlaybookStep(j.PlaybookStep, in.PlaybookStep)) {
 				return Job{}, false, ErrConflict
 			}
 			return cloneJob(j), true, nil
@@ -676,9 +696,12 @@ func (s *Service) persistLocked() error {
 	}
 	version := 1
 	for _, j := range records {
+		if j.WorkingDirectory != "" || j.ExecutionDirectory != "" || strings.HasPrefix(j.ConnectionScope, "cx2-") {
+			version = 6
+			break
+		}
 		if j.ConnectionScope != "" {
 			version = 5
-			break
 		}
 	}
 	for _, j := range records {

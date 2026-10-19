@@ -12,3 +12,15 @@ func TestNativeAgentAcceptsOnlyBoundedRecoveryCommands(t *testing.T) {
 	}
 	require.Equal(t, 1, run([]string{"check", "--directory", "relative", "--config-sha", "invalid"}))
 }
+
+func TestExecutionDirectoryFlagsRequireExecAndBothObjectProofs(t *testing.T) {
+	for _, args := range [][]string{
+		{"workspace", "--directory", "/srv/work", "--working-directory", "/srv/outside", "--exec-stdin"},
+		{"workspace", "--directory", "/srv/work", "--working-directory", "/srv/work/app", "--exec-stdin"},
+		{"workspace", "--directory", "/srv/work", "--working-directory", "/srv/work/app", "--sftp"},
+		{"workspace", "--directory", "/srv/work", "--working-identity", "bad", "--exec-stdin"},
+		{"workspace-check", "--directory", "/srv/work", "--working-directory", "/srv/work/app", "--working-identity", "bad"},
+	} {
+		require.Equal(t, 2, run(args))
+	}
+}

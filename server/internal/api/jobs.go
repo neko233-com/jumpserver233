@@ -20,12 +20,13 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/operations"
+	"github.com/neko233-com/jumpserver233/server/internal/hostagent"
 )
 
 func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMutex) {
 	protect := func(h http.HandlerFunc) http.Handler { return protectAuthenticatedAPI(h, d.AdminToken, d.Auth) }
 	// Re-evaluate authorization at submission and at command-review approval.
-	authorize := func(user coreauth.User, assetID, command string, origin accesspolicies.Origin) (string, string, commandfilters.Decision, int) {
+	authorizeScoped := func(user coreauth.User, assetID, command string, origin accesspolicies.Origin, directory string, verified bool) (string, string, commandfilters.Decision, int) {
 		if origin.Method == "" {
 			origin.Method = "exec"
 		}
@@ -58,22 +59,30 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 			return "", "", commandfilters.Decision{}, http.StatusForbidden
 		}
 		if d.CommandFilters != nil {
-			decision = d.CommandFilters.Decide(commandfilters.Scope{UserID: user.ID, GroupIDs: groupIDs, AssetID: assets.ResourceID(asset), NodeIDs: nodeIDs, Account: asset.Username}, command, !strings.ContainsAny(command, ";&|`$<>\\()\n\r\t"), time.Now().UTC())
+			decision = d.CommandFilters.Decide(commandfilters.Scope{UserID: user.ID, GroupIDs: groupIDs, AssetID: assets.ResourceID(asset), NodeIDs: nodeIDs, Account: asset.Username, Directory: directory, DirectoryVerified: verified}, command, !strings.ContainsAny(command, ";&|`$<>\\()\n\r\t"), time.Now().UTC())
 		}
 		return asset.Name, asset.Username, decision, http.StatusOK
+	}
+	authorize := func(user coreauth.User, assetID, command string, origin accesspolicies.Origin) (string, string, commandfilters.Decision, int) {
+		return authorizeScoped(user, assetID, command, origin, "", false)
 	}
 	jobGuardLocked := func(job jobs.Job) error {
 		if job.ConnectionScope == "" && job.Plugin == nil && job.Discovery == nil && job.RemoteAccount == nil && job.State == "pending_review" {
 			return jobs.ErrAccessDenied
 		}
+		var connection accessreviews.ConnectionContext
 		if job.ConnectionScope != "" {
-			connection, err := accessreviews.ParseConnectionScope(job.ConnectionScope)
+			var err error
+			connection, err = accessreviews.ParseConnectionScope(job.ConnectionScope)
 			current, currentErr := d.Assets.Get(job.AssetID)
 			if err != nil || currentErr != nil {
 				return jobs.ErrAccessDenied
 			}
 			binding, err := d.Assets.BindConnection(current)
 			if err != nil || binding != connection.Binding {
+				return jobs.ErrAccessDenied
+			}
+			if job.State == "pending_review" && !strings.HasPrefix(job.ConnectionScope, "cx2-") {
 				return jobs.ErrAccessDenied
 			}
 		}
@@ -87,8 +96,8 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		if !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) || !discoveryJobAllowed(d, owner, job.AssetID, job.Discovery, job.AccessOrigin) || !remoteAccountJobAllowed(d, owner, job.AssetID, job.RemoteAccount, job.AccessOrigin) {
 			return jobs.ErrAccessDenied
 		}
-		_, account, decision, status := authorize(owner, job.AssetID, job.Command, job.AccessOrigin)
-		if status != http.StatusOK || account != job.Account || decision.Action == commandfilters.ActionDeny {
+		_, account, decision, status := authorizeScoped(owner, job.AssetID, job.Command, job.AccessOrigin, connection.WorkingDirectory, connection.WorkingDirectory != "")
+		if status != http.StatusOK || account != job.Account || decision.Action == commandfilters.ActionDeny || strings.HasPrefix(job.ConnectionScope, "cx2-") && connection.PolicyKey != decision.PolicyKey {
 			return jobs.ErrAccessDenied
 		}
 		return nil
@@ -101,7 +110,9 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 			return ctx, jobs.ErrAccessDenied
 		}
 		ctx = assets.WithConnectionBinding(ctx, connection.Binding)
-		return assets.WithWorkspaceIdentity(ctx, connection.Identity), nil
+		ctx = assets.WithWorkspaceIdentity(ctx, connection.Identity)
+		ctx = assets.WithWorkingDirectory(ctx, connection.WorkingDirectory, connection.WorkingIdentity)
+		return assets.WithExecutionCheck(ctx, func() error { return jobGuard(job) }), nil
 	})
 	submitUser := func(user coreauth.User, input jobs.Input, reviewID string) (operations.Submission, error) {
 		input, err := jobs.Validate(input)
@@ -120,7 +131,17 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		if status != http.StatusOK {
 			return operations.Submission{}, operations.ErrDenied
 		}
+		// An authenticated retry returns its original receipt without opening a
+		// new SSH channel or consuming another login approval.
+		if prior, exists, err := d.Jobs.FindRequest(user.ID, input); err != nil {
+			return operations.Submission{}, err
+		} else if exists {
+			return operations.Submission{Job: prior}, nil
+		}
 		asset, _ := d.Assets.Get(input.AssetID)
+		if input.WorkingDirectory != "" && hostagent.ValidateWorkingDirectory(asset.SSHWorkspace, input.WorkingDirectory) != nil {
+			return operations.Submission{}, jobs.ErrInvalid
+		}
 		reviewAction, reviewScope := accessreviews.ActionSSH, ""
 		if input.Discovery != nil && input.Discovery.PlanID != "" {
 			reviewAction = accessreviews.ActionAccountDiscovery
@@ -130,23 +151,29 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 			reviewAction = accessreviews.ActionRemoteAccount
 			reviewScope = input.RemoteAccount.Task.ID + ":" + strconv.FormatUint(input.RemoteAccount.Attempt, 10)
 		}
-		if input.Plugin == nil && input.Discovery == nil && input.RemoteAccount == nil && decision.Action != commandfilters.ActionDeny {
+		if input.Plugin == nil && input.Discovery == nil && input.RemoteAccount == nil && (decision.Action != commandfilters.ActionDeny || decision.DirectoryRequired) {
 			binding, err := d.Assets.BindConnection(asset)
 			if err != nil {
 				return operations.Submission{}, operations.ErrDenied
 			}
-			workspace, identity := "", ""
-			needsProof := decision.Action == commandfilters.ActionReview || asset.LoginReviewRequired && !effectivePermissions(user, d.RBAC, d.Groups).Allows("login_review.bypass")
+			connection := accessreviews.ConnectionContext{Binding: binding, PolicyKey: decision.PolicyKey}
+			needsProof := input.WorkingDirectory != "" || decision.DirectoryRequired || decision.Action == commandfilters.ActionReview || asset.LoginReviewRequired && !effectivePermissions(user, d.RBAC, d.Groups).Allows("login_review.bypass")
 			if needsProof && asset.SSHWorkspace != "" {
 				probeCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				identity, err = d.Assets.WorkspaceIdentity(assets.WithConnectionBinding(probeCtx, binding), asset.ID)
+				proof, probeErr := d.Assets.WorkspaceDetails(assets.WithConnectionBinding(probeCtx, binding), asset.ID, input.WorkingDirectory)
 				cancel()
-				if err != nil {
-					return operations.Submission{}, err
+				if probeErr != nil {
+					return operations.Submission{}, probeErr
 				}
-				workspace = asset.SSHWorkspace
+				connection.Workspace, connection.Identity = proof.Directory, proof.Identity
+				connection.WorkingDirectory, connection.WorkingIdentity = proof.WorkingDirectory, proof.WorkingIdentity
+				_, _, decision, status = authorizeScoped(user, input.AssetID, input.Command, input.Origin, proof.WorkingDirectory, true)
+				if status != http.StatusOK {
+					return operations.Submission{}, operations.ErrDenied
+				}
+				connection.PolicyKey = decision.PolicyKey
 			}
-			reviewScope, err = accessreviews.ConnectionScope(binding, workspace, identity)
+			reviewScope, err = accessreviews.ExecutionScope(connection)
 			if err != nil {
 				return operations.Submission{}, err
 			}
@@ -353,15 +380,22 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		accessMu.RLock()
 		defer accessMu.RUnlock()
 		if *input.Approve {
-			owner, ok := jobOwner(d, job.OperatorID)
-			if !ok {
-				writeJSON(w, http.StatusConflict, map[string]string{"detail": "job owner is no longer available"})
-				return
-			}
-			_, account, decision, status := authorize(owner, job.AssetID, job.Command, job.AccessOrigin)
-			if status != http.StatusOK || account != job.Account || decision.Action == commandfilters.ActionDeny || !pluginJobAllowed(d, owner, job.AssetID, job.Plugin) || !discoveryJobAllowed(d, owner, job.AssetID, job.Discovery, job.AccessOrigin) || !remoteAccountJobAllowed(d, owner, job.AssetID, job.RemoteAccount, job.AccessOrigin) {
+			if jobGuardLocked(job) != nil {
 				writeJSON(w, http.StatusForbidden, map[string]string{"detail": "job authorization or command policy changed"})
 				return
+			}
+			connection, err := accessreviews.ParseConnectionScope(job.ConnectionScope)
+			if err == nil && connection.WorkingDirectory != "" {
+				ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+				ctx = assets.WithConnectionBinding(ctx, connection.Binding)
+				ctx = assets.WithWorkspaceIdentity(ctx, connection.Identity)
+				ctx = assets.WithWorkingDirectory(ctx, connection.WorkingDirectory, connection.WorkingIdentity)
+				_, err = d.Assets.WorkspaceDetails(ctx, job.AssetID, connection.WorkingDirectory)
+				cancel()
+				if err != nil {
+					writeJobError(w, err)
+					return
+				}
 			}
 		}
 		reviewer, _ := PrincipalFromContext(r.Context())
@@ -377,6 +411,12 @@ func writeJobError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
 	detail := "job audit or execution service is unavailable"
 	switch {
+	case errors.Is(err, assets.ErrConnectionChanged):
+		status = http.StatusPreconditionRequired
+		detail = "execution directory or connection changed; submit a new request"
+	case errors.Is(err, hostagent.ErrWorkspaceInvalid), errors.Is(err, hostagent.ErrWorkspaceUnavailable):
+		status = http.StatusPreconditionFailed
+		detail = "remote execution directory could not be verified"
 	case errors.Is(err, operations.ErrDenied):
 		status = http.StatusForbidden
 		detail = "asset execution is not granted or login review was denied"

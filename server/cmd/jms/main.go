@@ -243,9 +243,10 @@ func run(args []string) error {
 			}
 			if typ == websocket.MessageText {
 				var notice struct {
-					Controller string `json:"controller"`
-					Type       string `json:"type"`
-					RuleName   string `json:"rule_name"`
+					Controller        string `json:"controller"`
+					Type              string `json:"type"`
+					RuleName          string `json:"rule_name"`
+					DirectoryRequired bool   `json:"directory_required"`
 				}
 				if json.Unmarshal(data, &notice) != nil {
 					select {
@@ -265,7 +266,7 @@ func run(args []string) error {
 						message = shareText("\r\nAnother participant controls input. Use jms share reclaim SESSION_ID in another terminal to reclaim it.\r\n", "\r\n其他参与者拥有输入控制，可在另一终端使用 jms share reclaim SESSION_ID 取回。\r\n")
 					}
 				case "command_blocked":
-					message = commandBlockedNotice(notice.RuleName)
+					message = commandBlockedNotice(notice.RuleName, notice.DirectoryRequired)
 				case "command_review_pending", "command_review_approved", "command_review_denied", "command_review_timed_out":
 					message = commandReviewNotice(notice.Type, notice.RuleName)
 				default:
@@ -412,7 +413,10 @@ func selectedClient(client *sessionclient.Client, selected []string) (*sessioncl
 	return client.WithManagedAccount(selector)
 }
 
-func commandBlockedNotice(ruleName string) string {
+func commandBlockedNotice(ruleName string, directoryRequired ...bool) string {
+	if len(directoryRequired) > 0 && directoryRequired[0] {
+		return commandBlockedNotice(ruleName) + shareText("Use an SSH job or jms exec --directory within the configured workspace to verify the starting directory.\r\n", "请使用 SSH 作业或 jms exec --directory 指定已配置工作区内的执行目录。\r\n")
+	}
 	locale := strings.ToLower(os.Getenv("LC_ALL") + " " + os.Getenv("LC_MESSAGES") + " " + os.Getenv("LANG"))
 	if strings.Contains(locale, "zh") {
 		if ruleName != "" {

@@ -133,3 +133,53 @@ func TestWorkspaceIdentityPinsBirthInodeAndRejectsReplacementBeforeExecution(t *
 		assert.True(t, os.IsNotExist(err))
 	}
 }
+
+func TestExecutionDirectoryPinsActualCwdAndRejectsSymlinksAndReplacement(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "workspace")
+	child := filepath.Join(root, "app")
+	require.NoError(t, os.MkdirAll(child, 0700))
+	proof, err := CheckWorkspaceAt(root, child)
+	if err != nil {
+		if os.Getenv("JMS_REQUIRE_WORKSPACE") == "1" {
+			t.Fatal(err)
+		}
+		t.Skip("workspace kernel and filesystem identity required")
+	}
+	assert.NotEqual(t, proof.Identity, proof.WorkingIdentity)
+	helper := filepath.Join(base, "helper")
+	data, err := os.ReadFile(filepath.Join("..", "agentbundle", "artifacts", "jms-agent-linux-"+runtime.GOARCH))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(helper, data, 0700))
+	run := func(command string, expected WorkspaceStatus) ([]byte, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, helper, "workspace", "--directory", root, "--identity", expected.Identity, "--working-directory", child, "--working-identity", expected.WorkingIdentity, "--exec-stdin")
+		raw, err := json.Marshal(map[string]string{"command": command})
+		require.NoError(t, err)
+		cmd.Stdin = bytes.NewReader(raw)
+		return cmd.CombinedOutput()
+	}
+	out, err := run("pwd; printf verified > receipt", proof)
+	require.NoError(t, err, string(out))
+	assert.Equal(t, child+"\n", string(out))
+	require.FileExists(t, filepath.Join(child, "receipt"))
+	again, err := CheckWorkspaceAt(root, child)
+	require.NoError(t, err)
+	assert.Equal(t, proof.WorkingIdentity, again.WorkingIdentity)
+	require.NoError(t, os.Symlink(child, filepath.Join(root, "alias")))
+	_, err = CheckWorkspaceAt(root, filepath.Join(root, "alias"))
+	require.Error(t, err)
+	_, err = CheckWorkspaceAt(root, base)
+	require.Error(t, err)
+	require.NoError(t, os.Rename(child, filepath.Join(root, "original")))
+	require.NoError(t, os.Mkdir(child, 0700))
+	after, err := CheckWorkspaceAt(root, child)
+	require.NoError(t, err)
+	assert.Equal(t, proof.Identity, after.Identity)
+	assert.NotEqual(t, proof.WorkingIdentity, after.WorkingIdentity)
+	out, err = run("printf forbidden > must-not-run", proof)
+	require.Error(t, err, string(out))
+	assert.NoFileExists(t, filepath.Join(child, "must-not-run"))
+	assert.NoFileExists(t, filepath.Join(root, "original", "must-not-run"))
+}

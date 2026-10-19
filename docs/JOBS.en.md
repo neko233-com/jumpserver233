@@ -16,6 +16,8 @@ Workbench at `/workbench` submits single and batch SSH commands, manages persona
 # JMS_TOKEN is a platform short-lived Bearer token; existing AccessKey variables also work.
 $env:JMS_SERVER_URL = 'http://127.0.0.1:8080'
 go run ./cmd/jms exec <asset-id> --timeout 60 --json -- 'uname -a'
+# A configured SSH workspace supports an explicit starting directory.
+go run ./cmd/jms exec <asset-id> --directory /srv/work/deploy --json -- pwd
 ```
 
 By default the CLI writes remote stdout/stderr to the corresponding local streams and the job ID to stderr. `--json` emits the complete result. The compiled CLI preserves remote exit codes 1–255; `go run` wraps child failures, so automation should use a compiled `jms` binary. Timeouts, denials, and transport errors return nonzero status.
@@ -59,7 +61,7 @@ Runs: `GET /api/v1/ops/runs?limit=50&offset=0`, `GET /api/v1/ops/runs/{id}`, and
 
 ## Connection and workspace approval proofs
 
-Ordinary SSH jobs retain server-generated `connection_scope`; request bodies cannot set it. Login/command-reviewed jobs pin the real workspace-root identity at submission and validate its FD through the native helper at execution. Changed configuration/directories prevent reuse of the old proof. Proofs are encrypted with the job in authenticated envelope v5; v1–v4 remain readable. Missing context binders do not fall back to ordinary execution. Legacy ordinary jobs awaiting command review without proofs must be cancelled and resubmitted. Repeated request IDs retain the original job/result without a second execution.
+Ordinary SSH jobs retain server-generated `connection_scope`; request bodies cannot set it. Login/command-reviewed jobs pin the real workspace-root identity at submission and validate its FD through the native helper at execution. Changed configuration/directories prevent reuse of the old proof. New directory/policy proofs use authenticated envelope v6; v1–v5 remain readable. Single-command Web/CLI accepts `working_directory`, binding the actual starting directory and active policy to approval. See [controlled execution directories](./EXECUTION-DIRECTORIES.en.md) for fields and limits. Missing context binders do not fall back to ordinary execution. Legacy ordinary jobs awaiting command review without current policy proofs must be cancelled and resubmitted. Repeated request IDs retain the original job/result without a second execution.
 
 This pins the whole workspace root; command-level cwd and exact/regex directory command rules remain open. Plugins, discovery and remote-account operations keep their separate typed executors. See [login review](./ACCESS-REVIEWS.en.md) and [workspaces](./SSH-WORKSPACES.en.md).
 

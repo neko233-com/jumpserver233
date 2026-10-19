@@ -71,3 +71,54 @@ func TestConnectionScopeJobsPersistAndRequireContextAfterRestart(t *testing.T) {
 		})
 	}
 }
+
+func TestExecutionDirectoryJobsPersistV6BindContextAndConflictOnChangedRetry(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "jobs")
+	key := make([]byte, 32)
+	proof := accessreviews.ConnectionContext{Binding: strings.Repeat("a", 64), Workspace: "/srv/work", Identity: strings.Repeat("b", 64), WorkingDirectory: "/srv/work/app", WorkingIdentity: strings.Repeat("c", 64), PolicyKey: strings.Repeat("d", 64)}
+	scope, err := accessreviews.ExecutionScope(proof)
+	require.NoError(t, err)
+	type proofKey struct{}
+	var calls atomic.Int32
+	exec := func(ctx context.Context, _, _ string) (sshclient.ExecResult, error) {
+		assert.Equal(t, proof, ctx.Value(proofKey{}))
+		calls.Add(1)
+		return sshclient.ExecResult{ExitCode: 0}, nil
+	}
+	s, err := Open(file, key, nil, exec)
+	require.NoError(t, err)
+	input := Input{AssetID: "host", Command: "pwd", WorkingDirectory: proof.WorkingDirectory, ConnectionScope: scope, RequestID: "directory-request", TimeoutSeconds: 60}
+	j, err := s.Submit(input, "owner", "Owner", "Host", "ops", "review", "Directory review")
+	require.NoError(t, err)
+	assert.Equal(t, proof.WorkingDirectory, j.ExecutionDirectory)
+	s.Close()
+	raw, err := os.ReadFile(file)
+	require.NoError(t, err)
+	var sealed envelope
+	require.NoError(t, json.Unmarshal(raw, &sealed))
+	assert.Equal(t, 6, sealed.Version)
+	assert.NotContains(t, string(raw), proof.WorkingDirectory)
+	s, err = Open(file, key, nil, exec)
+	require.NoError(t, err)
+	defer s.Close()
+	s.SetExecutionGuard(func(j Job) error { assert.Equal(t, scope, j.ConnectionScope); return nil })
+	s.SetConnectionContext(func(ctx context.Context, j Job) (context.Context, error) {
+		p, err := accessreviews.ParseConnectionScope(j.ConnectionScope)
+		return context.WithValue(ctx, proofKey{}, p), err
+	})
+	changed := input
+	changed.WorkingDirectory = "/srv/work/other"
+	_, _, err = s.FindRequest("owner", changed)
+	require.ErrorIs(t, err, ErrConflict)
+	_, err = s.Review(j.ID, "Reviewer", true)
+	require.NoError(t, err)
+	waitJob(t, s, j.ID, "succeeded")
+	input.ConnectionScope = "" // Server proofs are excluded from public request identity.
+	again, found, err := s.FindRequest("owner", input)
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, j.ID, again.ID)
+	assert.EqualValues(t, 1, calls.Load())
+	_, err = s.Submit(input, "owner", "Owner", "Host", "ops", "allow", "")
+	require.ErrorIs(t, err, ErrInvalid, "no unbound cwd execution fallback")
+}

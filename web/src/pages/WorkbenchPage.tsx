@@ -3,10 +3,12 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import OperationsPanel from "../components/OperationsPanel";
+import "../i18n/locales/features/workspaces/register";
 import { usePermissions } from "../auth/usePermissions";
 import type { AccountChoice } from "../components/managedAccounts";
 
 type Asset = {
+  ssh_workspace?: string;
   protocol?: string;
   id: string;
   name: string;
@@ -15,6 +17,8 @@ type Asset = {
   accounts?: AccountChoice[];
 };
 type Job = {
+  working_directory?: string;
+  execution_directory?: string;
   id: string;
   asset_name: string;
   operator: string;
@@ -44,6 +48,7 @@ export default function WorkbenchPage() {
   const { allows, userID } = usePermissions();
   const [assetID, setAssetID] = useState("");
   const [command, setCommand] = useState("");
+  const [workingDirectory, setWorkingDirectory] = useState("");
   const [timeout, setTimeoutSeconds] = useState(60);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -165,6 +170,7 @@ export default function WorkbenchPage() {
         body: JSON.stringify({
           asset_id: assetID,
           command,
+          ...(workingDirectory ? { working_directory: workingDirectory } : {}),
           timeout_seconds: timeout,
           request_id: requestID.current,
         }),
@@ -253,6 +259,7 @@ export default function WorkbenchPage() {
             value={assetID}
             onChange={(event) => {
               setAssetID(event.target.value);
+              setWorkingDirectory("");
               requestID.current = "";
               setReviewPending(false);
             }}
@@ -280,6 +287,26 @@ export default function WorkbenchPage() {
             spellCheck={false}
           />
         </label>
+        {assets.find((asset) => asset.id === assetID)?.ssh_workspace && (
+          <label className="jobs-command">
+            {t("directoryPolicy.workingDirectory")}
+            <input
+              aria-label={t("directoryPolicy.workingDirectory")}
+              aria-describedby="job-directory-hint"
+              value={workingDirectory}
+              maxLength={1024}
+              placeholder={assets.find((asset) => asset.id === assetID)?.ssh_workspace}
+              onChange={(event) => {
+                setWorkingDirectory(event.target.value);
+                requestID.current = "";
+                setReviewPending(false);
+              }}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <small id="job-directory-hint">{t("directoryPolicy.workingHint")}</small>
+          </label>
+        )}
         <label>
           {t("jobs.timeout")}
           <input
@@ -384,6 +411,16 @@ export default function WorkbenchPage() {
               : ""}
           </p>
           <code>{selected.command}</code>
+          {(selected.execution_directory || selected.working_directory) && (
+            <p>
+              {t(
+                selected.execution_directory
+                  ? "directoryPolicy.verifiedDirectory"
+                  : "directoryPolicy.workingDirectory",
+              )}
+              : <code>{selected.execution_directory || selected.working_directory}</code>
+            </p>
+          )}
           {selected.error_code && <p role="status">{t(`jobs.errors.${selected.error_code}`)}</p>}
           {allows("jobs.review") && selected.state === "pending_review" && (
             <div>

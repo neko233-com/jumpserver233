@@ -1,4 +1,5 @@
 import PasswordRules from "../components/PasswordRules";
+import "../i18n/locales/features/workspaces/register";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -41,6 +42,8 @@ type Grant = {
   created_by: string;
 };
 type CommandFilter = {
+  directory_match?: "exact" | "tree" | "regex";
+  directory_pattern?: string;
   id: string;
   name: string;
   user_id?: string;
@@ -72,6 +75,7 @@ type CommandReview = {
 };
 type CommandReviewPage = { results: CommandReview[]; total: number };
 type LoginAccessReview = {
+  working_directory?: string;
   workspace?: string;
   id: string;
   action:
@@ -92,6 +96,8 @@ type LoginAccessReview = {
 };
 type LoginAccessReviewPage = { results: LoginAccessReview[]; total: number };
 type CommandFilterDraft = {
+  directoryMatch: "" | "exact" | "tree" | "regex";
+  directoryPattern: string;
   name: string;
   target: "all" | "user" | "group";
   userID: string;
@@ -208,6 +214,8 @@ export default function SettingsPage() {
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
   const [filterDraft, setFilterDraft] = useState<CommandFilterDraft>({
+    directoryMatch: "",
+    directoryPattern: "",
     name: "",
     target: "all",
     userID: "",
@@ -653,6 +661,12 @@ export default function SettingsPage() {
           account: filterDraft.account.trim() || "*",
           match: filterDraft.match,
           pattern: filterDraft.pattern.trim(),
+          ...(filterDraft.directoryMatch
+            ? {
+                directory_match: filterDraft.directoryMatch,
+                directory_pattern: filterDraft.directoryPattern,
+              }
+            : {}),
           action: filterDraft.action,
           priority: Number(filterDraft.priority),
           starts_at: asISO(filterDraft.startsAt),
@@ -1692,6 +1706,48 @@ export default function SettingsPage() {
                     />
                   </label>
                   <label>
+                    <span>{t("directoryPolicy.mode")}</span>
+                    <select
+                      value={filterDraft.directoryMatch}
+                      onChange={(event) =>
+                        setFilterDraft((current) => ({
+                          ...current,
+                          directoryMatch: event.target
+                            .value as CommandFilterDraft["directoryMatch"],
+                          directoryPattern: "",
+                        }))
+                      }
+                    >
+                      <option value="">{t("directoryPolicy.modes.all")}</option>
+                      {(["exact", "tree", "regex"] as const).map((mode) => (
+                        <option key={mode} value={mode}>
+                          {t(`directoryPolicy.modes.${mode}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {filterDraft.directoryMatch && (
+                    <label>
+                      <span>{t("directoryPolicy.pattern")}</span>
+                      <input
+                        required
+                        aria-label={t("directoryPolicy.pattern")}
+                        aria-describedby="directory-rule-hint"
+                        maxLength={256}
+                        value={filterDraft.directoryPattern}
+                        onChange={(event) =>
+                          setFilterDraft((current) => ({
+                            ...current,
+                            directoryPattern: event.target.value,
+                          }))
+                        }
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <small id="directory-rule-hint">{t("directoryPolicy.hint")}</small>
+                    </label>
+                  )}
+                  <label>
                     <span>{t("settings.filterAction")}</span>
                     <select
                       value={filterDraft.action}
@@ -1794,7 +1850,15 @@ export default function SettingsPage() {
                                 {target} · {filter.account}
                               </small>
                             </td>
-                            <td>{scope}</td>
+                            <td>
+                              {scope}
+                              {filter.directory_match && (
+                                <small>
+                                  {t(`directoryPolicy.modes.${filter.directory_match}`)} ·{" "}
+                                  <code>{filter.directory_pattern}</code>
+                                </small>
+                              )}
+                            </td>
                             <td>
                               <strong>{t(`settings.filterActions.${filter.action}`)}</strong>
                               <small>
@@ -1961,6 +2025,13 @@ export default function SettingsPage() {
                     <header>
                       <strong>{review.asset_name}</strong>
                       {review.workspace && <code>{review.workspace}</code>}
+                      {review.working_directory &&
+                        review.working_directory !== review.workspace && (
+                          <p>
+                            {t("directoryPolicy.verifiedDirectory")}:{" "}
+                            <code>{review.working_directory}</code>
+                          </p>
+                        )}
                       <span>
                         {t("settings.reviewExpires", {
                           time: formatDate(review.expires_at, i18n.language),

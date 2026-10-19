@@ -109,6 +109,42 @@ func TestPendingCommandReviewRevalidatesAccessAndCommandRules(t *testing.T) {
 	}
 }
 
+func TestCommandDirectoryPolicyRevisionInvalidatesPendingTerminalApproval(t *testing.T) {
+	for _, nowAllowed := range []bool{false, true} {
+		t.Run(map[bool]string{false: "same_name_new_revision", true: "changed_to_allow"}[nowAllowed], func(t *testing.T) {
+			var changed atomic.Bool
+			b, s, primary, _, ctx := monitorFixture(t, CreateRequest{CommandPolicy: func(string, bool, time.Time) CommandPolicyDecision {
+				if changed.Load() {
+					return CommandPolicyDecision{Allowed: nowAllowed, RequireReview: !nowAllowed, RuleName: "review", PolicyKey: "new policy"}
+				}
+				return CommandPolicyDecision{RequireReview: true, RuleName: "review", PolicyKey: "old policy"}
+			}})
+			b.mu.Lock()
+			live := b.sessions[s.SessionID]
+			b.mu.Unlock()
+			live.commands.ObserveOutput([]byte("ops@qa:~$ "))
+			require.NoError(t, primary.Write(ctx, websocket.MessageBinary, []byte("echo held\r")))
+			_, data, err := primary.Read(ctx)
+			require.NoError(t, err)
+			assert.Contains(t, string(data), "command_review_pending")
+			_, _, err = primary.Read(ctx)
+			require.NoError(t, err)
+			reviews := b.ListPendingCommandReviews()
+			require.Len(t, reviews, 1)
+			changed.Store(true)
+			result := make(chan error, 1)
+			go func() { result <- b.ResolveCommandReview(reviews[0].ID, "reviewer", true) }()
+			_, data, err = primary.Read(ctx)
+			require.NoError(t, err)
+			assert.Contains(t, string(data), "command_review_denied")
+			_, data, err = primary.Read(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, []byte{0x03}, data)
+			require.NoError(t, <-result)
+		})
+	}
+}
+
 func TestLiveMonitorOutputIsolationTicketAndAudit(t *testing.T) {
 	b, s, owner, base, ctx := monitorFixture(t)
 	request := MonitorRequest{SessionID: s.SessionID, ViewerID: "stranger", Viewer: "reviewer", AccessPolicy: func(context.Context) error { return nil }}

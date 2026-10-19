@@ -2,6 +2,7 @@ package commandfilters
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -34,52 +35,60 @@ const (
 )
 
 type Filter struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	UserID    string     `json:"user_id,omitempty"`
-	GroupID   string     `json:"group_id,omitempty"`
-	AssetID   string     `json:"asset_id,omitempty"`
-	NodeID    string     `json:"node_id,omitempty"`
-	Account   string     `json:"account"`
-	Match     string     `json:"match"`
-	Pattern   string     `json:"pattern"`
-	Action    string     `json:"action"`
-	Priority  int        `json:"priority"`
-	StartsAt  *time.Time `json:"starts_at,omitempty"`
-	EndsAt    *time.Time `json:"ends_at,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	CreatedBy string     `json:"created_by"`
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	UserID           string     `json:"user_id,omitempty"`
+	GroupID          string     `json:"group_id,omitempty"`
+	AssetID          string     `json:"asset_id,omitempty"`
+	NodeID           string     `json:"node_id,omitempty"`
+	Account          string     `json:"account"`
+	Match            string     `json:"match"`
+	Pattern          string     `json:"pattern"`
+	DirectoryMatch   string     `json:"directory_match,omitempty"`
+	DirectoryPattern string     `json:"directory_pattern,omitempty"`
+	Action           string     `json:"action"`
+	Priority         int        `json:"priority"`
+	StartsAt         *time.Time `json:"starts_at,omitempty"`
+	EndsAt           *time.Time `json:"ends_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	CreatedBy        string     `json:"created_by"`
 }
 
 type Input struct {
-	Name     string     `json:"name"`
-	UserID   string     `json:"user_id,omitempty"`
-	GroupID  string     `json:"group_id,omitempty"`
-	AssetID  string     `json:"asset_id,omitempty"`
-	NodeID   string     `json:"node_id,omitempty"`
-	Account  string     `json:"account"`
-	Match    string     `json:"match"`
-	Pattern  string     `json:"pattern"`
-	Action   string     `json:"action"`
-	Priority int        `json:"priority"`
-	StartsAt *time.Time `json:"starts_at,omitempty"`
-	EndsAt   *time.Time `json:"ends_at,omitempty"`
+	Name             string     `json:"name"`
+	UserID           string     `json:"user_id,omitempty"`
+	GroupID          string     `json:"group_id,omitempty"`
+	AssetID          string     `json:"asset_id,omitempty"`
+	NodeID           string     `json:"node_id,omitempty"`
+	Account          string     `json:"account"`
+	Match            string     `json:"match"`
+	Pattern          string     `json:"pattern"`
+	DirectoryMatch   string     `json:"directory_match,omitempty"`
+	DirectoryPattern string     `json:"directory_pattern,omitempty"`
+	Action           string     `json:"action"`
+	Priority         int        `json:"priority"`
+	StartsAt         *time.Time `json:"starts_at,omitempty"`
+	EndsAt           *time.Time `json:"ends_at,omitempty"`
 }
 
 type Scope struct {
-	UserID   string
-	GroupIDs []string
-	AssetID  string
-	NodeIDs  []string
-	Account  string
+	UserID            string
+	GroupIDs          []string
+	AssetID           string
+	NodeIDs           []string
+	Account           string
+	Directory         string
+	DirectoryVerified bool
 }
 
 type Decision struct {
-	Allowed  bool
-	Action   string
-	RuleID   string
-	RuleName string
-	Reason   string
+	Allowed           bool
+	Action            string
+	RuleID            string
+	RuleName          string
+	Reason            string
+	PolicyKey         string
+	DirectoryRequired bool
 }
 
 type Store struct {
@@ -122,6 +131,10 @@ func openStore(path string, documents *storage.Documents) (*Store, error) {
 		return nil, fmt.Errorf("decode command filter store: %w", err)
 	}
 	for _, filter := range records {
+		directoryRE, directoryError := compileDirectory(filter.DirectoryMatch, filter.DirectoryPattern)
+		if directoryError != nil {
+			return nil, fmt.Errorf("command filter store contains an invalid directory rule")
+		}
 		if err := validateFilter(filter.Name, filter.UserID, filter.GroupID, filter.AssetID, filter.NodeID, filter.Account, filter.Match, filter.Pattern, filter.Action, filter.Priority, filter.StartsAt, filter.EndsAt); err != nil || filter.ID == "" || filter.CreatedAt.IsZero() {
 			return nil, fmt.Errorf("command filter store contains an invalid record")
 		}
@@ -133,6 +146,9 @@ func openStore(path string, documents *storage.Documents) (*Store, error) {
 			return nil, fmt.Errorf("command filter store contains an invalid pattern")
 		}
 		store.filters[filter.ID] = cloneFilter(filter)
+		if directoryRE != nil {
+			store.regexps[filter.ID+"/directory"] = directoryRE
+		}
 		if compiled != nil {
 			store.regexps[filter.ID] = compiled
 		}
@@ -167,6 +183,10 @@ func (s *Store) Create(input Input, createdBy string) (Filter, error) {
 	input.NodeID = strings.TrimSpace(input.NodeID)
 	input.Account = strings.TrimSpace(input.Account)
 	input.Pattern = strings.TrimSpace(input.Pattern)
+	directoryRE, directoryError := compileDirectory(input.DirectoryMatch, input.DirectoryPattern)
+	if directoryError != nil {
+		return Filter{}, directoryError
+	}
 	if err := validateFilter(input.Name, input.UserID, input.GroupID, input.AssetID, input.NodeID, input.Account, input.Match, input.Pattern, input.Action, input.Priority, input.StartsAt, input.EndsAt); err != nil {
 		return Filter{}, err
 	}
@@ -183,17 +203,22 @@ func (s *Store) Create(input Input, createdBy string) (Filter, error) {
 		ID: id, Name: input.Name, UserID: input.UserID, GroupID: input.GroupID,
 		AssetID: input.AssetID, NodeID: input.NodeID, Account: input.Account,
 		Match: input.Match, Pattern: input.Pattern, Action: input.Action, Priority: input.Priority,
+		DirectoryMatch: input.DirectoryMatch, DirectoryPattern: input.DirectoryPattern,
 		StartsAt: cloneTime(input.StartsAt), EndsAt: cloneTime(input.EndsAt), CreatedAt: now, CreatedBy: strings.TrimSpace(createdBy),
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.filters[filter.ID] = filter
+	if directoryRE != nil {
+		s.regexps[filter.ID+"/directory"] = directoryRE
+	}
 	if compiled != nil {
 		s.regexps[filter.ID] = compiled
 	}
 	if err := s.persistLocked(); err != nil {
 		delete(s.filters, filter.ID)
 		delete(s.regexps, filter.ID)
+		delete(s.regexps, filter.ID+"/directory")
 		return Filter{}, err
 	}
 	return cloneFilter(filter), nil
@@ -208,8 +233,12 @@ func (s *Store) Delete(id string) error {
 	}
 	delete(s.filters, id)
 	delete(s.regexps, id)
+	delete(s.regexps, id+"/directory")
 	if err := s.persistLocked(); err != nil {
 		s.filters[id] = filter
+		if compiled, compileErr := compileDirectory(filter.DirectoryMatch, filter.DirectoryPattern); compileErr == nil && compiled != nil {
+			s.regexps[id+"/directory"] = compiled
+		}
 		if compiled, compileErr := compilePattern(filter.Match, filter.Pattern); compileErr == nil && compiled != nil {
 			s.regexps[id] = compiled
 		}
@@ -239,16 +268,27 @@ func (s *Store) Decide(scope Scope, command string, supported bool, at time.Time
 		return filters[i].CreatedAt.Before(filters[j].CreatedAt)
 	})
 	defer s.mu.RUnlock()
+	raw, _ := json.Marshal(filters)
+	digest := sha256.Sum256(raw)
+	policyKey := hex.EncodeToString(digest[:])
 	if !supported && len(filters) > 0 {
-		return Decision{Allowed: false, Action: ActionDeny, RuleID: filters[0].ID, RuleName: filters[0].Name, Reason: "unsupported terminal input"}
+		return Decision{Allowed: false, Action: ActionDeny, RuleID: filters[0].ID, RuleName: filters[0].Name, Reason: "unsupported terminal input", PolicyKey: policyKey}
 	}
 	for _, filter := range filters {
 		if !matchesCommand(filter, s.regexps[filter.ID], command) {
 			continue
 		}
-		return Decision{Allowed: filter.Action == ActionAllow, Action: filter.Action, RuleID: filter.ID, RuleName: filter.Name, Reason: "matched rule"}
+		if filter.DirectoryMatch != "" {
+			if !scope.DirectoryVerified || !validDirectoryPath(scope.Directory) {
+				return Decision{Action: ActionDeny, RuleID: filter.ID, RuleName: filter.Name, Reason: "working directory verification required", PolicyKey: policyKey, DirectoryRequired: true}
+			}
+			if !matchesDirectory(filter, s.regexps[filter.ID+"/directory"], scope.Directory) {
+				continue
+			}
+		}
+		return Decision{Allowed: filter.Action == ActionAllow, Action: filter.Action, RuleID: filter.ID, RuleName: filter.Name, Reason: "matched rule", PolicyKey: policyKey}
 	}
-	return Decision{Allowed: true, Action: ActionAllow}
+	return Decision{Allowed: true, Action: ActionAllow, PolicyKey: policyKey}
 }
 
 func (s *Store) ReferencesGroup(groupID string) bool {

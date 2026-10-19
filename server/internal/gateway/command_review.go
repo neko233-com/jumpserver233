@@ -190,7 +190,7 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 		candidate := pending.submission
 		candidate.SubmittedAt = time.Now().UTC()
 		decision := decideInputPolicy(session, pending.identity, candidate)
-		if !decision.Allowed && (!decision.RequireReview || decision.RuleName != pending.request.RuleName || decision.PolicyKey != pending.submission.PolicyKey) {
+		if decision.PolicyKey != pending.submission.PolicyKey || !decision.Allowed && (!decision.RequireReview || decision.RuleName != pending.request.RuleName) {
 			outcome, noticeType, input = "denied", "command_review_denied", []byte{0x03}
 		}
 	}
