@@ -4,7 +4,7 @@
 
 ## Generated SSH password policy (2026-10-20)
 
-Native build of `cb29e96`: initial JS **499674** bytes (gzip **161544**), total JS **1640355**, largest chunk **482515**. Added **6724** bytes relative to the prior baseline. Policy controls and bilingual guidance load with account/role pages; no dependencies were added. An explicit 8 KB allocation raises total budget from 1637200 to 1645200, retaining 500000-byte entry/chunk limits. Clean Docker build took 39.58 seconds, startup 12.24 seconds and smoke 9.61 seconds; six-platform native packaging/full functional rehearsal took about 142.5 seconds. Cache state, platform and concurrent load affect timings; these observations do not establish cold-build acceleration.
+Native build of `b65aaa1`: initial JS **499674** bytes (gzip **161544**), total JS **1640355**, largest chunk **482515**. Added **6724** bytes relative to the prior baseline. Policy controls and bilingual guidance load with account/role pages; no dependencies were added. An explicit 8 KB allocation raises total budget from 1637200 to 1645200, retaining 500000-byte entry/chunk limits. Clean Docker build took 39.58 seconds, startup 12.24 seconds and smoke 9.61 seconds; six-platform native packaging/full functional rehearsal took about 145.6 seconds. Cache state, platform and concurrent load affect timings; these observations do not establish cold-build acceleration.
 
 ## Branding (2026-10-19)
 
