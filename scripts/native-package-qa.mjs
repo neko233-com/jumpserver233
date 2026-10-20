@@ -269,7 +269,7 @@ try {
   await inContainer(installArgs(recoverySHA, 5, "native-activation-recovery"), password);
   await startSelected(report.recoveryVersion);
   if ((await run("docker", ["exec", owner, "cat", "/tmp/data/post-active-data"])).stdout !== "preserve post-activation write") throw new Error("Forward recovery lost committed data");
-  const recoveredLogin = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
+  let recoveredLogin = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
   if (recoveredLogin.user.id !== loginBefore.user.id || (await api("GET", "/api/v1/ops/jobs/" + originalJob, undefined, recoveredLogin.access_token)).state !== "succeeded") throw new Error("Forward recovery lost identity or audit");
   await execSSH(recoveredLogin.access_token, "native-after-forward-recovery");
   const recoveredOperator = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword }); await viewOnly(recoveredOperator.access_token);
@@ -468,6 +468,10 @@ try {
     if ((await run("docker", ["exec", owner, "cat", `/tmp/data/${file}`])).stdout.includes(plain)) throw Error("Native metadata persisted in plaintext");
   }
   await stopSelected(); await startSelected(report.recoveryVersion);
+  // Standalone login sessions deliberately live only in memory. Reauthenticate
+  // after a process restart while separately proving that the old token dies.
+  await api("GET", `/api/v1/ops/runs/${completedDirectoryRun.id}`, undefined, recoveredLogin.access_token, 401);
+  recoveredLogin = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
   const restartedDirectoryRun = await api("GET", `/api/v1/ops/runs/${completedDirectoryRun.id}`, undefined, recoveredLogin.access_token);
   if (restartedDirectoryRun.state !== "succeeded" || restartedDirectoryRun.working_directory !== deployDirectory || JSON.stringify(restartedDirectoryRun.items.map(i => i.steps.map(s => s.job_id))) !== JSON.stringify(completedDirectoryRun.items.map(i => i.steps.map(s => s.job_id)))) throw Error("Restart lost directory snapshots or replayed completed steps");
   report.operationDirectories.restartPreservesSnapshotsWithoutReplay = true;
