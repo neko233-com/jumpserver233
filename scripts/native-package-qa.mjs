@@ -21,7 +21,7 @@ import { verifySSHPasswordPolicy } from "./ssh-password-policy-qa.mjs";
 import { verifyOperationDirectories, verifyOperationDirectoryBrowser } from "./operation-directories-qa.mjs";
 import {verifyInteractiveDirectories} from "./interactive-directories-qa.mjs";
 import { verifySSHCertificates, verifySSHCertificateRestart, verifySSHCertificateBrowser } from "./ssh-certificates-qa.mjs";
-import { verifyReplayStorage, verifyReplayStorageRestart, verifyReplayStorageBrowser } from "./replay-storage-qa.mjs";
+import { verifyReplayStorage, verifyReplayStorageRestart } from "./replay-storage-qa.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
 const options = process.argv.slice(2), historical = options.includes("--historical");
@@ -234,7 +234,7 @@ try {
   const restoredPlan = await api("GET", `/api/v1/ops/plans/${compatibilityPlan.id}`, undefined, loginAfter.access_token);
   if (!restoredTemplates.some(t => t.id === compatibilityTemplate.id && t.command === compatibilityTemplate.command && !t.working_directory) || restoredPlan.template_id !== compatibilityTemplate.id || restoredPlan.command !== compatibilityTemplate.command || restoredPlan.working_directory) throw Error("Upgrade lost or reinterpreted legacy operation snapshots");
   await api("PUT", `/api/v1/ops/plans/${restoredPlan.id}`, {enabled: false, revision: restoredPlan.config_revision}, loginAfter.access_token);
-  report.upgradeCompatibility = {officialRelease: false, sourceCommit: old?.manifest.commit || report.commit, targetCommit: report.commit, legacyOperationFormat: JSON.parse(legacyOperations).version, targetOperationFormat: 5, unknownFutureFormatRefused: unknownFormatRefused, failedPreflightPreservedOriginalBytes: true, legacyTemplateAndPlanPreserved: true, noDirectorySemanticsAdded: true};
+  report.upgradeCompatibility = {officialRelease: false, sourceCommit: old?.manifest.commit || report.commit, targetCommit: report.commit, legacyOperationFormat: JSON.parse(legacyOperations).version, targetOperationFormat: JSON.parse((await run("docker", ["exec", owner, "cat", "/tmp/data/operations.json"])).stdout).version, unknownFutureFormatRefused: unknownFormatRefused, failedPreflightPreservedOriginalBytes: true, legacyTemplateAndPlanPreserved: true, noDirectorySemanticsAdded: true};
   const operatorAfter = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword });
   if (operatorAfter.user.id !== operatorBefore.user.id) throw new Error("Native operator identity changed");
   await viewOnly(operatorAfter.access_token);
@@ -625,7 +625,8 @@ try {
     await page.getByRole("button", { name: "EN", exact: true }).click();
     await verifyOperationDirectoryBrowser({page, expect, url, api, admin: recoveredLogin.access_token, directory: deployDirectory, output, report});
     await verifySSHCertificateBrowser({page,expect,url,api,admin:recoveredLogin.access_token,report});
-    await verifyReplayStorageBrowser({page,expect,url,api,admin:recoveredLogin.access_token,report});
+    // External storage is outside the shipped mini UI. Preserve its existing
+    // data/API restart regression above without testing a deferred page.
     await page.goto(url + "/console/settings");
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     const card = page.locator(".update-settings-card");

@@ -19,7 +19,7 @@ export async function verifyReplayStorage({api,admin,certificateFixture,run,runI
   await stored(api,admin,session.session_id);
   const verifyInput={request_id:randomUUID()},verified=await api("POST",path+"/verify",verifyInput,admin);if(JSON.stringify(verified)!==JSON.stringify(await api("POST",path+"/verify",verifyInput,admin)))throw Error("Remote verification retry changed receipt");
   const evictInput={request_id:randomUUID()},evicted=await api("POST",path+"/evict",evictInput,admin);if(!evicted.local_evicted_at || JSON.stringify(evicted)!==JSON.stringify(await api("POST",path+"/evict",evictInput,admin)))throw Error("Local eviction was not idempotent");
-  await run("docker",["exec",owner,"sh","-ceu",'test ! -e "/data/sessions/$1.json.gz.enc"; test -f /data/sessions/index.jsonl',"sh",session.session_id]);
+  await run("docker",["exec",owner,"sh","-ceu",'test ! -e "$JMS_DATA_DIR/sessions/$1.json.gz.enc"; test -f "$JMS_DATA_DIR/sessions/index.jsonl"',"sh",session.session_id]);
   await replay(url,admin,session.session_id);
   await runInput("docker",["exec","-i",sshHost,"sh","-ceu","id -u remoteqa_store233 >/dev/null 2>&1 || useradd -m -s /bin/bash remoteqa_store233; chpasswd"],"remoteqa_store233:synthetic-replay-storage-password-233\n");
   const storageAsset=await api("POST","/api/v1/assets",{name:"Native replay password storage",host:certificateFixture.asset.host,port:certificateFixture.asset.port,username:"remoteqa_store233",password:"synthetic-replay-storage-password-233",host_key_fingerprint:certificateFixture.asset.host_key_fingerprint},admin,201);
