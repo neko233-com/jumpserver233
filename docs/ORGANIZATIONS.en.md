@@ -2,6 +2,8 @@
 
 > English | [中文](./ORGANIZATIONS.md)
 
+[Global organization overview](./GLOBAL-ORGANIZATIONS.en.md) authors independent global read authority, cross-organization inventory/cached health/activity counts, bilingual Web, CLI/SDK and revocation/concurrency/reopen/existing-standby cases. E08 awaits verification after all 42 implementation groups are ready.
+
 New [multiple identity-source and directory synchronization](./IDENTITY-SOURCES.en.md) source keeps named sources separate from default endpoints. Complete LDAP synchronization and owned group/organization mapping preserve manual precedence. This batch is unverified; historical default-provider acceptance below does not cover new source.
 
 Each organization holds separate assets/encrypted credentials, nodes, user groups, grants, command filters, asset/channel policies, SSH/SFTP reviews, live terminals, recordings, file audits, jobs, templates and schedules. Platform users, login sessions, identity providers, Passkeys, MFA, platform sign-in policies/reviews and system roles are shared. The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); overall parity remains in progress.
@@ -42,4 +44,4 @@ New organizations use separate files, audit directories and services under `JMS_
 
 PostgreSQL uses `<uuid>:<document-key>` within the cluster namespace and reuses the active node's pool. Existing default documents keep their keys; new organization roles have a separate scope. Takeover restores scoped resources, memberships, roles, templates and schedules. Live SSH/SFTP sessions do not migrate. See [CLUSTER-HA](./CLUSTER-HA.en.md) for shared-file and election requirements.
 
-Testify cases cover revisions, archive/restore, encrypted/document scopes, membership/system authority, foreign IDs, actual SSH/monitoring/SFTP/CLI/WebSocket, live removal and HA takeover. Playwright covers create/membership/switching/roles, monitoring, terminals, CLI, archive and bilingual UI. See [TESTING](./TESTING.en.md). Global cross-organization aggregation, automatic directory/provider organization mapping, migration tooling and production multi-organization failure drills remain outstanding.
+Testify cases cover revisions, archive/restore, encrypted/document scopes, membership/system authority, foreign IDs, actual SSH/monitoring/SFTP/CLI/WebSocket, live removal and HA takeover. Playwright covers create/membership/switching/roles, monitoring, terminals, CLI, archive and bilingual UI. See [TESTING](./TESTING.en.md). Global aggregation and automatic directory organization mapping are authored pending verification. Organization migration tooling and production multi-organization failure drills remain outstanding.

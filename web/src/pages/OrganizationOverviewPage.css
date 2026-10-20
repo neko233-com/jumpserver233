@@ -1,0 +1,20 @@
+.organization-overview-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.organization-overview-totals > div {
+  padding: 12px;
+  border: 1px solid var(--border-color, #344054);
+  border-radius: 8px;
+}
+.organization-overview-totals dt {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.organization-overview-totals dd {
+  margin: 6px 0 0;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}

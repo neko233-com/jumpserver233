@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"sync"
 
@@ -96,6 +97,7 @@ type Dependencies struct {
 	GlobalPolicies        *accesspolicies.Store
 	OrganizationAllowed   func(coreauth.User) bool
 	OrganizationSnapshot  func(string, coreauth.User) (rbac.Snapshot, error)
+	OrganizationCounts    func(context.Context, string) (organizations.ResourceCounts, error)
 	OrganizationChanged   func(string)
 
 	LoginReviews   *loginreviews.Store
@@ -194,6 +196,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	}
 	if len(dependencies) > 0 && dependencies[0].Organizations != nil && !dependencies[0].Tenant {
 		registerOrganizationRoutes(mux, dependencies[0])
+		registerOrganizationOverview(mux, dependencies[0])
 	}
 	if len(dependencies) > 0 && !dependencies[0].Tenant && dependencies[0].Auth != nil && dependencies[0].LoginReviews != nil {
 		registerPlatformLoginReviewRoutes(mux, dependencies[0])

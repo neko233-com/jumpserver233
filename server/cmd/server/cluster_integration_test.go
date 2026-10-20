@@ -276,6 +276,10 @@ func TestActiveStandbyFailoverKeepsSharedAuthSession(t *testing.T) {
 	verifyKubeActiveBeforeFailover(t, haKubernetes)
 	verifyTelnetActiveBeforeFailover(t, haTelnet)
 	verifyRDPActiveBeforeFailover(t, haRDP)
+	var overviewBefore organizations.Overview
+	require.NoError(t, json.Unmarshal(orgHTTP(t, first.Addr, "GET", "/api/v1/organizations/overview", login.AccessToken, "", nil, 200), &overviewBefore))
+	require.False(t, overviewBefore.Partial)
+	require.Equal(t, 2, overviewBefore.CollectedOrganizations)
 	cancel1()
 	select {
 	case err := <-done1:
@@ -287,6 +291,13 @@ func TestActiveStandbyFailoverKeepsSharedAuthSession(t *testing.T) {
 		t.Fatal("first node did not release its leader lock")
 	}
 	waitForHTTPStatus(t, "http://"+second.ClusterHealthAddr+"/readyz", http.StatusOK, 20*time.Second)
+	var overviewAfter organizations.Overview
+	require.NoError(t, json.Unmarshal(orgHTTP(t, second.Addr, "GET", "/api/v1/organizations/overview", login.AccessToken, "", nil, 200), &overviewAfter))
+	require.False(t, overviewAfter.Partial)
+	require.Equal(t, overviewBefore.Totals.Assets, overviewAfter.Totals.Assets)
+	require.Equal(t, overviewBefore.Totals.Protocols, overviewAfter.Totals.Protocols)
+	require.Equal(t, overviewBefore.Memberships, overviewAfter.Memberships)
+	require.Equal(t, overviewBefore.CollectedOrganizations, overviewAfter.CollectedOrganizations)
 	verifyDatabaseFailover(t, second.Addr, login.AccessToken, haOrg.ID, haDatabase)
 	verifyDatabaseFailover(t, second.Addr, login.AccessToken, haOrg.ID, haMySQL)
 	verifyDatabaseFailover(t, second.Addr, login.AccessToken, haOrg.ID, haMaria)

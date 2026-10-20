@@ -462,6 +462,47 @@ func (r *organizationRuntimes) handler(id string) (http.Handler, error) {
 	}
 	return current.handler, nil
 }
+
+// counts reads an initialized runtime only; an overview must never start an
+// organization, decrypt credentials or turn a disabled scheduler back on.
+func (r *organizationRuntimes) counts(ctx context.Context, id string) (organizations.ResourceCounts, error) {
+	if err := ctx.Err(); err != nil {
+		return organizations.ResourceCounts{}, err
+	}
+	r.mu.Lock()
+	current, ok := r.items[id]
+	closed := r.closed
+	r.mu.Unlock()
+	if closed || !ok || !r.store.Enabled(id) {
+		return organizations.ResourceCounts{}, organizations.ErrOverviewUnavailable
+	}
+	d := current.d
+	if d.Assets == nil {
+		return organizations.ResourceCounts{}, organizations.ErrOverviewUnavailable
+	}
+	a := d.Assets.InventoryStats()
+	out := organizations.ResourceCounts{Assets: a.Assets, SSHAssets: a.SSHAssets, Online: a.Online, Offline: a.Offline, Unknown: a.Unknown, Protocols: a.Protocols}
+	if d.Groups != nil {
+		out.Groups = len(d.Groups.List())
+	}
+	if d.Nodes != nil {
+		out.Nodes = len(d.Nodes.List())
+	}
+	if d.Sessions != nil {
+		out.ActiveSessions = d.Sessions.ActiveCount()
+	}
+	if d.Desktops != nil {
+		out.ActiveSessions += d.Desktops.ActiveCount()
+	}
+	if d.Jobs != nil {
+		out.ActiveJobs = d.Jobs.ActiveCount()
+	}
+	if !r.store.Enabled(id) {
+		return organizations.ResourceCounts{}, organizations.ErrOverviewUnavailable
+	}
+	return out, ctx.Err()
+}
+
 func (r *organizationRuntimes) snapshot(id string, u coreauth.User) (rbac.Snapshot, error) {
 	if !r.allowed(id, u) {
 		return rbac.Snapshot{}, organizations.ErrNotFound

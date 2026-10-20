@@ -2,6 +2,8 @@
 
 > 中文 | [English](./ORGANIZATIONS.en.md)
 
+[全局组织汇总](./GLOBAL-ORGANIZATIONS.md)已编写独立全局只读权限、跨组织库存/缓存监控/活动计数、中英 Web、CLI/SDK、撤权/并发/重开及既有主备接管用例。E08 实现待验；仍等待全部 42 组编写完成后统一验证。
+
 新增[多身份源与目录同步](./IDENTITY-SOURCES.md)源码：具名身份源与默认入口独立；LDAP 完整同步和组/组织自动关系保留人工授权优先。本批尚未统一验证，以下默认入口的历史验收不能覆盖新增源码。
 
 组织分别持有资产与加密凭据、节点、用户组、授权、命令过滤、资产/通道策略、SSH/SFTP 复核、在线终端、录像、文件审计、作业、模板和计划。平台用户、登录会话、身份源、Passkey、MFA、平台登录策略/复核和系统角色统一管理。竞品为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，完整对齐仍在推进。
@@ -42,4 +44,4 @@ Agent CLI 支持 `JMS_ORG_ID`，同时适用于 Bearer 和 AccessKey；客户端
 
 PostgreSQL 在同一集群命名空间内使用 `<uuid>:<document-key>` 保存新组织状态，复用活动节点的数据库连接池；默认组织原文档保持原 key，新增组织角色单独作用域保存。单活节点接管后按组织恢复资源、成员、角色、模板和计划；在线 SSH/SFTP 会话不迁移。共享文件和选主要求见 [CLUSTER-HA](./CLUSTER-HA.md)。
 
-Testify 用例覆盖修订、归档恢复、加密和文档作用域、成员与全局权限边界、跨组织 ID、实际 SSH/监控/SFTP/CLI/WebSocket、移出后的在线撤销及 HA 接管；Playwright 覆盖创建/成员/切换/组织角色、监控、终端、CLI、归档和中英文界面。统一入口见 [TESTING](./TESTING.md)。全局跨组织汇总、自动目录/身份源组织映射、数据迁移工具和生产多组织故障演练仍待完成。
+Testify 用例覆盖修订、归档恢复、加密和文档作用域、成员与全局权限边界、跨组织 ID、实际 SSH/监控/SFTP/CLI/WebSocket、移出后的在线撤销及 HA 接管；Playwright 覆盖创建/成员/切换/组织角色、监控、终端、CLI、归档和中英文界面。统一入口见 [TESTING](./TESTING.md)。全局汇总与自动目录组织映射已编写待验；组织数据迁移工具与生产多组织故障演练尚未交付。

@@ -507,6 +507,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global := root
 	global.PlatformOnlyPolicies = true
 	global.OrganizationSnapshot = runtimes.snapshot
+	global.OrganizationCounts = runtimes.counts
 	global.OrganizationChanged = runtimes.changed
 	global.Assets = nil
 	global.AccessReviews = nil

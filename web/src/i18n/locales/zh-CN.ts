@@ -1358,6 +1358,7 @@ const zhCN = {
     users: "平台用户",
     radius: "RADIUS 认证",
     smsMFA: "短信认证",
+    organizationOverview: "全局组织汇总",
     reports: "概览与报表",
     loginAudit: "登录审计",
     monitoring: "监控告警",

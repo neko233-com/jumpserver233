@@ -1462,6 +1462,7 @@ const en = {
     users: "Platform users",
     radius: "RADIUS authentication",
     smsMFA: "SMS authentication",
+    organizationOverview: "Global organizations",
     reports: "Overview & reports",
     loginAudit: "Sign-in audit",
     monitoring: "Monitoring alerts",

@@ -17,8 +17,9 @@ func TestOrganizationRolesCannotAcquireSystemPermissions(t *testing.T) {
 	assert.NotContains(t, s.Catalog(), "security.manage")
 	assert.NotContains(t, s.Catalog(), "users.manage")
 	assert.NotContains(t, s.Catalog(), "organizations.manage")
+	assert.NotContains(t, s.Catalog(), "organizations.overview")
 	assert.NotContains(t, s.Catalog(), "reviews.platform_login.manage")
-	for _, permission := range []string{"security.manage", "users.manage", "organizations.manage", "reviews.platform_login.manage"} {
+	for _, permission := range []string{"security.manage", "users.manage", "organizations.manage", "organizations.overview", "reviews.platform_login.manage"} {
 		_, e = s.SaveRole("", RoleInput{Name: "invalid", Permissions: []string{permission}}, "admin", "admin")
 		assert.ErrorIs(t, e, ErrInvalid)
 	}

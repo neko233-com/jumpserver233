@@ -2,6 +2,8 @@
 
 > [中文](./TESTING.md) | English
 
+[Global organization overview](./GLOBAL-ORGANIZATIONS.en.md) authors independent global read authority, cross-organization inventory/cached health/activity counts, bilingual Web, CLI/SDK and revocation/concurrency/reopen/existing-standby cases. E08 awaits verification after all 42 implementation groups are ready.
+
 [Sign-in SMS MFA](./SMS-MFA.en.md) authors native platform transport, initial/personal binding, enforcement, one-time capabilities, limits/encryption, TOTP/RADIUS/review, bilingual Web, CLI/SDK and cases. E06 awaits verification; no tests, builds, browser or Docker runs before all 42 groups are implementation-ready.
 
 [Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors three cloud SMS providers, CMPP 2.0, four bots, settings receipts/secret isolation, bilingual Web, CLI/SDK, protocol/permission/reopen and browser cases. E22 awaits verification. Cases reuse the TLS/CONNECT fixture and a temporary organization, with essential screenshots and repeated cleanup. No validation has run; E06 has separate SMS MFA documentation.

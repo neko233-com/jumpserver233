@@ -107,6 +107,15 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	assert.Contains(t, isolated, b.ID)
 	assert.NotContains(t, isolated, a.ID)
 	assert.NotContains(t, isolated, asset.Password)
+	var overview organizations.Overview
+	globalSummary := orgHTTP(t, address, "GET", "/api/v1/organizations/overview", token, org.ID, nil, 200)
+	require.NoError(t, json.Unmarshal(globalSummary, &overview))
+	assert.False(t, overview.Partial)
+	assert.Equal(t, 2, overview.CollectedOrganizations)
+	assert.Equal(t, 2, overview.Totals.Assets)
+	assert.NotContains(t, string(globalSummary), asset.Password)
+	assert.NotContains(t, string(globalSummary), b.Host)
+	orgHTTP(t, address, "GET", "/api/v1/organizations/overview", operator.AccessToken, "", nil, 403)
 	orgHTTP(t, address, "GET", "/api/v1/assets", operator.AccessToken, org.ID, nil, 403)
 	orgHTTP(t, address, "GET", "/api/v1/assets", token, "00000000-0000-0000-0000-000000000000", nil, 400)
 	orgHTTP(t, address, "GET", "/api/v1/assets", token, "11111111-1111-4111-8111-111111111111", nil, 404)
@@ -259,6 +268,14 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/organizations/"+org.ID, token, "", in, 200), &org))
 	orgHTTP(t, address, "GET", "/api/v1/assets", token, org.ID, nil, 404)
 	in = org.Input
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "GET", "/api/v1/organizations/overview", token, "", nil, 200), &overview))
+	assert.Equal(t, 1, overview.CollectedOrganizations)
+	for _, row := range overview.Results {
+		if row.ID == org.ID {
+			assert.Equal(t, "disabled", row.State)
+			assert.Nil(t, row.Counts)
+		}
+	}
 	in.Enabled = true
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/organizations/"+org.ID, token, "", in, 200), &org))
 	assert.Contains(t, string(orgHTTP(t, address, "GET", "/api/v1/assets", token, org.ID, nil, 200)), b.ID)

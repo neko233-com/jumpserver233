@@ -48,6 +48,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
       : []),
     { to: "/console/database-audit", label: t("database.auditTitle"), end: false },
     { to: "/console/organizations", label: t("organization.title"), end: false },
+    ...(systemAllows("organizations.overview")
+      ? [{ to: "/console/organization-overview", label: t("nav.organizationOverview"), end: false }]
+      : []),
     { to: "/console/organization-roles", label: t("organization.rolesTitle"), end: false },
     { to: "/console", label: t("assets.title"), end: true },
     { to: "/console/settings", label: t("nav.systemSettings"), end: false },

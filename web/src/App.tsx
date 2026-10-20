@@ -33,6 +33,7 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const WorkbenchPage = lazy(() => import("./pages/WorkbenchPage"));
 const OrganizationsPage = lazy(() => import("./pages/OrganizationsPage"));
+const OrganizationOverviewPage = lazy(() => import("./pages/OrganizationOverviewPage"));
 const RolesPage = lazy(() => import("./pages/RolesPage"));
 const AccessPoliciesPage = lazy(() => import("./pages/AccessPoliciesPage"));
 const LoginReviewsPage = lazy(() => import("./pages/LoginReviewsPage"));
@@ -107,6 +108,7 @@ export default function App() {
               <Route path="roles" element={<RolesPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="organizations" element={<OrganizationsPage />} />
+              <Route path="organization-overview" element={<OrganizationOverviewPage />} />
               <Route path="organization-roles" element={<RolesPage organization />} />
               <Route path="access-policies" element={<AccessPoliciesPage />} />
               <Route path="login-reviews" element={<LoginReviewsPage />} />
