@@ -2,7 +2,7 @@
 
 > English | [中文](./NOTIFICATIONS.md)
 
-[Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors Alibaba/Tencent/Huawei SMS, CMPP 2.0, WeCom/DingTalk/Feishu/Lark group bots, settings receipts, bilingual Web, CLI/SDK and cases. E22 awaits verification without tests or builds. Historical acceptance below covers previous channels; E06 login SMS MFA remains separate work.
+[Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors Alibaba/Tencent/Huawei SMS, CMPP 2.0, WeCom/DingTalk/Feishu/Lark group bots, settings receipts, bilingual Web, CLI/SDK and cases. E22 and separate [E06 SMS MFA](./SMS-MFA.en.md) await verification without tests or builds. Historical acceptance below covers previous channels.
 
 Unsuccessful terminal [SSH connectivity checks](./ACCOUNT-CHECKS.en.md) use the `account_checks` source and `security` topic for the run owner. Healthy results stay silent and do not count as rotations. Related details expose metadata and a result link only.
 

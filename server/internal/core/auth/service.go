@@ -68,6 +68,7 @@ type User struct {
 	Username              string    `json:"username"`
 	Role                  string    `json:"role"`
 	MFAEnabled            bool      `json:"mfa_enabled"`
+	SMSMFAEnabled         bool      `json:"sms_mfa_enabled,omitempty"`
 	CreatedAt             time.Time `json:"created_at"`
 	Source                string    `json:"source,omitempty"`
 	SourceID              string    `json:"source_id,omitempty"`
@@ -84,6 +85,7 @@ type LoginSession struct {
 
 type storedUser struct {
 	User
+	SMSPhoneCiphertext         []byte                 `json:"sms_phone_ciphertext,omitempty"`
 	PasswordFingerprint        []byte                 `json:"password_fingerprint,omitempty"`
 	PasswordHistory            []passwordHistory      `json:"password_history,omitempty"`
 	PasswordPending            *passwordPending       `json:"password_pending,omitempty"`
@@ -104,21 +106,27 @@ type storedUser struct {
 }
 
 type activeSession struct {
+	smsStamp        string
 	secondaryStamp  string
 	credentialStamp []byte
 	user            User
 	expiresAt       time.Time
 	authenticatedAt time.Time
+	issuedAt        time.Time
+	proofDeadline   time.Time
 	passkeyID       string
 }
 
 type storedSession struct {
+	SMSStamp        string    `json:"sms_stamp,omitempty"`
 	SecondaryStamp  string    `json:"secondary_stamp,omitempty"`
 	CredentialStamp []byte    `json:"credential_stamp,omitempty"`
 	TokenHash       string    `json:"token_hash"`
 	User            User      `json:"user"`
 	ExpiresAt       time.Time `json:"expires_at"`
 	AuthenticatedAt time.Time `json:"authenticated_at,omitzero"`
+	IssuedAt        time.Time `json:"issued_at,omitzero"`
+	ProofDeadline   time.Time `json:"proof_deadline,omitzero"`
 	PasskeyID       string    `json:"passkey_id,omitempty"`
 }
 
@@ -232,12 +240,14 @@ func openService(path string, documents *storage.Documents, key []byte) (*Servic
 	}
 	var users []storedUser
 	var decodeErr error
+	userFormat := 1
 	if strings.HasPrefix(strings.TrimSpace(string(data)), "[") {
 		decodeErr = json.Unmarshal(data, &users)
 	} else {
 		var doc userEnvelope
 		decodeErr = json.Unmarshal(data, &doc)
-		if decodeErr == nil && ((doc.Version != 2 && doc.Version != 3) || len(doc.Audit) > 5000 || len(doc.PasswordAudit) > 1000 || doc.Version == 3 && doc.PasswordPolicy == nil || doc.Version == 2 && (doc.PasswordPolicy != nil || len(doc.PasswordAudit) > 0 || len(doc.PasswordMarker) > 0)) {
+		userFormat = doc.Version
+		if decodeErr == nil && ((doc.Version != 2 && doc.Version != 3 && doc.Version != 4) || len(doc.Audit) > 5000 || len(doc.PasswordAudit) > 1000 || doc.Version >= 3 && doc.PasswordPolicy == nil || doc.Version == 2 && (doc.PasswordPolicy != nil || len(doc.PasswordAudit) > 0 || len(doc.PasswordMarker) > 0)) {
 			decodeErr = ErrUserStoreCorrupt
 		}
 		if decodeErr == nil && doc.PasswordPolicy != nil {
@@ -290,6 +300,20 @@ func openService(path string, documents *storage.Documents, key []byte) (*Servic
 			return nil, ErrUserStoreCorrupt
 		}
 		username, valid := normalizeUsername(user.Username)
+		if user.SMSMFAEnabled != (len(user.SMSPhoneCiphertext) > 0) {
+			return nil, ErrUserStoreCorrupt
+		}
+		if userFormat < 4 && (user.SMSMFAEnabled || len(user.SMSPhoneCiphertext) > 0) {
+			return nil, ErrUserStoreCorrupt
+		}
+		if user.SMSMFAEnabled {
+			if aead == nil {
+				return nil, ErrUserStoreCorrupt
+			}
+			if _, e := service.openSMSPhone(user.ID, user.SMSPhoneCiphertext); e != nil {
+				return nil, ErrUserStoreCorrupt
+			}
+		}
 		if !valid || username != user.Username || user.ID == "" || (user.Role != RoleAdmin && user.Role != RoleOperator) || len(user.PasswordSalt) != 16 || len(user.PasswordHash) != passwordSize || user.CreatedAt.IsZero() ||
 			user.MFAEnabled != (len(user.MFASecretCiphertext) > 0) || (len(user.PendingMFASecretCiphertext) > 0) != (user.PendingMFAExpiresAt != nil) || (user.MFAEnabled && len(user.PendingMFASecretCiphertext) > 0) || user.MFALastAcceptedStep < 0 || (!user.MFAEnabled && user.MFALastAcceptedStep != 0) ||
 			(len(user.MFASetupChallengeHash) != 0 && len(user.MFASetupChallengeHash) != sha256.Size) || (len(user.MFASetupChallengeHash) > 0) != (user.MFASetupChallengeExpiresAt != nil) || (len(user.MFASetupChallengeHash) > 0 && len(user.PendingMFASecretCiphertext) == 0) ||
@@ -752,10 +776,16 @@ func (s *Service) loadSessions() error {
 		if _, duplicate := s.sessions[hash]; duplicate {
 			return ErrSessionStoreCorrupt
 		}
-		if !validSecondaryStamp(record.SecondaryStamp) {
+		if !validSecondaryStamp(record.SecondaryStamp) || !validSecondaryStamp(record.SMSStamp) {
 			return ErrSessionStoreCorrupt
 		}
-		s.sessions[hash] = activeSession{secondaryStamp: record.SecondaryStamp, credentialStamp: append([]byte(nil), record.CredentialStamp...), user: stored.User, expiresAt: record.ExpiresAt, authenticatedAt: record.AuthenticatedAt, passkeyID: record.PasskeyID}
+		if !record.IssuedAt.IsZero() && (record.AuthenticatedAt.IsZero() || record.IssuedAt.Before(record.AuthenticatedAt) || record.IssuedAt.After(record.ExpiresAt)) {
+			return ErrSessionStoreCorrupt
+		}
+		if !record.ProofDeadline.IsZero() && (record.AuthenticatedAt.IsZero() || !record.ProofDeadline.After(record.AuthenticatedAt) || record.ProofDeadline.After(record.AuthenticatedAt.Add(6*time.Minute)) || record.ProofDeadline.After(record.ExpiresAt)) {
+			return ErrSessionStoreCorrupt
+		}
+		s.sessions[hash] = activeSession{smsStamp: record.SMSStamp, secondaryStamp: record.SecondaryStamp, credentialStamp: append([]byte(nil), record.CredentialStamp...), user: stored.User, expiresAt: record.ExpiresAt, authenticatedAt: record.AuthenticatedAt, issuedAt: record.IssuedAt, proofDeadline: record.ProofDeadline, passkeyID: record.PasskeyID}
 	}
 	if len(s.sessions) > maxSessions {
 		return ErrSessionStoreCorrupt
@@ -772,10 +802,13 @@ func (s *Service) persistSessionsLocked() error {
 		records = append(records, storedSession{
 			CredentialStamp: session.credentialStamp,
 			SecondaryStamp:  session.secondaryStamp,
+			SMSStamp:        session.smsStamp,
 			TokenHash:       hex.EncodeToString(hash[:]),
 			User:            session.user,
 			ExpiresAt:       session.expiresAt,
 			AuthenticatedAt: session.authenticatedAt,
+			IssuedAt:        session.issuedAt,
+			ProofDeadline:   session.proofDeadline,
 			PasskeyID:       session.passkeyID,
 		})
 	}

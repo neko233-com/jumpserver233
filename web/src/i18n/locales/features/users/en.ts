@@ -1,8 +1,8 @@
 export default {
   identityUsers: {
-password_change:"Password changed",
-password_reset:"Password reset",
-mfa_reset:"TOTP reset",
+    password_change: "Password changed",
+    password_reset: "Password reset",
+    mfa_reset: "MFA reset",
 
     title: "Platform users",
     hint: "Global identities across organizations. Security changes revoke existing sessions and API credentials.",
@@ -60,9 +60,9 @@ mfa_reset:"TOTP reset",
     next: "Next",
     total: "Total: {{count}}",
     fieldsLabel: {
-password:"Password",
-password_reset_required:"Require change",
-mfa:"TOTP",
+      password: "Password",
+      password_reset_required: "Require change",
+      mfa: "TOTP",
 
       name: "Display name",
       comment: "Comment",

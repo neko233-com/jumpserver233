@@ -1461,6 +1461,7 @@ const en = {
     replayStorage: "Replay storage",
     users: "Platform users",
     radius: "RADIUS authentication",
+    smsMFA: "SMS authentication",
     reports: "Overview & reports",
     loginAudit: "Sign-in audit",
     monitoring: "Monitoring alerts",

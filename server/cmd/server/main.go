@@ -62,6 +62,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/servicemaintenance"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
+	"github.com/neko233-com/jumpserver233/server/internal/core/smsmfa"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sshcertificates"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/core/updates"
@@ -359,6 +360,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	defer platformNotifications.Close()
+	smsMFAService, err := smsmfa.Open(filepath.Join(cfg.DataDir, "sms-mfa.json"), platformKey, platformDocuments, identityService, platformNotifications)
+	if err != nil {
+		return err
+	}
+	defer smsMFAService.Close()
 	announcementStore, err := announcements.Open(filepath.Join(cfg.DataDir, "announcements.json"), platformKey, platformDocuments)
 	if err != nil {
 		return err
@@ -475,6 +481,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.SSHPasswordPolicy = sshPolicy
 	root.Tickets = accessTickets
 	root.Notifications = notificationService
+	root.SMSMFA = smsMFAService
 	root.CommandAlerts = commandAlertStore
 	root.MonitorAlerts = monitorAlertService
 	root.LoginAudit = loginAuditStore
@@ -646,6 +653,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		setReady(false)
 	}
 	cancelNode()
+	smsMFAService.Close()
 	radiusService.Close()
 
 	if errors.Is(context.Cause(ctx), cluster.ErrLeaseLost) {

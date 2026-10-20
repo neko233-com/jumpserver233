@@ -67,6 +67,9 @@ func prepareNewLogin(w http.ResponseWriter, r *http.Request, session coreauth.Lo
 	if !prepareRadiusFactor(w, r, session, secure) {
 		return false
 	}
+	if !prepareSMSFactor(w, r, session, secure) {
+		return false
+	}
 	if !preparePasswordChange(w, r, session, secure) {
 		return false
 	}
@@ -129,7 +132,7 @@ func checkReviewedLogin(d Dependencies, p loginreviews.Payload) error {
 	if !ok {
 		return loginreviews.ErrInvalidated
 	}
-	if !radiusProofCurrent(d, p.Proof, user) {
+	if !radiusProofCurrent(d, p.Proof, user) || !smsProofCurrent(d, p.Proof, user) {
 		return loginreviews.ErrInvalidated
 	}
 	if p.ReviewedBy != "" {

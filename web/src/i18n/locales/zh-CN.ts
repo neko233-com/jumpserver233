@@ -1357,6 +1357,7 @@ const zhCN = {
     replayStorage: "录像存储",
     users: "平台用户",
     radius: "RADIUS 认证",
+    smsMFA: "短信认证",
     reports: "概览与报表",
     loginAudit: "登录审计",
     monitoring: "监控告警",

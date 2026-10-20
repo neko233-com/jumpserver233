@@ -13,6 +13,7 @@ const ReplayStoragePage = lazy(() => import("./pages/ReplayStoragePage"));
 const IdentitySourcesPage = lazy(() => import("./pages/IdentitySourcesPage"));
 const DirectorySyncPage = lazy(() => import("./pages/DirectorySyncPage"));
 const EnterpriseLoginSettingsPage = lazy(() => import("./pages/EnterpriseLoginSettingsPage"));
+const SMSMFASettingsPage = lazy(() => import("./pages/SMSMFASettingsPage"));
 const AssetDiscoveryPage = lazy(() => import("./pages/AssetDiscoveryPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -118,6 +119,7 @@ export default function App() {
               <Route path="passkeys" element={<PasskeySettingsPage />} />
               <Route path="cas" element={<CASSettingsPage />} />
               <Route path="radius" element={<RadiusSettingsPage />} />
+              <Route path="sms-mfa" element={<SMSMFASettingsPage />} />
             </Route>
             <Route
               path="/audit"

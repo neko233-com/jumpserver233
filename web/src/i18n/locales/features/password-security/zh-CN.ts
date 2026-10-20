@@ -35,9 +35,9 @@ export default {
     password_change_invalid: "改密请求已到期或失效，请重新登录。",
     password_rate_limit: "尝试次数过多，请稍后再试。",
     reset_password: "重置密码",
-    reset_mfa: "重置 TOTP",
+    reset_mfa: "重置 MFA",
     resetHint:
-      "撤销会话、API 凭证和待完成登录。TOTP 重置会移除本地 TOTP 和恢复码；已登记的 Passkey 保留。账号启用状态和授权继续保持原配置。",
+      "撤销会话、API 凭证和待完成登录。MFA 重置会移除 TOTP、恢复码及短信登录手机号；已登记的 Passkey 保留。账号启用状态和授权继续保持原配置。",
     force: "下次登录必须修改密码",
     apply: "确认重置凭据",
     cancel: "取消",

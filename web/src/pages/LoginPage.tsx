@@ -5,7 +5,7 @@ import {
   validIdentitySource,
   type NamedLoginSource,
 } from "../auth/identitySource";
-import { passwordRedirect } from "../auth/passwordRedirect";
+import { loginChallengeRedirect } from "../auth/passwordRedirect";
 import { BrandFooter, BrandMark, useBranding } from "../branding/BrandingContext";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,6 +22,7 @@ import "../i18n/locales/features/radius/register";
 const EnterpriseLogin = lazy(() => import("../components/EnterpriseLogin"));
 const RadiusPrimary = lazy(() => import("../components/RadiusPrimary"));
 const RadiusFactor = lazy(() => import("../components/RadiusFactor"));
+const SMSFactor = lazy(() => import("../components/SMSFactor"));
 
 type Health = { status: string; version: string; time: string };
 type AuthStatus = { bootstrap_required: boolean };
@@ -95,6 +96,9 @@ export default function LoginPage() {
   const [factorPending, setFactorPending] = useState(
     () => new URLSearchParams(location.search).get("factor") === "radius",
   );
+  const [smsPending, setSMSPending] = useState(
+    () => new URLSearchParams(location.search).get("factor") === "sms",
+  );
   const [authSource, setAuthSource] = useState(() =>
     new URLSearchParams(location.search).get("radius") === "challenge"
       ? "radius"
@@ -150,6 +154,7 @@ export default function LoginPage() {
   const casError = new URLSearchParams(window.location.search).has("cas_error");
   const isZh = i18n.language !== "en";
   const waitForReview = useCallback((pending: LoginReviewPending) => {
+    setSMSPending(false);
     setFactorPending(false);
     setLoginReview(pending);
     setPassword("");
@@ -166,6 +171,7 @@ export default function LoginPage() {
     finishNavigation();
   }, [setCookieSession, finishNavigation]);
   const cancelReview = useCallback(() => {
+    setSMSPending(false);
     setFactorPending(false);
     setAuthSource("local");
     setLoginReview(null);
@@ -178,6 +184,7 @@ export default function LoginPage() {
     window.history.replaceState(null, "", "/login");
   }, []);
   const waitForFactor = useCallback(() => {
+    setSMSPending(false);
     setFactorPending(true);
     setLoginReview(null);
     setSsoSource(null);
@@ -358,7 +365,7 @@ export default function LoginPage() {
         ),
       });
       const result = (await response.json()) as LoginResult;
-      if (passwordRedirect(result)) return;
+      if (loginChallengeRedirect(result)) return;
       if (response.status === 202 && result.radius_factor_required) {
         waitForFactor();
         return;
@@ -456,7 +463,15 @@ export default function LoginPage() {
               <p className="login-hint">{t("login.setupHint")}</p>
             </>
           )}
-          {factorPending ? (
+          {smsPending ? (
+            <Suspense fallback={null}>
+              <SMSFactor
+                onComplete={completeReview}
+                onCancel={cancelReview}
+                onReview={waitForReview}
+              />
+            </Suspense>
+          ) : factorPending ? (
             <Suspense fallback={null}>
               <RadiusFactor
                 onComplete={completeReview}

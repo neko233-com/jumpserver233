@@ -2,7 +2,9 @@
 
 > 中文 | [English](./README.en.md)
 
-[原生云短信与企业机器人](./docs/NATIVE-NOTIFICATIONS.md)已编写三类云短信、CMPP 2.0、四类群机器人、配置幂等/秘密隔离、中英 Web、CLI/SDK、协议/权限/重开及浏览器用例，E22 实现待验。复用既有 TLS/CONNECT 夹具与临时组织，仅保留必要截图并重复清理；未执行验证。E06 登录短信 MFA 独立补齐。
+[登录短信 MFA](./docs/SMS-MFA.md)已编写原生平台通道、首次/个人绑定、强制策略、一次性能力、限流/加密、TOTP/RADIUS/复核贯通、中英 Web、CLI/SDK 和用例。E06 实现待验；未运行测试、构建、浏览器或 Docker，仍等待全部 42 组实现就绪。
+
+[原生云短信与企业机器人](./docs/NATIVE-NOTIFICATIONS.md)已编写三类云短信、CMPP 2.0、四类群机器人、配置幂等/秘密隔离、中英 Web、CLI/SDK、协议/权限/重开及浏览器用例，E22 实现待验。复用既有 TLS/CONNECT 夹具与临时组织，仅保留必要截图并重复清理；未执行验证。E06 见独立短信 MFA 文档。
 
 [企业扫码登录](./docs/ENTERPRISE-LOGIN.md)已编写企微、钉钉、飞书/Lark 原生链路、租户/成员校验、MFA/审计、中英 Web、CLI/SDK 和用例；E05 实现待验，尚未执行验证。
 

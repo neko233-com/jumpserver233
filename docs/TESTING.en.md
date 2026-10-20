@@ -2,7 +2,9 @@
 
 > [中文](./TESTING.md) | English
 
-[Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors three cloud SMS providers, CMPP 2.0, four bots, settings receipts/secret isolation, bilingual Web, CLI/SDK, protocol/permission/reopen and browser cases. E22 awaits verification. Cases reuse the TLS/CONNECT fixture and a temporary organization, with essential screenshots and repeated cleanup. No validation has run; E06 login SMS MFA remains separate.
+[Sign-in SMS MFA](./SMS-MFA.en.md) authors native platform transport, initial/personal binding, enforcement, one-time capabilities, limits/encryption, TOTP/RADIUS/review, bilingual Web, CLI/SDK and cases. E06 awaits verification; no tests, builds, browser or Docker runs before all 42 groups are implementation-ready.
+
+[Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors three cloud SMS providers, CMPP 2.0, four bots, settings receipts/secret isolation, bilingual Web, CLI/SDK, protocol/permission/reopen and browser cases. E22 awaits verification. Cases reuse the TLS/CONNECT fixture and a temporary organization, with essential screenshots and repeated cleanup. No validation has run; E06 has separate SMS MFA documentation.
 
 [Enterprise QR sign-in](./ENTERPRISE-LOGIN.en.md) authors three native HTTPS fixtures, Feishu/Lark v2/v3 with PKCE, tenant/membership rejection, token coalescing/refresh, code/flow/MFA replay, revision/idempotency, encrypted isolation, close/drain, PostgreSQL reopen, API/CLI and browser cases. `enterprise-login.spec.ts` reuses the OAuth fixture process and an isolated CONNECT proxy without another container; it retains two bilingual screenshots after clearing secrets. These cases have not run; fixtures do not replace actual tenants or mobile scanning.
 

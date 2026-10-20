@@ -325,7 +325,7 @@ func (s *Service) ActiveUserSnapshot(user User) (User, bool) {
 	return current, ok && current.AuthGeneration == user.AuthGeneration
 }
 func (s *Service) marshalUsersLocked(users []storedUser) ([]byte, error) {
-	return json.Marshal(userEnvelope{Version: 3, Users: users, Audit: s.userEvents, PasswordPolicy: &s.passwordPolicy, PasswordAudit: s.passwordPolicyEvents, PasswordMarker: s.passwordStoreMarker()})
+	return json.Marshal(userEnvelope{Version: 4, Users: users, Audit: s.userEvents, PasswordPolicy: &s.passwordPolicy, PasswordAudit: s.passwordPolicyEvents, PasswordMarker: s.passwordStoreMarker()})
 }
 func validUserEvents(events []UserEvent) bool {
 	seen := map[string]bool{}

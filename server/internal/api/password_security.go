@@ -92,7 +92,7 @@ func passwordPendingForRequest(d Dependencies, r *http.Request, token string) (c
 	if e != nil {
 		return p, e
 	}
-	if !radiusProofCurrent(d, p.Proof, p.User) {
+	if !radiusProofCurrent(d, p.Proof, p.User) || !smsProofCurrent(d, p.Proof, p.User) {
 		return p, coreauth.ErrPasswordChallenge
 	}
 	decision, e := checkAccessPolicies(d, p.User, coreassets.Asset{}, accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(r.Context())}, true)

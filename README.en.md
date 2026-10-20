@@ -2,7 +2,9 @@
 
 > [中文](./README.md) | English
 
-[Native cloud SMS and enterprise bots](./docs/NATIVE-NOTIFICATIONS.en.md) authors three cloud SMS providers, CMPP 2.0, four bots, settings receipts/secret isolation, bilingual Web, CLI/SDK, protocol/permission/reopen and browser cases. E22 awaits verification. Cases reuse the TLS/CONNECT fixture and a temporary organization, with essential screenshots and repeated cleanup. No validation has run; E06 login SMS MFA remains separate.
+[Sign-in SMS MFA](./docs/SMS-MFA.en.md) authors native platform transport, initial/personal binding, enforcement, one-time capabilities, limits/encryption, TOTP/RADIUS/review, bilingual Web, CLI/SDK and cases. E06 awaits verification; no tests, builds, browser or Docker runs before all 42 groups are implementation-ready.
+
+[Native cloud SMS and enterprise bots](./docs/NATIVE-NOTIFICATIONS.en.md) authors three cloud SMS providers, CMPP 2.0, four bots, settings receipts/secret isolation, bilingual Web, CLI/SDK, protocol/permission/reopen and browser cases. E22 awaits verification. Cases reuse the TLS/CONNECT fixture and a temporary organization, with essential screenshots and repeated cleanup. No validation has run; E06 has separate SMS MFA documentation.
 
 [Enterprise QR sign-in](./docs/ENTERPRISE-LOGIN.en.md) authors native WeCom, DingTalk and Feishu/Lark flows, tenant/membership checks, MFA/audit, bilingual Web, CLI/SDK and cases. E05 awaits verification; no validation has run.
 

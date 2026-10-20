@@ -3,6 +3,8 @@ package sessionclient
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +36,9 @@ type AuthenticationResult struct {
 	RadiusChallenge        bool                     `json:"radius_challenge_required,omitempty"`
 	RadiusVerified         bool                     `json:"radius_primary_verified,omitempty"`
 	RadiusFactor           bool                     `json:"radius_factor_required,omitempty"`
+	SMSFactor              bool                     `json:"sms_factor_required,omitempty"`
+	SMSStatus              *SMSFactorStatus         `json:"status,omitempty"`
+	SMSBindingUpdated      bool                     `json:"binding_updated,omitempty"`
 	ChallengeToken         string                   `json:"challenge_token,omitempty"`
 	PendingToken           string                   `json:"pending_token,omitempty"`
 	FactorToken            string                   `json:"factor_token,omitempty"`
@@ -55,19 +60,44 @@ type AuthenticationInput struct {
 	ChallengeToken string `json:"challenge_token,omitempty"`
 	PendingToken   string `json:"pending_token,omitempty"`
 	FactorToken    string `json:"factor_token,omitempty"`
+	Phone          string `json:"phone,omitempty"`
+	Code           string `json:"code,omitempty"`
+	RequestID      string `json:"request_id,omitempty"`
 	ReviewToken    string `json:"review_token,omitempty"`
 	SetupToken     string `json:"setup_token,omitempty"`
 }
 
 func (c *Client) Authentication(ctx context.Context, step string, in AuthenticationInput) (AuthenticationResult, error) {
 	var out AuthenticationResult
+	if (step == "sms-bind" || step == "sms-resend") && in.RequestID == "" {
+		var id [16]byte
+		if _, e := rand.Read(id[:]); e != nil {
+			return out, errors.New("could not create SMS request")
+		}
+		in.RequestID = hex.EncodeToString(id[:])
+	}
 	routes := map[string]string{"password-complete": "/api/v1/authentication/password-change/complete", "password-status": "/api/v1/authentication/password-change/pending", "password-cancel": "/api/v1/authentication/password-change/cancel", "login": "/api/v1/authentication/auth/", "radius-login": "/api/v1/authentication/radius/login", "radius-challenge": "/api/v1/authentication/radius/challenge", "radius-complete": "/api/v1/authentication/radius/complete", "factor-complete": "/api/v1/authentication/factor/complete", "factor-cancel": "/api/v1/authentication/factor/cancel", "review-status": "/api/v1/authentication/login-review/status", "review-complete": "/api/v1/authentication/login-review/complete", "mfa-setup": "/api/v1/authentication/mfa/setup/confirm"}
 	path, ok := routes[step]
+	if strings.HasPrefix(step, "sms-") {
+		action := strings.TrimPrefix(step, "sms-")
+		switch action {
+		case "pending", "bind", "resend", "complete", "cancel":
+			path, ok = "/api/v1/authentication/sms/"+action, true
+		}
+	}
 	if !ok {
 		return out, errors.New("invalid authentication step")
 	}
 	payload := map[string]string{}
 	switch step {
+	case "sms-pending", "sms-cancel":
+		payload = map[string]string{"factor_token": in.FactorToken}
+	case "sms-bind":
+		payload = map[string]string{"factor_token": in.FactorToken, "phone": in.Phone, "request_id": in.RequestID}
+	case "sms-resend":
+		payload = map[string]string{"factor_token": in.FactorToken, "request_id": in.RequestID}
+	case "sms-complete":
+		payload = map[string]string{"factor_token": in.FactorToken, "code": in.Code}
 	case "password-complete":
 		payload = map[string]string{"change_token": in.ChangeToken, "new_password": in.NewPassword}
 	case "password-status", "password-cancel":
@@ -117,6 +147,17 @@ func (c *Client) Authentication(ctx context.Context, step string, in Authenticat
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return AuthenticationResult{}, fmt.Errorf("platform authentication rejected (%d)", response.StatusCode)
+	}
+	if strings.HasPrefix(step, "sms-") && step != "sms-complete" && step != "sms-cancel" {
+		var status SMSFactorStatus
+		if json.Unmarshal(body, &status) != nil || !status.Active || status.ExpiresAt.IsZero() {
+			return AuthenticationResult{}, errors.New("invalid SMS verification response")
+		}
+		out.SMSStatus = &status
+		out.SMSFactor = true
+	}
+	if out.SMSFactor && (out.AccessToken != "" || len(out.FactorToken) > 128 || out.ExpiresAt.IsZero()) {
+		return AuthenticationResult{}, errors.New("invalid restricted SMS response")
 	}
 	if out.PasswordChangeRequired && (step != "password-status" && out.ChangeToken == "" || out.AccessToken != "" || out.ChangeToken != "" && len(out.ChangeToken) > 128 || out.ExpiresAt.IsZero()) || out.PasswordChanged && out.AccessToken != "" {
 		return AuthenticationResult{}, errors.New("invalid restricted password response")

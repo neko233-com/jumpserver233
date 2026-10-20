@@ -69,6 +69,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/console/passkeys", label: t("passkey.title"), end: false },
     { to: "/console/cas", label: t("cas.title"), end: false },
     { to: "/console/radius", label: t("nav.radius"), end: false },
+    ...(systemAllows("security.manage")
+      ? [{ to: "/console/sms-mfa", label: t("nav.smsMFA"), end: false }]
+      : []),
   ];
 
   async function signOut() {

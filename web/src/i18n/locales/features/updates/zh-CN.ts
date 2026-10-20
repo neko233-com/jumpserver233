@@ -111,6 +111,7 @@ export default {
         ssh_jobs: "正在执行的 SSH 作业",
         directory_sync: "目录同步",
         enterprise_login: "企业登录身份交换",
+        sms_mfa: "短信验证",
         replay_archive: "录像密文上传与读回",
         probes: "主机检测",
         plan_dispatch: "计划派发周期",

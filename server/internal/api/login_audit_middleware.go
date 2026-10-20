@@ -33,6 +33,8 @@ func auditedLoginStep(r *http.Request) (method, stage string, ok bool) {
 		return "unknown", "review", r.Method == "POST"
 	case "/api/v1/authentication/factor/complete", "/api/v1/authentication/factor/cancel", "/api/v1/authentication/radius/challenge":
 		return "radius", "mfa", r.Method == "POST"
+	case "/api/v1/authentication/sms/complete", "/api/v1/authentication/sms/cancel", "/api/v1/authentication/sms/bind", "/api/v1/authentication/sms/resend":
+		return "unknown", "mfa", r.Method == "POST"
 	}
 	for _, source := range []string{"ldap", "oidc", "saml", "cas", "passkey", "radius", "wecom", "dingtalk", "feishu"} {
 		prefix := "/api/v1/authentication/" + source + "/"

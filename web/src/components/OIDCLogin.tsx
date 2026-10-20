@@ -1,5 +1,5 @@
 import { identitySourcePrefix } from "../auth/identitySource";
-import { passwordRedirect } from "../auth/passwordRedirect";
+import { loginChallengeRedirect } from "../auth/passwordRedirect";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { type LoginReviewPending } from "./LoginReviewPanel";
@@ -76,7 +76,7 @@ export default function OIDCLogin({
         setup_token?: string;
         enrollment?: Setup["enrollment"];
       };
-      if (passwordRedirect(data)) return;
+      if (loginChallengeRedirect(data)) return;
       if (r.status === 202 && data.radius_factor_required && onFactor) {
         onFactor();
         return;

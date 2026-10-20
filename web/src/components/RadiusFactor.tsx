@@ -1,4 +1,4 @@
-import { passwordRedirect } from "../auth/passwordRedirect";
+import { loginChallengeRedirect } from "../auth/passwordRedirect";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { LoginReviewPending } from "./LoginReviewPanel";
@@ -52,7 +52,7 @@ export default function RadiusFactor({
       });
       setResponse("");
       const v = (await r.json()) as {
- password_change_required?: boolean;
+        password_change_required?: boolean;
         radius_challenge_required?: boolean;
         round?: number;
         browser_session?: boolean;
@@ -60,7 +60,7 @@ export default function RadiusFactor({
         review_id?: string;
         expires_at?: string;
       };
-      if (passwordRedirect(v))return;
+      if (loginChallengeRedirect(v)) return;
       if (r.status === 202 && v.radius_challenge_required) {
         setRound(v.round || 0);
         return;

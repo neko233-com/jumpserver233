@@ -79,6 +79,8 @@ func saveAuthState(path string, state authState) error {
 }
 func authNext(action string, r sessionclient.AuthenticationResult) string {
 	switch {
+	case action == "sms-cancel" || r.SMSBindingUpdated:
+		return "login"
 	case r.PasswordChanged:
 		return "login"
 	case r.PasswordChangeRequired:
@@ -89,6 +91,11 @@ func authNext(action string, r sessionclient.AuthenticationResult) string {
 		return "review-status"
 	case r.RadiusFactor:
 		return "factor-complete"
+	case r.SMSFactor:
+		if r.SMSStatus != nil && r.SMSStatus.NeedsPhone {
+			return "sms-bind"
+		}
+		return "sms-complete"
 	case r.RadiusChallenge:
 		if action == "factor-complete" {
 			return action
@@ -113,7 +120,7 @@ func runAuthentication(args []string) error {
 	}
 	var client *sessionclient.Client
 	var e error
-	if len(args) > 0 && (strings.HasPrefix(args[0], "radius-") && args[0] != "radius-login" || args[0] == "password-settings" || args[0] == "password-save" || args[0] == "password-audit") {
+	if len(args) > 0 && (strings.HasPrefix(args[0], "radius-") && args[0] != "radius-login" || args[0] == "password-settings" || args[0] == "password-save" || args[0] == "password-audit" || args[0] == "sms-settings" || args[0] == "sms-save" || args[0] == "sms-audit" || args[0] == "sms-profile" || args[0] == "sms-enroll") {
 		client, e = clientFromEnvironment(server)
 	} else {
 		client, e = sessionclient.New(server, "")
@@ -125,7 +132,7 @@ func runAuthentication(args []string) error {
 }
 func executeAuthentication(ctx context.Context, c *sessionclient.Client, server string, args []string, input io.Reader, output io.Writer) error {
 	if len(args) < 1 {
-		return errors.New("usage: jms auth login|radius-login|continue|status --state-file PATH [--file JSON_OR_-] | radius-settings|radius-save|radius-audit|radius-check")
+		return errors.New("usage: jms auth login|radius-login|continue|status|sms-resend|sms-cancel|sms-enroll --state-file PATH [--file JSON_OR_-] | radius-settings|radius-save|radius-audit|radius-check|sms-settings|sms-save|sms-audit|sms-profile")
 	}
 	action := args[0]
 	f := flag.NewFlagSet("auth", flag.ContinueOnError)
@@ -139,17 +146,17 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 	}
 	allowed := map[string]bool{}
 	switch action {
-	case "login", "radius-login", "continue":
+	case "login", "radius-login", "continue", "sms-resend", "sms-cancel", "sms-enroll":
 		allowed["file"] = true
 		allowed["state-file"] = true
 	case "status":
 		allowed["state-file"] = true
-	case "radius-save", "radius-check", "password-save":
+	case "radius-save", "radius-check", "password-save", "sms-save":
 		allowed["file"] = true
 	case "radius-audit", "password-audit":
 		allowed["offset"] = true
 		allowed["limit"] = true
-	case "radius-settings", "password-settings":
+	case "radius-settings", "password-settings", "sms-settings", "sms-audit", "sms-profile":
 	default:
 		return errors.New("unknown authentication action")
 	}
@@ -165,6 +172,43 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 	var result any
 	var e error
 	switch action {
+	case "sms-profile":
+		result, e = c.SMSProfile(ctx)
+	case "sms-enroll":
+		if *stateFile == "" {
+			return errors.New("--state-file is required; session capabilities never print to stdout")
+		}
+		endpoint, err := authServer(server)
+		if err != nil {
+			return err
+		}
+		var in struct{ Phone, Password, OTP string }
+		if err = operationJSON(*file, input, &in); err != nil {
+			return err
+		}
+		pending, err := c.BeginSMSBinding(ctx, in.Phone, in.Password, in.OTP)
+		if err != nil {
+			return err
+		}
+		if pending.FactorToken == "" || len(pending.FactorToken) > 128 || pending.Status.ExpiresAt.IsZero() {
+			return errors.New("invalid SMS binding response")
+		}
+		next := sessionclient.AuthenticationResult{SMSFactor: true, FactorToken: pending.FactorToken, SMSStatus: &pending.Status, ExpiresAt: pending.Status.ExpiresAt}
+		current := authState{Server: endpoint, Next: authNext(action, next), Result: next}
+		if err = saveAuthState(*stateFile, current); err != nil {
+			return err
+		}
+		result = map[string]any{"next": current.Next, "expires_at": next.ExpiresAt, "sms_status": next.SMSStatus}
+	case "sms-settings":
+		result, e = c.SMSMFASettings(ctx)
+	case "sms-audit":
+		result, e = c.SMSMFAAudit(ctx)
+	case "sms-save":
+		var in sessionclient.SMSMFAInput
+		e = operationJSON(*file, input, &in)
+		if e == nil {
+			result, e = c.SaveSMSMFASettings(ctx, in)
+		}
 	case "password-settings":
 		result, e = c.PasswordPolicy(ctx)
 	case "password-audit":
@@ -206,13 +250,25 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 			return normalizeError
 		}
 		current := authState{Server: endpoint}
-		if action == "continue" || action == "status" {
+		if action == "continue" || action == "status" || action == "sms-resend" || action == "sms-cancel" {
 			current, e = readAuthState(*stateFile, server)
 			if e != nil {
 				return e
 			}
 		}
 		if action == "status" {
+			if current.Next == "sms-bind" || current.Next == "sms-complete" {
+				pending, err := c.Authentication(ctx, "sms-pending", sessionclient.AuthenticationInput{FactorToken: current.Result.FactorToken})
+				if err != nil {
+					return err
+				}
+				current.Result.SMSStatus = pending.SMSStatus
+				current.Result.SMSFactor = true
+				current.Next = authNext("sms-pending", current.Result)
+				if err := saveAuthState(*stateFile, current); err != nil {
+					return err
+				}
+			}
 			if current.Next == "password-complete" {
 				pending, err := c.Authentication(ctx, "password-status", sessionclient.AuthenticationInput{ChangeToken: current.Result.ChangeToken})
 				if err != nil {
@@ -221,7 +277,7 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 				current.Result.User = pending.User
 				current.Result.PasswordPolicy = pending.PasswordPolicy
 			}
-			result = map[string]any{"next": current.Next, "expires_at": current.Result.ExpiresAt, "user": current.Result.User, "password_policy": current.Result.PasswordPolicy}
+			result = map[string]any{"next": current.Next, "expires_at": current.Result.ExpiresAt, "user": current.Result.User, "password_policy": current.Result.PasswordPolicy, "sms_status": current.Result.SMSStatus}
 			break
 		}
 		var in sessionclient.AuthenticationInput
@@ -229,6 +285,12 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 			return e
 		}
 		step := action
+		if action == "sms-resend" || action == "sms-cancel" {
+			if current.Next != "sms-bind" && current.Next != "sms-complete" {
+				return errors.New("no pending SMS verification")
+			}
+			in.FactorToken = current.Result.FactorToken
+		}
 		if action == "continue" {
 			step = current.Next
 			if step == "authenticated" || step == "" {
@@ -273,7 +335,7 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 		if current.Next == "" {
 			return errors.New("authentication server returned no next step")
 		}
-		if next.AccessToken != "" || next.PasswordChanged {
+		if next.AccessToken != "" || next.PasswordChanged || action == "sms-cancel" || next.SMSBindingUpdated {
 			current.Result.ChangeToken = ""
 			current.Result.ChallengeToken = ""
 			current.Result.PendingToken = ""
@@ -285,7 +347,7 @@ func executeAuthentication(ctx context.Context, c *sessionclient.Client, server 
 		if e = saveAuthState(*stateFile, current); e != nil {
 			return e
 		}
-		result = map[string]any{"next": current.Next, "expires_at": next.ExpiresAt, "user": next.User, "enrollment_required": next.MFASetupRequired}
+		result = map[string]any{"next": current.Next, "expires_at": next.ExpiresAt, "user": next.User, "enrollment_required": next.MFASetupRequired, "sms_status": next.SMSStatus}
 	}
 	if e != nil {
 		return e

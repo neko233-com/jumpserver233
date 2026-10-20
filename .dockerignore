@@ -153,3 +153,5 @@ web/testsupport
 
 # Atomic writes of native enterprise identity configuration
 **/.enterprise-login-*
+**/sms-mfa.json
+**/.sms-mfa-*

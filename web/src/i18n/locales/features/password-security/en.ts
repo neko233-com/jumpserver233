@@ -36,9 +36,9 @@ export default {
     password_change_invalid: "This change request expired or was invalidated. Sign in again.",
     password_rate_limit: "Too many attempts. Try again later.",
     reset_password: "Reset password",
-    reset_mfa: "Reset TOTP",
+    reset_mfa: "Reset MFA",
     resetHint:
-      "Revoke sessions, API credentials and pending sign-ins. TOTP reset removes local TOTP and recovery codes; Passkeys remain enrolled. The account's enabled state and grants stay as configured.",
+      "Revoke sessions, API credentials and pending sign-ins. MFA reset removes TOTP, recovery codes and the SMS login phone; Passkeys remain enrolled. The account's enabled state and grants stay as configured.",
     force: "Require a password change at next sign-in",
     apply: "Confirm credential reset",
     cancel: "Cancel",

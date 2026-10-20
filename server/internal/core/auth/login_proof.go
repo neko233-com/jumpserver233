@@ -37,6 +37,7 @@ type QuarantinedLogin struct {
 	AuthSource string
 }
 type loginProofData struct {
+	SMSStamp         string    `json:"sms_stamp,omitempty"`
 	SecondaryStamp   string    `json:"secondary_stamp,omitempty"`
 	Version          int       `json:"version"`
 	UserID           string    `json:"user_id"`
@@ -75,7 +76,11 @@ func (s *Service) QuarantineLogin(token string) (QuarantinedLogin, error) {
 	hash := sha256.Sum256([]byte(token))
 	session, ok := s.sessions[hash]
 	now := s.now().UTC()
-	if !ok || session.authenticatedAt.IsZero() || now.Before(session.authenticatedAt) || now.Sub(session.authenticatedAt) > time.Minute || !now.Before(session.expiresAt) {
+	issued := session.issuedAt
+	if issued.IsZero() {
+		issued = session.authenticatedAt
+	}
+	if !ok || session.authenticatedAt.IsZero() || now.Before(issued) || now.Sub(issued) > time.Minute || !now.Before(session.expiresAt) {
 		return QuarantinedLogin{}, ErrInvalidLoginProof
 	}
 	_, user, ok := s.storedUserByIDLocked(session.user.ID)
@@ -83,10 +88,21 @@ func (s *Service) QuarantineLogin(token string) (QuarantinedLogin, error) {
 		return QuarantinedLogin{}, ErrInvalidLoginProof
 	}
 	expires := now.Add(5 * time.Minute)
+	deadline := session.proofDeadline
+	if deadline.IsZero() {
+		deadline = session.authenticatedAt.Add(6 * time.Minute)
+	}
+	if deadline.Before(expires) {
+		expires = deadline
+	}
 	if session.expiresAt.Before(expires) {
 		expires = session.expiresAt
 	}
+	if !now.Before(expires) {
+		return QuarantinedLogin{}, ErrInvalidLoginProof
+	}
 	data := loginProofData{SecondaryStamp: session.secondaryStamp, Version: 1, UserID: user.ID, CredentialStamp: loginCredentialStamp(user), AuthenticatedAt: session.authenticatedAt.UTC(), ExpiresAt: expires, SessionExpiresAt: session.expiresAt, PasskeyID: session.passkeyID}
+	data.SMSStamp = session.smsStamp
 	raw, e := json.Marshal(data)
 	if e != nil {
 		return QuarantinedLogin{}, e
@@ -124,7 +140,7 @@ func (s *Service) openLoginProofLocked(proof string) (loginProofData, storedUser
 	}
 	var data loginProofData
 	now := s.now().UTC()
-	if json.Unmarshal(plain, &data) != nil || !validSecondaryStamp(data.SecondaryStamp) {
+	if json.Unmarshal(plain, &data) != nil || !validSecondaryStamp(data.SecondaryStamp) || !validSecondaryStamp(data.SMSStamp) {
 		return loginProofData{}, storedUser{}, ErrInvalidLoginProof
 	}
 	if data.Version != 1 || data.UserID == "" || data.AuthenticatedAt.IsZero() || now.Before(data.AuthenticatedAt) || !now.Before(data.ExpiresAt) || data.ExpiresAt.After(data.AuthenticatedAt.Add(6*time.Minute)) || !now.Before(data.SessionExpiresAt) || data.SessionExpiresAt.After(data.AuthenticatedAt.Add(SessionTTL)) {
@@ -157,6 +173,9 @@ func (s *Service) ResumeLoginProof(proof string) (LoginSession, error) {
 	if e != nil {
 		return LoginSession{}, e
 	}
+	return s.resumeLoginDataLocked(data, user)
+}
+func (s *Service) resumeLoginDataLocked(data loginProofData, user storedUser) (LoginSession, error) {
 	now := s.now().UTC()
 	for hash, session := range s.sessions {
 		if !now.Before(session.expiresAt) {
@@ -167,13 +186,13 @@ func (s *Service) ResumeLoginProof(proof string) (LoginSession, error) {
 		return LoginSession{}, ErrSessionLimit
 	}
 	var raw [32]byte
-	if _, e = rand.Read(raw[:]); e != nil {
+	if _, e := rand.Read(raw[:]); e != nil {
 		return LoginSession{}, e
 	}
 	token := base64.RawURLEncoding.EncodeToString(raw[:])
 	hash := sha256.Sum256([]byte(token))
-	s.sessions[hash] = activeSession{secondaryStamp: data.SecondaryStamp, credentialStamp: loginCredentialStamp(user), user: user.User, expiresAt: data.SessionExpiresAt, authenticatedAt: data.AuthenticatedAt, passkeyID: data.PasskeyID}
-	if e = s.persistSessionsLocked(); e != nil {
+	s.sessions[hash] = activeSession{smsStamp: data.SMSStamp, secondaryStamp: data.SecondaryStamp, credentialStamp: loginCredentialStamp(user), user: user.User, expiresAt: data.SessionExpiresAt, authenticatedAt: data.AuthenticatedAt, issuedAt: now, proofDeadline: data.ExpiresAt, passkeyID: data.PasskeyID}
+	if e := s.persistSessionsLocked(); e != nil {
 		delete(s.sessions, hash)
 		return LoginSession{}, e
 	}

@@ -461,6 +461,8 @@ func (s *Service) ResetCredentials(id string, revision int, kind, password strin
 		fields = []string{"password", "password_reset_required"}
 	} else {
 		r.MFAEnabled = false
+		r.SMSMFAEnabled = false
+		r.SMSPhoneCiphertext = nil
 		r.MFASecretCiphertext = nil
 		r.MFALastAcceptedStep = 0
 		r.MFARecoveryCodeHashes = nil

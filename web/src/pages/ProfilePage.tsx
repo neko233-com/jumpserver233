@@ -4,6 +4,7 @@ import PasswordRules from "../components/PasswordRules";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import PasskeysPanel from "../components/PasskeysPanel";
+import SMSProfilePanel from "../components/SMSProfilePanel";
 import { useAuth } from "../auth/AuthContext";
 import "../i18n/locales/features/radius/register";
 
@@ -770,6 +771,7 @@ export default function ProfilePage() {
         )}
       </article>
       {!loading && profile && <PasskeysPanel user={profile} />}
+      {!loading && profile && <SMSProfilePanel user={profile} />}
     </section>
   );
 }

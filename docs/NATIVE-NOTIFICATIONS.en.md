@@ -2,7 +2,7 @@
 
 > English | [中文](./NATIVE-NOTIFICATIONS.md)
 
-E22 native SMS and group bot code, bilingual Web, existing CLI/SDK extensions and cases are authored, **unverified**. The complete 42-group implementation gate remains. Contact verification is not E06 SMS login MFA.
+E22 native SMS and group bot code, bilingual Web, existing CLI/SDK extensions and cases are authored, **unverified**. The complete 42-group implementation gate remains. Separate E06 [sign-in SMS MFA](./SMS-MFA.en.md) is also authored pending verification; notification contacts and sign-in bindings remain independent.
 
 ## Configuration
 

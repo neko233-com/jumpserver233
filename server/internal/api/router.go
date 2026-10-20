@@ -46,6 +46,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/servicemaintenance"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
+	"github.com/neko233-com/jumpserver233/server/internal/core/smsmfa"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sshcertificates"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/core/updates"
@@ -120,6 +121,7 @@ type Dependencies struct {
 	SAML           *samllogin.Service
 	Passkeys       *passkeys.Service
 	RADIUS         *radiuslogin.Service
+	SMSMFA         *smsmfa.Service
 	PublicURL      string
 }
 
@@ -226,6 +228,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		d := dependencies[0]
 		d.Auth.SetExternalSourceAllowed("radius", d.RADIUS.IssuerAllowed)
 		registerRadiusRoutes(mux, d)
+	}
+	if len(dependencies) > 0 && !dependencies[0].Tenant && dependencies[0].SMSMFA != nil && dependencies[0].Auth != nil {
+		registerSMSMFARoutes(mux, dependencies[0])
 	}
 	if len(dependencies) > 0 && !dependencies[0].Tenant && dependencies[0].OIDC != nil && dependencies[0].Auth != nil {
 		d := dependencies[0]

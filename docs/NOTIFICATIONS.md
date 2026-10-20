@@ -2,7 +2,7 @@
 
 > 中文 | [English](./NOTIFICATIONS.en.md)
 
-[原生云短信与企业机器人](./NATIVE-NOTIFICATIONS.md)已补齐阿里云/腾讯云/华为云/CMPP 2.0、企微/钉钉/飞书/Lark 群机器人、配置幂等回执、中英 Web、CLI/SDK 及用例。E22 实现待验，未执行测试或构建；下文历史验收只覆盖原有通道，E06 登录短信 MFA 仍须单独补齐。
+[原生云短信与企业机器人](./NATIVE-NOTIFICATIONS.md)已补齐阿里云/腾讯云/华为云/CMPP 2.0、企微/钉钉/飞书/Lark 群机器人、配置幂等回执、中英 Web、CLI/SDK 及用例。E22 与独立的 [E06 登录短信 MFA](./SMS-MFA.md)均实现待验，未执行测试或构建；下文历史验收只覆盖原有通道。
 
 [SSH 连接性检测](./ACCOUNT-CHECKS.md) 的未成功终态使用 `account_checks` 来源与 `security` 主题，发送给运行所属操作人；健康结果静默，不计入改密报表。关联详情只包含元数据和结果入口。
 

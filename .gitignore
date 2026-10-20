@@ -177,3 +177,7 @@ directory-sync.json
 
 # Atomic writes of native enterprise identity configuration
 .enterprise-login-*
+
+# Platform SMS factor state and interrupted encrypted writes
+sms-mfa.json
+.sms-mfa-*
