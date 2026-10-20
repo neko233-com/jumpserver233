@@ -2,6 +2,10 @@
 
 > [中文](./TESTING.md) | English
 
+## Full implementation gate and authored cases (2026-10-20)
+
+The user requires all 42 groups, cases and bilingual docs before unified verification. New directory/upgrade, announcement and label source has not run tests, builds, browser or Docker verification; historical passes below do not cover it. Authored label cases cover Testify core/concurrency/PostgreSQL, API, CLI, organization-runtime reopen, full-backup recovery and bilingual 390px Playwright flows. Native encryption, receipt and CLI cases reuse the existing `native-package-qa.mjs` restart without separate containers or another restart; Linux race includes labels. Run these only after all implementation is ready, record actual outcomes and use existing report retention/idempotent cleanup.
+
 ## SSH account connectivity checks (2026-10-20)
 
 - Feature source `04bf60a`: Go, including Testify, **1744 passed, 114 platform/fixture skips**, with vet passing. Linux race: **350 passed across 21 packages, no skips**, including 17 account-check cases and real PostgreSQL takeover without repeated authentication. Backend source remained unchanged by the subsequent correction.

@@ -20,6 +20,7 @@ import (
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	"github.com/neko233-com/jumpserver233/server/internal/core/auth"
+	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,6 +52,18 @@ func TestBackupPreservesIdentityVaultCiphertextOrganizationsAndAudit(t *testing.
 	require.NoError(t, e)
 	user, e := identity.Bootstrap("backup.admin", "synthetic-admin-password-233")
 	require.NoError(t, e)
+	labelStore, e := labels.Open(filepath.Join(opt.DataDir, "labels.json"), key, nil)
+	require.NoError(t, e)
+	labelInput := labels.Input{Name: "Recovery", Value: "preserved", RequestID: "backup-label-001"}
+	label, e := labelStore.Save("", user.ID, labelInput)
+	require.NoError(t, e)
+	labelResource := labels.Resource{Type: "asset", ID: "asset-backup"}
+	labelBindingInput := labels.BindingInput{LabelIDs: []string{label.ID}, RequestID: "backup-bind-001"}
+	labelBinding, e := labelStore.Bind(labelResource, user.ID, labelBindingInput)
+	require.NoError(t, e)
+	labelStore.Close()
+	labelBytes, e := os.ReadFile(filepath.Join(opt.DataDir, "labels.json"))
+	require.NoError(t, e)
 	original, e := os.ReadFile(filepath.Join(opt.DataDir, "assets.json"))
 	require.NoError(t, e)
 	created, e := Create(context.Background(), opt)
@@ -76,6 +89,18 @@ func TestBackupPreservesIdentityVaultCiphertextOrganizationsAndAudit(t *testing.
 	key2, e := assets.LoadOrCreateVaultKey(opt.DataDir, "")
 	require.NoError(t, e)
 	assert.Equal(t, key, key2)
+	labelCopy, e := os.ReadFile(filepath.Join(opt.DataDir, "labels.json"))
+	require.NoError(t, e)
+	assert.Equal(t, labelBytes, labelCopy)
+	labelRecovered, e := labels.Open(filepath.Join(opt.DataDir, "labels.json"), key2, nil)
+	require.NoError(t, e)
+	replayedLabel, e := labelRecovered.Save("", user.ID, labelInput)
+	require.NoError(t, e)
+	assert.Equal(t, label, replayedLabel)
+	replayedBinding, e := labelRecovered.Bind(labelResource, user.ID, labelBindingInput)
+	require.NoError(t, e)
+	assert.Equal(t, labelBinding, replayedBinding)
+	labelRecovered.Close()
 	reopened, e := assets.OpenStore(filepath.Join(opt.DataDir, "assets.json"), key2)
 	require.NoError(t, e)
 	password, e := reopened.Password("asset-backup")

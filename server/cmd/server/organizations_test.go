@@ -17,6 +17,7 @@ import (
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
+	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
@@ -84,6 +85,13 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "POST", "/api/v1/assets", token, "", asset, 201), &a))
 	asset.Name = "Isolated secret host"
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "POST", "/api/v1/assets", token, org.ID, asset, 201), &b))
+	var isolatedLabel labels.Label
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "POST", "/api/v1/labels/labels", token, org.ID, labels.Input{Name: "Tenant", Value: "isolated", RequestID: "org-label-001"}, 201), &isolatedLabel))
+	orgLabelInput := labels.BindingInput{LabelIDs: []string{isolatedLabel.ID}, RequestID: "org-label-bind-001"}
+	orgHTTP(t, address, "PUT", "/api/v1/labels/bindings/asset/"+b.ID, token, org.ID, orgLabelInput, 200)
+	assert.NotContains(t, string(orgHTTP(t, address, "GET", "/api/v1/labels/choices", token, "", nil, 200)), isolatedLabel.ID)
+	orgHTTP(t, address, "GET", "/api/v1/labels/bindings/asset/"+b.ID, token, "", nil, 404)
+	orgHTTP(t, address, "GET", "/api/v1/labels/choices", operator.AccessToken, org.ID, nil, 403)
 	orgHTTP(t, address, "POST", "/api/v1/ops/templates", token, org.ID, map[string]any{"name": "Organization-only template", "command": "printf isolated", "timeout_seconds": 5}, 201)
 	assert.NotContains(t, string(orgHTTP(t, address, "GET", "/api/v1/ops/templates", token, "", nil, 200)), "Organization-only template")
 	defaultInventory := string(orgHTTP(t, address, "GET", "/api/v1/assets", token, "", nil, 200))
@@ -243,6 +251,10 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	in.Enabled = true
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/organizations/"+org.ID, token, "", in, 200), &org))
 	assert.Contains(t, string(orgHTTP(t, address, "GET", "/api/v1/assets", token, org.ID, nil, 200)), b.ID)
+	assert.Contains(t, string(orgHTTP(t, address, "GET", "/api/v1/labels/choices", token, org.ID, nil, 200)), isolatedLabel.ID)
+	var preservedBinding labels.Binding
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/labels/bindings/asset/"+b.ID, token, org.ID, orgLabelInput, 200), &preservedBinding))
+	assert.Equal(t, 1, preservedBinding.Revision)
 	orgHTTP(t, address, "DELETE", "/api/v1/organizations/"+org.ID+"?revision="+strconv.Itoa(org.Revision), token, "", nil, 204)
 	orgHTTP(t, address, "GET", "/api/v1/assets", token, org.ID, nil, 404)
 	orgHTTP(t, address, "POST", "/api/v1/organizations/"+org.ID+"/restore?revision="+strconv.Itoa(org.Revision+1), token, "", nil, 204)

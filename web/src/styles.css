@@ -1259,6 +1259,20 @@ a {
   font-weight: 600;
   white-space: nowrap;
 }
+.asset-labels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 5px 0;
+  font-size: 12px;
+}
+.asset-label-badge {
+  border: 1px solid #58a6ff;
+  border-radius: 6px;
+  padding: 2px 6px;
+  overflow-wrap: anywhere;
+}
 
 .asset-subline {
   margin-top: 4px;

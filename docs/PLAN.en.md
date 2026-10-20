@@ -4,7 +4,7 @@
 
 [Fixed acceptance checklist and overall progress](./PROGRESS.en.md) separately counts stable SSH and the full baseline, recording closed/partial/undelivered items, batch delta and closing gates. Progress follows this checklist and named acceptance, rather than test or phase counts.
 
-The user's 2026-10-20 workflow instruction requires all checklist features, cases and bilingual docs before tests, builds, browser or Docker verification. SSH remains the development priority; prior SSH-only acceptance batches no longer apply. [Platform announcement](./ANNOUNCEMENTS.en.md) source is added without running verification; E41 tags remain open.
+The user's 2026-10-20 workflow instruction requires all checklist features, cases and bilingual docs before tests, builds, browser or Docker verification. SSH remains the development priority; prior SSH-only acceptance batches no longer apply. [Platform announcement](./ANNOUNCEMENTS.en.md) and [organization label](./LABELS.en.md) source, cases and bilingual docs are authored. E41 is implementation-ready, awaiting verification with no accepted credit.
 
 Phase 7 adds [SSH account connectivity checks](./ACCOUNT-CHECKS.en.md): password/key authentication for default and named accounts, independent scheduling, results/failure notifications, explicit retries and no automatic replay after interruption. Full Enterprise parity remains in progress.
 

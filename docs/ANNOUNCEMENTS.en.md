@@ -4,7 +4,7 @@
 
 ## Implementation status
 
-Core, API, Web, CLI/SDK and authored cases are connected. **Tests, builds, browser and Docker verification have not run.** The user's 2026-10-20 instruction requires all 42 groups to be implemented before unified verification. Global tags remain open, so E41 is partial; the notice subfeature does not close the group.
+Core, API, Web, CLI/SDK and authored cases are connected. **Tests, builds, browser and Docker verification have not run.** The user's 2026-10-20 instruction requires all 42 groups to be implemented before unified verification. [Organization label](./LABELS.en.md) source/cases are also authored; E41 is implementation-ready and awaiting verification, with no accepted completion credit.
 
 ## Usage
 

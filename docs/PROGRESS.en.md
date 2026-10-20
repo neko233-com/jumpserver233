@@ -4,12 +4,12 @@
 
 ## Current assessment (2026-10-20)
 
-| Scope | Closed | Partial | Undelivered | Closure by acceptance items |
-|---|---:|---:|---:|---:|
-| Current stable SSH release | 9/12 | 3 | 0 | **75%** |
-| Full baseline (Community core, Enterprise enhancements and user additions) | 16/42 | 17 | 9 | **38%** |
+| Scope | Closed | Implementation awaiting verification | Partial | Undelivered | Closure by acceptance items |
+|---|---:|---:|---:|---:|---:|
+| Current stable SSH release | 9/12 | 0 | 3 | 0 | **75%** |
+| Full baseline (Community core, Enterprise enhancements and user additions) | 16/42 | 1 | 16 | 9 | **38%** |
 
-Denominators were first fixed on 2026-10-20 without reconstructing historical percentages. The user subsequently required **all features implemented before unified verification**. Track implementation readiness separately from acceptance: **16/42** groups currently have a complete accepted implementation, and the other 26 still require code/cases/docs. Directory propagation and upgrade compatibility have unverified source. This batch authors platform notice core/API/Web/CLI/SDK and cases; E41 tags remain open, so the group is not implementation-ready. Newly accepted items: **0**. The checklists overlap and cannot be added together.
+Denominators were first fixed on 2026-10-20 without reconstructing historical percentages. The user subsequently required **all features implemented before unified verification**. Separate implementation readiness and acceptance: 16 accepted groups plus E41 labels/announcements awaiting verification make **17/42 implementation-ready (40%)**, with **25 groups** still needing code/cases/docs. Acceptance remains **16/42 (38%)**, with 26 unclosed groups. This batch adds **one implementation-ready group and zero accepted groups**. Directory/upgrade source remains unverified and does not close its groups' other gaps. The checklists overlap and cannot be added together.
 
 The percentage is closed capability groups divided by the fixed checklist total. Partial implementations receive no fractional credit. It does not measure code volume, remaining hours or production readiness; groups differ in effort. Changing or splitting the denominator requires the requirement source, reason and before/after counts. Vendor support, commercial licensing and supplier SLAs are excluded from software scope.
 
@@ -18,12 +18,13 @@ The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.
 ## Status and evidence
 
 - **Closed**: committed implementation and relevant acceptance evidence within the boundary stated in the row; this does not cover every extension in the competitor's equivalent module.
+- **Implementation awaiting verification**: code, cases and bilingual docs are authored and await the full-scope unified run; contributes no closed credit.
 - **Partial**: implementation exists, but gaps, unverified changes or acceptance remain; contributes zero closed items.
 - **Undelivered**: no complete accepted delivery; this does not infer absence of all source from a keyword search.
 
 The last accepted and pushed functional baseline is `4b96cb3ebc8b92cc813c05abd70db3d0619b0e40`. Its preceding verification recorded **1744 Go passes, 114 skips**, **350 Linux race passes** and **87/87 production-browser passes**. The full browser suite used `04bf60a`; the mobile result correction at `8188747` received native-lifecycle and bilingual narrow-screen acceptance without repeating all 87 cases. The final baseline commit updated acceptance docs. See [verification](./TESTING.en.md) and the locally ignored `.cache/qa-reports/account-checks/summary.json`; test counts do not determine feature completion.
 
-Unverified source includes directory propagation, Go/API/CLI cases, real SSH/bilingual browser entrypoints, the [upgrade compatibility matrix](./UPGRADE-COMPATIBILITY.en.md) and [platform announcements](./ANNOUNCEMENTS.en.md). Checkpoint `87505d6` contains directory/upgrade work and is not an accepted stable release; subsequent notice implementation also remains unverified. This batch only authors/formats source without tests, builds, browser or Docker runs. Previous passes do not cover new source.
+Unverified source includes directory propagation, Go/API/CLI cases, real SSH/bilingual browser entrypoints, the [upgrade compatibility matrix](./UPGRADE-COMPATIBILITY.en.md), [platform announcements](./ANNOUNCEMENTS.en.md) and [organization labels](./LABELS.en.md). Checkpoint `87505d6` contains directory/upgrade work and `04e822d` contains notices; this label batch also awaits verification. None is an accepted stable release. This batch only authors/formats source without tests, builds, browser or Docker runs. Previous passes do not cover new source.
 
 ## Stable SSH: 12 fixed items
 
@@ -88,7 +89,7 @@ Each row names a capability group and its accepted boundary or remaining extensi
 | E38 | [Updates and historical-release migration](./INSTALLATION.en.md) | Partial | Checks/staging/install transactions/rollback and a fixed historical-source drill exist; actual historical-release compatibility remains unaccepted. |
 | E39 | [Production cluster availability](./CLUSTER-HA.en.md) | Partial | PostgreSQL single-active takeover exists; strict partition fencing, database/shared-storage failures, multi-active operation and production drills remain open. |
 | E40 | [Complete REST and component compatibility](./BASELINE.en.md) | Partial | Four auth methods, organization headers and session/replay contracts remain; full API and upstream component registration parity lack a complete acceptance map. |
-| E41 | [Global tags and announcements](./ANNOUNCEMENTS.en.md) | Partial | Platform notice management/publication/readings, permissions, encryption, bilingual Web, CLI/SDK and cases are authored but unverified; global tags remain unimplemented. |
+| E41 | [Labels](./LABELS.en.md) and [platform announcements](./ANNOUNCEMENTS.en.md) | Implementation awaiting verification | Catalog, asset/node inheritance, filtering after authorization, independent permissions, audit and organization isolation; platform notice management/publication/readings. Encryption, bilingual Web, CLI/SDK and cases are authored and await unified verification. |
 | E42 | [Branding and Chinese/English presentation/UI/docs](./BRANDING.en.md) | Closed | Brand configuration, bilingual strings, automatic locale selection, paired docs and release-only changelog generation. |
 
 ## Closing order and verification gate

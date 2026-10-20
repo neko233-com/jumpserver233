@@ -41,6 +41,7 @@ import (
 	coregroups "github.com/neko233-com/jumpserver233/server/internal/core/groups"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	corejobs "github.com/neko233-com/jumpserver233/server/internal/core/jobs"
+	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginaudit"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginreviews"
@@ -433,6 +434,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.AccessMu = &sync.RWMutex{}
 	root.Branding = brandStore
 	root.Announcements = announcementStore
+	root.Labels, err = labels.Open(filepath.Join(cfg.DataDir, "labels.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	defer root.Labels.Close()
 	root.Updates = updateStore
 	root.ReleaseRoot, root.InstallationDataDir = cfg.ReleaseRoot, cfg.DataDir
 	root.Maintenance, err = servicemaintenance.New(admission, !cfg.ClusterMode, updateStore.RecordMaintenance)

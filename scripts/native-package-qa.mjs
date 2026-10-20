@@ -451,10 +451,26 @@ try {
   report.executionDirectories = { exactTreeAndRegex: true, deniedCommandsNeverCreatedFiles: true, pathBoundaryPreserved: true, symlinkAndOutsideRefused: true, loginReviewReplacementCreatesNewApproval: true, loginRetryIdempotent: true, commandReviewReplacementRefused: true, sameNamePolicyReplacementRefused: true, approvedCwdVerified: true, retryWithoutLiveSSH: true, changedDirectoryRetryConflict: true, nativeCLI: true };
   await verifyOperationDirectories({api, admin: recoveredLogin.access_token, run, runInput, owner, sshHost: owner + "-ssh", fingerprint, workspace, directory: deployDirectory, sibling: siblingDirectory, primary: asset, report});
   const completedDirectoryRun = await api("GET", `/api/v1/ops/runs/${report.operationDirectories.playbookRunID}`, undefined, recoveredLogin.access_token);
+  const nativeLabelInput = {name: "Native lifecycle", value: "encrypted-restart", request_id: randomUUID()};
+  const nativeLabel = await api("POST", "/api/v1/labels/labels", nativeLabelInput, recoveredLogin.access_token, 201);
+  const nativeLabelBindingInput = {label_ids: [nativeLabel.id], revision: 0, request_id: randomUUID()};
+  const nativeLabelBinding = await api("PUT", `/api/v1/labels/bindings/asset/${asset.id}`, nativeLabelBindingInput, recoveredLogin.access_token);
+  const nativeNotice = await api("POST", "/api/v1/announcements", {title: {en: "Native notice", "zh-CN": "原生公告"}, body: {en: "Encrypted restart metadata", "zh-CN": "加密重启元数据"}, published: true, request_id: randomUUID()}, recoveredLogin.access_token, 201);
+  const nativeReading = await api("POST", `/api/v1/announcements/${nativeNotice.id}/read`, {revision: nativeNotice.revision}, recoveredLogin.access_token);
+  for (const [file, plain] of [["labels.json", "encrypted-restart"], ["announcements.json", "Encrypted restart metadata"]]) {
+    if ((await run("docker", ["exec", owner, "cat", `/tmp/data/${file}`])).stdout.includes(plain)) throw Error("Native metadata persisted in plaintext");
+  }
   await stopSelected(); await startSelected(report.recoveryVersion);
   const restartedDirectoryRun = await api("GET", `/api/v1/ops/runs/${completedDirectoryRun.id}`, undefined, recoveredLogin.access_token);
   if (restartedDirectoryRun.state !== "succeeded" || restartedDirectoryRun.working_directory !== deployDirectory || JSON.stringify(restartedDirectoryRun.items.map(i => i.steps.map(s => s.job_id))) !== JSON.stringify(completedDirectoryRun.items.map(i => i.steps.map(s => s.job_id)))) throw Error("Restart lost directory snapshots or replayed completed steps");
   report.operationDirectories.restartPreservesSnapshotsWithoutReplay = true;
+  const nativeLabelAfter = await api("POST", "/api/v1/labels/labels", nativeLabelInput, recoveredLogin.access_token, 201);
+  const nativeBindingAfter = await api("PUT", `/api/v1/labels/bindings/asset/${asset.id}`, nativeLabelBindingInput, recoveredLogin.access_token);
+  const nativeReadingAfter = await api("POST", `/api/v1/announcements/${nativeNotice.id}/read`, {revision: nativeNotice.revision}, recoveredLogin.access_token);
+  if (JSON.stringify(nativeLabelAfter) !== JSON.stringify(nativeLabel) || JSON.stringify(nativeBindingAfter) !== JSON.stringify(nativeLabelBinding) || JSON.stringify(nativeReadingAfter) !== JSON.stringify(nativeReading)) throw Error("Native metadata restart lost immutable receipts");
+  const nativeLabelCLI = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/controller/jms labels binding asset "$1"', "sh", asset.id])).stdout);
+  if (!nativeLabelCLI.effective.some(l => l.id === nativeLabel.id)) throw Error("Native label CLI lost effective binding");
+  report.platformMetadata = {encryptedAtRest: true, labelCatalogAndBindingPreserved: true, announcementReadingPreserved: true, unchangedRetryAfterRestart: true, nativeLabelCLI: true};
   report.activation = { privateReadinessAndHTTPProbe: true, businessGateBeforeCommit: true, preCommitFailureRolledBack: true, oldServiceAutomaticallyResumed: true, failedTrialWriteRemoved: trialWriteAbsent, monotonicRollbackRevision: 4, postCommitFailurePreservedVersionAndData: true, forwardRecoveryVersion: report.recoveryVersion, finalRevision: 6, realSSHAfterRollbackAndForwardRecovery: true };
   report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true, operatorViewGrantPreserved: true, operatorConnectDeniedBeforeAndAfter: true };
   const html = await (await fetch(url + "/console/settings")).text();

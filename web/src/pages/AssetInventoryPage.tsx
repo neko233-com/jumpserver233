@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import "../i18n/locales/features/workspaces/register";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { usePermissions } from "../auth/usePermissions";
 import { useAuth } from "../auth/AuthContext";
 import type {
@@ -113,6 +113,7 @@ const defaultPostgreSQL: PostgreSQLSettings = {
 };
 
 type Asset = {
+  labels?: { id: string; name: string; value: string; color: string; inherited: boolean }[];
   parent_asset_id?: string;
   account_disabled?: boolean;
   accounts?: AccountChoice[];
@@ -290,6 +291,7 @@ export default function AssetInventoryPage() {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedNode, setSelectedNode] = useState("");
   const [search, setSearch] = useState(() => params.get("asset_id") || "");
+  const [selectedLabel, setSelectedLabel] = useState(() => params.get("label") || "");
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [tokenRequired, setTokenRequired] = useState(false);
@@ -394,10 +396,18 @@ export default function AssetInventoryPage() {
     return ordered;
   }, [nodes]);
 
+  const labelChoices = useMemo(
+    () =>
+      Array.from(
+        new Map(assets.flatMap((a) => a.labels || []).map((l) => [l.id, l])).values(),
+      ).sort((a, b) => `${a.name}:${a.value}`.localeCompare(`${b.name}:${b.value}`)),
+    [assets],
+  );
   const visibleAssets = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return assets.filter((asset) => {
       if (selectedGroup && asset.group !== selectedGroup) return false;
+      if (selectedLabel && !asset.labels?.some((l) => l.id === selectedLabel)) return false;
       if (selectedNode === unassignedNode && asset.node_id) return false;
       if (
         selectedNode &&
@@ -406,11 +416,11 @@ export default function AssetInventoryPage() {
       )
         return false;
       if (!query) return true;
-      return `${asset.id} ${asset.name} ${asset.host} ${asset.remark}`
+      return `${asset.id} ${asset.name} ${asset.host} ${asset.remark} ${(asset.labels || []).map((l) => `${l.name}:${l.value}`).join(" ")}`
         .toLocaleLowerCase()
         .includes(query);
     });
-  }, [assets, nodes, search, selectedGroup, selectedNode]);
+  }, [assets, nodes, search, selectedGroup, selectedNode, selectedLabel]);
 
   function openCreate() {
     setEditingAsset(null);
@@ -713,6 +723,22 @@ export default function AssetInventoryPage() {
             <p>{t("assets.subtitle")}</p>
           </div>
           <div className="asset-toolbar">
+            <select
+              aria-label={t("assets.labels")}
+              value={selectedLabel}
+              onChange={(e) => setSelectedLabel(e.target.value)}
+            >
+              <option value="">{t("assets.allLabels")}</option>
+              {selectedLabel && !labelChoices.some((l) => l.id === selectedLabel) && (
+                <option value={selectedLabel}>{selectedLabel}</option>
+              )}
+              {labelChoices.map((l) => (
+                <option value={l.id} key={l.id}>
+                  {l.name}
+                  {l.value ? `: ${l.value}` : ""}
+                </option>
+              ))}
+            </select>
             <label className="asset-search">
               <span aria-hidden="true">⌕</span>
               <input
@@ -831,6 +857,25 @@ export default function AssetInventoryPage() {
                     </td>
                     <td>
                       <div className="asset-name">{asset.name}</div>
+                      <div className="asset-labels">
+                        {(physicalAsset.labels || []).map((l) => (
+                          <Link
+                            className="asset-label-badge"
+                            style={{ borderColor: l.color }}
+                            to={`/console?label=${encodeURIComponent(l.id)}`}
+                            onClick={() => setSelectedLabel(l.id)}
+                            key={l.id}
+                          >
+                            {l.name}
+                            {l.value ? `: ${l.value}` : ""}
+                          </Link>
+                        ))}
+                        <Link
+                          to={`/console/labels?type=asset&id=${encodeURIComponent(physicalAsset.id)}`}
+                        >
+                          {t("assets.labels")}
+                        </Link>
+                      </div>
                       <div className="asset-subline">
                         {asset.username} · {stateLabel}
                         {(physicalAsset.accounts?.length || 0) > 1 && (

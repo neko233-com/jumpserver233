@@ -29,6 +29,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/groups"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
+	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/neko233-com/jumpserver233/server/internal/core/monitoralerts"
 	"github.com/neko233-com/jumpserver233/server/internal/core/monitorhistory"
 	"github.com/neko233-com/jumpserver233/server/internal/core/nodes"
@@ -425,6 +426,13 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		d.Jobs.SetAdmissionGate(d.Maintenance.Gate())
 		d.Operations.SetAdmissionGate(d.Maintenance.Gate())
 	}
+	if id != organizations.DefaultID {
+		d.Labels, e = labels.Open(filepath.Join(orgPath, "labels.json"), orgKey, docs)
+		if e != nil {
+			r.stop(&organizationRuntime{d: d}, false)
+			return nil, e
+		}
+	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID && !r.suspended {
 		if e := r.start(runtime); e != nil {
@@ -469,6 +477,9 @@ func (r *organizationRuntimes) changed(id string) {
 	}
 }
 func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) {
+	if current.d.Labels != nil {
+		current.d.Labels.Close()
+	}
 	if current.d.AssetDiscovery != nil {
 		current.d.AssetDiscovery.Close()
 	}

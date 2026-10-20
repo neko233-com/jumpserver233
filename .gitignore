@@ -88,6 +88,8 @@ __pycache__/
 # Platform notice state and interrupted atomic writes in custom data roots
 **/announcements.json
 **/.announcements-*
+**/labels.json
+**/.labels-*
 # Local backup archives, recovery control state and interrupted atomic writes
 *.jmsbackup
 vault.key

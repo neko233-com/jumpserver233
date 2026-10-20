@@ -12,10 +12,11 @@ import (
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	coregrants "github.com/neko233-com/jumpserver233/server/internal/core/grants"
 	coregroups "github.com/neko233-com/jumpserver233/server/internal/core/groups"
+	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	corenodes "github.com/neko233-com/jumpserver233/server/internal/core/nodes"
 )
 
-func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminToken string, identities *coreauth.Service, grants *coregrants.Store, groups *coregroups.Store, nodes *corenodes.Store, accessMu *sync.RWMutex) {
+func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminToken string, identities *coreauth.Service, grants *coregrants.Store, groups *coregroups.Store, nodes *corenodes.Store, accessMu *sync.RWMutex, labelStore *labels.Store) {
 	protect := func(handler http.HandlerFunc) http.Handler {
 		return protectAdminAPI(handler, adminToken, identities)
 	}
@@ -77,7 +78,7 @@ func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminT
 		}
 		items = visible
 		setNoStore(w)
-		writeJSON(w, http.StatusOK, items)
+		writeLabeledAssets(w, r, items, labelStore, nodes)
 	}), adminToken, identities))
 	mux.Handle("POST /api/v1/assets", protect(func(w http.ResponseWriter, r *http.Request) {
 		accessMu.Lock()

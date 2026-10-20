@@ -24,6 +24,7 @@ import (
 	coregroups "github.com/neko233-com/jumpserver233/server/internal/core/groups"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	corejobs "github.com/neko233-com/jumpserver233/server/internal/core/jobs"
+	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginaudit"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginreviews"
@@ -48,6 +49,7 @@ import (
 )
 
 type Dependencies struct {
+	Labels                *labels.Store
 	Announcements         *announcements.Store
 	SSHPasswordPolicy     *credentialpolicy.Store
 	ReleaseRoot           string
@@ -223,7 +225,8 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		registerJobRoutes(mux, dependencies[0], accessMu)
 	}
 	if len(dependencies) > 0 && dependencies[0].Assets != nil {
-		registerAssetRoutes(mux, dependencies[0].Assets, dependencies[0].AdminToken, dependencies[0].Auth, dependencies[0].Grants, dependencies[0].Groups, dependencies[0].Nodes, accessMu)
+		registerAssetRoutes(mux, dependencies[0].Assets, dependencies[0].AdminToken, dependencies[0].Auth, dependencies[0].Grants, dependencies[0].Groups, dependencies[0].Nodes, accessMu, dependencies[0].Labels)
+		registerLabelRoutes(mux, dependencies[0], accessMu)
 		registerManagedAccountRoutes(mux, dependencies[0], accessMu)
 		registerAccountImportRoutes(mux, dependencies[0], accessMu)
 	}
