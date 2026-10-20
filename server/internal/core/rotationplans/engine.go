@@ -75,6 +75,7 @@ func linkResults(r *Run) {
 		if itemTerminal(leader.State) {
 			v.State, v.ErrorCode, v.FinishedAt = leader.State, leader.ErrorCode, leader.FinishedAt
 			v.AfterRevision = 0 // A linked record never claims its own remote mutation.
+			v.CheckDurationMS = leader.CheckDurationMS
 			r.Items[i] = v
 		}
 	}
@@ -83,14 +84,17 @@ func (s *Service) Submit(ctx context.Context, actor Actor, planID, requestID str
 	return s.submit(ctx, actor, planID, requestID, false, all, origin...)
 }
 func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID string, scheduled, all bool, origin ...accesspolicies.Origin) (Run, error) {
-	if !ValidActor(actor) || !IDPattern.MatchString(requestID) {
+	return s.submitOperation(ctx, actor, planID, requestID, scheduled, all, "", origin...)
+}
+func (s *Service) submitOperation(ctx context.Context, actor Actor, planID, requestID string, scheduled, all bool, operation string, origin ...accesspolicies.Origin) (Run, error) {
+	if !ValidActor(actor) || !IDPattern.MatchString(requestID) || operation != "" && operation != "check" || len(origin) > 1 {
 		return Run{}, ErrInvalid
 	}
 	runner := s.runnerSnapshot()
-	if runner.Prepare == nil || runner.Execute == nil || runner.Inspect == nil || runner.Authorize == nil {
+	if runner.Prepare == nil || operation == "check" && runner.Check == nil || operation != "check" && (runner.Execute == nil || runner.Inspect == nil || runner.Authorize == nil) {
 		return Run{}, ErrBusy
 	}
-	if e := runner.Authorize(actor); e != nil {
+	if e := runner.authorizeRun(actor, "", operation); e != nil {
 		return Run{}, e
 	}
 	s.mu.Lock()
@@ -101,21 +105,21 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 	}
 	p.Plan = clonePlan(p.Plan)
 	s.mu.Unlock()
-	if e := runner.authorizeMode(actor, p.PasswordMode); e != nil {
+	if e := runner.authorizeRun(actor, p.PasswordMode, operation); e != nil {
 		return Run{}, e
 	}
 	s.mu.Lock()
 	for _, r := range s.data.Runs {
 		if r.Actor.ID == actor.ID && r.RequestID == requestID {
 			s.mu.Unlock()
-			if r.PlanID != planID || r.Scheduled != scheduled || r.ParentRunID != "" {
+			if r.PlanID != planID || r.Scheduled != scheduled || r.ParentRunID != "" || r.Operation != operation {
 				return Run{}, ErrConflict
 			}
 			return cloneRun(r.Run), nil
 		}
 	}
 	s.mu.Unlock()
-	if scheduled && (!p.Enabled || p.Kind == "manual") {
+	if scheduled && (operation == "check" && !p.CheckEnabled || operation != "check" && (!p.Enabled || p.Kind == "manual")) {
 		return Run{}, ErrConflict
 	}
 	prepared, e := runner.Prepare(ctx, actor, p.Targets)
@@ -156,9 +160,11 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 	if e != nil {
 		return Run{}, e
 	}
-	out := Run{ID: id, PlanID: p.ID, PlanRevision: p.Revision, Name: p.Name, Actor: actor, RequestID: requestID, Scheduled: scheduled, State: "queued", CreatedAt: now, Items: []Item{}}
-	out.PasswordPolicy = p.PasswordPolicy
-	out.PasswordMode = p.PasswordMode
+	out := Run{Operation: operation, ID: id, PlanID: p.ID, PlanRevision: p.Revision, Name: p.Name, Actor: actor, RequestID: requestID, Scheduled: scheduled, State: "queued", CreatedAt: now, Items: []Item{}}
+	if operation != "check" {
+		out.PasswordPolicy = p.PasswordPolicy
+		out.PasswordMode = p.PasswordMode
+	}
 	out.AccessOrigin = p.AccessOrigin
 	if !scheduled && len(origin) == 1 {
 		out.AccessOrigin = origin[0]
@@ -166,7 +172,7 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 	intents := map[string]Intent{}
 	groupDue := map[string]bool{}
 	for _, v := range byID {
-		if !scheduled || !p.OnlyDue || v.RotatedAt.IsZero() || !v.RotatedAt.Add(time.Duration(p.IntervalHours)*time.Hour).After(now) {
+		if operation == "check" || !scheduled || !p.OnlyDue || v.RotatedAt.IsZero() || !v.RotatedAt.Add(time.Duration(p.IntervalHours)*time.Hour).After(now) {
 			groupDue[v.Group] = true
 		}
 	}
@@ -183,7 +189,9 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 			item.State = "queued"
 			item.ErrorCode = ""
 			item.FinishedAt = time.Time{}
-			if leader := groups[v.Group]; leader != "" {
+			// Every stored account must prove its own credential and route. Shared
+			// rotation identity alone cannot prove another alias is reachable.
+			if leader := groups[v.Group]; leader != "" && operation != "check" {
 				item.LinkedTo = leader
 				item.State = "linked"
 			} else {
@@ -194,7 +202,7 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 					op.PasswordPolicy = out.PasswordPolicy
 					intents[itemID] = op
 				}
-				if v.CredentialType == "password" && p.PasswordMode == "fixed" {
+				if operation != "check" && v.CredentialType == "password" && p.PasswordMode == "fixed" {
 					op := intents[itemID]
 					op.FixedSecretID = p.FixedSecretID
 					intents[itemID] = op
@@ -213,13 +221,19 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 		out.FinishedAt = now
 	}
 	e = s.mutate(func(d *state) error {
+		if e := ctx.Err(); e != nil {
+			return e
+		}
+		if e := runner.authorizeRun(actor, p.PasswordMode, operation); e != nil {
+			return e
+		}
 		current, ok := d.Plans[p.ID]
 		if !ok || current.Revision != p.Revision {
 			return ErrConflict
 		}
 		for _, r := range d.Runs {
 			if r.Actor.ID == actor.ID && r.RequestID == requestID {
-				if r.PlanID != planID || r.Scheduled != scheduled || r.ParentRunID != "" {
+				if r.PlanID != planID || r.Scheduled != scheduled || r.ParentRunID != "" || r.Operation != operation {
 					return ErrConflict
 				}
 				out = cloneRun(r.Run)
@@ -232,22 +246,34 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 		if len(d.Runs) >= MaxRuns || len(d.Audit) >= MaxAudit {
 			return ErrCapacity
 		}
-		d.Runs[id] = runRecord{Run: cloneRun(out), Intents: intents, FixedPassword: p.FixedPassword, FixedSecretID: p.FixedSecretID}
-		current.LastRunID = id
-		current.ErrorCode = ""
-		if scheduled {
-			if current.Kind == "once" {
+		d.Runs[id] = snapshotRunRecord(out, intents, p)
+		if operation == "check" {
+			current.LastCheckRunID = id
+			current.CheckErrorCode = ""
+			if scheduled {
+				current.NextCheck = now.Add(time.Duration(current.CheckIntervalHours) * time.Hour)
+			}
+		} else {
+			current.LastRunID = id
+			current.ErrorCode = ""
+			if scheduled {
+				if current.Kind == "once" {
+					current.Enabled = false
+					current.NextRun = time.Time{}
+				} else {
+					current.NextRun = now.Add(time.Duration(current.IntervalHours) * time.Hour)
+				}
+			} else if current.Kind == "once" {
 				current.Enabled = false
 				current.NextRun = time.Time{}
-			} else {
-				current.NextRun = now.Add(time.Duration(current.IntervalHours) * time.Hour)
 			}
-		} else if current.Kind == "once" {
-			current.Enabled = false
-			current.NextRun = time.Time{}
 		}
 		d.Plans[p.ID] = current
-		d.Audit = append(d.Audit, Audit{Origin: out.AccessOrigin, At: now, Actor: actor, Action: "submitted", PlanID: p.ID, RunID: id, Revision: p.Revision})
+		action := "submitted"
+		if operation == "check" {
+			action = "check_submitted"
+		}
+		d.Audit = append(d.Audit, Audit{Origin: out.AccessOrigin, At: now, Actor: actor, Action: action, PlanID: p.ID, RunID: id, Revision: p.Revision})
 		return nil
 	})
 	return out, e
@@ -378,6 +404,7 @@ func (s *Service) Tick() {
 		return
 	}
 	s.schedule()
+	s.scheduleChecks()
 	s.mu.Lock()
 	if s.closed || s.working {
 		s.mu.Unlock()
@@ -485,6 +512,7 @@ func (s *Service) updateItem(run, id string, out Outcome) error {
 					v.State = "interrupted"
 				}
 				v.ErrorCode = out.Code
+				v.CheckDurationMS = out.CheckDurationMS
 				v.AfterRevision = out.Revision
 				if itemTerminal(v.State) {
 					v.FinishedAt = s.now().UTC()
@@ -507,14 +535,14 @@ func (s *Service) updateItem(run, id string, out Outcome) error {
 }
 func (s *Service) work(ctx context.Context, id string) {
 	runner := s.runnerSnapshot()
-	if runner.Execute == nil || runner.Inspect == nil || runner.Authorize == nil {
-		return
-	}
 	s.mu.Lock()
 	record, ok := s.data.Runs[id]
 	record.Run = cloneRun(record.Run)
 	s.mu.Unlock()
 	if !ok {
+		return
+	}
+	if record.Operation == "check" && (runner.Check == nil || runner.AuthorizeCheck == nil) || record.Operation != "check" && (runner.Execute == nil || runner.Inspect == nil || runner.Authorize == nil) {
 		return
 	}
 	pending := false
@@ -528,6 +556,12 @@ func (s *Service) work(ctx context.Context, id string) {
 		}
 		if intent.FixedSecretID != "" {
 			intent.FixedPassword = record.FixedPassword
+		}
+		if record.Operation == "check" && item.State != "queued" {
+			if s.updateItem(id, item.ID, Outcome{State: "interrupted", Code: "check_interrupted"}) != nil {
+				return
+			}
+			continue
 		}
 		// Every claimed operation first reconciles its Vault receipt. No remote
 		// mutation is replayed just because a plan result write or response failed.
@@ -579,7 +613,7 @@ func (s *Service) work(ctx context.Context, id string) {
 			}
 			continue
 		}
-		if e := runner.authorizeMode(record.Actor, record.PasswordMode); e != nil {
+		if e := runner.authorizeRun(record.Actor, record.PasswordMode, record.Operation); e != nil {
 			_ = s.updateItem(id, item.ID, Outcome{State: "denied", Code: "denied"})
 			continue
 		}
@@ -602,12 +636,21 @@ func (s *Service) work(ctx context.Context, id string) {
 		}); e != nil {
 			return
 		}
-		step, cancel := context.WithTimeout(ctx, 90*time.Second)
-		out, e := runner.Execute(step, intent, func() error {
+		timeout := 90 * time.Second
+		execute := runner.Execute
+		if record.Operation == "check" {
+			timeout = 10 * time.Second
+			execute = runner.Check
+			if execute == nil {
+				return
+			}
+		}
+		step, cancel := context.WithTimeout(ctx, timeout)
+		out, e := execute(step, intent, func() error {
 			if e := step.Err(); e != nil {
 				return e
 			}
-			return runner.authorizeMode(record.Actor, record.PasswordMode)
+			return runner.authorizeRun(record.Actor, record.PasswordMode, record.Operation)
 		})
 		cancel()
 		if out.State == "" {
@@ -615,6 +658,9 @@ func (s *Service) work(ctx context.Context, id string) {
 			out = Outcome{State: "recovery_required", Code: "outcome_unavailable"}
 			if errors.Is(e, ErrDenied) {
 				out = Outcome{State: "denied", Code: "denied"}
+			}
+			if record.Operation == "check" && !errors.Is(e, ErrDenied) {
+				out = Outcome{State: "interrupted", Code: "check_interrupted"}
 			}
 		}
 		if s.ctx.Err() != nil {

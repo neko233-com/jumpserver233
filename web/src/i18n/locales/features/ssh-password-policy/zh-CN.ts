@@ -2,6 +2,7 @@ export default {
   rbac: {
     permissionsList: {
       accounts_rotation_fixed_password: "配置与执行固定密码改密计划",
+      accounts_rotation_check: "检测已保存 SSH 账号的连接性",
       accounts_password_policy_view: "查看 SSH 密码生成策略",
       accounts_password_policy_manage: "管理 SSH 密码生成策略",
     },

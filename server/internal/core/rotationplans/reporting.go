@@ -9,6 +9,9 @@ func (s *Service) ReportMetadata(ctx context.Context, emit func(reporting.Entry)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, v := range s.data.Runs {
+		if v.Operation == "check" {
+			continue
+		} // Authentication checks never count as credential changes.
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}

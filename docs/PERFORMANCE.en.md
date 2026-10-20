@@ -2,6 +2,10 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## SSH account connectivity checks (2026-10-20)
+
+Checks reuse the plan page, executor and notifications without dependencies, authenticating accounts serially. Bilingual controls receive a 4 KB allocation, raising the total JS limit from 1653200 to 1657200 while retaining 500000-byte entry/chunk limits. Lists omit account items and retry-source ID arrays; details load on demand. Size and build timing must come from this batch's artifacts and do not establish production capacity.
+
 ## Individual and bulk rotation retries (2026-10-20)
 
 Product source `3f66cdd`: initial JS **499674** bytes (gzip **161545**), total JS **1649244**, largest chunk **482515**. Total JS adds **3235** bytes over fixed-password plans while initial size stays unchanged. Retry UI and bilingual resources load with the page, without dependencies. Existing **1653200** total and **500000** initial/chunk caps remain. Clean Docker build took **46.38** seconds, startup **12.14** and browser smoke **8.34**. Cache state and concurrent load affect timings; these observations do not establish cold-build acceleration.

@@ -9,6 +9,8 @@ export default {
     platformSourcesHint:
       "已接入平台登录、新来源 IP、连续认证失败及原生登录复核事件；通道配置独立于组织通知。",
     sourceDetail: "通知详情",
+    sourceCheckCount: "检测账号：{{count}}",
+    openChecks: "查看连接性检测结果",
     sourceDetailHint: "详情按事件源当前权限读取。批准后仍执行原有访问与命令策略。",
     backInbox: "返回通知中心",
     sourceUnavailable: "事件源不可见、已处理、已过期，或当前权限不足。",
@@ -29,6 +31,7 @@ export default {
     confirmDecision: "确认决定",
     sourceDecisionSaved: "决定已保存，请通过原入口继续操作。",
     sourceKinds: {
+      account_checks: "SSH 凭据连接性检测",
       "platform-logins": "平台登录",
       "access-reviews": "资产访问复核",
       "job-security": "SSH 作业复核与安全",

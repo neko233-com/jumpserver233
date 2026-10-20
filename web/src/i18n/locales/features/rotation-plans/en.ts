@@ -1,5 +1,23 @@
 export default {
   rotationPlans: {
+    check: "Check current credentials",
+    checkSubmitted: "Connectivity check submitted.",
+    checkOperation: "SSH authentication check · credentials unchanged",
+    checkDetails: "Connectivity results",
+    lastCheck: "Latest connectivity result",
+    checkSchedule: "Periodic connectivity checks",
+    enableChecks: "Check stored credentials periodically",
+    checkInterval: "Check interval in hours (1–720)",
+    checkScheduleHint:
+      "Uses each target account itself, without commands, password changes or the configured privileged account. Scheduling starts disabled. Each check performs real SSH authentication and appears in the host's login logs.",
+    scheduledCheckSave:
+      "Saving enabled checks can authenticate immediately, then at the configured interval. The independent rotation schedule is unchanged.",
+    nextCheck: "Check: {{date}} · every {{hours}} hours",
+    checkPaused: "Connectivity schedule paused; review permissions or retention capacity.",
+    checkResultHint:
+      "Results describe the captured credential revision at that time. No remote command is run. An interrupted check is not retried automatically; submit an explicit retry when ready. Failed checks use security notifications.",
+    checkDuration: "Credential revision {{revision}} · {{milliseconds}} ms · no change",
+    checkRevision: "Use current plan revision {{revision}} and current stored credentials",
     retry: "Submit retry",
     retryAccount: "Retry this account",
     retryFailed: "Retry unsuccessful accounts",
@@ -130,6 +148,13 @@ export default {
       unavailable: "The request could not be completed. Check execution history before retrying.",
     },
     itemErrors: {
+      check_interrupted:
+        "Check interrupted or its result could not be confirmed. No automatic second authentication was attempted.",
+      authentication_failed: "SSH rejected the stored credentials.",
+      host_key_mismatch: "The SSH host fingerprint did not match.",
+      gateway_failed: "The pinned SSH gateway could not be reached or authenticated.",
+      connection_timeout: "SSH authentication timed out.",
+      probe_failed: "The SSH connection check failed.",
       password_policy_conflict:
         "Password constraints conflict with an organization policy; no remote password was changed.",
       source_changed: "Host, account or route changed; review this target.",
@@ -143,6 +168,8 @@ export default {
       outcome_unavailable: "No final result is available; reconcile the existing operation.",
     },
     confirmTitles: {
+      check: "Check stored SSH credentials",
+      retryCheck: "Retry unsuccessful connectivity checks",
       retry: "Retry unsuccessful accounts",
       run: "Start credential rotation",
       delete: "Delete this plan",
@@ -150,6 +177,10 @@ export default {
       recover: "Recover the existing operation",
     },
     confirmHints: {
+      check:
+        "Authenticate selected accounts with their current stored credentials and pinned gateways. This opens no terminal channel, runs no command and changes no credentials. Existing pending credential changes refuse checking.",
+      retryCheck:
+        "Create a linked check for the selected unsuccessful accounts using current stored credentials. Successful items are excluded, aliases check together and each source item can start one retry. No password or key is changed.",
       retry:
         "Create a new linked execution for the selected unsuccessful items using the current plan settings shown below. Successful and not-due items are excluded. Linked aliases retry together. Pending operations require recovery first. Each source item can start one retry; further attempts use that retry's results.",
       run: "This changes selected remote credentials immediately, including accounts that are not due. The server applies the configured password/key strategy and verifies credentials; results are recorded per account.",
@@ -160,6 +191,10 @@ export default {
         "Recheck the existing staged credentials and finish their recorded operation. Recovery uses your current permissions and access policy; it does not start a new rotation.",
     },
     auditActions: {
+      check_submitted: "Connectivity check submitted",
+      check_retried: "Connectivity check retried",
+      check_denied_paused: "Connectivity schedule paused: permission revoked",
+      check_capacity_paused: "Connectivity schedule paused: capacity reached",
       retried: "Unsuccessful items retried",
       saved: "Plan saved",
       deleted: "Plan deleted",

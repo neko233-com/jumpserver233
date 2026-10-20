@@ -8,6 +8,12 @@ import (
 )
 
 func (s *Service) NotificationFeed(ctx context.Context, after string, since time.Time, limit int) (eventfeed.Batch, error) {
+	return s.notificationFeed(ctx, after, since, limit, false)
+}
+func (s *Service) CheckNotificationFeed(ctx context.Context, after string, since time.Time, limit int) (eventfeed.Batch, error) {
+	return s.notificationFeed(ctx, after, since, limit, true)
+}
+func (s *Service) notificationFeed(ctx context.Context, after string, since time.Time, limit int, checks bool) (eventfeed.Batch, error) {
 	if e := ctx.Err(); e != nil {
 		return eventfeed.Batch{}, e
 	}
@@ -15,6 +21,9 @@ func (s *Service) NotificationFeed(ctx context.Context, after string, since time
 	defer s.mu.Unlock()
 	rows := []eventfeed.Event{}
 	for _, r := range s.data.Runs {
+		if (r.Operation == "check") != checks || checks && r.State == "succeeded" {
+			continue
+		}
 		if r.FinishedAt.IsZero() {
 			continue
 		}

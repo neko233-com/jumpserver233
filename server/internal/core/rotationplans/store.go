@@ -130,12 +130,22 @@ func Open(path string, key []byte, docs *storage.Documents) (*Service, error) {
 	for id, r := range s.data.Runs {
 		for i := range r.Items {
 			if r.Items[i].State == "running" {
-				r.Items[i].State = "recovering"
+				if r.Operation == "check" {
+					r.Items[i].State = "interrupted"
+					r.Items[i].ErrorCode = "check_interrupted"
+					r.Items[i].FinishedAt = s.now().UTC()
+				} else {
+					r.Items[i].State = "recovering"
+				}
 				changed = true
 			}
 		}
+		linkResults(&r.Run)
 		if !terminal(r.State) {
 			r.State = runState(r.Run)
+			if terminal(r.State) {
+				r.FinishedAt = s.now().UTC()
+			}
 		}
 		s.data.Runs[id] = r
 	}
@@ -199,6 +209,9 @@ func validateState(d state) error {
 		return ErrInvalid
 	}
 	for id, p := range d.Plans {
+		if p.CheckEnabled && p.NextCheck.IsZero() || !p.CheckEnabled && !p.NextCheck.IsZero() || p.LastCheckRunID != "" && !IDPattern.MatchString(p.LastCheckRunID) {
+			return ErrInvalid
+		}
 		if p.PasswordMode == "fixed" && !p.PasswordPolicy.IsZero() && !p.PasswordPolicy.Matches(p.FixedPassword) {
 			return ErrInvalid
 		}
@@ -223,6 +236,9 @@ func validateState(d state) error {
 		}
 	}
 	for id, r := range d.Runs {
+		if r.Operation != "" && r.Operation != "check" || r.Operation == "check" && (r.PasswordMode != "" || !r.PasswordPolicy.IsZero() || r.Recovery != nil || r.State == "recovery_required") {
+			return ErrInvalid
+		}
 		if r.PasswordMode == "fixed" && !terminal(r.State) && !r.PasswordPolicy.IsZero() && !r.PasswordPolicy.Matches(r.FixedPassword) {
 			return ErrInvalid
 		}
@@ -241,6 +257,9 @@ func validateState(d state) error {
 		seen := map[string]bool{}
 		leaders := map[string]bool{}
 		for _, v := range r.Items {
+			if v.CheckDurationMS < 0 || v.CheckDurationMS > 15000 || r.Operation != "check" && v.CheckDurationMS != 0 || r.Operation == "check" && (v.AfterRevision != 0 || v.LinkedTo != "" || v.State == "recovery_required" || v.State == "recovering") {
+				return ErrInvalid
+			}
 			if !validRef(v.Ref) || !IDPattern.MatchString(v.ID) || seen[v.ID] || !validItemState(v.State) || v.LinkedTo != "" && !IDPattern.MatchString(v.LinkedTo) {
 				return ErrInvalid
 			}
@@ -481,6 +500,11 @@ func (s *Service) SaveRequest(ctx context.Context, actor Actor, id string, reque
 			return Plan{}, e
 		}
 	}
+	if in.CheckEnabled {
+		if e = r.authorizeRun(actor, "", "check"); e != nil {
+			return Plan{}, e
+		}
+	}
 	var out Plan
 	e = s.mutate(func(d *state) error {
 		if request.RequestID != "" {
@@ -534,6 +558,11 @@ func (s *Service) SaveRequest(ctx context.Context, actor Actor, id string, reque
 					return e
 				}
 			}
+			if in.CheckEnabled {
+				if e := r.authorizeRun(owner, "", "check"); e != nil {
+					return e
+				}
+			}
 		}
 		in.Revision = revision
 		out = Plan{ID: id, Actor: owner, PlanInput: in, Refs: refs, CreatedAt: created, UpdatedAt: now, AccessOrigin: in.Origin, TargetCount: len(refs)}
@@ -552,6 +581,10 @@ func (s *Service) SaveRequest(ctx context.Context, actor Actor, id string, reque
 		}
 		if prior, ok := d.Plans[id]; ok {
 			out.LastRunID = prior.LastRunID
+			out.LastCheckRunID = prior.LastCheckRunID
+		}
+		if in.CheckEnabled {
+			out.NextCheck = now
 		}
 		fixed, secretID := "", ""
 		if in.PasswordMode == "fixed" {

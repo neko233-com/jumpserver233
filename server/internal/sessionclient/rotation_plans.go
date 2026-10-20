@@ -27,16 +27,18 @@ type RotationRef struct {
 	CollectorUsername string `json:"collector_username,omitempty"`
 }
 type RotationPlanInput struct {
-	PasswordMode   string                 `json:"password_mode,omitempty"`
-	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
-	Name           string                 `json:"name"`
-	Targets        []RotationSelection    `json:"targets,omitempty"`
-	Kind           string                 `json:"kind"`
-	Enabled        bool                   `json:"enabled"`
-	RunAt          time.Time              `json:"run_at,omitzero"`
-	IntervalHours  int                    `json:"interval_hours,omitempty"`
-	OnlyDue        bool                   `json:"only_due"`
-	Revision       int                    `json:"revision"`
+	CheckEnabled       bool                   `json:"check_enabled,omitempty"`
+	CheckIntervalHours int                    `json:"check_interval_hours,omitempty"`
+	PasswordMode       string                 `json:"password_mode,omitempty"`
+	PasswordPolicy     credentialpolicy.Rules `json:"password_policy,omitzero"`
+	Name               string                 `json:"name"`
+	Targets            []RotationSelection    `json:"targets,omitempty"`
+	Kind               string                 `json:"kind"`
+	Enabled            bool                   `json:"enabled"`
+	RunAt              time.Time              `json:"run_at,omitzero"`
+	IntervalHours      int                    `json:"interval_hours,omitempty"`
+	OnlyDue            bool                   `json:"only_due"`
+	Revision           int                    `json:"revision"`
 }
 
 // Request-only: fixed_password is never part of RotationPlan or RotationRun.
@@ -50,7 +52,10 @@ type RotationOrigin struct {
 	Method   string `json:"method"`
 }
 type RotationPlan struct {
-	SaveRequestID string `json:"save_request_id,omitempty"`
+	NextCheck      time.Time `json:"next_check,omitzero"`
+	LastCheckRunID string    `json:"last_check_run_id,omitempty"`
+	CheckErrorCode string    `json:"check_error_code,omitempty"`
+	SaveRequestID  string    `json:"save_request_id,omitempty"`
 	RotationPlanInput
 	ID           string             `json:"id"`
 	Owner        AccountImportActor `json:"owner"`
@@ -65,18 +70,20 @@ type RotationPlan struct {
 }
 type RotationItem struct {
 	RotationRef
-	SourceItemID   string    `json:"source_item_id,omitempty"`
-	RetryRunID     string    `json:"retry_run_id,omitempty"`
-	ID             string    `json:"id"`
-	State          string    `json:"state"`
-	ErrorCode      string    `json:"error_code,omitempty"`
-	LinkedTo       string    `json:"linked_to,omitempty"`
-	BeforeRevision uint64    `json:"before_revision"`
-	AfterRevision  uint64    `json:"after_revision,omitempty"`
-	StartedAt      time.Time `json:"started_at,omitzero"`
-	FinishedAt     time.Time `json:"finished_at,omitzero"`
+	CheckDurationMS int64     `json:"check_duration_ms,omitempty"`
+	SourceItemID    string    `json:"source_item_id,omitempty"`
+	RetryRunID      string    `json:"retry_run_id,omitempty"`
+	ID              string    `json:"id"`
+	State           string    `json:"state"`
+	ErrorCode       string    `json:"error_code,omitempty"`
+	LinkedTo        string    `json:"linked_to,omitempty"`
+	BeforeRevision  uint64    `json:"before_revision"`
+	AfterRevision   uint64    `json:"after_revision,omitempty"`
+	StartedAt       time.Time `json:"started_at,omitzero"`
+	FinishedAt      time.Time `json:"finished_at,omitzero"`
 }
 type RotationRun struct {
+	Operation      string                 `json:"operation,omitempty"`
 	ParentRunID    string                 `json:"parent_run_id,omitempty"`
 	RetryItemIDs   []string               `json:"retry_item_ids,omitempty"`
 	RetryAll       bool                   `json:"retry_all,omitempty"`
@@ -152,6 +159,11 @@ func (c *Client) DeleteRotationPlan(ctx context.Context, id string, revision int
 func (c *Client) RunRotationPlan(ctx context.Context, id, requestID string) (RotationRun, error) {
 	var out RotationRun
 	e := c.jobRequest(ctx, "POST", "/api/v1/accounts/rotation-plans/"+url.PathEscape(id)+"/runs", map[string]string{"request_id": requestID}, &out)
+	return out, e
+}
+func (c *Client) CheckRotationPlan(ctx context.Context, id, requestID string) (RotationRun, error) {
+	var out RotationRun
+	e := c.jobRequest(ctx, "POST", "/api/v1/accounts/rotation-plans/"+url.PathEscape(id)+"/checks", map[string]string{"request_id": requestID}, &out)
 	return out, e
 }
 func (c *Client) RotationRuns(ctx context.Context, planID string, offset, limit int) (RotationPage[RotationRun], error) {

@@ -1,5 +1,23 @@
 export default {
   rotationPlans: {
+    check: "检测现有凭据",
+    checkSubmitted: "连接性检测已提交。",
+    checkOperation: "SSH 认证检测 · 不修改凭据",
+    checkDetails: "连接性检测结果",
+    lastCheck: "最近连接性结果",
+    checkSchedule: "周期连接性检测",
+    enableChecks: "定期检测已保存凭据",
+    checkInterval: "检测间隔小时数（1–720）",
+    checkScheduleHint:
+      "使用各目标账号自身认证，不运行命令、不改密，也不使用所配特权账号。周期默认关闭；每次执行真实 SSH 认证，会出现在主机登录日志中。",
+    scheduledCheckSave:
+      "保存已启用的检测可能立即认证，之后按所设间隔执行；独立的改密周期保持不变。",
+    nextCheck: "检测：{{date}} · 每 {{hours}} 小时",
+    checkPaused: "连接性计划已暂停，请检查权限或保留容量。",
+    checkResultHint:
+      "结果对应检测时捕获的凭据修订，不运行远端命令。中断后不自动重复认证，需要时显式重试；失败结果进入安全通知。",
+    checkDuration: "凭据修订 {{revision}} · {{milliseconds}} ms · 未修改",
+    checkRevision: "使用当前计划修订 {{revision}} 和当前已保存凭据",
     retry: "提交重试",
     retryAccount: "重试此账号",
     retryFailed: "重试未成功账号",
@@ -124,6 +142,12 @@ export default {
       unavailable: "请求未完成，重试前请检查执行历史。",
     },
     itemErrors: {
+      check_interrupted: "检测中断或结果无法确认，未自动发起第二次认证。",
+      authentication_failed: "SSH 拒绝已保存的凭据。",
+      host_key_mismatch: "SSH 主机指纹不匹配。",
+      gateway_failed: "无法连接或认证已固定的 SSH 网关。",
+      connection_timeout: "SSH 认证超时。",
+      probe_failed: "SSH 连接性检测失败。",
       password_policy_conflict: "密码约束与组织策略冲突，未修改远端密码。",
       source_changed: "主机、账号或连接路径已变更，请检查目标。",
       not_found: "账号已不存在。",
@@ -136,6 +160,8 @@ export default {
       outcome_unavailable: "最终结果未知，请确认已有操作的结果。",
     },
     confirmTitles: {
+      check: "检测已保存的 SSH 凭据",
+      retryCheck: "重试未成功的连接性检测",
       retry: "重试未成功账号",
       run: "开始账号改密",
       delete: "删除此计划",
@@ -143,6 +169,10 @@ export default {
       recover: "恢复已有操作",
     },
     confirmHints: {
+      check:
+        "用各目标当前保存的凭据和固定网关认证，不打开终端通道、不运行命令，也不修改凭据。存在待确定凭据操作时拒绝检测。",
+      retryCheck:
+        "使用当前已保存凭据，为选中的未成功账号创建关联检测。成功项不重做，别名一起检测，每个来源项只能发起一次重试；不会修改密码或密钥。",
       retry:
         "按下方当前计划配置，为选中的未成功项创建关联的新执行；成功和未到期项不重试，共享账号别名一起处理。待确定操作需先恢复。每个来源项仅能发起一次重试，再次尝试请使用重试记录中的结果。",
       run: "将立即修改已选远程账号的凭据，包括尚未到期的账号。系统生成并验证新凭据，逐账号记录结果。",
@@ -152,6 +182,10 @@ export default {
         "验证已暂存的凭据并完成原操作。恢复按你当前的权限和访问策略执行，不会创建一次新的轮换。",
     },
     auditActions: {
+      check_submitted: "已提交连接性检测",
+      check_retried: "已重试连接性检测",
+      check_denied_paused: "连接性计划暂停：权限已撤销",
+      check_capacity_paused: "连接性计划暂停：容量已满",
       retried: "重试未成功账号",
       saved: "保存计划",
       deleted: "删除计划",

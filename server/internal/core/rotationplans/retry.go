@@ -73,7 +73,7 @@ func validateRetries(d state) error {
 				return ErrInvalid
 			}
 			parent, ok := d.Runs[r.ParentRunID]
-			if !ok || parent.PlanID != r.PlanID || !terminal(parent.State) || parent.CreatedAt.After(r.CreatedAt) {
+			if !ok || parent.PlanID != r.PlanID || parent.Operation != r.Operation || !terminal(parent.State) || parent.CreatedAt.After(r.CreatedAt) {
 				return ErrInvalid
 			}
 			input, e := canonicalRetry(RetryInput{RequestID: r.RequestID, PlanRevision: r.PlanRevision, ItemIDs: r.RetryRequested})
@@ -181,10 +181,10 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 		return Run{}, err
 	}
 	runner := s.runnerSnapshot()
-	if runner.Prepare == nil || runner.Execute == nil || runner.Inspect == nil || runner.Authorize == nil {
+	if runner.Prepare == nil {
 		return Run{}, ErrBusy
 	}
-	if err = runner.Authorize(actor); err != nil {
+	if err = runner.authorizeAny(actor); err != nil {
 		return Run{}, err
 	}
 	s.mu.Lock()
@@ -194,14 +194,14 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 			if err = retryReplay(r, parentID, in); err != nil {
 				return Run{}, err
 			}
-			if err = runner.authorizeMode(actor, r.PasswordMode); err != nil {
+			if err = runner.authorizeRun(actor, r.PasswordMode, r.Operation); err != nil {
 				return Run{}, err
 			}
 			targets := make([]Selection, 0, len(r.Items))
 			for _, item := range r.Items {
 				targets = append(targets, Selection{AccountID: item.AccountID, CollectorID: item.CollectorID})
 			}
-			if err = runner.authorizeTargets(actor, targets); err != nil {
+			if err = runner.authorizeRunTargets(actor, targets, r.Operation); err != nil {
 				return Run{}, err
 			}
 			return cloneRun(r.Run), nil
@@ -222,10 +222,13 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 	if !terminal(parent.State) {
 		return Run{}, ErrBusy
 	}
+	if parent.Operation == "check" && runner.Check == nil || parent.Operation != "check" && (runner.Execute == nil || runner.Inspect == nil) {
+		return Run{}, ErrBusy
+	}
 	if p.Revision != in.PlanRevision {
 		return Run{}, ErrConflict
 	}
-	if err = runner.authorizeMode(actor, p.PasswordMode); err != nil {
+	if err = runner.authorizeRun(actor, p.PasswordMode, parent.Operation); err != nil {
 		return Run{}, err
 	}
 	selected, err := retrySelection(parent, in)
@@ -248,6 +251,9 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 			continue
 		}
 		inspected[leader] = true
+		if parent.Operation == "check" {
+			continue
+		}
 		if intent, exists := parent.Intents[leader]; exists {
 			out, e := runner.Inspect(ctx, intent)
 			if e != nil {
@@ -276,7 +282,7 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 	if len(selections) != len(selected) {
 		return Run{}, ErrConflict
 	}
-	if err = runner.authorizeTargets(actor, selections); err != nil {
+	if err = runner.authorizeRunTargets(actor, selections, parent.Operation); err != nil {
 		return Run{}, err
 	}
 	prepared := map[string]Prepared{}
@@ -290,6 +296,9 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 		}
 	}
 	for leader := range inspected {
+		if parent.Operation == "check" {
+			continue
+		}
 		if previous, exists := parent.Intents[leader]; exists {
 			if fresh, ok := prepared[previous.Target.AccountID]; ok && (fresh.Version != previous.Target.Version || fresh.Revision != previous.Target.Revision) {
 				return Run{}, ErrConflict
@@ -299,7 +308,7 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 	if err = ctx.Err(); err != nil {
 		return Run{}, err
 	}
-	if err = runner.authorizeMode(actor, p.PasswordMode); err != nil {
+	if err = runner.authorizeRun(actor, p.PasswordMode, parent.Operation); err != nil {
 		return Run{}, err
 	}
 	id, err := newID("rotation-run-")
@@ -307,7 +316,11 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 		return Run{}, err
 	}
 	now := s.now().UTC()
-	out := Run{ID: id, ParentRunID: parentID, RetryAll: len(in.ItemIDs) == 0, PlanID: p.ID, PlanRevision: p.Revision, Name: p.Name, Actor: actor, RequestID: in.RequestID, PasswordMode: p.PasswordMode, PasswordPolicy: p.PasswordPolicy, AccessOrigin: accesspolicies.Origin{Method: "credential_rotation"}, CreatedAt: now, Items: []Item{}}
+	out := Run{Operation: parent.Operation, ID: id, ParentRunID: parentID, RetryAll: len(in.ItemIDs) == 0, PlanID: p.ID, PlanRevision: p.Revision, Name: p.Name, Actor: actor, RequestID: in.RequestID, AccessOrigin: accesspolicies.Origin{Method: "credential_rotation"}, CreatedAt: now, Items: []Item{}}
+	if out.Operation != "check" {
+		out.PasswordMode = p.PasswordMode
+		out.PasswordPolicy = p.PasswordPolicy
+	}
 	if len(origin) == 1 {
 		out.AccessOrigin = origin[0]
 	}
@@ -321,14 +334,14 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 		item := Item{ID: itemID, SourceItemID: old.ID, Ref: refs[selection.AccountID], State: "changed", ErrorCode: "source_changed", FinishedAt: now}
 		if v, exists := prepared[selection.AccountID]; exists && v.Binding == p.Bindings[selection.AccountID] {
 			item.Ref, item.BeforeRevision, item.State, item.ErrorCode, item.FinishedAt = v.Ref, v.Revision, "queued", "", time.Time{}
-			if leader := groups[v.Group]; leader != "" {
+			if leader := groups[v.Group]; leader != "" && out.Operation != "check" {
 				item.LinkedTo, item.State = leader, "linked"
 			} else {
 				groups[v.Group] = itemID
 				intent := Intent{RequestID: itemID, Actor: actor, Target: v, Origin: out.AccessOrigin}
 				if v.CredentialType == "password" {
 					intent.PasswordPolicy = out.PasswordPolicy
-					if p.PasswordMode == "fixed" {
+					if out.Operation != "check" && p.PasswordMode == "fixed" {
 						intent.FixedSecretID = p.FixedSecretID
 					}
 				}
@@ -348,10 +361,10 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 		if e := ctx.Err(); e != nil {
 			return e
 		}
-		if e := runner.authorizeMode(actor, p.PasswordMode); e != nil {
+		if e := runner.authorizeRun(actor, p.PasswordMode, parent.Operation); e != nil {
 			return e
 		}
-		if e := runner.authorizeTargets(actor, selections); e != nil {
+		if e := runner.authorizeRunTargets(actor, selections, parent.Operation); e != nil {
 			return e
 		}
 		for _, r := range d.Runs {
@@ -388,10 +401,20 @@ func (s *Service) Retry(ctx context.Context, actor Actor, parentID string, input
 			}
 		}
 		d.Runs[parentID] = source
-		d.Runs[id] = runRecord{Run: cloneRun(out), RetryRequested: slices.Clone(in.ItemIDs), Intents: intents, FixedPassword: p.FixedPassword, FixedSecretID: p.FixedSecretID}
-		current.LastRunID = id
+		record := snapshotRunRecord(out, intents, p)
+		record.RetryRequested = slices.Clone(in.ItemIDs)
+		d.Runs[id] = record
+		if out.Operation == "check" {
+			current.LastCheckRunID = id
+		} else {
+			current.LastRunID = id
+		}
 		d.Plans[p.ID] = current
-		d.Audit = append(d.Audit, Audit{At: now, Actor: actor, Action: "retried", PlanID: p.ID, RunID: id, ParentRunID: parentID, Revision: p.Revision, RequestID: in.RequestID, Origin: out.AccessOrigin})
+		action := "retried"
+		if out.Operation == "check" {
+			action = "check_retried"
+		}
+		d.Audit = append(d.Audit, Audit{At: now, Actor: actor, Action: action, PlanID: p.ID, RunID: id, ParentRunID: parentID, Revision: p.Revision, RequestID: in.RequestID, Origin: out.AccessOrigin})
 		return nil
 	})
 	return out, err

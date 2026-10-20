@@ -2,6 +2,8 @@
 
 > 中文 | [English](./ROTATION-PLANS.en.md)
 
+计划也提供独立的 [SSH 账号连接性检测](./ACCOUNT-CHECKS.md)，使用当前已保存凭据，不改密、不运行命令；周期默认关闭，与改密周期分开管理。
+
 集中选择多台主机的托管 SSH 账号，按手动、单次或周期计划轮换密码和密钥。Web、`jms account rotation` 和 Go SDK 共用服务端执行器，目标凭据保留在加密 Vault。
 
 2026-10-18，隔离 Docker、真实 OpenSSH 与内置浏览器逐项结果：

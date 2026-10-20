@@ -49,6 +49,7 @@ var catalog = []string{
 	"accounts.password_policy.view", "accounts.password_policy.manage",
 	"accounts.risks.view", "accounts.risks.scan", "accounts.risks.manage", "accounts.risks.export",
 	"accounts.rotation.view", "accounts.rotation.manage", "accounts.rotation.execute", "accounts.rotation.manage_all", "accounts.rotation.privileged", "accounts.rotation.fixed_password",
+	"accounts.rotation.check",
 	"database.audit.view_all", "database.cancel_all",
 	"plugins.inspect", "plugins.manage", "plugins.protect",
 }

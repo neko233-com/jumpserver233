@@ -99,6 +99,22 @@ func registerNotificationRoutes(mux *http.ServeMux, d Dependencies) {
 		}, Link: func(e eventfeed.Event) string { return "/workbench?job=" + url.QueryEscape(e.ResourceID) }})
 	}
 	if d.RotationPlans != nil {
+		runner.Feeds = append(runner.Feeds, notifications.Feed{Name: "account_checks", Read: d.RotationPlans.CheckNotificationFeed, Recipients: func(_ context.Context, e eventfeed.Event) ([]notifications.Recipient, error) {
+			return []notifications.Recipient{{UserID: e.OwnerID, Topic: "security"}}, nil
+		}, Allowed: func(ctx context.Context, id string, source notifications.Source) (bool, error) {
+			if _, e := d.RotationPlans.NotificationOwner(source.ID); e != nil {
+				if errors.Is(e, rotationplans.ErrNotFound) {
+					return false, nil
+				}
+				return false, e
+			}
+			u, ok := jobOwner(d, id)
+			if !ok {
+				return false, nil
+			}
+			p := effectivePermissions(u, d.RBAC, d.Groups)
+			return p.Allows("accounts.rotation.view") && p.Allows("assets.view_all"), ctx.Err()
+		}, Link: func(e eventfeed.Event) string { return "/console/rotation-plans?run=" + url.QueryEscape(e.ResourceID) }})
 		runner.Feeds = append(runner.Feeds, notifications.Feed{Name: "rotation", Read: d.RotationPlans.NotificationFeed, Recipients: func(_ context.Context, e eventfeed.Event) ([]notifications.Recipient, error) {
 			return []notifications.Recipient{{UserID: e.OwnerID, Topic: "rotation"}}, nil
 		}, Allowed: func(ctx context.Context, id string, source notifications.Source) (bool, error) {

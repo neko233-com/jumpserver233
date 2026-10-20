@@ -22,6 +22,11 @@ type Ref = {
 };
 type Actor = { id: string; name: string };
 type Plan = {
+  check_enabled?: boolean;
+  check_interval_hours?: number;
+  next_check?: string;
+  last_check_run_id?: string;
+  check_error_code?: string;
   id: string;
   name: string;
   owner: Actor;
@@ -41,6 +46,7 @@ type Plan = {
   error_code?: string;
 };
 type Item = Ref & {
+  check_duration_ms?: number;
   source_item_id?: string;
   retry_run_id?: string;
   id: string;
@@ -52,6 +58,7 @@ type Item = Ref & {
   finished_at?: string;
 };
 type Run = {
+  operation?: string;
   parent_run_id?: string;
   id: string;
   plan_id: string;
@@ -73,6 +80,8 @@ type Run = {
 type Audit = { at: string; actor: Actor; action: string; plan_id: string; run_id?: string };
 type Page<T> = { results: T[]; total: number };
 type Draft = {
+  checkEnabled: boolean;
+  checkHours: number;
   id: string;
   revision: number;
   name: string;
@@ -88,13 +97,14 @@ type Draft = {
   accounts: Record<string, Ref>;
 };
 type Confirm = {
-  mode: "run" | "delete" | "cancel" | "recover" | "retry";
+  mode: "run" | "check" | "delete" | "cancel" | "recover" | "retry";
   id: string;
   name: string;
   revision?: number;
   itemIDs?: string[];
   requestID?: string;
   plan?: Plan;
+  operation?: string;
 };
 const newRequestID = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) =>
@@ -162,6 +172,7 @@ export default function RotationPlansPage() {
   const manage = allows("accounts.rotation.manage"),
     all = allows("accounts.rotation.manage_all");
   const execute = allows("accounts.rotation.execute") && allows("assets.rotate");
+  const checkExecute = allows("accounts.rotation.check") && allows("assets.probe");
   const privileged = allows("accounts.rotation.privileged"),
     fixedAllowed = allows("accounts.rotation.fixed_password");
   const saveRequests = useRef(new WeakMap<Draft, string>());
@@ -374,6 +385,8 @@ export default function RotationPlansPage() {
         ? await request(`plans/${encodeURIComponent(plan.id)}`).then((r) => r.json())
         : undefined;
       setDraft({
+        checkEnabled: full?.check_enabled || false,
+        checkHours: full?.check_interval_hours || 24,
         id: full?.id || "",
         revision: full?.revision || 0,
         name: full?.name || "",
@@ -422,6 +435,8 @@ export default function RotationPlansPage() {
         saveRequests.current.set(current, requestID);
       }
       const body = {
+        check_enabled: current.checkEnabled,
+        check_interval_hours: current.checkHours,
         request_id: requestID,
         password_mode: current.passwordMode,
         ...(current.passwordMode === "fixed" && current.fixedPassword
@@ -465,13 +480,16 @@ export default function RotationPlansPage() {
     if (!confirm) return;
     const next = confirm;
     await action(async () => {
-      if (next.mode === "run") {
-        if (pending.current?.plan !== next.id)
-          pending.current = { plan: next.id, request: newRequestID() };
-        const data = await request(`plans/${encodeURIComponent(next.id)}/runs`, {
-          method: "POST",
-          body: JSON.stringify({ request_id: pending.current.request }),
-        }).then((r) => r.json());
+      if (next.mode === "run" || next.mode === "check") {
+        const key = `${next.mode}:${next.id}`;
+        if (pending.current?.plan !== key) pending.current = { plan: key, request: newRequestID() };
+        const data = await request(
+          `plans/${encodeURIComponent(next.id)}/${next.mode === "check" ? "checks" : "runs"}`,
+          {
+            method: "POST",
+            body: JSON.stringify({ request_id: pending.current.request }),
+          },
+        ).then((r) => r.json());
         pending.current = null;
         setSelectedRun(data);
         setItemOffset(0);
@@ -495,13 +513,15 @@ export default function RotationPlansPage() {
       if (life.current?.signal.aborted) return;
       setConfirm(null);
       setNotice(
-        next.mode === "recover"
-          ? "recoveryRequested"
-          : next.mode === "cancel"
-            ? "cancelRequested"
-            : next.mode === "delete"
-              ? "deleted"
-              : "submitted",
+        next.mode === "check" || (next.mode === "retry" && next.operation === "check")
+          ? "checkSubmitted"
+          : next.mode === "recover"
+            ? "recoveryRequested"
+            : next.mode === "cancel"
+              ? "cancelRequested"
+              : next.mode === "delete"
+                ? "deleted"
+                : "submitted",
       );
       setEpoch((v) => v + 1);
     });
@@ -513,7 +533,8 @@ export default function RotationPlansPage() {
       const plan: Plan = await request(`plans/${encodeURIComponent(run.plan_id)}`).then((r) =>
         r.json(),
       );
-      if (plan.password_mode === "fixed" && !fixedAllowed) throw new RotationError("denied");
+      if (run.operation !== "check" && plan.password_mode === "fixed" && !fixedAllowed)
+        throw new RotationError("denied");
       if (!life.current?.signal.aborted)
         setConfirm({
           mode: "retry",
@@ -523,6 +544,7 @@ export default function RotationPlansPage() {
           itemIDs,
           requestID: newRequestID(),
           plan,
+          operation: run.operation,
         });
     });
   }
@@ -659,9 +681,29 @@ export default function RotationPlansPage() {
                   </td>
                   <td>{p.target_count}</td>
                   <td>{p.owner.name}</td>
-                  <td>{date(p.next_run)}</td>
+                  <td>
+                    {date(p.next_run)}
+                    {p.check_enabled && (
+                      <small>
+                        {t("rotationPlans.nextCheck", {
+                          date: date(p.next_check),
+                          hours: p.check_interval_hours,
+                        })}
+                      </small>
+                    )}
+                    {p.check_error_code && <small>{t("rotationPlans.checkPaused")}</small>}
+                  </td>
                   <td>
                     <div className="rotation-actions">
+                      {checkExecute && (all || p.owner.id === userID) && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setConfirm({ mode: "check", id: p.id, name: p.name })}
+                        >
+                          {t("rotationPlans.check")}
+                        </button>
+                      )}
                       {execute &&
                         (p.password_mode !== "fixed" || fixedAllowed) &&
                         (all || p.owner.id === userID) && (
@@ -707,6 +749,15 @@ export default function RotationPlansPage() {
                           {t("rotationPlans.lastRun")}
                         </button>
                       )}
+                      {p.last_check_run_id && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void showRun(p.last_check_run_id!)}
+                        >
+                          {t("rotationPlans.lastCheck")}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -727,6 +778,7 @@ export default function RotationPlansPage() {
                 <tr key={r.id}>
                   <td>
                     {r.name}
+                    {r.operation === "check" && <small>{t("rotationPlans.checkOperation")}</small>}
                     <small>{r.id}</small>
                   </td>
                   <td>{state(r.state)}</td>
@@ -849,6 +901,32 @@ export default function RotationPlansPage() {
                   </label>
                 </>
               )}
+              <fieldset className="rotation-password-policy">
+                <legend>{t("rotationPlans.checkSchedule")}</legend>
+                <label className="rotation-check">
+                  <input
+                    type="checkbox"
+                    checked={draft.checkEnabled}
+                    disabled={!checkExecute}
+                    onChange={(e) => setDraft({ ...draft, checkEnabled: e.target.checked })}
+                  />
+                  {t("rotationPlans.enableChecks")}
+                </label>
+                {draft.checkEnabled && (
+                  <label>
+                    {t("rotationPlans.checkInterval")}
+                    <input
+                      type="number"
+                      min={1}
+                      max={720}
+                      required
+                      value={draft.checkHours}
+                      onChange={(e) => setDraft({ ...draft, checkHours: Number(e.target.value) })}
+                    />
+                  </label>
+                )}
+                <p className="settings-help">{t("rotationPlans.checkScheduleHint")}</p>
+              </fieldset>
               <fieldset className="rotation-password-policy">
                 <legend>{t("rotationPlans.passwordMode")}</legend>
                 <label>
@@ -1031,7 +1109,13 @@ export default function RotationPlansPage() {
               </p>
             )}
             <p className="settings-help">
-              {t(draft.enabled ? "rotationPlans.scheduledSave" : "rotationPlans.saveHint")}
+              {t(
+                draft.checkEnabled
+                  ? "rotationPlans.scheduledCheckSave"
+                  : draft.enabled
+                    ? "rotationPlans.scheduledSave"
+                    : "rotationPlans.saveHint",
+              )}
             </p>
             <div className="rotation-actions">
               <button type="button" disabled={busy} onClick={closeEditor}>
@@ -1128,16 +1212,28 @@ export default function RotationPlansPage() {
         </Modal>
       )}
       {selectedRun && (
-        <Modal title={t("rotationPlans.runDetails")} close={() => setSelectedRun(null)} busy={busy}>
+        <Modal
+          title={t(
+            selectedRun.operation === "check"
+              ? "rotationPlans.checkDetails"
+              : "rotationPlans.runDetails",
+          )}
+          close={() => setSelectedRun(null)}
+          busy={busy}
+        >
           <h3>{selectedRun.name}</h3>
           <p>
             {t(
-              selectedRun.password_mode === "fixed"
-                ? "rotationPlans.fixedMode"
-                : "rotationPlans.generatedMode",
+              selectedRun.operation === "check"
+                ? "rotationPlans.checkOperation"
+                : selectedRun.password_mode === "fixed"
+                  ? "rotationPlans.fixedMode"
+                  : "rotationPlans.generatedMode",
             )}
           </p>
-          {selectedRun.password_policy ? (
+          {selectedRun.operation === "check" ? (
+            <p className="settings-help">{t("rotationPlans.checkResultHint")}</p>
+          ) : selectedRun.password_policy ? (
             <details className="rotation-password-policy">
               <summary>{t("rotationPlans.policySnapshot")}</summary>
               <SSHPasswordRuleFields
@@ -1193,7 +1289,7 @@ export default function RotationPlansPage() {
                     <td>
                       {item.asset_name} · {item.username}
                       <small>{item.account_id}</small>
-                      {item.collector_username && (
+                      {selectedRun.operation !== "check" && item.collector_username && (
                         <small>
                           {t("rotationPlans.collector")}: {item.collector_username}
                         </small>
@@ -1202,12 +1298,17 @@ export default function RotationPlansPage() {
                     <td>{t(`rotationPlans.credentials.${item.credential_type}`)}</td>
                     <td>{state(item.state)}</td>
                     <td>
-                      {item.linked_to
-                        ? t("rotationPlans.linked")
-                        : t("rotationPlans.revisions", {
-                            before: item.before_revision,
-                            after: item.after_revision || t("rotationPlans.none"),
-                          })}
+                      {selectedRun.operation === "check"
+                        ? t("rotationPlans.checkDuration", {
+                            milliseconds: item.check_duration_ms || 0,
+                            revision: item.before_revision,
+                          })
+                        : item.linked_to
+                          ? t("rotationPlans.linked")
+                          : t("rotationPlans.revisions", {
+                              before: item.before_revision,
+                              after: item.after_revision || t("rotationPlans.none"),
+                            })}
                       {item.error_code && (
                         <small>
                           {t(`rotationPlans.itemErrors.${item.error_code}`, {
@@ -1229,7 +1330,7 @@ export default function RotationPlansPage() {
                       ) : (
                         !active(selectedRun.state) &&
                         retryable(item) &&
-                        execute &&
+                        (selectedRun.operation === "check" ? checkExecute : execute) &&
                         (all || selectedRun.owner.id === userID) && (
                           <button
                             type="button"
@@ -1261,7 +1362,7 @@ export default function RotationPlansPage() {
             </button>
             {!active(selectedRun.state) &&
               selectedRun.items?.some(retryable) &&
-              execute &&
+              (selectedRun.operation === "check" ? checkExecute : execute) &&
               (all || selectedRun.owner.id === userID) && (
                 <button type="button" disabled={busy} onClick={() => void prepareRetry()}>
                   {t("rotationPlans.retryFailed")}
@@ -1299,15 +1400,24 @@ export default function RotationPlansPage() {
       )}
       {confirm && (
         <Modal
-          title={t(`rotationPlans.confirmTitles.${confirm.mode}`)}
+          title={t(
+            `rotationPlans.confirmTitles.${confirm.mode === "retry" && confirm.operation === "check" ? "retryCheck" : confirm.mode}`,
+          )}
           close={() => setConfirm(null)}
           busy={busy}
         >
           <p>
             <strong>{confirm.name}</strong>
           </p>
-          <p>{t(`rotationPlans.confirmHints.${confirm.mode}`)}</p>
-          {confirm.mode === "retry" && confirm.plan && (
+          <p>
+            {t(
+              `rotationPlans.confirmHints.${confirm.mode === "retry" && confirm.operation === "check" ? "retryCheck" : confirm.mode}`,
+            )}
+          </p>
+          {confirm.mode === "retry" && confirm.operation === "check" && (
+            <p>{t("rotationPlans.checkRevision", { revision: confirm.revision })}</p>
+          )}
+          {confirm.mode === "retry" && confirm.operation !== "check" && confirm.plan && (
             <>
               <p>
                 {t("rotationPlans.retryConfiguration", {
@@ -1349,7 +1459,7 @@ export default function RotationPlansPage() {
               onClick={() => void confirmed()}
             >
               {t(
-                `rotationPlans.${confirm.mode === "delete" ? "delete" : confirm.mode === "cancel" ? "cancel" : confirm.mode === "recover" ? "recover" : confirm.mode === "retry" ? "retry" : "run"}`,
+                `rotationPlans.${confirm.mode === "delete" ? "delete" : confirm.mode === "cancel" ? "cancel" : confirm.mode === "recover" ? "recover" : confirm.mode === "retry" ? "retry" : confirm.mode === "check" ? "check" : "run"}`,
               )}
             </button>
           </div>

@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-const rotationPlanUsage = "usage: jms account rotation targets|plans|runs|audit [--offset 0 --limit 50] [--search TEXT --collector-for ACCOUNT --plan PLAN] | show-plan|show-run ID | create --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | update PLAN --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | delete PLAN --revision N | run PLAN [--request-id ID --wait --timeout-seconds 300] | retry RUN --plan-revision N [--items ITEM_ID,ITEM_ID --request-id ID --wait --timeout-seconds 300] | cancel|recover RUN | export RUN --out NEW.csv"
+const rotationPlanUsage = "usage: jms account rotation targets|plans|runs|audit [--offset 0 --limit 50] [--search TEXT --collector-for ACCOUNT --plan PLAN] | show-plan|show-run ID | create --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | update PLAN --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | delete PLAN --revision N | run|check PLAN [--request-id ID --wait --timeout-seconds 300] | retry RUN --plan-revision N [--items ITEM_ID,ITEM_ID --request-id ID --wait --timeout-seconds 300] | cancel|recover RUN | export RUN --out NEW.csv"
 
 func executeRotationPlans(ctx context.Context, c *sessionclient.Client, args []string, output io.Writer) error {
 	return executeRotationPlansInput(ctx, c, args, nil, output)
@@ -151,7 +151,7 @@ func executeRotationPlansInput(ctx context.Context, c *sessionclient.Client, arg
 			return errors.New(rotationPlanUsage)
 		}
 		return emit(map[string]string{"state": "deleted"}, c.DeleteRotationPlan(ctx, args[1], *revision))
-	case "run", "retry":
+	case "run", "check", "retry":
 		id, wait, seconds := f.String("request-id", "", ""), f.Bool("wait", false, ""), f.Int("timeout-seconds", 300, "")
 		var revision *int
 		var items *string
@@ -192,6 +192,8 @@ func executeRotationPlansInput(ctx context.Context, c *sessionclient.Client, arg
 		var e error
 		if args[0] == "retry" {
 			run, e = c.RetryRotationRun(ctx, args[1], sessionclient.RotationRetryInput{RequestID: *id, PlanRevision: *revision, ItemIDs: retryItems})
+		} else if args[0] == "check" {
+			run, e = c.CheckRotationPlan(ctx, args[1], *id)
 		} else {
 			run, e = c.RunRotationPlan(ctx, args[1], *id)
 		}
@@ -220,6 +222,9 @@ func executeRotationPlansInput(ctx context.Context, c *sessionclient.Client, arg
 			return e
 		}
 		if *wait && run.State != "succeeded" {
+			if run.Operation == "check" {
+				return errors.New("connectivity check requires attention; inspect per-account results")
+			}
 			return errors.New("rotation requires attention; inspect per-account results")
 		}
 		return nil

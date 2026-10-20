@@ -2,6 +2,8 @@
 
 > [中文](./ROTATION-PLANS.md) | English
 
+Plans also offer independent [SSH account connectivity checks](./ACCOUNT-CHECKS.en.md), authenticating current stored credentials without rotation or commands. Scheduling defaults to disabled and is managed separately from rotation.
+
 Select managed SSH accounts across hosts and rotate passwords or keys manually, once, or periodically. Web, `jms account rotation` and the Go SDK share the server executor. Target credentials remain in the encrypted Vault.
 
 2026-10-18: per-account results from isolated Docker, real OpenSSH and the in-app browser:

@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[SSH account connectivity checks](./ACCOUNT-CHECKS.en.md): manual and independently scheduled authentication of stored passwords/keys, per-account results, explicit retries, security notifications and backup persistence.
+
 [SSH execution workspaces](./SSH-WORKSPACES.en.md): native Linux subtree confinement for Web/CLI. Added [controlled execution directories](./EXECUTION-DIRECTORIES.en.md): single-command verified starting directories, exact/subtree/regex rules and approval binding; complete interactive cwd remains outstanding.
 
 [Software updates and native artifacts](./UPDATES.en.md): published stable checks, automatic policy, system permissions/revisions/receipts, download/archive verification and six-platform release packaging.

@@ -9,6 +9,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/loginaudit"
 	"github.com/neko233-com/jumpserver233/server/internal/core/notifications"
+	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"time"
 )
 
@@ -68,6 +69,21 @@ func notificationSourceDetails(ctx context.Context, d Dependencies, user, kind, 
 		return out, notifications.ErrDenied
 	}
 	switch kind {
+	case "account_checks":
+		if d.RotationPlans == nil || !p.Allows("accounts.rotation.view") || !p.Allows("assets.view_all") {
+			return out, notifications.ErrNotFound
+		}
+		r, e := d.RotationPlans.Run(id)
+		if errors.Is(e, rotationplans.ErrNotFound) {
+			return out, notifications.ErrNotFound
+		}
+		if e != nil {
+			return out, e
+		}
+		if r.Operation != "check" {
+			return out, notifications.ErrNotFound
+		}
+		out.Name, out.State, out.Owner, out.At, out.Accounts, out.Method = r.Name, r.State, r.Actor.Name, r.FinishedAt, len(r.Items), "ssh"
 	case "access-reviews":
 		if d.AccessReviews == nil {
 			return out, notifications.ErrNotFound

@@ -10,6 +10,8 @@ export default {
     platformSourcesHint:
       "Connected: platform sign-ins, new source IPs, repeated authentication failures and native sign-in review events. Channel configuration is independent of organization notifications.",
     sourceDetail: "Notification details",
+    sourceCheckCount: "Checked accounts: {{count}}",
+    openChecks: "Open connectivity results",
     sourceDetailHint:
       "Current source permissions apply. Approval does not bypass the original access or command policy.",
     backInbox: "Back to notifications",
@@ -35,6 +37,7 @@ export default {
     confirmDecision: "Confirm decision",
     sourceDecisionSaved: "Decision saved. Continue the operation through its original entry.",
     sourceKinds: {
+      account_checks: "SSH credential connectivity check",
       "platform-logins": "Platform sign-in",
       "access-reviews": "Asset access review",
       "job-security": "SSH job review & safety",

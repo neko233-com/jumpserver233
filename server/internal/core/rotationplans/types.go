@@ -67,23 +67,26 @@ type Intent struct {
 	Target         Prepared               `json:"target"`
 }
 type Outcome struct {
-	State    string    `json:"state"` // succeeded, failed, recovery_required, not_started, changed
-	Code     string    `json:"error_code,omitempty"`
-	Revision uint64    `json:"revision,omitempty"`
-	At       time.Time `json:"at,omitzero"`
+	CheckDurationMS int64     `json:"check_duration_ms,omitempty"`
+	State           string    `json:"state"` // succeeded, failed, recovery_required, not_started, changed
+	Code            string    `json:"error_code,omitempty"`
+	Revision        uint64    `json:"revision,omitempty"`
+	At              time.Time `json:"at,omitzero"`
 }
 type PlanInput struct {
-	PasswordMode   string                 `json:"password_mode,omitempty"` // generated (default), fixed
-	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
-	Origin         accesspolicies.Origin  `json:"-"`
-	Name           string                 `json:"name"`
-	Targets        []Selection            `json:"targets,omitempty"`
-	Kind           string                 `json:"kind"` // manual, once, interval
-	Enabled        bool                   `json:"enabled"`
-	RunAt          time.Time              `json:"run_at,omitzero"`
-	IntervalHours  int                    `json:"interval_hours,omitempty"`
-	OnlyDue        bool                   `json:"only_due"`
-	Revision       int                    `json:"revision"`
+	CheckEnabled       bool                   `json:"check_enabled,omitempty"`
+	CheckIntervalHours int                    `json:"check_interval_hours,omitempty"`
+	PasswordMode       string                 `json:"password_mode,omitempty"` // generated (default), fixed
+	PasswordPolicy     credentialpolicy.Rules `json:"password_policy,omitzero"`
+	Origin             accesspolicies.Origin  `json:"-"`
+	Name               string                 `json:"name"`
+	Targets            []Selection            `json:"targets,omitempty"`
+	Kind               string                 `json:"kind"` // manual, once, interval
+	Enabled            bool                   `json:"enabled"`
+	RunAt              time.Time              `json:"run_at,omitzero"`
+	IntervalHours      int                    `json:"interval_hours,omitempty"`
+	OnlyDue            bool                   `json:"only_due"`
+	Revision           int                    `json:"revision"`
 }
 
 // SaveInput is request-only. Public Plan/Run DTOs never embed this type.
@@ -93,11 +96,14 @@ type SaveInput struct {
 	FixedPassword string `json:"fixed_password,omitempty"`
 }
 type Plan struct {
-	SaveRequestID string                `json:"save_request_id,omitempty"`
-	TargetCount   int                   `json:"target_count"`
-	AccessOrigin  accesspolicies.Origin `json:"access_origin,omitempty"`
-	ID            string                `json:"id"`
-	Actor         Actor                 `json:"owner"`
+	NextCheck      time.Time             `json:"next_check,omitzero"`
+	LastCheckRunID string                `json:"last_check_run_id,omitempty"`
+	CheckErrorCode string                `json:"check_error_code,omitempty"`
+	SaveRequestID  string                `json:"save_request_id,omitempty"`
+	TargetCount    int                   `json:"target_count"`
+	AccessOrigin   accesspolicies.Origin `json:"access_origin,omitempty"`
+	ID             string                `json:"id"`
+	Actor          Actor                 `json:"owner"`
 	PlanInput
 	Refs      []Ref     `json:"accounts"`
 	NextRun   time.Time `json:"next_run,omitzero"`
@@ -108,18 +114,20 @@ type Plan struct {
 }
 type Item struct {
 	Ref
-	SourceItemID   string    `json:"source_item_id,omitempty"`
-	RetryRunID     string    `json:"retry_run_id,omitempty"`
-	ID             string    `json:"id"`
-	State          string    `json:"state"`
-	ErrorCode      string    `json:"error_code,omitempty"`
-	LinkedTo       string    `json:"linked_to,omitempty"`
-	BeforeRevision uint64    `json:"before_revision"`
-	AfterRevision  uint64    `json:"after_revision,omitempty"`
-	StartedAt      time.Time `json:"started_at,omitzero"`
-	FinishedAt     time.Time `json:"finished_at,omitzero"`
+	CheckDurationMS int64     `json:"check_duration_ms,omitempty"`
+	SourceItemID    string    `json:"source_item_id,omitempty"`
+	RetryRunID      string    `json:"retry_run_id,omitempty"`
+	ID              string    `json:"id"`
+	State           string    `json:"state"`
+	ErrorCode       string    `json:"error_code,omitempty"`
+	LinkedTo        string    `json:"linked_to,omitempty"`
+	BeforeRevision  uint64    `json:"before_revision"`
+	AfterRevision   uint64    `json:"after_revision,omitempty"`
+	StartedAt       time.Time `json:"started_at,omitzero"`
+	FinishedAt      time.Time `json:"finished_at,omitzero"`
 }
 type Run struct {
+	Operation      string                 `json:"operation,omitempty"` // empty means rotation; check authenticates only
 	ParentRunID    string                 `json:"parent_run_id,omitempty"`
 	RetryItemIDs   []string               `json:"retry_item_ids,omitempty"`
 	RetryAll       bool                   `json:"retry_all,omitempty"`
@@ -171,6 +179,8 @@ type RunSummary struct {
 	Skipped   int `json:"skipped"`
 }
 type Runner struct {
+	Check            func(context.Context, Intent, func() error) (Outcome, error)
+	AuthorizeCheck   func(Actor) error
 	AuthorizeTargets func(Actor, []Selection) error
 	AuthorizeFixed   func(Actor) error
 	Prepare          func(context.Context, Actor, []Selection) ([]Prepared, error)
@@ -220,6 +230,9 @@ func validText(s string, n int) bool {
 	return true
 }
 func (in PlanInput) Validate() error {
+	if in.CheckIntervalHours < 0 || in.CheckIntervalHours > 720 || in.CheckEnabled && in.CheckIntervalHours < 1 {
+		return ErrInvalid
+	}
 	if !validPasswordMode(in.PasswordMode) {
 		return ErrInvalid
 	}

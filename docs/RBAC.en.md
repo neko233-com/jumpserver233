@@ -2,6 +2,8 @@
 
 > [中文](./RBAC.md) | English
 
+[SSH connectivity checks](./ACCOUNT-CHECKS.en.md) use `accounts.rotation.check` alongside `accounts.rotation.view`, `assets.view_all` and `assets.probe`. Checks and check retries require no rotation execution, fixed-password or privileged-rotation rights.
+
 Fixed plans additionally require `accounts.rotation.fixed_password` for configuration, execution and recovery alongside existing rotation rights. It provides no password read endpoint. Viewers see source mode only; see [fixed-password plans](./FIXED-PASSWORDS.en.md).
 
 Organization [generated SSH password policies](./SSH-PASSWORD-POLICY.en.md) use independent `accounts.password_policy.view` / `accounts.password_policy.manage`; neither grants credential access or rotation execution. Role controls have bilingual labels, and policy-only users can access the configuration card.

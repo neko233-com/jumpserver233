@@ -255,6 +255,14 @@ function SourceDetail({ kind, id }: { kind: string; id: string }) {
               )}
           </dl>
           {kind === "agent-events" && <p>{t("notifications.hostReported")}</p>}
+          {kind === "account_checks" && (
+            <>
+              <p>{t("notifications.sourceCheckCount", { count: detail.accounts || 0 })}</p>
+              <Link to={`/console/rotation-plans?run=${encodeURIComponent(detail.id)}`}>
+                {t("notifications.openChecks")}
+              </Link>
+            </>
+          )}
           {kind === "account-risks" && (
             <>
               <p>

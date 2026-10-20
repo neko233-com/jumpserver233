@@ -140,6 +140,36 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 	}
 	service.SetRunner(rotationplans.Runner{
 		Authorize: authorize,
+		AuthorizeCheck: func(a rotationplans.Actor) error {
+			_, p, e := current(a.ID, "accounts.rotation.check")
+			if e != nil || !p.Allows("assets.probe") || !p.Allows("accounts.rotation.view") {
+				return rotationplans.ErrDenied
+			}
+			return nil
+		},
+		Check: func(ctx context.Context, in rotationplans.Intent, guard func() error) (rotationplans.Outcome, error) {
+			release := lockAccess()
+			defer release()
+			check := func() error {
+				if e := guard(); e != nil {
+					return e
+				}
+				u, p, e := current(in.Actor.ID, "accounts.rotation.check")
+				if e != nil || !p.Allows("assets.probe") || !p.Allows("accounts.rotation.view") {
+					return rotationplans.ErrDenied
+				}
+				a, e := d.Assets.Get(in.Target.AccountID)
+				if e != nil {
+					return e
+				}
+				decision, e := checkAccessPolicies(d, u, a, in.Origin, false)
+				if e != nil || !decision.Allowed {
+					return rotationplans.ErrDenied
+				}
+				return nil
+			}
+			return d.Assets.CheckManagedAccount(ctx, in, check)
+		},
 		AuthorizeTargets: func(a rotationplans.Actor, selected []rotationplans.Selection) error {
 			_, p, e := current(a.ID, "accounts.rotation.execute")
 			if e != nil || !p.Allows("assets.rotate") {
@@ -243,6 +273,10 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 				}
 			}
 		}
+		if in.CheckEnabled && (!p.Allows("accounts.rotation.check") || !p.Allows("assets.probe")) {
+			rotationPlanError(w, rotationplans.ErrDenied)
+			return
+		}
 		out, e := service.SaveRequest(r.Context(), actor(u), r.PathValue("planID"), in, p.Allows("accounts.rotation.manage_all"), p.Allows("accounts.rotation.fixed_password"))
 		if e != nil {
 			rotationPlanError(w, e)
@@ -313,6 +347,25 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 		}
 		writeJSON(w, 202, out)
 	}))
+	mux.Handle("POST "+base+"/{planID}/checks", protect(func(w http.ResponseWriter, r *http.Request) {
+		u, p, ok := requestUser(w, r, "accounts.rotation.check")
+		if !ok {
+			return
+		}
+		var in struct {
+			RequestID string `json:"request_id"`
+		}
+		if decodeRequestJSON(w, r, &in) != nil {
+			rotationPlanError(w, rotationplans.ErrInvalid)
+			return
+		}
+		out, e := service.Check(r.Context(), actor(u), r.PathValue("planID"), in.RequestID, p.Allows("accounts.rotation.manage_all"), accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(r.Context()), Method: "credential_rotation"})
+		if e != nil {
+			rotationPlanError(w, e)
+			return
+		}
+		writeJSON(w, 202, out)
+	}))
 	mux.Handle("GET /api/v1/accounts/rotation-runs", protect(func(w http.ResponseWriter, r *http.Request) {
 		if _, _, ok := requestUser(w, r, "accounts.rotation.view"); !ok {
 			return
@@ -329,6 +382,7 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 		}
 		for i := range rows {
 			rows[i].Items = nil
+			rows[i].RetryItemIDs = nil
 		}
 		writeJSON(w, 200, map[string]any{"results": rows, "total": total})
 	}))
@@ -344,7 +398,7 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 		writeJSON(w, 200, out)
 	}))
 	mux.Handle("POST /api/v1/accounts/rotation-runs/{runID}/retry", protect(func(w http.ResponseWriter, r *http.Request) {
-		if _, _, ok := requestUser(w, r, "accounts.rotation.execute"); !ok {
+		if _, _, ok := requestUser(w, r, "accounts.rotation.view"); !ok {
 			return
 		}
 		var in rotationplans.RetryInput
@@ -354,7 +408,7 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 		}
 		release := lockAccess()
 		defer release()
-		u, p, ok := requestUser(w, r, "accounts.rotation.execute")
+		u, p, ok := requestUser(w, r, "accounts.rotation.view")
 		if !ok {
 			return
 		}
@@ -412,13 +466,17 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 		w.Header().Set("Content-Disposition", `attachment; filename="credential-rotation.csv"`)
 		_, _ = w.Write([]byte("\xef\xbb\xbf"))
 		writer := csv.NewWriter(w)
-		_ = writer.Write([]string{"run_id", "account_id", "asset_id", "asset_name", "username", "credential_type", "state", "error_code", "linked_to", "before_revision", "after_revision", "finished_at", "parent_run_id", "source_item_id", "retry_run_id"})
+		_ = writer.Write([]string{"run_id", "account_id", "asset_id", "asset_name", "username", "credential_type", "state", "error_code", "linked_to", "before_revision", "after_revision", "finished_at", "parent_run_id", "source_item_id", "retry_run_id", "operation", "check_duration_ms"})
 		for _, v := range run.Items {
 			at := ""
 			if !v.FinishedAt.IsZero() {
 				at = v.FinishedAt.Format(time.RFC3339)
 			}
-			row := []string{run.ID, v.AccountID, v.AssetID, v.AssetName, v.Username, v.CredentialType, v.State, v.ErrorCode, v.LinkedTo, strconv.FormatUint(v.BeforeRevision, 10), strconv.FormatUint(v.AfterRevision, 10), at, run.ParentRunID, v.SourceItemID, v.RetryRunID}
+			operation := "rotation"
+			if run.Operation == "check" {
+				operation = "check"
+			}
+			row := []string{run.ID, v.AccountID, v.AssetID, v.AssetName, v.Username, v.CredentialType, v.State, v.ErrorCode, v.LinkedTo, strconv.FormatUint(v.BeforeRevision, 10), strconv.FormatUint(v.AfterRevision, 10), at, run.ParentRunID, v.SourceItemID, v.RetryRunID, operation, strconv.FormatInt(v.CheckDurationMS, 10)}
 			for i, value := range row {
 				trim := strings.TrimLeft(value, " \t\r\n")
 				if trim != "" && strings.ContainsRune("=+-@", rune(trim[0])) {

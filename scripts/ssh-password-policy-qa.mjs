@@ -5,10 +5,11 @@ import { setTimeout as delay } from "node:timers/promises";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 import { verifyFixedPassword, verifyFixedPasswordAfterRestart } from "./fixed-password-qa.mjs";
 import { verifyRotationRetry, verifyRotationRetryAfterRestart } from "./rotation-retry-qa.mjs";
+import { verifyAccountChecks, verifyAccountChecksAfterRestart } from "./account-checks-qa.mjs";
 export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api,operator,sshHost,fingerprint,chromium,expect,report,stopSelected,startSelected,inContainer}){
  report.sshPasswordPolicyStep="configuration";
  const path="/api/v1/accounts/password-policy";
- let admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token, planProof, fixedProof, retryProof;
+ let admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token, planProof, fixedProof, retryProof, checkProof;
  const initial=await api("GET",path,undefined,admin);
  await api("GET",path,undefined,await operator(),403);
  const target=await api("POST","/api/v1/assets",{name:"Password policy SSH",host:sshHost,port:22,username:"rotationqa",password:"synthetic-keyhost-password-233",host_key_fingerprint:fingerprint},admin,201);
@@ -30,6 +31,7 @@ export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api
   report.sshPasswordPolicyStep="plan_browser";planProof=await verifyPlanPasswordPolicy({page,context,expect,api,admin,target,output});
   report.sshPasswordPolicyStep="fixed_browser";fixedProof=await verifyFixedPassword({page,context,expect,api,admin,target,output,runInput,owner});
   report.sshPasswordPolicyStep="retry_browser";retryProof=await verifyRotationRetry({page,context,expect,api,admin,target,output,run,runInput,owner,sshHost,fingerprint,operator,report});
+  report.sshPasswordPolicyStep="account_checks";checkProof=await verifyAccountChecks({page,context,expect,api,admin,run,runInput,owner,sshHost,fingerprint,output,report});
  }finally{await browser.close()}
  if(errors.length)throw Error("SSH policy browser diagnostics failed");
  report.sshPasswordPolicyStep="rotation";
@@ -50,6 +52,7 @@ export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api
  report.sshPasswordPolicyStep="restart";await startSelected("v0.0.7");admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token;await ssh();
  const fixedRestart=await verifyFixedPasswordAfterRestart({api,admin,proof:fixedProof});
  const retryRestart=await verifyRotationRetryAfterRestart({api,admin,proof:retryProof});
+ const checkRestart=await verifyAccountChecksAfterRestart({api,admin,proof:checkProof});
  const final=await api("GET",path,undefined,admin);if(final.policy.revision!==saved.policy.revision||final.audit.length!==initial.audit.length+1)throw Error("Restart changed SSH policy audit/revision");
  const finalPlan=await api("GET","/api/v1/accounts/rotation-plans/"+planProof.planID,undefined,admin),finalRun=await api("GET","/api/v1/accounts/rotation-runs/"+planProof.runID,undefined,admin);
  if(finalPlan.password_policy?.min_length!==60||finalRun.password_policy?.min_length!==56||finalRun.state!=="succeeded")throw Error("Restart lost plan revision or immutable run policy snapshot");
@@ -58,6 +61,7 @@ export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api
  report.planPasswordPolicy={...planProof,webAndCLI:true,encryptedBackupRestore:true,restartSnapshotPreserved:true,nonAdminDenied:true};
  report.fixedPassword={...fixedProof,...fixedRestart,encryptedBackupRestore:true};
  report.rotationRetry={...retryProof,...retryRestart};
+ report.accountChecks={...checkProof,...checkRestart};
  report.sshPasswordPolicyStep="complete";
 }
 
