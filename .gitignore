@@ -85,6 +85,9 @@ __pycache__/
 !.env.*.example
 /data/
 /server/data/
+# Platform notice state and interrupted atomic writes in custom data roots
+**/announcements.json
+**/.announcements-*
 # Local backup archives, recovery control state and interrupted atomic writes
 *.jmsbackup
 vault.key

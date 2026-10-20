@@ -7,9 +7,9 @@
 | Scope | Closed | Partial | Undelivered | Closure by acceptance items |
 |---|---:|---:|---:|---:|
 | Current stable SSH release | 9/12 | 3 | 0 | **75%** |
-| Full baseline (Community core, Enterprise enhancements and user additions) | 16/42 | 16 | 10 | **38%** |
+| Full baseline (Community core, Enterprise enhancements and user additions) | 16/42 | 17 | 9 | **38%** |
 
-Denominators were first fixed on 2026-10-20 without reconstructing historical percentages. This batch implements S10 directory propagation and S11 upgrade compatibility boundaries, with unified acceptance pending and **0** newly accepted items. **26 groups** remain open in the full baseline and **3 items** remain for stable SSH. The checklists overlap and cannot be added together.
+Denominators were first fixed on 2026-10-20 without reconstructing historical percentages. The user subsequently required **all features implemented before unified verification**. Track implementation readiness separately from acceptance: **16/42** groups currently have a complete accepted implementation, and the other 26 still require code/cases/docs. Directory propagation and upgrade compatibility have unverified source. This batch authors platform notice core/API/Web/CLI/SDK and cases; E41 tags remain open, so the group is not implementation-ready. Newly accepted items: **0**. The checklists overlap and cannot be added together.
 
 The percentage is closed capability groups divided by the fixed checklist total. Partial implementations receive no fractional credit. It does not measure code volume, remaining hours or production readiness; groups differ in effort. Changing or splitting the denominator requires the requirement source, reason and before/after counts. Vendor support, commercial licensing and supplier SLAs are excluded from software scope.
 
@@ -23,7 +23,7 @@ The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.
 
 The last accepted and pushed functional baseline is `4b96cb3ebc8b92cc813c05abd70db3d0619b0e40`. Its preceding verification recorded **1744 Go passes, 114 skips**, **350 Linux race passes** and **87/87 production-browser passes**. The full browser suite used `04bf60a`; the mobile result correction at `8188747` received native-lifecycle and bilingual narrow-screen acceptance without repeating all 87 cases. The final baseline commit updated acceptance docs. See [verification](./TESTING.en.md) and the locally ignored `.cache/qa-reports/account-checks/summary.json`; test counts do not determine feature completion.
 
-The current batch includes directory implementation, Go/API/CLI cases, real SSH/bilingual browser entrypoints and the [upgrade compatibility matrix](./UPGRADE-COMPATIBILITY.en.md). It receives no closed credit before acceptance; earlier passes do not cover new changes. Complete the code, cases and bilingual documentation together before starting unified verification.
+Unverified source includes directory propagation, Go/API/CLI cases, real SSH/bilingual browser entrypoints, the [upgrade compatibility matrix](./UPGRADE-COMPATIBILITY.en.md) and [platform announcements](./ANNOUNCEMENTS.en.md). Checkpoint `87505d6` contains directory/upgrade work and is not an accepted stable release; subsequent notice implementation also remains unverified. This batch only authors/formats source without tests, builds, browser or Docker runs. Previous passes do not cover new source.
 
 ## Stable SSH: 12 fixed items
 
@@ -40,7 +40,7 @@ The current batch includes directory implementation, Go/API/CLI cases, real SSH/
 | S09 | Standalone offline full-site export/import | Closed | Encryption/integrity, idempotent restore, no overwrite on invalid input and restart retention; cross-version upgrades are S11. |
 | S10 | Directory controls across all controlled execution entrypoints | Partial | Single jobs passed; batch/template/schedule/Playbook changes are unverified. Unknown interactive cwd must deny conservatively and direct users to controlled exec; arbitrary shell semantics are not promised. |
 | S11 | Update checks, data-preserving upgrades and supported-version boundaries | Partial | Install/rollback and a historical-source drill exist; freeze the minimum supported version, historical artifact/format migration and rejection of older versions. |
-| S12 | Final unified verification and delivery after scope freeze | Partial | Complete current uncommitted work, then verify, clean, report, commit and push once; include bilingual, performance and size gates. |
+| S12 | Final unified verification and delivery after all implementation | Partial | Complete all 42 groups, cases and bilingual docs, then verify, clean, report, commit and push once; include bilingual, performance and size gates. |
 
 ## Full baseline: 42 fixed groups
 
@@ -88,13 +88,13 @@ Each row names a capability group and its accepted boundary or remaining extensi
 | E38 | [Updates and historical-release migration](./INSTALLATION.en.md) | Partial | Checks/staging/install transactions/rollback and a fixed historical-source drill exist; actual historical-release compatibility remains unaccepted. |
 | E39 | [Production cluster availability](./CLUSTER-HA.en.md) | Partial | PostgreSQL single-active takeover exists; strict partition fencing, database/shared-storage failures, multi-active operation and production drills remain open. |
 | E40 | [Complete REST and component compatibility](./BASELINE.en.md) | Partial | Four auth methods, organization headers and session/replay contracts remain; full API and upstream component registration parity lack a complete acceptance map. |
-| E41 | [Global tags and announcements](./BASELINE.en.md) | Undelivered | The baseline's complete management/authorization/UI flow is unaccepted. |
+| E41 | [Global tags and announcements](./ANNOUNCEMENTS.en.md) | Partial | Platform notice management/publication/readings, permissions, encryption, bilingual Web, CLI/SDK and cases are authored but unverified; global tags remain unimplemented. |
 | E42 | [Branding and Chinese/English presentation/UI/docs](./BRANDING.en.md) | Closed | Brand configuration, bilingual strings, automatic locale selection, paired docs and release-only changelog generation. |
 
 ## Closing order and verification gate
 
-1. **Finish all code, cases and bilingual docs for S10 and S11 first.** Preserve and complete current directory work, freezing real-directory proof, review/authorization and idempotency boundaries. Freeze the upgrade support matrix and actual historical artifacts; if no historical formal Release exists, state the minimum supported version and reject unsupported formats rather than claiming historical-release acceptance.
-2. **Then run one unified S12 acceptance.** Reuse existing Go/Testify, race, production-browser, native installation/backup/upgrade and Docker entrypoints. Start independent checks together and avoid repeated builds or environment creation. Write idempotency, revision conflict, approval replay, restart and recovery cases before starting. Repair failures and rerun affected checks; expand regression only for shared-path impact or unresolved failures.
-3. **Clean and deliver.** Keep summaries and essential screenshots, clean owned resources safely and idempotently, then commit and push accepted scope. Intranet deployment remains cancelled; formal publication/changelog follow existing authorization and release workflow. The full baseline currently has 26 open groups; this batch handles only the stable-SSH subset, with other Enterprise extensions following later requirements.
+1. **Implement all 42 groups with cases and bilingual docs first.** SSH remains the development priority, but completing an SSH-only batch cannot start verification. Preserve directory/upgrade source and address remaining groups. If no historical formal Release exists, state support boundaries without fabricating release-migration evidence.
+2. **Run unified verification only after every implementation is ready.** Until then, run no tests, builds, browser or Docker verification. Author idempotency, revision conflict, approval replay, restart, recovery and cross-module cases in advance, then run existing entrypoints together. Repair failures and rerun affected checks; expand regression for shared-path impact or unresolved failures.
+3. **Clean and deliver.** Keep summaries and essential screenshots, clean owned resources safely and idempotently, then commit and push accepted scope. Intranet deployment remains cancelled; publication/changelog follow existing authorization and workflow. The complete Enterprise objective and 42-group denominator remain unchanged.
 
 Every delivery must update this document and tell the user the **current scope, closed/total and percentage, batch delta, named remaining gaps, verified source and unverified changes**. New requirements must identify which scope changes. Do not keep starting more features and full regressions without this information, and do not equate passing tests with complete functionality.

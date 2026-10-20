@@ -21,6 +21,8 @@ CODELY.md
 **/.env
 **/.env.*
 **/data
+**/announcements.json
+**/.announcements-*
 server/bin
 server/internal/agentbundle/artifacts/jms-agent-*
 server/internal/agentbundle/artifacts/manifest.json

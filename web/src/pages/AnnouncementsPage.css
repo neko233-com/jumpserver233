@@ -1,0 +1,69 @@
+.announcements-page {
+  max-width: 1000px;
+  margin: auto;
+  overflow-wrap: anywhere;
+}
+.announcements-toolbar,
+.announcement-card header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.announcements-toolbar label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.announcement-card,
+.announcement-editor {
+  border: 1px solid #344354;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+  background: #111922;
+}
+.announcement-card header h2 {
+  flex-basis: 100%;
+  margin: 0;
+}
+.announcement-body {
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+.announcement-editor {
+  display: grid;
+  gap: 16px;
+}
+.announcement-editor > div > label,
+.announcement-editor > label:not(:has(input[type="checkbox"])) {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.announcement-editor input:not([type="checkbox"]),
+.announcement-editor textarea,
+.announcement-editor select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #344354;
+  border-radius: 6px;
+  color: inherit;
+  background: #0d1117;
+  font: inherit;
+}
+.announcements-page button {
+  min-height: 36px;
+}
+.announcement-editor textarea {
+  resize: vertical;
+}
+.announcements-page [role="alert"] {
+  color: #ffb4b4;
+}
+.announcements-page details code {
+  overflow-wrap: anywhere;
+}

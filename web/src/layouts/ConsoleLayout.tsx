@@ -24,6 +24,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
       ? [{ to: "/console/asset-discovery", label: t("nav.assetDiscovery"), end: false }]
       : []),
     { to: "/console/reports", label: t("nav.reports"), end: false },
+    { to: "/console/announcements", label: t("nav.announcements"), end: false },
     { to: "/console/login-audit", label: t("nav.loginAudit"), end: false },
     ...(allows("monitoring.view") || allows("monitoring.manage")
       ? [{ to: "/console/monitoring", label: t("nav.monitoring"), end: false }]

@@ -1,11 +1,12 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import ConsoleLayout from "./layouts/ConsoleLayout";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { BrandingProvider } from "./branding/BrandingContext";
 
 const PasswordChangePage = lazy(() => import("./pages/PasswordChangePage"));
+const ConsoleLayout = lazy(() => import("./layouts/ConsoleLayout"));
+const AnnouncementsPage = lazy(() => import("./pages/AnnouncementsPage"));
 const AssetDiscoveryPage = lazy(() => import("./pages/AssetDiscoveryPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -92,6 +93,7 @@ export default function App() {
               <Route path="settings" element={<SettingsPage />} />
               <Route path="asset-discovery" element={<AssetDiscoveryPage />} />
               <Route path="branding" element={<BrandingPage />} />
+              <Route path="announcements" element={<AnnouncementsPage />} />
               <Route path="roles" element={<RolesPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="organizations" element={<OrganizationsPage />} />

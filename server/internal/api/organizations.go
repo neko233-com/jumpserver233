@@ -67,7 +67,7 @@ func NewOrganizationRouter(version string, d Dependencies, resources func(string
 			return
 		}
 		path := r.URL.Path
-		if strings.HasPrefix(path, "/api/v1/branding") || strings.HasPrefix(path, "/api/v1/settings/branding") {
+		if strings.HasPrefix(path, "/api/v1/announcements") || strings.HasPrefix(path, "/api/v1/branding") || strings.HasPrefix(path, "/api/v1/settings/branding") {
 			global.ServeHTTP(w, r)
 			return
 		}

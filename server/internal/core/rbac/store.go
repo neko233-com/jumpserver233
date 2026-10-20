@@ -30,6 +30,7 @@ var (
 // permission must be explicitly added here; wildcards are never accepted.
 var catalog = []string{
 	"reports.export", "reports.audit",
+	"announcements.manage",
 	"audit.logins.view_all", "audit.logins.export",
 	"organizations.manage", "organizations.members.manage",
 	"roles.manage", "users.manage", "users.credentials.manage", "groups.manage", "grants.manage", "nodes.manage",
@@ -114,7 +115,7 @@ type Store struct {
 func OrganizationCatalog() []string {
 	out := []string{}
 	for _, p := range Catalog() {
-		if !slices.Contains([]string{"users.manage", "security.manage", "branding.manage", "organizations.manage", "reviews.platform_login.manage", "audit.logins.view_all", "audit.logins.export"}, p) {
+		if !slices.Contains([]string{"users.manage", "security.manage", "branding.manage", "announcements.manage", "organizations.manage", "reviews.platform_login.manage", "audit.logins.view_all", "audit.logins.export"}, p) {
 			out = append(out, p)
 		}
 	}

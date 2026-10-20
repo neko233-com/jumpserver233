@@ -82,7 +82,7 @@ Put generated evidence in ignored `.cache/qa-reports/`; put reusable QA entrypoi
 ## 6. Roadmap discipline
 
 - Keep the SSH stable-release scope separate from full Enterprise parity. Every delivery must update PROGRESS in both languages and report closed/total items, percentage, batch delta, named remaining gaps, verified source and unverified changes. Partial or untested work receives no closed credit; changing the checklist denominator requires an explicit requirement source and before/after counts.
-- Finish all implementation, cases and docs for the frozen delivery scope before unified verification. Do not silently expand scope or run a complete regression for each small feature. After a failure, rerun affected checks; expand regression for shared-path impact or unresolved failures.
+- The user's 2026-10-20 instruction sets the implementation gate to the entire 42-group checklist in PROGRESS. Author all missing features, cases and bilingual docs before running tests, builds, browser or Docker verification. An SSH-only batch does not open this gate. Report implementation readiness separately from accepted completion; writing tests does not authorize running them early. After the unified run, repair failures and rerun affected checks, expanding regression for shared-path impact or unresolved failures.
 - Work one phase at a time; update the status column in docs/PLAN.md when a phase lands.
 - Stay inside the current phase's scope; enterprise (X-Pack) features wait for Phase 7 unless the user says otherwise.
 - When the task is unclear, ask one focused question rather than guessing on scope-affecting choices.

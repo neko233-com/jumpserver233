@@ -26,6 +26,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountrisks"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
+	"github.com/neko233-com/jumpserver233/server/internal/core/announcements"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assetdiscovery"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -354,6 +355,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	defer platformNotifications.Close()
+	announcementStore, err := announcements.Open(filepath.Join(cfg.DataDir, "announcements.json"), platformKey, platformDocuments)
+	if err != nil {
+		return err
+	}
+	defer announcementStore.Close()
 	databaseService, err := databasequery.Open(filepath.Join(cfg.DataDir, "database-queries.json"), vaultKey, documents, assetService.QueryDatabase)
 	if err != nil {
 		return err
@@ -426,6 +432,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, RADIUS: radiusService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
 	root.Branding = brandStore
+	root.Announcements = announcementStore
 	root.Updates = updateStore
 	root.ReleaseRoot, root.InstallationDataDir = cfg.ReleaseRoot, cfg.DataDir
 	root.Maintenance, err = servicemaintenance.New(admission, !cfg.ClusterMode, updateStore.RecordMaintenance)

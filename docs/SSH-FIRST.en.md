@@ -2,6 +2,8 @@
 
 > [中文](./SSH-FIRST.md) | English
 
+Additional workflow instruction, 2026-10-20: implement the complete feature checklist before unified verification. This document sets development priority; finishing an SSH-only batch cannot start tests. Follow the [current progress gate](./PROGRESS.en.md).
+
 On 2026-10-19 the user prioritized a practical, stable enterprise SSH bastion with few deployment dependencies. [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html) remains the competitor and long-term reference. Other protocols, cloud providers and complex Enterprise features are no longer prerequisites for this stable release. This document changes delivery order; it does not claim that pending capabilities are implemented.
 
 ## Default deployment

@@ -9,6 +9,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountrisks"
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
+	"github.com/neko233-com/jumpserver233/server/internal/core/announcements"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assetdiscovery"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
@@ -47,6 +48,7 @@ import (
 )
 
 type Dependencies struct {
+	Announcements         *announcements.Store
 	SSHPasswordPolicy     *credentialpolicy.Store
 	ReleaseRoot           string
 	InstallationDataDir   string
@@ -134,6 +136,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		registerInstallationScheduleRoutes(mux, dependencies[0])
 		registerMaintenanceRoutes(mux, dependencies[0])
 		registerBrandingRoutes(mux, dependencies[0])
+		registerAnnouncementRoutes(mux, dependencies[0])
 	} else {
 		registerBrandingRoutes(mux, Dependencies{})
 	}
