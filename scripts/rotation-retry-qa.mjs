@@ -50,7 +50,9 @@ export async function verifyRotationRetry({page,context,expect,api,admin,target,
    if(bulk){
     await detail.getByRole("button",{name:parent.id,exact:true}).click();await detail.screenshot({path:resolve(output,"rotation-retry.en.png")});
     await detail.getByRole("row").filter({hasText:bad.name}).getByRole("button",{name:"Open retry",exact:true}).click();
+    await detail.getByRole("button",{name:"Close",exact:true}).click();
     await page.getByRole("button",{name:"中文",exact:true}).click();await page.setViewportSize({width:390,height:844});
+    await page.getByRole("row").filter({hasText:name}).getByRole("button",{name:"最近结果",exact:true}).click();
     const chinese=page.getByRole("dialog",{name:"改密结果",exact:true});
     if(!await chinese.evaluate(el=>el.scrollWidth<=el.clientWidth+1)||!await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))throw Error("Retry detail overflows narrow viewport");
     await chinese.screenshot({path:resolve(output,"rotation-retry.zh.png")});await chinese.getByRole("button",{name:"关闭",exact:true}).click();await page.getByRole("button",{name:"EN",exact:true}).click();await page.setViewportSize({width:1280,height:900});
