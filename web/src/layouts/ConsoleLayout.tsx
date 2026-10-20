@@ -40,6 +40,10 @@ export default function ConsoleLayout({ title }: { title: string }) {
       ? [{ to: "/console/monitoring", label: t("nav.monitoring"), end: false }]
       : []),
     { to: "/console/access-tickets", label: t("nav.accessTickets"), end: false },
+    ...(allows("assets.view_all") &&
+    (allows("accounts.discover") || allows("accounts.manage") || allows("accounts.rotation.view"))
+      ? [{ to: "/console/pam", label: t("nav.pam"), end: false }]
+      : []),
     ...(allows("accounts.rotation.view") || allows("accounts.password_policy.view")
       ? [{ to: "/console/rotation-plans", label: t("nav.rotationPlans"), end: false }]
       : []),

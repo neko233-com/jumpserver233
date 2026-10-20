@@ -68,6 +68,9 @@ func run(args []string) error {
 	if len(args) > 0 && args[0] == "assistant" {
 		return runAssistant(args[1:])
 	}
+	if len(args) > 0 && args[0] == "pam" {
+		return runPAM(args[1:])
+	}
 	if len(args) > 0 && args[0] == "login-audit" {
 		return runLoginAudit(args[1:])
 	}

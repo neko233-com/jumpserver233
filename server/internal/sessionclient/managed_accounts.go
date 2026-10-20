@@ -15,6 +15,7 @@ import (
 )
 
 type ManagedAccount struct {
+	PAM                     *PAMSettings             `json:"pam,omitempty"`
 	ID                      string                   `json:"id"`
 	AssetID                 string                   `json:"asset_id"`
 	Name                    string                   `json:"name"`
@@ -59,18 +60,19 @@ type ManagedKeyRotation struct {
 	ErrorCode        string     `json:"error_code,omitempty"`
 }
 type ManagedAccountInput struct {
-	Name                    *string `json:"name,omitempty"`
-	Username                string  `json:"username,omitempty"`
-	Remark                  *string `json:"remark,omitempty"`
-	DiscoveryID             *string `json:"discovery_id,omitempty"`
-	Active                  *bool   `json:"active,omitempty"`
-	PasswordRotationEnabled *bool   `json:"password_rotation_enabled,omitempty"`
-	KeyRotationEnabled      *bool   `json:"key_rotation_enabled,omitempty"`
-	CredentialType          string  `json:"credential_type,omitempty"`
-	Password                string  `json:"password,omitempty"`
-	PrivateKey              string  `json:"private_key,omitempty"`
-	PrivateKeyPassphrase    string  `json:"private_key_passphrase,omitempty"`
-	Version                 string  `json:"version"`
+	PAM                     *PAMSettings `json:"pam,omitempty"`
+	Name                    *string      `json:"name,omitempty"`
+	Username                string       `json:"username,omitempty"`
+	Remark                  *string      `json:"remark,omitempty"`
+	DiscoveryID             *string      `json:"discovery_id,omitempty"`
+	Active                  *bool        `json:"active,omitempty"`
+	PasswordRotationEnabled *bool        `json:"password_rotation_enabled,omitempty"`
+	KeyRotationEnabled      *bool        `json:"key_rotation_enabled,omitempty"`
+	CredentialType          string       `json:"credential_type,omitempty"`
+	Password                string       `json:"password,omitempty"`
+	PrivateKey              string       `json:"private_key,omitempty"`
+	PrivateKeyPassphrase    string       `json:"private_key_passphrase,omitempty"`
+	Version                 string       `json:"version"`
 }
 type ManagedAccountPage struct {
 	Results []ManagedAccount `json:"results"`

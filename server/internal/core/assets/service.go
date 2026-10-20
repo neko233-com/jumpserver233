@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/connector/kubeclient"
+	"github.com/neko233-com/jumpserver233/server/internal/connector/pamtypes"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/rdpclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sqlclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
@@ -62,6 +63,9 @@ type previousSample struct {
 // Service owns the asset inventory and serializes status updates from scheduled
 // and manually requested probes.
 type Service struct {
+	pamReset            func(context.Context, Asset, Asset, sshclient.Target, sshclient.Credentials, string, pamtypes.Guard) error
+	pamVerify           func(context.Context, Asset, sshclient.Target, sshclient.Credentials) error
+	pamDiscover         func(context.Context, Asset, sshclient.Target, sshclient.Credentials) ([]pamtypes.Principal, error)
 	passwordCoordinator *PasswordCoordinator
 	passwordScope       string
 	keyUpdater          KeyUpdaterFunc
@@ -206,6 +210,9 @@ func (s *Service) Update(id string, input Input) (Asset, error) {
 	}
 	if input.SSHWorkspace == nil {
 		asset.SSHWorkspace = current.SSHWorkspace
+	}
+	if input.PAM == nil {
+		asset.PAM = clonePAM(current.PAM)
 	}
 	asset.UpdatedAt = time.Now().UTC()
 	kind, pin, credentials, err := inputCredential(input, &current)
@@ -377,6 +384,22 @@ func (s *Service) Probe(ctx context.Context, id string) (ListItem, error) {
 		s.status[id] = status
 		s.mu.Unlock()
 		return ListItem{Asset: asset, Monitor: status}, err
+	}
+	if WindowsPAM(asset) {
+		started := time.Now()
+		probeErr := sshclient.VerifyPassword(ctx, target, credentials, 8*time.Second)
+		at := time.Now().UTC()
+		latency := float64(time.Since(started)) / float64(time.Millisecond)
+		status := MonitorStatus{State: "online", LastChecked: &at, LatencyMS: &latency, binding: monitorTargetBinding(asset, target)}
+		if probeErr != nil {
+			status.State = "offline"
+			status.ErrorCode = classifyProbeError(probeErr)
+		}
+		s.mu.Lock()
+		s.status[id] = status
+		s.mu.Unlock()
+		s.recordHistory(id, status)
+		return ListItem{Asset: asset, Monitor: status}, probeErr
 	}
 	metrics, probeErr := s.probe(ctx, target, credentials, 8*time.Second)
 	checkedAt := time.Now().UTC()
@@ -652,6 +675,10 @@ func normalizeInput(input Input, id string) (Asset, error) {
 		}
 	}
 	setAssetSettings(&asset, protocol, pg)
+	asset.PAM = clonePAM(input.PAM)
+	if e := validatePAM(asset); e != nil {
+		return Asset{}, e
+	}
 	return asset, nil
 }
 

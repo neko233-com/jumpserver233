@@ -12,6 +12,14 @@ import (
 	"time"
 )
 
+func LoadPAM(t *testing.T) (sqlclient.Target, sqlclient.Credentials) {
+	t.Helper()
+	target, _ := Load(t)
+	target.Username = "pam_admin"
+	target.Database = "master"
+	return target, sqlclient.Credentials{Password: "Synthetic-PAM-Admin-233!"}
+}
+
 func Load(t *testing.T) (sqlclient.Target, sqlclient.Credentials) {
 	t.Helper()
 	url := os.Getenv("JMS_TEST_SQLSERVER_FIXTURE_URL")

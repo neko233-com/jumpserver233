@@ -1468,6 +1468,7 @@ const en = {
     organizationOverview: "Global organizations",
     reports: "Overview & reports",
     assistant: "AI assistant",
+    pam: "Windows & database accounts",
     loginAudit: "Sign-in audit",
     monitoring: "Monitoring alerts",
     accountRisks: "Account risks",

@@ -2,20 +2,20 @@ export default {
   rotationPlans: {
     check: "Check current credentials",
     checkSubmitted: "Connectivity check submitted.",
-    checkOperation: "SSH authentication check · credentials unchanged",
+    checkOperation: "Account authentication check · credentials unchanged",
     checkDetails: "Connectivity results",
     lastCheck: "Latest connectivity result",
     checkSchedule: "Periodic connectivity checks",
     enableChecks: "Check stored credentials periodically",
     checkInterval: "Check interval in hours (1–720)",
     checkScheduleHint:
-      "Uses each target account itself, without commands, password changes or the configured privileged account. Scheduling starts disabled. Each check performs real SSH authentication and appears in the host's login logs.",
+      "Checks the saved credential without changing it. SSH authenticates directly; database accounts also verify the pinned principal. Windows local accounts use the selected SSH collector and the system credential API. Scheduling starts disabled. Target login logs can record these checks.",
     scheduledCheckSave:
       "Saving enabled checks can authenticate immediately, then at the configured interval. The independent rotation schedule is unchanged.",
     nextCheck: "Check: {{date}} · every {{hours}} hours",
     checkPaused: "Connectivity schedule paused; review permissions or retention capacity.",
     checkResultHint:
-      "Results describe the captured credential revision at that time. No remote command is run. An interrupted check is not retried automatically; submit an explicit retry when ready. Failed checks use security notifications.",
+      "Results describe the captured credential revision at that time. Windows checks run a fixed credential query through the collector. An interrupted check is not retried automatically; submit an explicit retry when ready. Failed checks use security notifications.",
     checkDuration: "Credential revision {{revision}} · {{milliseconds}} ms · no change",
     checkRevision: "Use current plan revision {{revision}} and current stored credentials",
     retry: "Submit retry",
@@ -42,7 +42,7 @@ export default {
     policySnapshot: "Password constraints captured when this run was created",
     inheritedPolicy: "Inherits organization password policies",
     title: "Credential rotation plans",
-    hint: "Rotate managed SSH passwords and keys across hosts, with per-account results and durable recovery.",
+    hint: "Rotate SSH credentials and enrolled Windows/database passwords, with per-account results and durable recovery.",
     coverage:
       "Passwords use the configured generated or protected fixed strategy. SSH keys keep their current type. Duplicate records for the same remote account share one operation; credentials stay in the encrypted server Vault.",
     refresh: "Refresh",
@@ -89,10 +89,10 @@ export default {
     self: "Target account itself",
     chooseCollector: "Choose privileged account",
     collectorHint:
-      "An optional privileged account resets passwords over SSH on the same pinned host. It needs root or passwordless chpasswd permission. Key changes authenticate as the target account.",
+      "Choose an account on the same pinned host or database instance. Linux needs root or passwordless chpasswd; Windows needs local-account management rights; databases need native password-reset privileges. Windows credential checks also use this collector. SSH key changes use the target account.",
     remove: "Remove",
     removeAccount: "Remove {{username}}",
-    chooseAccounts: "Add managed SSH accounts",
+    chooseAccounts: "Add managed accounts",
     search: "Search host or username",
     searchAction: "Search",
     credential: "Credential",
@@ -150,11 +150,11 @@ export default {
     itemErrors: {
       check_interrupted:
         "Check interrupted or its result could not be confirmed. No automatic second authentication was attempted.",
-      authentication_failed: "SSH rejected the stored credentials.",
+      authentication_failed: "The target rejected the stored credentials.",
       host_key_mismatch: "The SSH host fingerprint did not match.",
       gateway_failed: "The pinned SSH gateway could not be reached or authenticated.",
-      connection_timeout: "SSH authentication timed out.",
-      probe_failed: "The SSH connection check failed.",
+      connection_timeout: "Account authentication timed out.",
+      probe_failed: "The account authentication check failed.",
       password_policy_conflict:
         "Password constraints conflict with an organization policy; no remote password was changed.",
       source_changed: "Host, account or route changed; review this target.",
@@ -162,13 +162,13 @@ export default {
       credential_pending: "A credential operation needs recovery.",
       different_operation: "Another operation owns this pending credential.",
       cancelled: "Cancelled before this step.",
-      timeout: "The SSH operation timed out.",
+      timeout: "The account operation timed out.",
       denied: "Current permissions or access policy denied this step.",
-      rotation_failed: "Rotation failed; inspect the account state and SSH privileges.",
+      rotation_failed: "Rotation failed; inspect the account state and native reset privileges.",
       outcome_unavailable: "No final result is available; reconcile the existing operation.",
     },
     confirmTitles: {
-      check: "Check stored SSH credentials",
+      check: "Check stored credentials",
       retryCheck: "Retry unsuccessful connectivity checks",
       retry: "Retry unsuccessful accounts",
       run: "Start credential rotation",

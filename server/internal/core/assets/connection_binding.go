@@ -2,7 +2,10 @@ package assets
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -21,10 +24,20 @@ type connectionSnapshot struct {
 	CredentialRevision                                                            uint64
 	Disabled, ReviewRequired                                                      bool
 	UpdatedAt                                                                     time.Time
+	PAMDetails                                                                    string `json:",omitempty"`
 }
 
 func snapshotConnection(a Asset) connectionSnapshot {
-	return connectionSnapshot{a.ID, a.ParentAssetID, a.Host, a.Username, Protocol(a), a.HostKeyFingerprint, a.SSHWorkspace, a.GatewayID, a.NodeID, a.Port, a.CredentialRevision, a.AccountDisabled, a.LoginReviewRequired, a.UpdatedAt}
+	details := ""
+	if a.PAM != nil {
+		raw, _ := json.Marshal(struct {
+			PAM      *PAMSettings
+			Database any
+		}{a.PAM, DatabaseSettings(a)})
+		sum := sha256.Sum256(raw)
+		details = hex.EncodeToString(sum[:])
+	}
+	return connectionSnapshot{a.ID, a.ParentAssetID, a.Host, a.Username, Protocol(a), a.HostKeyFingerprint, a.SSHWorkspace, a.GatewayID, a.NodeID, a.Port, a.CredentialRevision, a.AccountDisabled, a.LoginReviewRequired, a.UpdatedAt, details}
 }
 
 // These values originate only from authenticated server authorization. They
@@ -79,7 +92,7 @@ func (s *Store) connectionBindingLocked(id string) (string, error) {
 		if !ok {
 			return "", ErrNotFound
 		}
-		if !IsSSH(row.Asset) || row.AccountDisabled || remoteAccountPending(row.Asset) {
+		if (!IsSSH(row.Asset) && (len(route) > 0 || !SupportsPasswordRotation(row.Asset))) || row.AccountDisabled || remoteAccountPending(row.Asset) {
 			return "", ErrConnectionChanged
 		}
 		certificate := ""

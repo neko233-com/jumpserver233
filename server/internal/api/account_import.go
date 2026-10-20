@@ -110,7 +110,7 @@ func registerAccountImportRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RW
 					}
 				}
 			}
-			if in.PasswordRotationEnabled != nil && *in.PasswordRotationEnabled != pw || in.KeyRotationEnabled != nil && *in.KeyRotationEnabled != key {
+			if in.PAM != nil || in.PasswordRotationEnabled != nil && *in.PasswordRotationEnabled != pw || in.KeyRotationEnabled != nil && *in.KeyRotationEnabled != key {
 				issues = append(issues, assets.AccountImportIssue{Line: row.Line, Field: "password_rotation_enabled", Code: "rotation_denied"})
 			}
 		}

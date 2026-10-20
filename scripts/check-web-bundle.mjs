@@ -33,6 +33,8 @@ for (const key of initial) {
 }
 const login = "src/pages/LoginPage.tsx";
 const assistant = "src/pages/AssistantPage.tsx";
+const pam = "src/pages/PAMPage.tsx";
+if (!manifest[pam]?.isDynamicEntry || initial.has(pam)) throw new Error("PAM management and feature locales must remain lazy");
 if (!manifest[assistant]?.isDynamicEntry || initial.has(assistant)) throw new Error("AI assistant and its feature locales must remain a lazy route");
 if (!manifest[login]?.isDynamicEntry || initial.has(login)) throw new Error("Login code must remain a lazy route");
 const risks = "src/pages/AccountRisksPage.tsx";

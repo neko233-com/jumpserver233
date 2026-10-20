@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[Windows/数据库账号 PAM](./ACCOUNT-PAM.md)：Windows 本机账号、四类原生数据库、纳管、批量/周期改密与恢复、中英 Web、CLI/SDK 和统一验证用例；E18 实现待验，尚未运行验证。
+
 [AI 助手与对话审计](./AI-ASSISTANT.md)：组织模型配置/只写密钥、平台权限、原生 HTTPS、对话回执/修订、撤权取消、加密历史及归档、中英 Web、CLI/SDK 和用例已编写。E34 实现待验，仍须全部 42 组就绪后统一验证。
 
 [交互 SSH 可信提交目录](./INTERACTIVE-DIRECTORIES.md)已编写原生私有帧、内核 cwd/输入队列证明、一次性租约、审批重测、共享控制者和加密审计，并与批量/模板/计划/Playbook 目录链路共同组成 E14。代码、Testify 与既有原生/中英浏览器入口已编写，未执行；全部 42 组实现就绪后统一验证。

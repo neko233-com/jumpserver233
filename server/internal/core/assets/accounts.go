@@ -34,6 +34,7 @@ type AccountAudit struct {
 	After     string       `json:"after,omitempty"`
 }
 type ManagedAccount struct {
+	PAM                     *PAMSettings            `json:"pam,omitempty"`
 	RemoteAccount           *RemoteAccountState     `json:"remote_account,omitempty"`
 	ID                      string                  `json:"id"`
 	AssetID                 string                  `json:"asset_id"`
@@ -56,18 +57,19 @@ type ManagedAccount struct {
 	UpdatedAt               time.Time               `json:"updated_at"`
 }
 type AccountInput struct {
-	Name                    *string `json:"name"`
-	Username                string  `json:"username"`
-	Remark                  *string `json:"remark"`
-	DiscoveryID             *string `json:"discovery_id"`
-	Active                  *bool   `json:"active"`
-	PasswordRotationEnabled *bool   `json:"password_rotation_enabled"`
-	KeyRotationEnabled      *bool   `json:"key_rotation_enabled"`
-	CredentialType          string  `json:"credential_type"`
-	Password                string  `json:"password"`
-	PrivateKey              string  `json:"private_key"`
-	PrivateKeyPassphrase    string  `json:"private_key_passphrase"`
-	Version                 string  `json:"version"`
+	PAM                     *PAMSettings `json:"pam,omitempty"`
+	Name                    *string      `json:"name"`
+	Username                string       `json:"username"`
+	Remark                  *string      `json:"remark"`
+	DiscoveryID             *string      `json:"discovery_id"`
+	Active                  *bool        `json:"active"`
+	PasswordRotationEnabled *bool        `json:"password_rotation_enabled"`
+	KeyRotationEnabled      *bool        `json:"key_rotation_enabled"`
+	CredentialType          string       `json:"credential_type"`
+	Password                string       `json:"password"`
+	PrivateKey              string       `json:"private_key"`
+	PrivateKeyPassphrase    string       `json:"private_key_passphrase"`
+	Version                 string       `json:"version"`
 }
 
 type AccountChoice struct {
@@ -89,7 +91,7 @@ func (s *Service) AccountAsset(parentID, id string) (Asset, error) {
 	if !ok || ResourceID(a) != parentID {
 		return Asset{}, ErrNotFound
 	}
-	if !IsSSH(a) {
+	if !ManagedAccountsSupported(a) {
 		return Asset{}, ErrUnsupportedProtocol
 	}
 	return a, nil
@@ -100,7 +102,7 @@ func (s *Service) AccountAsset(parentID, id string) (Asset, error) {
 func (s *Service) AccountChoices() map[string][]AccountChoice {
 	groups := map[string][]AccountChoice{}
 	for _, a := range s.store.List() {
-		if !IsSSH(a) {
+		if !ManagedAccountsSupported(a) {
 			continue
 		}
 		name := a.AccountName
@@ -159,7 +161,7 @@ func newAccountAudit(action string, actor AccountActor, a Asset, before, after s
 // Only account-owned fields are serialized for additional credential endpoints.
 // Host/port, node, gateway and access-review configuration have one parent source.
 func accountFields(a Asset) Asset {
-	return Asset{RemoteAccount: cloneRemoteAccountState(a.RemoteAccount), ID: a.ID, ParentAssetID: a.ParentAssetID, AccountName: a.AccountName, AccountRemark: a.AccountRemark, AccountDiscoveryID: a.AccountDiscoveryID,
+	return Asset{PAM: clonePAM(a.PAM), RemoteAccount: cloneRemoteAccountState(a.RemoteAccount), ID: a.ID, ParentAssetID: a.ParentAssetID, AccountName: a.AccountName, AccountRemark: a.AccountRemark, AccountDiscoveryID: a.AccountDiscoveryID,
 		Username: a.Username, AccountDisabled: a.AccountDisabled, PasswordRotationDisabled: a.PasswordRotationDisabled,
 		CredentialType: a.CredentialType, CredentialRevision: a.CredentialRevision, KeyFingerprint: a.KeyFingerprint,
 		KeyRotationEnabled: a.KeyRotationEnabled, KeyRotatedAt: a.KeyRotatedAt,
@@ -173,6 +175,10 @@ func inheritAccount(parent, account Asset) Asset {
 	a.AccountName, a.AccountRemark = v.AccountName, v.AccountRemark
 	a.AccountDiscoveryID = v.AccountDiscoveryID
 	a.RemoteAccount = cloneRemoteAccountState(v.RemoteAccount)
+	a.PAM = clonePAM(v.PAM)
+	if a.PAM == nil && parent.PAM != nil {
+		a.PAM = &PAMSettings{Platform: parent.PAM.Platform}
+	}
 	a.Username, a.AccountDisabled, a.PasswordRotationDisabled = v.Username, v.AccountDisabled, v.PasswordRotationDisabled
 	a.CredentialType, a.CredentialRevision, a.KeyFingerprint = v.CredentialType, v.CredentialRevision, v.KeyFingerprint
 	a.KeyRotationEnabled, a.KeyRotatedAt = v.KeyRotationEnabled, v.KeyRotatedAt
@@ -193,16 +199,22 @@ func (s *Store) materializeAccountsLocked() error {
 			parent, ok := s.assets[r.ParentAssetID]
 			prefix := "account-" + r.ParentAssetID + "-"
 			decoded, e := hex.DecodeString(strings.TrimPrefix(id, prefix))
-			if !ok || parent.ParentAssetID != "" || !IsSSH(parent.Asset) || id == r.ParentAssetID || !strings.HasPrefix(id, prefix) || len(decoded) != 16 || e != nil || strings.ToLower(id) != id {
+			if !ok || parent.ParentAssetID != "" || !ManagedAccountsSupported(parent.Asset) || id == r.ParentAssetID || !strings.HasPrefix(id, prefix) || len(decoded) != 16 || e != nil || strings.ToLower(id) != id {
 				return ErrInvalidInput
 			}
 			r.Asset = inheritAccount(parent.Asset, r.Asset)
 			updates[id] = r
 		}
-		if !IsSSH(r.Asset) {
+		if !ManagedAccountsSupported(r.Asset) {
 			continue
 		}
-		key := ResourceID(r.Asset) + "\x00" + r.Username
+		if e := validateProtocolAsset(r.Asset); e != nil {
+			return e
+		}
+		if !IsSSH(r.Asset) && r.PendingKeyChange != nil || !SupportsPasswordRotation(r.Asset) && r.PendingRotation != nil {
+			return ErrUnsupportedProtocol
+		}
+		key := accountNameKey(r.Asset)
 		if names[key] {
 			return ErrAccountDuplicate
 		}
@@ -249,7 +261,7 @@ func accountView(a Asset) ManagedAccount {
 	if name == "" {
 		name = a.Username
 	}
-	return ManagedAccount{ID: a.ID, AssetID: ResourceID(a), Name: name, Username: a.Username, Remark: a.AccountRemark,
+	return ManagedAccount{PAM: clonePAM(a.PAM), ID: a.ID, AssetID: ResourceID(a), Name: name, Username: a.Username, Remark: a.AccountRemark,
 		RemoteAccount: cloneRemoteAccountState(a.RemoteAccount),
 		DiscoveryID:   a.AccountDiscoveryID,
 		Default:       a.ParentAssetID == "", Active: !a.AccountDisabled, Version: accountVersion(a),
@@ -262,7 +274,7 @@ func (s *Service) ManagedAccounts(id string) ([]ManagedAccount, error) {
 	if !ok || parent.ParentAssetID != "" {
 		return nil, ErrNotFound
 	}
-	if !IsSSH(parent) {
+	if !ManagedAccountsSupported(parent) {
 		return nil, ErrUnsupportedProtocol
 	}
 	rows := []ManagedAccount{}
@@ -284,6 +296,9 @@ func (s *Service) ManagedAccounts(id string) ([]ManagedAccount, error) {
 	return rows, nil
 }
 func normalizeAccountInput(a *Asset, in AccountInput) error {
+	if in.PAM != nil {
+		a.PAM = clonePAM(in.PAM)
+	}
 	if in.DiscoveryID != nil {
 		value := *in.DiscoveryID
 		decoded, e := hex.DecodeString(value)
@@ -304,8 +319,20 @@ func normalizeAccountInput(a *Asset, in AccountInput) error {
 	if in.PasswordRotationEnabled != nil {
 		a.PasswordRotationDisabled = !*in.PasswordRotationEnabled
 	}
-	if !accountText(a.AccountName, 480) || utf8.RuneCountInString(a.AccountName) > 120 || !accountText(a.AccountRemark, 2048) || a.Username == "" || !accountText(a.Username, 128) || strings.ContainsAny(a.Username, ":/\\ \t") {
+	if !accountText(a.AccountName, 480) || utf8.RuneCountInString(a.AccountName) > 120 || !accountText(a.AccountRemark, 2048) || a.Username == "" || !accountText(a.Username, 128) || IsSSH(*a) && !WindowsPAM(*a) && strings.ContainsAny(a.Username, ":/\\ \t") {
 		return ErrInvalidInput
+	}
+	if a.PAM != nil {
+		candidate := *a
+		if in.CredentialType != "" {
+			candidate.CredentialType = in.CredentialType
+		}
+		if in.KeyRotationEnabled != nil {
+			candidate.KeyRotationEnabled = *in.KeyRotationEnabled
+		}
+		if e := validatePAM(candidate); e != nil {
+			return e
+		}
 	}
 	return nil
 }
@@ -322,7 +349,7 @@ func (s *Service) CreateManagedAccount(parentID string, in AccountInput, actor A
 	if !ok || parent.ParentAssetID != "" {
 		return ManagedAccount{}, ErrNotFound
 	}
-	if !IsSSH(parent) {
+	if !ManagedAccountsSupported(parent) {
 		return ManagedAccount{}, ErrUnsupportedProtocol
 	}
 	if in.Version == "" || in.Version != accountVersion(parent) {
@@ -377,7 +404,7 @@ func (s *Service) UpdateManagedAccount(parentID, id string, in AccountInput, act
 	if remoteAccountPending(current) || current.RemoteAccount != nil && current.RemoteAccount.State == "disabled" && in.Active != nil && *in.Active {
 		return ManagedAccount{}, ErrRemoteAccountPending
 	}
-	if !IsSSH(current) || in.Username != "" && in.Username != current.Username {
+	if !ManagedAccountsSupported(current) || in.Username != "" && in.Username != current.Username {
 		return ManagedAccount{}, ErrInvalidInput
 	}
 	if in.Version == "" || in.Version != accountVersion(current) {

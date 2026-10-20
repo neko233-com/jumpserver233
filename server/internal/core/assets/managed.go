@@ -6,9 +6,12 @@ import (
 )
 
 func (s *Service) OpenManagedHost(ctx context.Context, id string) (*sshclient.ManagedHost, error) {
-	_, target, credentials, e := s.store.connection(id)
+	a, target, credentials, e := s.store.connection(id)
 	if e != nil {
 		return nil, e
+	}
+	if WindowsPAM(a) {
+		return nil, ErrUnsupportedProtocol
 	}
 	return sshclient.OpenManagedHost(ctx, target, credentials)
 }

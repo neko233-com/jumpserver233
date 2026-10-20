@@ -162,6 +162,19 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 				if e != nil {
 					return e
 				}
+				if assets.WindowsPAM(a) && in.Target.CollectorID != "" && in.Target.CollectorID != a.ID {
+					if !p.Allows("accounts.rotation.privileged") {
+						return rotationplans.ErrDenied
+					}
+					collector, e := d.Assets.Get(in.Target.CollectorID)
+					if e != nil {
+						return e
+					}
+					decision, e := checkAccessPolicies(d, u, collector, in.Origin, false)
+					if e != nil || !decision.Allowed {
+						return rotationplans.ErrDenied
+					}
+				}
 				decision, e := checkAccessPolicies(d, u, a, in.Origin, false)
 				if e != nil || !decision.Allowed {
 					return rotationplans.ErrDenied

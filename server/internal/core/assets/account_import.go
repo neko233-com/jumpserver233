@@ -23,6 +23,8 @@ var ErrAccountImportExpired = errors.New("account import preview expired")
 var ErrAccountImportCapacity = errors.New("account import receipt capacity reached")
 
 type AccountImportSummary struct {
+	AccountHost        string `json:"account_host,omitempty"`
+	PrincipalID        string `json:"principal_id,omitempty"`
 	Line               int    `json:"line"`
 	Action             string `json:"action"`
 	AssetID            string `json:"asset_id"`
@@ -216,7 +218,7 @@ func (s *Service) prepareAccountImportLocked(ctx context.Context, rows []Account
 	plan := accountImportPlan{issues: []AccountImportIssue{}}
 	index := map[string]string{}
 	for id, r := range s.store.assets {
-		index[ResourceID(r.Asset)+"\x00"+r.Username] = id
+		index[accountNameKey(r.Asset)] = id
 	}
 	seen := map[string]bool{}
 	versions := []string{}
@@ -237,13 +239,14 @@ func (s *Service) prepareAccountImportLocked(ctx context.Context, rows []Account
 			break
 		}
 		parent, ok := s.store.assets[row.AssetID]
-		if !ok || parent.ParentAssetID != "" || !IsSSH(parent.Asset) {
+		if !ok || parent.ParentAssetID != "" || !ManagedAccountsSupported(parent.Asset) {
 			issue("asset_id", "asset_unavailable")
 			continue
 		}
 		in := row.Input
 		in.Username = strings.TrimSpace(in.Username)
-		key := row.AssetID + "\x00" + in.Username
+		candidate := inheritAccount(parent.Asset, Asset{Username: in.Username, PAM: clonePAM(in.PAM)})
+		key := accountNameKey(candidate)
 		if seen[key] {
 			issue("username", "duplicate")
 			continue
@@ -254,6 +257,19 @@ func (s *Service) prepareAccountImportLocked(ctx context.Context, rows []Account
 			continue
 		}
 		id, exists := index[key]
+		if !exists && row.Action == "update" && in.Username == parent.Username {
+			id, exists = parent.ID, true
+		}
+		if !exists && in.PAM != nil && in.PAM.Principal.Host != "" {
+			if fallback, ok := index[row.AssetID+"\x00"+in.Username]; ok {
+				if row.Action == "update" {
+					id, exists = fallback, true
+				} else {
+					issue("username", "pin_default_first")
+					continue
+				}
+			}
+		}
 		var current *storedAsset
 		var a Asset
 		if row.Action == "create" {
@@ -341,6 +357,10 @@ func (s *Service) prepareAccountImportLocked(ctx context.Context, rows []Account
 			continue
 		}
 		summary := AccountImportSummary{Line: row.Line, Action: row.Action, AssetID: row.AssetID, AssetName: parent.Name, AccountID: id, Username: a.Username, CredentialType: kind, KeyFingerprint: pin, Active: !a.AccountDisabled, CredentialReplaced: credential != nil}
+		if a.PAM != nil {
+			summary.AccountHost = a.PAM.Principal.Host
+			summary.PrincipalID = a.PAM.Principal.ID
+		}
 		if current != nil {
 			summary.Version = accountVersion(current.Asset)
 			summary.RotationChanged = in.PasswordRotationEnabled != nil && *in.PasswordRotationEnabled != !current.PasswordRotationDisabled || in.KeyRotationEnabled != nil && *in.KeyRotationEnabled != current.KeyRotationEnabled
@@ -382,7 +402,12 @@ func (s *Service) validateAccountImportAliasesLocked(rows []importPrepared) erro
 		store *Store
 		id    string
 	}
-	group := func(a Asset) string { return a.HostKeyFingerprint + "\x00" + a.Username }
+	group := func(a Asset) string {
+		if !IsSSH(a) || WindowsPAM(a) {
+			return passwordIdentity(a)
+		}
+		return a.HostKeyFingerprint + "\x00" + a.Username
+	}
 	targets := map[string]bool{}
 	final := map[string]*importPrepared{}
 	for i := range rows {
@@ -402,7 +427,7 @@ func (s *Service) validateAccountImportAliasesLocked(rows []importPrepared) erro
 				r.Asset = p.asset
 			}
 		}
-		if IsSSH(r.Asset) && targets[group(r.Asset)] {
+		if SupportsPasswordRotation(r.Asset) && targets[group(r.Asset)] {
 			aliases[group(r.Asset)] = append(aliases[group(r.Asset)], alias{store, r, staged})
 		}
 	}

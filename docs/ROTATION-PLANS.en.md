@@ -2,6 +2,8 @@
 
 > [中文](./ROTATION-PLANS.md) | English
 
+2026-10-20 candidate extension: [Windows/database PAM](./ACCOUNT-PAM.en.md) uses the same plan executor for enrolled Windows local-account and PostgreSQL/MySQL/MariaDB/SQL Server passwords. Code/cases are authored without unified verification. Historical SSH acceptance below does not cover this extension. Windows checks run a fixed system credential query through the selected SSH collector; database checks authenticate and verify the pinned identity. The SSH-only no-command description does not apply to every protocol.
+
 Plans also offer independent [SSH account connectivity checks](./ACCOUNT-CHECKS.en.md), authenticating current stored credentials without rotation or commands. Scheduling defaults to disabled and is managed separately from rotation.
 
 Select managed SSH accounts across hosts and rotate passwords or keys manually, once, or periodically. Web, `jms account rotation` and the Go SDK share the server executor. Target credentials remain in the encrypted Vault.

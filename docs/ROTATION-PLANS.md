@@ -2,6 +2,8 @@
 
 > 中文 | [English](./ROTATION-PLANS.en.md)
 
+2026-10-20 候选扩展：[Windows/数据库 PAM](./ACCOUNT-PAM.md)已接入同一计划执行器，支持已纳管 Windows 本地账号及 PostgreSQL/MySQL/MariaDB/SQL Server 密码；代码和用例已编写，未运行统一验收。下方既有 SSH 验收不覆盖此扩展。Windows 检测经所选 SSH 采集账号运行固定系统凭据查询；数据库认证后核对固定身份，不能沿用“所有检测均不运行命令”的描述。
+
 计划也提供独立的 [SSH 账号连接性检测](./ACCOUNT-CHECKS.md)，使用当前已保存凭据，不改密、不运行命令；周期默认关闭，与改密周期分开管理。
 
 集中选择多台主机的托管 SSH 账号，按手动、单次或周期计划轮换密码和密钥。Web、`jms account rotation` 和 Go SDK 共用服务端执行器，目标凭据保留在加密 Vault。

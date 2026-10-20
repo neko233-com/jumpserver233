@@ -185,6 +185,21 @@ func passwordIdentity(a Asset) string {
 		host = ip.String()
 	}
 	raw, _ := json.Marshal([]string{host, strconv.Itoa(a.Port), a.HostKeyFingerprint, a.Username})
+	if !IsSSH(a) || WindowsPAM(a) {
+		principal, accountHost := "", ""
+		if a.PAM != nil {
+			principal, accountHost = a.PAM.Principal.ID, a.PAM.Principal.Host
+		}
+		name := a.Username
+		if WindowsPAM(a) {
+			name = windowsAccountKey(name)
+		}
+		if Protocol(a) == ProtocolSQLServer {
+			name = windowsAccountKey(name)
+			principal = strings.ToUpper(principal)
+		}
+		raw, _ = json.Marshal([]string{"pam/v1", Protocol(a), host, strconv.Itoa(a.Port), a.HostKeyFingerprint, name, principal, accountHost})
+	}
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
 }
@@ -213,7 +228,7 @@ func (c *PasswordCoordinator) refreshSharedLocked() {
 	counts := map[string]int{}
 	for _, st := range c.stores {
 		for _, a := range st.List() {
-			if IsSSH(a) && credentialType(a.CredentialType) == CredentialPassword {
+			if SupportsPasswordRotation(a) && credentialType(a.CredentialType) == CredentialPassword {
 				counts[passwordIdentity(a)]++
 			}
 		}
@@ -221,7 +236,7 @@ func (c *PasswordCoordinator) refreshSharedLocked() {
 	values := map[passwordParticipant]bool{}
 	for scope, st := range c.stores {
 		for _, a := range st.List() {
-			if IsSSH(a) && credentialType(a.CredentialType) == CredentialPassword && counts[passwordIdentity(a)] > 1 {
+			if SupportsPasswordRotation(a) && credentialType(a.CredentialType) == CredentialPassword && counts[passwordIdentity(a)] > 1 {
 				values[passwordParticipant{scope, a.ID}] = true
 			}
 		}
@@ -255,7 +270,7 @@ func (c *PasswordCoordinator) participants(identity string) []passwordParticipan
 	out := []passwordParticipant{}
 	for scope, store := range c.stores {
 		for _, a := range store.List() {
-			if IsSSH(a) && credentialType(a.CredentialType) == CredentialPassword && passwordIdentity(a) == identity {
+			if SupportsPasswordRotation(a) && credentialType(a.CredentialType) == CredentialPassword && passwordIdentity(a) == identity {
 				out = append(out, passwordParticipant{scope, a.ID})
 			}
 		}
@@ -278,7 +293,7 @@ func (c *PasswordCoordinator) validateMutation(scope string, a Asset, replacemen
 			}
 		}
 	}
-	if !IsSSH(a) {
+	if !SupportsPasswordRotation(a) {
 		return nil
 	}
 	identity := passwordIdentity(a)
@@ -429,7 +444,7 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 	if e = s.guardManagedRotation(ctx, id); e != nil {
 		return e
 	}
-	if !IsSSH(a) {
+	if !SupportsPasswordRotation(a) {
 		return ErrUnsupportedProtocol
 	}
 	if c.sharedKeyMutation(a) {
@@ -547,7 +562,7 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 		_ = c.finish("abort")
 		return ErrPasswordRotationFailed
 	}
-	_, target, current, e := s.store.connection(id)
+	_, target, current, e := s.store.passwordConnection(id)
 	if e == nil {
 		e = s.changeManagedPassword(ctx, a, target, current, next)
 	}
@@ -605,15 +620,19 @@ func (c *PasswordCoordinator) verify(ctx context.Context, password string) error
 	defer cancel()
 	seen := map[string]bool{}
 	attempts := 0
-	for _, p := range c.op.Participants {
+	participants := append([]passwordParticipant{c.op.Source}, c.op.Participants...)
+	for _, p := range participants {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		_, target, _, e := c.stores[p.Scope].connection(p.AssetID)
+		a, target, _, e := c.stores[p.Scope].passwordConnection(p.AssetID)
 		if e != nil {
 			continue
 		}
 		route := net.JoinHostPort(target.Host, strconv.Itoa(target.Port))
+		if cfg := DatabaseSettings(a); cfg != nil {
+			route += "/" + Protocol(a) + "/" + cfg.Database
+		}
 		for _, hop := range target.Gateways {
 			route += "/" + net.JoinHostPort(hop.Target.Host, strconv.Itoa(hop.Target.Port)) + "/" + hop.Target.HostKeyFingerprint
 		}
@@ -625,11 +644,11 @@ func (c *PasswordCoordinator) verify(ctx context.Context, password string) error
 		if attempts > 3 {
 			break
 		}
-		verify := PasswordVerifyFunc(sshclient.VerifyPassword)
-		if s := c.services[p.Scope]; s != nil {
-			verify = s.verifyPassword
+		service := c.services[p.Scope]
+		if service == nil {
+			service = NewService(c.stores[p.Scope], nil)
 		}
-		if verify(ctx, target, sshclient.Credentials{Password: password}, 8*time.Second) == nil {
+		if service.verifyAssetPassword(ctx, a, target, sshclient.Credentials{Password: password}, 8*time.Second) == nil {
 			return nil
 		}
 	}

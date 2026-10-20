@@ -1,0 +1,78 @@
+export default {
+  pam: {
+    title: "Windows & database accounts",
+    description:
+      "Collect existing accounts over pinned Windows OpenSSH or verified database TLS. Enroll credentials, then use the shared rotation plans for batch changes, weekly schedules and recovery.",
+    plans: "Open rotation plans",
+    asset: "Managed asset",
+    selectAsset: "Select an asset",
+    windows: "Use Windows local-account mode",
+    linux: "Return to Linux SSH mode",
+    windowsHelp:
+      "Windows collection needs the host's OpenSSH and built-in PowerShell. This setting only selects the management mode; it does not install software or change passwords. Disable existing SSH key rotation first.",
+    working: "Working…",
+    collect: "Collect accounts",
+    managed: "Managed accounts",
+    account: "Account",
+    identity: "Pinned principal",
+    rotation: "Password state",
+    unpinned: "Not enrolled for PAM",
+    previous: "Previous",
+    next: "Next",
+    count: "{{count}} accounts",
+    collected: "Collected accounts",
+    search: "Find an account",
+    enabled: "Login enabled",
+    action: "Action",
+    yes: "Yes",
+    no: "No",
+    enroll: "Enroll / bind",
+    pinExisting: "Bind an existing account",
+    enrollNew: "Enroll an additional account",
+    enrollHelp:
+      "Provide its known initial password for a new account. Existing saved credentials can be kept. This step stores metadata and encrypted credentials; it does not change the remote password.",
+    name: "Account label",
+    passwordExisting: "Current password (write only; blank keeps saved value)",
+    passwordNew: "Known current password (write only)",
+    automatic: "Enable automatic seven-day password rotation",
+    preview: "Review enrollment",
+    previewReady:
+      "The current principal and inventory revision were checked. Confirm to save this enrollment.",
+    commit: "Confirm enrollment",
+    edit: "Edit",
+    boundary:
+      "PAM changes use fixed operations, current permissions and encrypted pending credentials. Unknown results require recovery; completed changes are not automatically repeated. MySQL identities include user@host and retain their authentication plugin. Windows domain accounts and external database identity providers are managed at their identity source.",
+    denied: "You do not have organization PAM permissions.",
+    protocols: {
+      ssh: "SSH",
+      postgresql: "PostgreSQL",
+      mysql: "MySQL",
+      mariadb: "MariaDB",
+      sqlserver: "SQL Server",
+    },
+    states: {
+      scheduled: "Scheduled",
+      due: "Due",
+      rotating: "Changing password",
+      failed: "Failed",
+      recovery_required: "Recovery required",
+      disabled: "Disabled",
+    },
+    status: {
+      configured: "Management mode saved.",
+      collected: "Accounts collected without password changes.",
+      enrolled: "Enrollment saved. Batch changes and recovery are available in rotation plans.",
+    },
+    errors: {
+      pam_invalid: "Check the account, initial credential and current inventory revision.",
+      pam_denied: "Current permissions or access policy deny this action.",
+      pam_conflict: "The principal, configuration or request changed. Refresh and review again.",
+      pam_not_found: "The selected asset is unavailable.",
+      pam_scope:
+        "Check Windows mode or verified database TLS, supported authentication plugin and account scope.",
+      pam_busy: "A credential operation is pending. Recover it before changing this account.",
+      pam_unavailable:
+        "The target or account service is unavailable. No uncertain change is automatically repeated.",
+    },
+  },
+};

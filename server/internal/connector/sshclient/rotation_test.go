@@ -80,6 +80,7 @@ type rotationTestServer struct {
 	commands    []string
 	stdin       string
 	resetUser   string
+	windows     func(string, []byte) ([]byte, uint32)
 }
 
 func startRotationServer(t *testing.T, uid, initialPassword string) (*rotationTestServer, Target) {
@@ -165,7 +166,19 @@ func (s *rotationTestServer) serveSession(channel xssh.Channel, requests <-chan 
 		_ = request.Reply(true, nil)
 		s.mu.Lock()
 		s.commands = append(s.commands, payload.Command)
+		windows := s.windows
 		s.mu.Unlock()
+		if windows != nil {
+			input, err := io.ReadAll(channel)
+			if err != nil {
+				s.sendExitStatus(channel, 1)
+				return
+			}
+			output, status := windows(payload.Command, input)
+			_, _ = channel.Write(output)
+			s.sendExitStatus(channel, status)
+			return
+		}
 		if payload.Command == "id -u" {
 			_, _ = io.WriteString(channel, s.uid+"\n")
 			s.sendExitStatus(channel, 0)

@@ -2,6 +2,12 @@
 
 > [中文](./TESTING.md) | English
 
+## E18 authored state (not executed)
+
+[Windows/database PAM](./ACCOUNT-PAM.en.md) includes authored Testify/native TLS database cases, fixed Windows SSH script and optional native SAM cases, permission/API, idempotence/revision/receipts, encrypted reopen, unknown-result recovery, one cross-organization mutation and CLI/SDK cases. `web/e2e/pam.spec.ts` reuses the four existing databases for bilingual/narrow UI, enrollment and batch reset/authentication. It only creates/deletes unique `pamqa_` accounts and repeats cleanup. Existing SQL fixtures add a dedicated `pam_admin`, preserving ordinary query roles and passwords. Native Windows requires an explicitly disposable fixture; a missing-fixture skip provides no native acceptance.
+
+The Linux race entrypoint includes PAM packages and matching cases. Only source authoring/formatting occurred: no generation, tests, builds, lint/vet/type checks, browser or Docker run, reports, screenshots, test resources or performance/size claim. Implementation readiness is **27/42**, acceptance remains **16/42**; all **15** remaining groups must be ready before the unified run.
+
 [AI assistant and conversation audit](./AI-ASSISTANT.en.md): organization provider settings/write-only keys, platform authority, native HTTPS, receipts/revisions, revocation, encrypted history/archive, bilingual Web, CLI/SDK and cases are authored. E34 awaits unified verification after all 42 groups are ready.
 
 [Trusted interactive SSH submission directories](./INTERACTIVE-DIRECTORIES.en.md) authors native private framing, kernel cwd/input-queue proof, one-use leases, approval remeasurement, shared controllers and encrypted audit. Together with batch/template/schedule/Playbook propagation this forms E14. Code, Testify and existing native/bilingual browser entrypoints are authored and unrun; unified verification waits for all 42 groups.

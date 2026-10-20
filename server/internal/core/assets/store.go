@@ -39,6 +39,7 @@ const maxCredentialBackups = 10
 // Asset contains non-secret inventory fields. Credential material is encrypted
 // separately and never appears in API representations.
 type Asset struct {
+	PAM                      *PAMSettings           `json:"pam,omitempty"`
 	SSHWorkspace             string                 `json:"ssh_workspace,omitempty"`
 	Discovery                *DiscoveryOrigin       `json:"discovery,omitempty"`
 	RemoteAccount            *RemoteAccountState    `json:"remote_account,omitempty"`
@@ -82,6 +83,7 @@ type Asset struct {
 
 // Input is the create/update payload. Password is write-only.
 type Input struct {
+	PAM                  *PAMSettings           `json:"pam,omitempty"`
 	SSHWorkspace         *string                `json:"ssh_workspace,omitempty"`
 	RDP                  *rdpclient.Settings    `json:"rdp,omitempty"`
 	Telnet               *telnetclient.Settings `json:"telnet,omitempty"`
@@ -232,10 +234,12 @@ func openStoreWithCipher(path string, aead cipher.AEAD, importKey []byte, docume
 		if err := validateRemoteAssetRecord(record); err != nil {
 			return nil, err
 		}
-		if err := validateProtocolAsset(record.Asset); err != nil {
-			return nil, err
+		if record.ParentAssetID == "" {
+			if err := validateProtocolAsset(record.Asset); err != nil {
+				return nil, err
+			}
 		}
-		if !IsSSH(record.Asset) && (record.PendingKeyChange != nil || record.PendingRotation != nil) {
+		if record.ParentAssetID == "" && (!IsSSH(record.Asset) && record.PendingKeyChange != nil || !SupportsPasswordRotation(record.Asset) && record.PendingRotation != nil) {
 			return nil, ErrUnsupportedProtocol
 		}
 		if record.ID == "" || record.Credential.Nonce == nil || record.Credential.Ciphertext == nil {

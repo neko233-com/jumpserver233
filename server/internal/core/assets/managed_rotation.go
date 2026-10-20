@@ -6,12 +6,15 @@ import (
 	"errors"
 	"time"
 
+	"github.com/neko233-com/jumpserver233/server/internal/connector/pamtypes"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
 	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 )
 
 type plannedPasswordIntent struct {
+	PAMCollector   string                 `json:"pam_collector,omitempty"`
+	PAMBinding     string                 `json:"pam_binding,omitempty"`
 	FixedSecretID  string                 `json:"fixed_secret_id,omitempty"`
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	RequestID      string                 `json:"request_id"`
@@ -41,7 +44,12 @@ func plannedPassword(ctx context.Context) *plannedPasswordIntent {
 	if v == nil {
 		return nil
 	}
-	return &plannedPasswordIntent{FixedSecretID: v.Intent.FixedSecretID, PasswordPolicy: v.Intent.PasswordPolicy, RequestID: v.Intent.RequestID, Revision: v.Intent.Target.Revision, Version: v.Intent.Target.Version, Actor: v.Intent.Actor}
+	p := &plannedPasswordIntent{FixedSecretID: v.Intent.FixedSecretID, PasswordPolicy: v.Intent.PasswordPolicy, RequestID: v.Intent.RequestID, Revision: v.Intent.Target.Revision, Version: v.Intent.Target.Version, Actor: v.Intent.Actor}
+	if v.Intent.Target.Platform == "windows" || v.Intent.Target.Platform == "database" {
+		p.PAMCollector = v.Intent.Target.CollectorID
+		p.PAMBinding = v.Intent.Target.Binding
+	}
+	return p
 }
 func validRotationVersion(v string) bool {
 	if len(v) != 64 {
@@ -51,6 +59,9 @@ func validRotationVersion(v string) bool {
 	return e == nil
 }
 func validPlannedPassword(p *plannedPasswordIntent) bool {
+	if p != nil && (p.PAMCollector != "" || p.PAMBinding != "") && (p.PAMCollector != "" && !rotationplans.IDPattern.MatchString(p.PAMCollector) || !validRotationVersion(p.PAMBinding)) {
+		return false
+	}
 	return p != nil && (p.FixedSecretID == "" || rotationplans.IDPattern.MatchString(p.FixedSecretID)) && p.PasswordPolicy.OptionalValid() && rotationplans.IDPattern.MatchString(p.RequestID) && p.Revision > 0 && p.Revision < 1<<53 && validRotationVersion(p.Version) && rotationplans.ValidActor(p.Actor)
 }
 func hasPlannedRotationMetadata(r storedAsset) bool {
@@ -73,12 +84,21 @@ func validatePlannedRotationRecord(r storedAsset) error {
 func sameRotationHost(a, b Asset) bool {
 	a.Username = ""
 	b.Username = ""
+	if a.PAM != nil {
+		a.PAM = clonePAM(a.PAM)
+		a.PAM.Principal = pamtypes.Principal{}
+	}
+	if b.PAM != nil {
+		b.PAM = clonePAM(b.PAM)
+		b.PAM.Principal = pamtypes.Principal{}
+	}
 	return passwordIdentity(a) == passwordIdentity(b)
 }
 
 type rotationRoute struct {
 	ID       string
 	Identity string
+	Details  string `json:",omitempty"`
 }
 
 func (s *Store) rotationRouteLocked(id string) ([]rotationRoute, error) {
@@ -89,11 +109,19 @@ func (s *Store) rotationRouteLocked(id string) ([]rotationRoute, error) {
 		if !ok {
 			return nil, ErrNotFound
 		}
-		if seen[id] || len(out) > sshclient.MaxGatewayHops || !IsSSH(r.Asset) || r.AccountDisabled {
+		if seen[id] || len(out) > sshclient.MaxGatewayHops || (len(out) == 0 && !ManagedAccountsSupported(r.Asset) || len(out) > 0 && !IsSSH(r.Asset)) || r.AccountDisabled {
 			return nil, ErrInvalidInput
 		}
 		seen[id] = true
-		out = append(out, rotationRoute{id, passwordIdentity(r.Asset)})
+		details := ""
+		if r.PAM != nil || IsDatabase(r.Asset) {
+			details = s.importMAC("pam-rotation-route/v1", struct {
+				PAM      *PAMSettings
+				Database any
+				Revision uint64
+			}{r.PAM, DatabaseSettings(r.Asset), r.CredentialRevision})
+		}
+		out = append(out, rotationRoute{id, passwordIdentity(r.Asset), details})
 		id = r.GatewayID
 	}
 	return out, nil
@@ -104,7 +132,7 @@ func (s *Store) prepareManagedRotationLocked(in rotationplans.Selection) (rotati
 		return rotationplans.Prepared{}, ErrNotFound
 	}
 	a := r.Asset
-	if !IsSSH(a) || a.AccountDisabled || remoteAccountPending(a) {
+	if !SupportsPasswordRotation(a) || a.AccountDisabled || remoteAccountPending(a) {
 		return rotationplans.Prepared{}, ErrInvalidInput
 	}
 	route, e := s.rotationRouteLocked(a.ID)
@@ -114,10 +142,17 @@ func (s *Store) prepareManagedRotationLocked(in rotationplans.Selection) (rotati
 	parent := s.assets[ResourceID(a)]
 	kind := credentialType(a.CredentialType)
 	ref := rotationplans.Ref{AssetID: ResourceID(a), AccountID: a.ID, AssetName: parent.Name, Username: a.Username, CredentialType: kind}
+	if !IsSSH(a) {
+		ref.Protocol = Protocol(a)
+	}
+	if a.PAM != nil {
+		ref.Platform = a.PAM.Platform
+		ref.AccountHost = a.PAM.Principal.Host
+	}
 	var collector []rotationRoute
 	if in.CollectorID != "" && in.CollectorID != a.ID {
 		c, ok := s.assets[in.CollectorID]
-		if !ok || kind != CredentialPassword || !IsSSH(c.Asset) || c.AccountDisabled || !sameRotationHost(a, c.Asset) || remoteAccountPending(c.Asset) {
+		if !ok || kind != CredentialPassword || !ManagedAccountsSupported(c.Asset) || c.AccountDisabled || !sameRotationHost(a, c.Asset) || remoteAccountPending(c.Asset) {
 			return rotationplans.Prepared{}, ErrInvalidInput
 		}
 		collector, e = s.rotationRouteLocked(c.ID)
@@ -218,6 +253,9 @@ func (s *Service) InspectManagedRotation(ctx context.Context, in rotationplans.I
 		return rotationplans.Outcome{State: "recovery_required", Code: "credential_pending"}, nil
 	}
 	if p := r.PlannedPasswordReceipt; p != nil && p.RequestID == in.RequestID {
+		if p.PAMBinding != "" && (p.PAMBinding != in.Target.Binding || p.PAMCollector != in.Target.CollectorID) {
+			return rotationplans.Outcome{}, rotationplans.ErrConflict
+		}
 		if p.FixedSecretID != in.FixedSecretID || p.PasswordPolicy != in.PasswordPolicy || p.Revision != in.Target.Revision || p.Version != in.Target.Version || p.Actor.ID != in.Actor.ID {
 			return rotationplans.Outcome{}, rotationplans.ErrConflict
 		}
@@ -285,7 +323,7 @@ func managedRotationError(e error) string {
 	switch {
 	case errors.Is(e, credentialpolicy.ErrConflict):
 		return "password_policy_conflict"
-	case errors.Is(e, ErrCredentialChanged):
+	case errors.Is(e, ErrCredentialChanged), errors.Is(e, pamtypes.ErrChanged):
 		return "source_changed"
 	case errors.Is(e, ErrRotationInProgress), errors.Is(e, ErrRotationPending), errors.Is(e, ErrSSHKeyPending):
 		return "credential_pending"
@@ -301,6 +339,15 @@ func managedRotationError(e error) string {
 }
 func (s *Service) changeManagedPassword(ctx context.Context, a Asset, target sshclient.Target, current sshclient.Credentials, next string) error {
 	v := managedContext(ctx)
+	if WindowsPAM(a) || !IsSSH(a) {
+		guard := func() error { return ctx.Err() }
+		collector := ""
+		if v != nil {
+			guard = v.Guard
+			collector = v.Intent.Target.CollectorID
+		}
+		return s.changePAMPassword(ctx, a, next, guard, collector)
+	}
 	if v == nil || v.Intent.Target.CollectorID == "" {
 		return s.changePassword(ctx, target, current, next, 15*time.Second)
 	}

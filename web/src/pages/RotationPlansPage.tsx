@@ -19,6 +19,9 @@ type Ref = {
   credential_type: string;
   collector_id?: string;
   collector_username?: string;
+  protocol?: string;
+  platform?: string;
+  account_host?: string;
 };
 type Actor = { id: string; name: string };
 type Plan = {
@@ -1020,6 +1023,7 @@ export default function RotationPlansPage() {
                   <span>
                     <strong>
                       {a.asset_name} · {a.username}
+                      {a.account_host ? "@" + a.account_host : ""}
                     </strong>
                     <small>
                       {a.account_id} · {t(`rotationPlans.credentials.${a.credential_type}`)}
@@ -1084,7 +1088,7 @@ export default function RotationPlansPage() {
                     <label className="rotation-check">
                       <input
                         type="checkbox"
-                        aria-label={`${a.asset_name} · ${a.username}`}
+                        aria-label={`${a.asset_name} · ${a.username}${a.account_host ? "@" + a.account_host : ""}`}
                         checked={Boolean(draft.accounts[a.account_id])}
                         disabled={
                           !draft.accounts[a.account_id] && Object.keys(draft.accounts).length >= 500
@@ -1093,6 +1097,7 @@ export default function RotationPlansPage() {
                       />
                       <span>
                         {a.asset_name} · {a.username}
+                        {a.account_host ? "@" + a.account_host : ""}
                         <small>
                           {a.account_id} · {t(`rotationPlans.credentials.${a.credential_type}`)}
                         </small>
@@ -1290,6 +1295,7 @@ export default function RotationPlansPage() {
                   <tr key={item.id}>
                     <td>
                       {item.asset_name} · {item.username}
+                      {item.account_host ? "@" + item.account_host : ""}
                       <small>{item.account_id}</small>
                       {selectedRun.operation !== "check" && item.collector_username && (
                         <small>

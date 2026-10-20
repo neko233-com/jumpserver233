@@ -167,6 +167,7 @@ func validateDatabaseSettings(protocol string, p sqlclient.Settings) error {
 	return sqlclient.ValidateSettings(p)
 }
 func cloneAsset(a Asset) Asset {
+	a.PAM = clonePAM(a.PAM)
 	if a.Discovery != nil {
 		v := *a.Discovery
 		if v.LastAddressChange != nil {
@@ -200,6 +201,9 @@ func cloneAsset(a Asset) Asset {
 	return a
 }
 func validateProtocolAsset(a Asset) error {
+	if e := validatePAM(a); e != nil {
+		return e
+	}
 	if a.SSHWorkspace != "" && (!IsSSH(a) || hostagent.ValidateWorkspace(a.SSHWorkspace) != nil) {
 		return ErrInvalidInput
 	}

@@ -96,13 +96,20 @@ func decodeRemoteAssetRecords(raw []byte, out *[]storedAsset, imports ...*[]acco
 		}
 		d := json.NewDecoder(bytes.NewReader(raw))
 		d.DisallowUnknownFields()
-		if d.Decode(&box) != nil || d.Decode(new(any)) != io.EOF || box.Format != 2 && box.Format != 3 && box.Format != 4 || box.Records == nil || box.Format == 2 && len(box.Imports) > 0 || box.Format == 3 && (len(imports) != 1 || len(box.Imports) == 0) || len(box.Imports) > 0 && len(imports) != 1 || validateImportRecords(box.Imports) != nil {
+		if d.Decode(&box) != nil || d.Decode(new(any)) != io.EOF || box.Format != 2 && box.Format != 3 && box.Format != 4 && box.Format != 5 || box.Records == nil || box.Format == 2 && len(box.Imports) > 0 || box.Format == 3 && (len(imports) != 1 || len(box.Imports) == 0) || len(box.Imports) > 0 && len(imports) != 1 || validateImportRecords(box.Imports) != nil {
 			return ErrInvalidInput
 		}
 		*out = box.Records
-		if box.Format != 4 {
+		if box.Format < 4 {
 			for _, record := range box.Records {
 				if hasPlannedRotationMetadata(record) {
+					return ErrInvalidInput
+				}
+			}
+		}
+		if box.Format < 5 {
+			for _, record := range box.Records {
+				if hasPAMAssetMetadata(record) || record.ParentAssetID == "" && !IsSSH(record.Asset) && record.PendingRotation != nil {
 					return ErrInvalidInput
 				}
 			}
@@ -116,7 +123,7 @@ func decodeRemoteAssetRecords(raw []byte, out *[]storedAsset, imports ...*[]acco
 		return e
 	}
 	for _, v := range *out {
-		if v.RemoteAccount != nil || len(v.RemoteOperations) > 0 || hasPlannedRotationMetadata(v) {
+		if v.PAM != nil || v.RemoteAccount != nil || len(v.RemoteOperations) > 0 || hasPlannedRotationMetadata(v) {
 			return ErrInvalidInput
 		}
 	}
@@ -155,9 +162,40 @@ func encodeRemoteAssetRecords(records []storedAsset, indent bool, receipts ...[]
 		}
 	}
 	if indent {
+		return encodePAMAssetRecords(records, receipts, value, true)
+	}
+	return encodePAMAssetRecords(records, receipts, value, false)
+}
+
+func encodePAMAssetRecords(records []storedAsset, receipts [][]accountImportRecord, original any, indent bool) ([]byte, error) {
+	value := original
+	for _, r := range records {
+		if hasPAMAssetMetadata(r) || !IsSSH(r.Asset) && r.PendingRotation != nil {
+			var imports []accountImportRecord
+			if len(receipts) == 1 {
+				imports = receipts[0]
+			}
+			value = struct {
+				Format  int                   `json:"format"`
+				Records []storedAsset         `json:"records"`
+				Imports []accountImportRecord `json:"account_imports,omitempty"`
+			}{5, records, imports}
+			break
+		}
+	}
+	if indent {
 		return json.MarshalIndent(value, "", "  ")
 	}
 	return json.Marshal(value)
+}
+func hasPAMAssetMetadata(r storedAsset) bool {
+	if r.PAM != nil {
+		return true
+	}
+	if r.PlannedPasswordReceipt != nil && (r.PlannedPasswordReceipt.PAMBinding != "" || r.PlannedPasswordReceipt.PAMCollector != "") {
+		return true
+	}
+	return r.PendingRotation != nil && r.PendingRotation.Planned != nil && (r.PendingRotation.Planned.PAMBinding != "" || r.PendingRotation.Planned.PAMCollector != "")
 }
 func validateRemoteAssetRecord(v storedAsset) error {
 	if len(v.RemoteOperations) > maxRemoteAccountTasks || v.ParentAssetID != "" && len(v.RemoteOperations) > 0 {

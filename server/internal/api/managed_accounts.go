@@ -120,6 +120,7 @@ func registerManagedAccountRoutes(mux *http.ServeMux, d Dependencies, mu *sync.R
 			}
 			changed = changed || *in.PasswordRotationEnabled != was
 		}
+		changed = changed || in.PAM != nil
 		if changed && !hasPermission(r, "assets.rotate") {
 			writeJSON(w, 403, map[string]string{"detail": "credential rotation permission required"})
 			return false
@@ -138,14 +139,26 @@ func registerManagedAccountRoutes(mux *http.ServeMux, d Dependencies, mu *sync.R
 		offset, e := strconv.Atoi(defaultQuery(r, "offset", "0"))
 		limit, e2 := strconv.Atoi(defaultQuery(r, "limit", "100"))
 		q, username := r.URL.Query().Get("q"), r.URL.Query().Get("username")
-		if e != nil || e2 != nil || offset < 0 || limit < 1 || limit > 100 || len(q) > 128 || len(username) > 128 {
+		accountHost := r.URL.Query().Get("account_host")
+		if e != nil || e2 != nil || offset < 0 || limit < 1 || limit > 100 || len(q) > 128 || len(username) > 128 || len(accountHost) > 255 {
 			writeAssetError(w, assets.ErrInvalidInput)
 			return
 		}
 		matched := []assets.AccountChoice{}
+		parentAsset, _ := d.Assets.Get(r.PathValue("assetID"))
 		for _, a := range allowed {
-			if username != "" && a.Username != username || q != "" && !strings.Contains(strings.ToLower(a.Username+" "+a.Name), strings.ToLower(q)) {
+			nameMatches := a.Username == username
+			if assets.WindowsPAM(parentAsset) {
+				nameMatches = strings.EqualFold(a.Username, username)
+			}
+			if username != "" && !nameMatches || q != "" && !strings.Contains(strings.ToLower(a.Username+" "+a.Name), strings.ToLower(q)) {
 				continue
+			}
+			if accountHost != "" {
+				current, e := d.Assets.Get(a.ID)
+				if e != nil || current.PAM != nil && current.PAM.Principal.Host != "" && current.PAM.Principal.Host != accountHost {
+					continue
+				}
 			}
 			matched = append(matched, a)
 		}

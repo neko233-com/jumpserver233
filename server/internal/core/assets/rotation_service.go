@@ -79,7 +79,7 @@ func (s *Service) passwordRotationStatus(asset Asset) *PasswordRotationStatus {
 	if s.certificateRequired(asset.ID) {
 		return &PasswordRotationStatus{State: "disabled"}
 	}
-	if !IsSSH(asset) {
+	if !SupportsPasswordRotation(asset) {
 		return nil
 	}
 	if credentialType(asset.CredentialType) == CredentialSSHKey && !s.store.HasPendingPasswordRotation(asset.ID) {
@@ -339,7 +339,7 @@ func (s *Service) rotatePasswordTo(ctx context.Context, id, trigger, actor, back
 func (s *Service) rotatePasswordToLocal(ctx context.Context, id, trigger, actor, backupID string) error {
 	if a, e := s.Get(id); e != nil {
 		return e
-	} else if !IsSSH(a) {
+	} else if !SupportsPasswordRotation(a) {
 		return ErrUnsupportedProtocol
 	}
 	if backupID != "" && !validCredentialBackupID(backupID) {
@@ -369,7 +369,7 @@ func (s *Service) rotatePasswordToLocal(ctx context.Context, id, trigger, actor,
 		s.finishRotationStatus(asset, "failed", "audit_write_failed", now)
 		return ErrPasswordRotationFailed
 	}
-	_, target, currentCredentials, err := s.store.connection(id)
+	_, target, currentCredentials, err := s.store.passwordConnection(id)
 	if err != nil {
 		return s.failRotationDetails(asset, trigger, "credential_store_failed", now, actor, backupID)
 	}
@@ -408,7 +408,7 @@ func (s *Service) rotatePasswordToLocal(ctx context.Context, id, trigger, actor,
 	if err := s.changeManagedPassword(ctx, asset, target, current, newPassword); err != nil {
 		return s.reconcileAfterRotationError(ctx, asset, trigger, now, err, actor, backupID)
 	}
-	if err := s.verifyPassword(ctx, target, sshclient.Credentials{Password: newPassword}, 8*time.Second); err != nil {
+	if err := s.verifyAssetPassword(ctx, asset, target, sshclient.Credentials{Password: newPassword}, 8*time.Second); err != nil {
 		return s.reconcileAfterRotationError(ctx, asset, trigger, now, err, actor, backupID)
 	}
 	if err := s.store.CommitPasswordRotation(id, time.Now().UTC()); err != nil {
@@ -444,11 +444,11 @@ func (s *Service) reconcilePendingRotation(ctx context.Context, asset Asset, tri
 	if err != nil {
 		return "", err
 	}
-	_, target, oldCredentials, err := s.store.connection(asset.ID)
+	_, target, oldCredentials, err := s.store.passwordConnection(asset.ID)
 	if err != nil {
 		return "", err
 	}
-	if err := s.verifyPassword(ctx, target, sshclient.Credentials{Password: newPassword}, 8*time.Second); err == nil {
+	if err := s.verifyAssetPassword(ctx, asset, target, sshclient.Credentials{Password: newPassword}, 8*time.Second); err == nil {
 		if err := s.store.CommitPasswordRotation(asset.ID, time.Now().UTC()); err != nil {
 			return "", err
 		}
@@ -458,7 +458,7 @@ func (s *Service) reconcilePendingRotation(ctx context.Context, asset Asset, tri
 		}
 		return "new", nil
 	}
-	if err := s.verifyPassword(ctx, target, oldCredentials, 8*time.Second); err == nil {
+	if err := s.verifyAssetPassword(ctx, asset, target, oldCredentials, 8*time.Second); err == nil {
 		if err := s.store.AbortPasswordRotation(asset.ID); err != nil {
 			return "", err
 		}
@@ -652,7 +652,7 @@ func baseRotationStatus(asset Asset, at time.Time) PasswordRotationStatus {
 	if asset.AccountDisabled || asset.PasswordRotationDisabled {
 		return PasswordRotationStatus{State: "disabled", LastRotatedAt: asset.PasswordRotatedAt}
 	}
-	if !IsSSH(asset) {
+	if !SupportsPasswordRotation(asset) {
 		return PasswordRotationStatus{State: "not_applicable"}
 	}
 	if credentialType(asset.CredentialType) == CredentialSSHKey {

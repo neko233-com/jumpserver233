@@ -92,6 +92,10 @@ func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminT
 			writeJSON(w, http.StatusBadRequest, map[string]string{"detail": "asset node does not exist"})
 			return
 		}
+		if input.PAM != nil && (!hasPermission(r, "assets.rotate") || !hasPermission(r, "accounts.manage")) {
+			writeJSON(w, http.StatusForbidden, map[string]string{"detail": "PAM management and rotation permissions required"})
+			return
+		}
 		if input.KeyRotationEnabled != nil && *input.KeyRotationEnabled && !hasPermission(r, "assets.rotate") {
 			writeJSON(w, http.StatusForbidden, map[string]string{"detail": "SSH key rotation permission required"})
 			return
@@ -113,6 +117,10 @@ func registerAssetRoutes(mux *http.ServeMux, service *coreassets.Service, adminT
 		}
 		if !validAssetNode(nodes, input.NodeID) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"detail": "asset node does not exist"})
+			return
+		}
+		if input.PAM != nil && (!hasPermission(r, "assets.rotate") || !hasPermission(r, "accounts.manage")) {
+			writeJSON(w, http.StatusForbidden, map[string]string{"detail": "PAM management and rotation permissions required"})
 			return
 		}
 		if input.KeyRotationEnabled != nil && !hasPermission(r, "assets.rotate") {

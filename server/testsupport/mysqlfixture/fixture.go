@@ -13,6 +13,13 @@ import (
 	"time"
 )
 
+func LoadPAM(t *testing.T, engine string) (sqlclient.Target, sqlclient.Credentials) {
+	t.Helper()
+	target, _ := Load(t, engine)
+	target.Username = "pam_admin"
+	return target, sqlclient.Credentials{Password: "synthetic-pam-admin-233"}
+}
+
 func Load(t *testing.T, engine string) (sqlclient.Target, sqlclient.Credentials) {
 	t.Helper()
 	require.Contains(t, []string{"mysql", "mariadb"}, engine)

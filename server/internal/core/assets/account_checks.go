@@ -9,8 +9,9 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 )
 
-// CheckManagedAccount authenticates with a pinned route, without opening a
-// session channel or issuing a command. Candidates/collector credentials are unused.
+// CheckManagedAccount authenticates against the pinned principal and route.
+// Windows local identities are checked through the selected SSH collector's
+// system account API; ordinary SSH remains an authentication-only check.
 func (s *Service) CheckManagedAccount(ctx context.Context, in rotationplans.Intent, guard func() error) (rotationplans.Outcome, error) {
 	if guard == nil || !rotationplans.ValidActor(in.Actor) || !rotationplans.IDPattern.MatchString(in.RequestID) || in.Target.Revision == 0 || !validRotationVersion(in.Target.Version) || in.FixedPassword != "" || in.FixedSecretID != "" || !in.PasswordPolicy.IsZero() {
 		return rotationplans.Outcome{}, rotationplans.ErrInvalid
@@ -51,7 +52,7 @@ func (s *Service) CheckManagedAccount(ctx context.Context, in rotationplans.Inte
 	if e != nil {
 		return checkOutcome(e, 0), e
 	}
-	_, target, credentials, e := s.store.connectionForProtocolBound(in.Target.AccountID, true, binding)
+	a, target, credentials, e := s.store.connectionForProtocolBound(in.Target.AccountID, false, binding)
 	if e != nil {
 		return checkOutcome(e, 0), e
 	}
@@ -59,7 +60,12 @@ func (s *Service) CheckManagedAccount(ctx context.Context, in rotationplans.Inte
 		return checkOutcome(e, 0), e
 	}
 	started := time.Now()
-	e = sshclient.VerifyPassword(ctx, target, credentials, 8*time.Second)
+	ctx = context.WithValue(ctx, managedRotationKey{}, &managedRotationContext{Intent: in, Guard: check})
+	if IsSSH(a) && !WindowsPAM(a) {
+		e = sshclient.VerifyPassword(ctx, target, credentials, 8*time.Second)
+	} else {
+		e = s.verifyAssetPassword(ctx, a, target, credentials, 8*time.Second)
+	}
 	duration := max(int64(1), time.Since(started).Milliseconds())
 	if current := check(); current != nil {
 		return checkOutcome(current, duration), current

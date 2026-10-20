@@ -2,6 +2,8 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+[Windows/数据库账号 PAM](./ACCOUNT-PAM.md)：Windows 本机 SAM 与 PostgreSQL/MySQL/MariaDB/SQL Server 收集/纳管、固定身份的原生改密/核验、统一计划与恢复、加密/权限/幂等、中英 Web、CLI/SDK 和用例已编写。E18 实现待验；全部 42 组实现就绪后统一验证，不新增部署依赖。
+
 [AI 助手与对话审计](./AI-ASSISTANT.md)：组织模型配置/只写密钥、平台权限、原生 HTTPS、对话回执/修订、撤权取消、加密历史及归档、中英 Web、CLI/SDK 和用例已编写。E34 实现待验，仍须全部 42 组就绪后统一验证。
 
 [交互 SSH 可信提交目录](./INTERACTIVE-DIRECTORIES.md)已编写原生私有帧、内核 cwd/输入队列证明、一次性租约、审批重测、共享控制者和加密审计，并与批量/模板/计划/Playbook 目录链路共同组成 E14。代码、Testify 与既有原生/中英浏览器入口已编写，未执行；全部 42 组实现就绪后统一验证。

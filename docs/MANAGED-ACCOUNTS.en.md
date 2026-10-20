@@ -2,6 +2,8 @@
 
 > English | [中文](./MANAGED-ACCOUNTS.md)
 
+Windows local accounts and PostgreSQL/MySQL/MariaDB/SQL Server managed accounts now have a separate [PAM entrypoint](./ACCOUNT-PAM.en.md). Metadata, write-only credentials, enrollment receipts and shared rotation plans are authored. Different MySQL Host identities remain separate; Windows account names are case insensitive. E18 is unverified; historical SSH acceptance below does not cover these protocols.
+
 Native creation, disabling, restoration, retained home deletion and explicit recovery for regular Linux users are covered in [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md).
 
 One SSH asset can hold several named accounts, with independently encrypted passwords or keys, enabled state, credential history and seven-day rotation policies. Host address, fingerprint, node, gateway and login review settings have one physical source. Inventory still shows one host. The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); the overall objective remains in [PLAN](./PLAN.en.md).

@@ -38,6 +38,9 @@ type Selection struct {
 	CollectorID string `json:"collector_id,omitempty"`
 }
 type Ref struct {
+	Protocol          string `json:"protocol,omitempty"`
+	Platform          string `json:"platform,omitempty"`
+	AccountHost       string `json:"account_host,omitempty"`
 	AssetID           string `json:"asset_id"`
 	AccountID         string `json:"account_id"`
 	AssetName         string `json:"asset_name"`

@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Windows/database account PAM](./ACCOUNT-PAM.en.md): local Windows accounts, four native databases, enrollment, batch/periodic reset and recovery, bilingual Web, CLI/SDK and unified cases. E18 is implementation ready; verification has not run.
+
 [AI assistant and conversation audit](./AI-ASSISTANT.en.md): organization provider settings/write-only keys, platform authority, native HTTPS, receipts/revisions, revocation, encrypted history/archive, bilingual Web, CLI/SDK and cases are authored. E34 awaits unified verification after all 42 groups are ready.
 
 [Trusted interactive SSH submission directories](./INTERACTIVE-DIRECTORIES.en.md) authors native private framing, kernel cwd/input-queue proof, one-use leases, approval remeasurement, shared controllers and encrypted audit. Together with batch/template/schedule/Playbook propagation this forms E14. Code, Testify and existing native/bilingual browser entrypoints are authored and unrun; unified verification waits for all 42 groups.

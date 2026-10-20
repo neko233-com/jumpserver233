@@ -1364,6 +1364,7 @@ const zhCN = {
     organizationOverview: "全局组织汇总",
     reports: "概览与报表",
     assistant: "AI 助手",
+    pam: "Windows 与数据库账号",
     loginAudit: "登录审计",
     monitoring: "监控告警",
     accountRisks: "账号风险",

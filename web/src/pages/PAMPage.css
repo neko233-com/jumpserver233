@@ -1,0 +1,83 @@
+.pam-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.pam-page header p,
+.pam-footnote {
+  max-width: 85ch;
+  color: var(--text-muted, #888);
+}
+.pam-picker,
+.pam-enroll label,
+.pam-page > label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+.pam-picker select {
+  max-width: 720px;
+  width: 100%;
+}
+.pam-actions,
+.pam-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-block: 1rem;
+}
+.pam-table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.pam-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pam-table th,
+.pam-table td {
+  text-align: start;
+  padding: 0.7rem;
+  border-bottom: 1px solid var(--border, #444);
+  overflow-wrap: anywhere;
+}
+.pam-table td:nth-child(2) {
+  max-width: 24rem;
+}
+.pam-table small {
+  display: block;
+  color: var(--text-muted, #888);
+}
+.pam-enroll {
+  max-width: 700px;
+  padding: 1rem;
+  border: 1px solid var(--border, #444);
+  border-radius: 0.6rem;
+}
+.pam-enroll fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.pam-enroll input:not([type="checkbox"]) {
+  width: 100%;
+  box-sizing: border-box;
+}
+.pam-enroll label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: start;
+}
+.pam-enroll code {
+  display: block;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .pam-table table {
+    min-width: 580px;
+  }
+  .pam-enroll {
+    padding: 0.8rem;
+  }
+}

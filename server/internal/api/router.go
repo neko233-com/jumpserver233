@@ -168,6 +168,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 			registerPasswordSecurity(mux, dependencies[0])
 		}
 		registerReportRoutes(mux, dependencies[0], accessMu)
+		registerPAMRoutes(mux, dependencies[0], accessMu)
 		registerAssistantRoutes(mux, dependencies[0], accessMu)
 		registerMonitorAlertRoutes(mux, dependencies[0], accessMu)
 		registerMonitorHistoryRoutes(mux, dependencies[0], accessMu)

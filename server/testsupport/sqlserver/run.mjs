@@ -27,6 +27,7 @@ try{
  if(!ready)throw new Error('SQL Server did not become ready');
  await execute('docker',[...sqlcmd,"CREATE DATABASE qa;"],{timeout:10000});
  await execute('docker',[...sqlcmd,"CREATE LOGIN qadb WITH PASSWORD='Synthetic-SQLServer-Query-233!', CHECK_POLICY=OFF; USE qa; CREATE USER qadb FOR LOGIN qadb; ALTER ROLE db_owner ADD MEMBER qadb;"],{timeout:10000});
+ await execute('docker',[...sqlcmd,"CREATE LOGIN pam_admin WITH PASSWORD='Synthetic-PAM-Admin-233!', CHECK_POLICY=OFF; GRANT ALTER ANY LOGIN TO pam_admin; GRANT VIEW ANY DEFINITION TO pam_admin;"],{timeout:10000});
  const metadata={ready:true,protocol:'sqlserver',address:`127.0.0.1:${port}`,network_address:`${name}:1433`,container_name:name,owner,root_ca_pem:readFileSync(resolve(certDir,'server.crt'),'utf8'),server_name:'sqlserver.synthetic.invalid',database:'qa',username:'qadb'};
  const server=createServer((req,res)=>{if(req.url!='/health'||req.method!=='GET'){res.writeHead(404).end();return;}res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(metadata));});server.on('error',()=>void stop());server.listen(health,'127.0.0.1',()=>process.stdout.write(`SQL Server QA ready on 127.0.0.1:${port}; health ${health}\n`));
 }catch(e){process.stderr.write(`SQL Server startup failed: ${String(e.stderr||e.message).slice(-1200)}\n`);try{await cleanup();}catch{}process.exitCode=1;}

@@ -16,7 +16,7 @@ func (s *Service) RotationCandidates(q, collectorFor string, offset, limit int) 
 	var target Asset
 	if collectorFor != "" {
 		r, ok := s.store.assets[collectorFor]
-		if !ok || !IsSSH(r.Asset) || credentialType(r.CredentialType) != CredentialPassword {
+		if !ok || !SupportsPasswordRotation(r.Asset) || credentialType(r.CredentialType) != CredentialPassword {
 			return nil, 0, ErrNotFound
 		}
 		target = r.Asset
@@ -25,7 +25,7 @@ func (s *Service) RotationCandidates(q, collectorFor string, offset, limit int) 
 	search := strings.ToLower(q)
 	for _, r := range s.store.assets {
 		a := r.Asset
-		if !IsSSH(a) || a.AccountDisabled || remoteAccountPending(a) {
+		if !ManagedAccountsSupported(a) || collectorFor == "" && !SupportsPasswordRotation(a) || a.AccountDisabled || remoteAccountPending(a) {
 			continue
 		}
 		if collectorFor != "" && (a.ID == collectorFor || !sameRotationHost(a, target)) {
@@ -35,7 +35,15 @@ func (s *Service) RotationCandidates(q, collectorFor string, offset, limit int) 
 		if search != "" && !strings.Contains(strings.ToLower(parent.Name+" "+a.Username+" "+a.ID), search) {
 			continue
 		}
-		items = append(items, rotationplans.Ref{AssetID: ResourceID(a), AccountID: a.ID, AssetName: parent.Name, Username: a.Username, CredentialType: credentialType(a.CredentialType)})
+		ref := rotationplans.Ref{AssetID: ResourceID(a), AccountID: a.ID, AssetName: parent.Name, Username: a.Username, CredentialType: credentialType(a.CredentialType)}
+		if !IsSSH(a) {
+			ref.Protocol = Protocol(a)
+		}
+		if a.PAM != nil {
+			ref.Platform = a.PAM.Platform
+			ref.AccountHost = a.PAM.Principal.Host
+		}
+		items = append(items, ref)
 	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].AssetName != items[j].AssetName {

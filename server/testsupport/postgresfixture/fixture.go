@@ -48,6 +48,14 @@ func Load(t *testing.T) (postgresclient.Target, postgresclient.Credentials) {
 	return postgresclient.Target{Host: host, Port: n, Username: m.Username, Settings: postgresclient.Settings{Database: m.Database, TLSMode: "verify-full", ServerName: m.ServerName, RootCAPEM: m.CA}}, postgresclient.Credentials{Password: "synthetic-postgres-query-233"}
 }
 
+// LoadPAM uses only the dedicated disposable account-management authority.
+func LoadPAM(t *testing.T) (postgresclient.Target, postgresclient.Credentials) {
+	t.Helper()
+	target, _ := Load(t)
+	target.Username = "pam_admin"
+	return target, postgresclient.Credentials{Password: "synthetic-pam-admin-233"}
+}
+
 // Keep the gateway fixture loopback-only even when tests run in a separate
 // Linux container and the dedicated QA PostgreSQL is on its Docker network.
 func LoopbackForward(t *testing.T, address string) string {

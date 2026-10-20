@@ -2,6 +2,8 @@
 
 > 中文 | [English](./MANAGED-ACCOUNTS.en.md)
 
+Windows 本机账号与 PostgreSQL/MySQL/MariaDB/SQL Server 多账号新增独立 [PAM 入口](./ACCOUNT-PAM.md)。元数据、只写密码、纳管回执和同一改密计划已编写；MySQL 同名不同 Host 分别保存，Windows 名称按不区分大小写处理。E18 尚未验收，以下原 SSH 验收不覆盖新增协议。
+
 远端 Linux 普通账号的原生创建、停用、恢复、保留目录删除及显式恢复见 [远端账号生命周期](./REMOTE-ACCOUNTS.md)。
 
 一台 SSH 资产可托管多个具名账号，每个账号独立加密保存密码或私钥、启停、凭据历史和七天轮换策略。主机地址、指纹、节点、网关和登录复核配置只有一份，资产清单仍显示一台主机。竞品为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，总体目标见 [PLAN](./PLAN.md)。
