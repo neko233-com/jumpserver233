@@ -43,18 +43,19 @@ var hosts = []string{"qyapi.weixin.qq.com", "login.work.weixin.qq.com", "api.din
 
 type claim struct{ Kind, Client, Callback, Challenge, Scenario string }
 type Server struct {
-	notifications []NotificationCapture
-	CAPEM         string
-	TLS           *httptest.Server
-	mu            sync.Mutex
-	codes         map[string]claim
-	users         map[string]claim
-	connections   map[net.Conn]bool
-	proxy         sync.WaitGroup
-	closed        bool
-	AppTokens     atomic.Int32
-	Exchanges     atomic.Int32
-	Requests      atomic.Int32
+	notifications  []NotificationCapture
+	CAPEM          string
+	TLS            *httptest.Server
+	mu             sync.Mutex
+	codes          map[string]claim
+	users          map[string]claim
+	connections    map[net.Conn]bool
+	proxy          sync.WaitGroup
+	closed         bool
+	AppTokens      atomic.Int32
+	Exchanges      atomic.Int32
+	Requests       atomic.Int32
+	AssistantCalls atomic.Int32
 }
 
 func New() (*Server, error) {
@@ -68,7 +69,7 @@ func New() (*Server, error) {
 	if e != nil {
 		return nil, e
 	}
-	leaf := &x509.Certificate{SerialNumber: big.NewInt(2), DNSNames: hosts, NotBefore: root.NotBefore, NotAfter: root.NotAfter, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, KeyUsage: x509.KeyUsageDigitalSignature}
+	leaf := &x509.Certificate{SerialNumber: big.NewInt(2), DNSNames: hosts, IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}, NotBefore: root.NotBefore, NotAfter: root.NotAfter, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, KeyUsage: x509.KeyUsageDigitalSignature}
 	cert, e := x509.CreateCertificate(rand.Reader, leaf, root, &key.PublicKey, key)
 	if e != nil {
 		return nil, e
@@ -211,6 +212,9 @@ func decode(r *http.Request) map[string]string {
 }
 func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	s.Requests.Add(1)
+	if s.serveAssistant(w, r) {
+		return
+	}
 	if !official(strings.Split(r.Host, ":")[0]) {
 		http.NotFound(w, r)
 		return

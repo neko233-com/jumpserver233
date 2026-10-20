@@ -13,6 +13,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/announcements"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assetdiscovery"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
+	"github.com/neko233-com/jumpserver233/server/internal/core/assistant"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/branding"
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
@@ -56,6 +57,7 @@ import (
 )
 
 type Dependencies struct {
+	Assistant             *assistant.Service
 	EnterpriseLogin       *enterpriselogin.Service
 	DirectorySync         *directorysync.Store
 	IdentitySources       *identitysources.Store
@@ -166,6 +168,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 			registerPasswordSecurity(mux, dependencies[0])
 		}
 		registerReportRoutes(mux, dependencies[0], accessMu)
+		registerAssistantRoutes(mux, dependencies[0], accessMu)
 		registerMonitorAlertRoutes(mux, dependencies[0], accessMu)
 		registerMonitorHistoryRoutes(mux, dependencies[0], accessMu)
 		registerTicketRoutes(mux, dependencies[0], accessMu)

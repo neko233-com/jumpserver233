@@ -32,6 +32,8 @@ for (const key of initial) {
   initialGzip += gzipSync(raw).length;
 }
 const login = "src/pages/LoginPage.tsx";
+const assistant = "src/pages/AssistantPage.tsx";
+if (!manifest[assistant]?.isDynamicEntry || initial.has(assistant)) throw new Error("AI assistant and its feature locales must remain a lazy route");
 if (!manifest[login]?.isDynamicEntry || initial.has(login)) throw new Error("Login code must remain a lazy route");
 const risks = "src/pages/AccountRisksPage.tsx";
 if (!manifest[risks]?.isDynamicEntry || initial.has(risks)) throw new Error("Account risk UI and feature locales must remain a lazy route");

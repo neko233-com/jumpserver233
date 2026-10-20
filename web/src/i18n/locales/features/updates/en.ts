@@ -138,6 +138,7 @@ export default {
         running_jobs: "Running jobs",
         database_queries: "Database queries",
         other: "Other active work",
+        assistant: "AI assistant requests",
       },
     },
     installation: {

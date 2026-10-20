@@ -44,6 +44,7 @@ var catalog = []string{
 	"jobs.view_all", "jobs.cancel_all", "jobs.review", "plans.view_all", "plans.manage_all",
 	"playbooks.publish",
 	"sessions.share",
+	"assistant.use", "assistant.manage", "assistant.audit",
 	"tickets.manage", "tickets.review", "tickets.view_all", "tickets.revoke",
 	"notifications.manage", "notifications.audit", "notifications.retry",
 	"monitoring.view", "monitoring.manage", "monitoring.ack",

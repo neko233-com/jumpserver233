@@ -14,7 +14,9 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/neko233-com/jumpserver233/server/internal/config"
+	"github.com/neko233-com/jumpserver233/server/internal/connector/aichat"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
+	"github.com/neko233-com/jumpserver233/server/internal/core/assistant"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
@@ -82,6 +84,12 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	var org organizations.Organization
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "POST", "/api/v1/organizations", token, "", organizations.Input{Name: "Isolated operations", Enabled: true}, 201), &org))
 	require.NotEqual(t, organizations.DefaultID, org.ID)
+	assistantSecret := "synthetic-organization-assistant-key"
+	orgAssistantInput := assistant.SettingsInput{Settings: aichat.Settings{Endpoint: "https://provider.example/v1/chat/completions", Model: "organization-model", MaxTokens: 512}, Secret: &assistantSecret, RequestID: "organization-assistant-settings"}
+	var orgAssistant assistant.SettingsView
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/assistant/settings", token, org.ID, orgAssistantInput, 200), &orgAssistant))
+	assert.NotContains(t, string(orgHTTP(t, address, "GET", "/api/v1/assistant/settings", token, "", nil, 200)), "organization-model")
+	orgHTTP(t, address, "GET", "/api/v1/assistant/settings", operator.AccessToken, org.ID, nil, 403)
 	var a, b coreassets.Asset
 	asset := coreassets.Input{Name: "Default secret host", Host: "127.0.0.1", Port: 65530, Username: "ops", Password: "synthetic-organization-remote-password", HostKeyFingerprint: "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "POST", "/api/v1/assets", token, "", asset, 201), &a))
@@ -279,6 +287,9 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	in.Enabled = true
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/organizations/"+org.ID, token, "", in, 200), &org))
 	assert.Contains(t, string(orgHTTP(t, address, "GET", "/api/v1/assets", token, org.ID, nil, 200)), b.ID)
+	var restoredAssistant assistant.SettingsView
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/assistant/settings", token, org.ID, orgAssistantInput, 200), &restoredAssistant))
+	assert.Equal(t, orgAssistant, restoredAssistant)
 	assert.Contains(t, string(orgHTTP(t, address, "GET", "/api/v1/labels/choices", token, org.ID, nil, 200)), isolatedLabel.ID)
 	var preservedBinding labels.Binding
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/labels/bindings/asset/"+b.ID, token, org.ID, orgLabelInput, 200), &preservedBinding))

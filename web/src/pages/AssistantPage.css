@@ -1,0 +1,114 @@
+.assistant-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.assistant-page header p {
+  color: var(--text-muted, #888);
+  max-width: 80ch;
+}
+.assistant-page nav,
+.assistant-pages,
+.assistant-conversation-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-block: 1rem;
+}
+.assistant-page button[aria-pressed="true"] {
+  border-color: var(--accent, #31b884);
+}
+.assistant-page label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: start;
+  margin-block: 0.7rem;
+}
+.assistant-settings {
+  max-width: 700px;
+}
+.assistant-settings label:has(input:not([type="checkbox"])),
+.assistant-settings label:has(textarea),
+.assistant-conversation form > label:first-child {
+  flex-direction: column;
+}
+.assistant-page input:not([type="checkbox"]),
+.assistant-page textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.assistant-page textarea {
+  resize: vertical;
+}
+.assistant-workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+.assistant-workspace aside ul {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+  max-height: 38rem;
+  overflow: auto;
+}
+.assistant-workspace aside li {
+  margin-block: 0.6rem;
+}
+.assistant-workspace aside li button {
+  display: block;
+  width: 100%;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.assistant-workspace small {
+  display: block;
+  color: var(--text-muted, #888);
+  margin-top: 0.4rem;
+}
+.assistant-conversation {
+  min-width: 0;
+}
+.assistant-conversation h2 {
+  overflow-wrap: anywhere;
+}
+.assistant-conversation [role="log"] {
+  max-height: 65vh;
+  overflow: auto;
+}
+.assistant-conversation article {
+  border-bottom: 1px solid var(--border, #444);
+  padding-block: 0.8rem;
+}
+.assistant-conversation article h3 {
+  font-size: 0.95rem;
+}
+.assistant-conversation pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+}
+.assistant-audit {
+  overflow-x: auto;
+}
+.assistant-audit table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.assistant-audit td,
+.assistant-audit th {
+  padding: 0.6rem;
+  text-align: start;
+  border-bottom: 1px solid var(--border, #444);
+}
+@media (max-width: 700px) {
+  .assistant-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .assistant-workspace aside ul {
+    max-height: 12rem;
+  }
+  .assistant-conversation [role="log"] {
+    max-height: 55vh;
+  }
+}

@@ -29,6 +29,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/announcements"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assetdiscovery"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
+	"github.com/neko233-com/jumpserver233/server/internal/core/assistant"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/branding"
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
@@ -486,6 +487,12 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	root.MonitorAlerts = monitorAlertService
 	root.LoginAudit = loginAuditStore
 	root.Reports = reportStore
+	root.Assistant, err = assistant.Open(filepath.Join(cfg.DataDir, "assistant.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	defer root.Assistant.Close()
+	root.Assistant.SetAdmissionGate(root.Maintenance.Gate())
 	root.GlobalAccessMu = root.AccessMu
 	root.SessionPolicy = sessionSettings
 	root.DatabaseQueries = databaseService
@@ -529,6 +536,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	global.CommandAlerts = nil
 	global.MonitorAlerts = nil
 	global.Reports = nil
+	global.Assistant = nil
 	handler := api.NewOrganizationRouter(cfg.Version, global, runtimes.handler)
 	if cfg.WebDir != "" {
 		ui, err := webui.Open(handler, cfg.WebDir)

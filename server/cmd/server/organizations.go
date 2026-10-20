@@ -19,6 +19,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/agentevents"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assetdiscovery"
 	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
+	"github.com/neko233-com/jumpserver233/server/internal/core/assistant"
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
@@ -416,6 +417,16 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 		}
 	}
 	if id != organizations.DefaultID {
+		d.Assistant, e = assistant.Open(filepath.Join(orgPath, "assistant.json"), orgKey, docs)
+		if e != nil {
+			r.stop(&organizationRuntime{d: d}, false)
+			return nil, e
+		}
+	}
+	if d.Assistant != nil && d.Maintenance != nil {
+		d.Assistant.SetAdmissionGate(d.Maintenance.Gate())
+	}
+	if id != organizations.DefaultID {
 		store, err := assetdiscovery.Open(filepath.Join(orgPath, "asset-discovery.json"), orgKey, docs)
 		if err != nil {
 			r.stop(&organizationRuntime{d: d}, false)
@@ -529,6 +540,9 @@ func (r *organizationRuntimes) changed(id string) {
 	}
 }
 func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) {
+	if current.d.Assistant != nil {
+		current.d.Assistant.Close()
+	}
 	if current.d.SSHCertificates != nil {
 		current.d.SSHCertificates.Close()
 	}
@@ -658,6 +672,13 @@ func (r *organizationRuntimes) start(runtime *organizationRuntime) error {
 		return e
 	}
 	d.DatabaseQueries.BindOwner(ctx)
+	if d.Assistant != nil {
+		if e := d.Assistant.BindOwner(ctx); e != nil {
+			cancel()
+			runtime.done = nil
+			return e
+		}
+	}
 	d.AgentEvents.BindOwner(ctx)
 	d.AccountDiscovery.BindOwner(ctx)
 	d.AccountRisks.Start(ctx)

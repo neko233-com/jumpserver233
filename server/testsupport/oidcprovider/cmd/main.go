@@ -36,7 +36,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /enterprise/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"ca_pem": enterprise.CAPEM})
+		_ = json.NewEncoder(w).Encode(map[string]string{"ca_pem": enterprise.CAPEM, "assistant_endpoint": enterprise.TLS.URL + "/v1/chat/completions"})
 	})
 	mux.HandleFunc("GET /enterprise/notifications", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

@@ -18,9 +18,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neko233-com/jumpserver233/server/internal/connector/aichat"
 	"github.com/neko233-com/jumpserver233/server/internal/core/assets"
+	"github.com/neko233-com/jumpserver233/server/internal/core/assistant"
 	"github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
+	"github.com/neko233-com/jumpserver233/server/testsupport/enterpriseprovider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -64,6 +67,21 @@ func TestBackupPreservesIdentityVaultCiphertextOrganizationsAndAudit(t *testing.
 	labelStore.Close()
 	labelBytes, e := os.ReadFile(filepath.Join(opt.DataDir, "labels.json"))
 	require.NoError(t, e)
+	assistantProvider, e := enterpriseprovider.New()
+	require.NoError(t, e)
+	defer assistantProvider.Close()
+	assistantStore, e := assistant.Open(filepath.Join(opt.DataDir, "assistant.json"), key, nil)
+	require.NoError(t, e)
+	assistantSecret := enterpriseprovider.AssistantSecret
+	_, e = assistantStore.SaveSettings(user.ID, assistant.SettingsInput{Settings: aichat.Settings{Endpoint: assistantProvider.TLS.URL + "/v1/chat/completions", Model: "synthetic-assistant-model", RootCAPEM: assistantProvider.CAPEM, MaxTokens: 512}, Enabled: true, Secret: &assistantSecret, RequestID: "backup-assistant-settings"})
+	require.NoError(t, e)
+	assistantInput := assistant.Input{Message: "Explain pwd", Locale: "en", Consent: true, RequestID: "backup-assistant-question"}
+	assistantResult, e := assistantStore.Submit(t.Context(), user.ID, assistantInput, func(context.Context) error { return nil })
+	require.NoError(t, e)
+	require.Equal(t, "completed", assistantResult.Turn.Status)
+	assistantStore.Close()
+	assistantBytes, e := os.ReadFile(filepath.Join(opt.DataDir, "assistant.json"))
+	require.NoError(t, e)
 	original, e := os.ReadFile(filepath.Join(opt.DataDir, "assets.json"))
 	require.NoError(t, e)
 	created, e := Create(context.Background(), opt)
@@ -89,6 +107,16 @@ func TestBackupPreservesIdentityVaultCiphertextOrganizationsAndAudit(t *testing.
 	key2, e := assets.LoadOrCreateVaultKey(opt.DataDir, "")
 	require.NoError(t, e)
 	assert.Equal(t, key, key2)
+	assistantCopy, e := os.ReadFile(filepath.Join(opt.DataDir, "assistant.json"))
+	require.NoError(t, e)
+	assert.Equal(t, assistantBytes, assistantCopy)
+	assistantRecovered, e := assistant.Open(filepath.Join(opt.DataDir, "assistant.json"), key2, nil)
+	require.NoError(t, e)
+	assistantReplay, e := assistantRecovered.Submit(t.Context(), user.ID, assistantInput, func(context.Context) error { return nil })
+	require.NoError(t, e)
+	assert.Equal(t, assistantResult, assistantReplay)
+	assert.EqualValues(t, 1, assistantProvider.AssistantCalls.Load())
+	assistantRecovered.Close()
 	labelCopy, e := os.ReadFile(filepath.Join(opt.DataDir, "labels.json"))
 	require.NoError(t, e)
 	assert.Equal(t, labelBytes, labelCopy)

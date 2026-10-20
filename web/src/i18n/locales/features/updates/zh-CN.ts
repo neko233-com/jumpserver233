@@ -120,6 +120,7 @@ export default {
         running_jobs: "运行中的作业",
         database_queries: "数据库查询",
         other: "其他活动工作",
+        assistant: "AI 助手请求",
       },
     },
     installation: {

@@ -24,6 +24,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
       ? [{ to: "/console/asset-discovery", label: t("nav.assetDiscovery"), end: false }]
       : []),
     { to: "/console/reports", label: t("nav.reports"), end: false },
+    ...(allows("assistant.use") || allows("assistant.manage") || allows("assistant.audit")
+      ? [{ to: "/console/assistant", label: t("nav.assistant"), end: false }]
+      : []),
     { to: "/console/announcements", label: t("nav.announcements"), end: false },
     { to: "/console/labels", label: t("nav.labels"), end: false },
     ...(allows("replay_storage.view")

@@ -18,6 +18,7 @@ const AssetDiscoveryPage = lazy(() => import("./pages/AssetDiscoveryPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const AssistantPage = lazy(() => import("./pages/AssistantPage"));
 const AgentAuditPage = lazy(() => import("./pages/AgentAuditPage"));
 const AccountRisksPage = lazy(() => import("./pages/AccountRisksPage"));
 const RotationPlansPage = lazy(() => import("./pages/RotationPlansPage"));
@@ -95,6 +96,7 @@ export default function App() {
               <Route path="login-audit" element={<LoginAuditPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="dashboard" element={<ReportsPage />} />
+              <Route path="assistant" element={<AssistantPage />} />
               <Route path="monitoring" element={<MonitoringPage />} />
               <Route path="notification-sources/:kind/:id" element={<NotificationSourcePage />} />
               <Route path="database-audit" element={<DatabaseAuditPage />} />
