@@ -4,7 +4,7 @@
 
 ## Fixed-password plans (2026-10-20)
 
-Write-only fixed-password controls, save request IDs and bilingual guidance reuse existing pages and rule fields without another dependency. This feature receives 8 KB: total JS cap 1645200 to 1653200, retaining 500000-byte initial/individual limits. Artifact measurements and timings follow unified verification.
+Source `caceaab`: initial JS **499674** bytes (gzip **161537**), total JS **1646009**, largest chunk **482515**. Total JS adds **3306** bytes over the per-plan rules baseline, with unchanged initial size. Write-only fixed-password controls, save request IDs and bilingual guidance reuse existing pages and rule fields without another dependency. This feature receives 8 KB: total JS cap 1645200 to 1653200, retaining 500000-byte initial/individual limits. Clean Docker build took **32.35** seconds, startup **12.13** and browser smoke **8.77**; resources were removed. Cache state and concurrent load affect timings; these observations do not establish cold-build acceleration.
 
 ## Per-plan SSH password constraints (2026-10-20)
 
