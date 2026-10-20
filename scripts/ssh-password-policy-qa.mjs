@@ -29,7 +29,7 @@ export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api
   await page.getByRole("button",{name:"中文",exact:true}).click();await page.setViewportSize({width:390,height:844});const chinese=page.getByRole("region",{name:"SSH 生成密码策略",exact:true});await expect(chinese.getByLabel("最少数字",{exact:true})).toHaveValue("5");if(!await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))throw Error("SSH policy overflows mobile viewport");await chinese.screenshot({path:resolve(output,"password-policy.zh.png")});
   report.sshPasswordPolicyStep="plan_browser";planProof=await verifyPlanPasswordPolicy({page,context,expect,api,admin,target,output});
   report.sshPasswordPolicyStep="fixed_browser";fixedProof=await verifyFixedPassword({page,context,expect,api,admin,target,output,runInput,owner});
-  report.sshPasswordPolicyStep="retry_browser";retryProof=await verifyRotationRetry({page,context,expect,api,admin,target,output,run,owner,sshHost,fingerprint,operator});
+  report.sshPasswordPolicyStep="retry_browser";retryProof=await verifyRotationRetry({page,context,expect,api,admin,target,output,run,runInput,owner,sshHost,fingerprint,operator,report});
  }finally{await browser.close()}
  if(errors.length)throw Error("SSH policy browser diagnostics failed");
  report.sshPasswordPolicyStep="rotation";

@@ -2,6 +2,10 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Individual and bulk rotation retries (2026-10-20)
+
+Product source `3f66cdd`: initial JS **499674** bytes (gzip **161545**), total JS **1649244**, largest chunk **482515**. Total JS adds **3235** bytes over fixed-password plans while initial size stays unchanged. Retry UI and bilingual resources load with the page, without dependencies. Existing **1653200** total and **500000** initial/chunk caps remain. Clean Docker build took **46.38** seconds, startup **12.14** and browser smoke **8.34**. Cache state and concurrent load affect timings; these observations do not establish cold-build acceleration.
+
 ## Fixed-password plans (2026-10-20)
 
 Source `caceaab`: initial JS **499674** bytes (gzip **161537**), total JS **1646009**, largest chunk **482515**. Total JS adds **3306** bytes over the per-plan rules baseline, with unchanged initial size. Write-only fixed-password controls, save request IDs and bilingual guidance reuse existing pages and rule fields without another dependency. This feature receives 8 KB: total JS cap 1645200 to 1653200, retaining 500000-byte initial/individual limits. Clean Docker build took **32.35** seconds, startup **12.13** and browser smoke **8.77**; resources were removed. Cache state and concurrent load affect timings; these observations do not establish cold-build acceleration.
