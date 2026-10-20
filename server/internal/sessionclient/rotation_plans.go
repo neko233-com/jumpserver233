@@ -65,6 +65,8 @@ type RotationPlan struct {
 }
 type RotationItem struct {
 	RotationRef
+	SourceItemID   string    `json:"source_item_id,omitempty"`
+	RetryRunID     string    `json:"retry_run_id,omitempty"`
 	ID             string    `json:"id"`
 	State          string    `json:"state"`
 	ErrorCode      string    `json:"error_code,omitempty"`
@@ -75,6 +77,9 @@ type RotationItem struct {
 	FinishedAt     time.Time `json:"finished_at,omitzero"`
 }
 type RotationRun struct {
+	ParentRunID    string                 `json:"parent_run_id,omitempty"`
+	RetryItemIDs   []string               `json:"retry_item_ids,omitempty"`
+	RetryAll       bool                   `json:"retry_all,omitempty"`
 	PasswordMode   string                 `json:"password_mode,omitempty"`
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	ID             string                 `json:"id"`
@@ -96,13 +101,14 @@ type RotationRun struct {
 	AccessOrigin   RotationOrigin         `json:"access_origin"`
 }
 type RotationAudit struct {
-	Origin   RotationOrigin     `json:"access_origin,omitempty"`
-	At       time.Time          `json:"at"`
-	Actor    AccountImportActor `json:"actor"`
-	Action   string             `json:"action"`
-	PlanID   string             `json:"plan_id"`
-	RunID    string             `json:"run_id,omitempty"`
-	Revision int                `json:"revision,omitempty"`
+	ParentRunID string             `json:"parent_run_id,omitempty"`
+	Origin      RotationOrigin     `json:"access_origin,omitempty"`
+	At          time.Time          `json:"at"`
+	Actor       AccountImportActor `json:"actor"`
+	Action      string             `json:"action"`
+	PlanID      string             `json:"plan_id"`
+	RunID       string             `json:"run_id,omitempty"`
+	Revision    int                `json:"revision,omitempty"`
 }
 type RotationPage[T any] struct {
 	Results []T `json:"results"`
@@ -163,6 +169,18 @@ func (c *Client) CancelRotationRun(ctx context.Context, id string) error {
 }
 func (c *Client) RecoverRotationRun(ctx context.Context, id string) error {
 	return c.jobRequest(ctx, "POST", "/api/v1/accounts/rotation-runs/"+url.PathEscape(id)+"/recover", nil, nil)
+}
+
+type RotationRetryInput struct {
+	RequestID    string   `json:"request_id"`
+	PlanRevision int      `json:"plan_revision"`
+	ItemIDs      []string `json:"item_ids,omitempty"`
+}
+
+func (c *Client) RetryRotationRun(ctx context.Context, id string, in RotationRetryInput) (RotationRun, error) {
+	var out RotationRun
+	e := c.jobRequest(ctx, "POST", "/api/v1/accounts/rotation-runs/"+url.PathEscape(id)+"/retry", in, &out)
+	return out, e
 }
 func (c *Client) RotationAudit(ctx context.Context, offset, limit int) (RotationPage[RotationAudit], error) {
 	var out RotationPage[RotationAudit]

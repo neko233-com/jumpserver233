@@ -34,10 +34,11 @@ type planRecord struct {
 }
 type runRecord struct {
 	Run
-	FixedPassword string            `json:"fixed_password,omitempty"`
-	FixedSecretID string            `json:"fixed_secret_id,omitempty"`
-	Intents       map[string]Intent `json:"intents"`
-	Recovery      *recoveryRequest  `json:"recovery,omitempty"`
+	RetryRequested []string          `json:"retry_requested,omitempty"`
+	FixedPassword  string            `json:"fixed_password,omitempty"`
+	FixedSecretID  string            `json:"fixed_secret_id,omitempty"`
+	Intents        map[string]Intent `json:"intents"`
+	Recovery       *recoveryRequest  `json:"recovery,omitempty"`
 }
 type recoveryRequest struct {
 	Actor  Actor                 `json:"actor"`
@@ -288,14 +289,18 @@ func validateState(d state) error {
 			return ErrInvalid
 		}
 	}
-	return nil
+	return validateRetries(d)
 }
 func clonePlan(p Plan) Plan {
 	p.Targets = slices.Clone(p.Targets)
 	p.Refs = slices.Clone(p.Refs)
 	return p
 }
-func cloneRun(r Run) Run { r.Items = slices.Clone(r.Items); return r }
+func cloneRun(r Run) Run {
+	r.Items = slices.Clone(r.Items)
+	r.RetryItemIDs = slices.Clone(r.RetryItemIDs)
+	return r
+}
 func cloneState(d state) state {
 	out := state{Version: d.Version, Plans: map[string]planRecord{}, Runs: map[string]runRecord{}, Audit: slices.Clone(d.Audit)}
 	out.SaveReceipts = slices.Clone(d.SaveReceipts)
@@ -310,6 +315,7 @@ func cloneState(d state) state {
 	}
 	for id, r := range d.Runs {
 		r.Run = cloneRun(r.Run)
+		r.RetryRequested = slices.Clone(r.RetryRequested)
 		ops := map[string]Intent{}
 		for k, v := range r.Intents {
 			ops[k] = v
@@ -380,11 +386,7 @@ func (s *Service) mutate(fn func(*state) error) error {
 	}
 	next := cloneState(s.data)
 	now := s.now().UTC()
-	for id, r := range next.Runs {
-		if terminal(r.State) && !r.FinishedAt.IsZero() && r.FinishedAt.Before(now.Add(-90*24*time.Hour)) {
-			delete(next.Runs, id)
-		}
-	}
+	pruneRetryRuns(&next, now)
 	next.Audit = slices.DeleteFunc(next.Audit, func(a Audit) bool { return a.At.Before(now.Add(-365 * 24 * time.Hour)) })
 	next.SaveReceipts = slices.DeleteFunc(next.SaveReceipts, func(v saveReceipt) bool { return v.At.Before(now.Add(-90 * 24 * time.Hour)) })
 	if e := fn(&next); e != nil {

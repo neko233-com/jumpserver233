@@ -32,13 +32,15 @@ Console → Credential rotation → Create plan:
 4. Scheduling starts disabled. Saving a manual or disabled plan opens no remote connection. Confirming Rotate now rotates every selected account, including those not due.
 5. Saving an enabled periodic plan can dispatch its first run immediately; later runs use an interval from dispatch time. One-time input uses browser local time and is stored as an absolute instant.
 
-Passwords are generated strong values. SSH key accounts remain key accounts: the existing native engine generates Ed25519 keys, installs and verifies them, then revokes the old key. Privileged accounts apply only to password resets; key changes authenticate as the target account.
+Passwords default to random generation, with a protected fixed-value strategy also available. SSH key accounts remain key accounts: the existing native engine generates Ed25519 keys, installs and verifies them, then revokes the old key. Privileged accounts apply only to password resets; key changes authenticate as the target account.
 
 Generated passwords use the organization's [SSH password policy](./SSH-PASSWORD-POLICY.en.md). Users with independent permissions can configure lengths, category minima and exclusions on this page; shared identities combine every participating policy. Plans can add generation constraints and capture immutable run snapshots. Fixed passwords use independent write-only input and permissions.
 
 Duplicate managed records for one remote account share one operation and linked results. Password copies for that identity must agree; conflicting credentials reject rotation. Shared copies use the existing [password](./PASSWORD-ROTATION.en.md) and [key](./SSH-KEY-ROTATION.en.md) coordinators, without granting visibility across organizations.
 
 ## Results and recovery
+
+[Individual/bulk retries](./ROTATION-RETRIES.en.md) create linked executions from terminal unsuccessful items while excluding successes. A source item can be consumed once; pending operations require recovery first. Confirming the current plan revision captures a new configuration snapshot. Retry does not move its periodic schedule.
 
 - Batches execute per account; an individual failure does not stop unrelated accounts. Results distinguish success, partial success, failure, cancellation and recovery required.
 - The same owner, plan and `request_id` return the existing run. Reusing that request for a different plan is rejected. CLI `--wait` exits nonzero for partial failure or recovery required while still returning queryable run JSON.
@@ -66,7 +68,7 @@ The `credential_rotation` channel covers plan steps, explicit recovery, existing
 
 Standalone is the default. Plans, internal bindings, intents, results and audit use organization-keyed AES-GCM encryption. PostgreSQL single-active HA reuses scoped documents and existing leadership contexts. Takeover reconciles executed receipts before continuing unstarted work. Live SSH sessions do not migrate.
 
-Limits per organization: 256 plans, 512 runs, 10,000 audit entries and 64 MiB plaintext state. Terminal runs retain 90 days and audit retains 365 days, pruned on the next mutation. Unfinished operations are not automatically deleted. Capacity rejects new submissions and pauses affected schedules; review and re-enable after capacity is available.
+Limits per organization: 256 plans, 512 runs, 10,000 audit entries and 64 MiB plaintext state. Terminal runs retain 90 days and audit retains 365 days, pruned on the next mutation. A retry lineage is removed only when every connected member expires. Unfinished operations are not automatically deleted. Capacity rejects new submissions and pauses affected schedules; review and re-enable after capacity is available.
 
 Asset documents containing planned password receipts use format 4, preserving format 3 import receipts and remote lifecycle metadata. Older binaries reject format 4. Downgrades require the backup/restore process; do not edit the format number.
 

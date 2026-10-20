@@ -46,6 +46,8 @@ Multi-host SSH password/key rotation, weekly scheduling, privileged accounts, pe
 
 [Fixed-password plans and idempotent saves](./FIXED-PASSWORDS.en.md): independent permissions, write-only input, deduplicated saves, snapshots and recovery.
 
+[Individual and bulk SSH rotation retries](./ROTATION-RETRIES.en.md): skip successful items, combine aliases, claim sources once, confirm current revision and retain linked audit.
+
 [Generated SSH password policy](./SSH-PASSWORD-POLICY.en.md): organization lengths/categories/exclusions, merged shared-account constraints, Web/CLI, replay receipts and encrypted persistence.
 
 Weak/reused SSH credentials, age/usage risks, human review and periodic scanning: [Account risks](./ACCOUNT-RISKS.en.md).

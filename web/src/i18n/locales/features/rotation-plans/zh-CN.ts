@@ -1,5 +1,12 @@
 export default {
   rotationPlans: {
+    retry: "提交重试",
+    retryAccount: "重试此账号",
+    retryFailed: "重试未成功账号",
+    openRetry: "查看重试",
+    parentRun: "原执行记录",
+    sourceItem: "原账号项：{{id}}",
+    retryConfiguration: "使用当前计划修订 {{revision}} · {{mode}}",
     passwordMode: "密码来源",
     generatedMode: "每次生成随机密码",
     fixedMode: "受保护的固定密码",
@@ -16,7 +23,7 @@ export default {
     title: "账号改密计划",
     hint: "集中轮换多台主机的托管 SSH 密码与密钥，保留逐账号结果并支持故障恢复。",
     coverage:
-      "密码由系统随机生成，SSH 密钥保持当前类型。同一远程账号的重复记录共用一次操作，凭据保存在服务端加密 Vault 中。",
+      "密码按配置使用随机生成或受保护的固定值，SSH 密钥保持当前类型。同一远程账号的重复记录共用一次操作，凭据保存在服务端加密 Vault 中。",
     refresh: "刷新",
     create: "创建计划",
     edit: "编辑计划",
@@ -129,12 +136,15 @@ export default {
       outcome_unavailable: "最终结果未知，请确认已有操作的结果。",
     },
     confirmTitles: {
+      retry: "重试未成功账号",
       run: "开始账号改密",
       delete: "删除此计划",
       cancel: "取消剩余改密步骤",
       recover: "恢复已有操作",
     },
     confirmHints: {
+      retry:
+        "按下方当前计划配置，为选中的未成功项创建关联的新执行；成功和未到期项不重试，共享账号别名一起处理。待确定操作需先恢复。每个来源项仅能发起一次重试，再次尝试请使用重试记录中的结果。",
       run: "将立即修改已选远程账号的凭据，包括尚未到期的账号。系统生成并验证新凭据，逐账号记录结果。",
       delete: "删除计划及其定时配置，已完成的执行历史仍会保留。",
       cancel: "停止排队步骤并取消当前请求。已完成的远程变更仍然生效，未知结果需要进一步确认。",
@@ -142,6 +152,7 @@ export default {
         "验证已暂存的凭据并完成原操作。恢复按你当前的权限和访问策略执行，不会创建一次新的轮换。",
     },
     auditActions: {
+      retried: "重试未成功账号",
       saved: "保存计划",
       deleted: "删除计划",
       submitted: "提交执行",

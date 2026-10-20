@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Phase 7 adds [individual/bulk SSH rotation retries](./ROTATION-RETRIES.en.md): select unsuccessful items from terminal runs, exclude successes, combine aliases, bind current plan revision, claim each source once and retain Web/CLI/SDK, linked audit and takeover. Full Enterprise parity remains active.
+
 Added [fixed-password plans and idempotent saves](./FIXED-PASSWORDS.en.md): specified/random sources, independent permissions, write-only input, save receipts, immutable snapshots, organization constraints and recovery. Default seven-day rotation continues random generation; the full Enterprise objective remains active.
 
 

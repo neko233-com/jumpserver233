@@ -9,15 +9,17 @@ import (
 	"flag"
 	"fmt"
 	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
+	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
 	"golang.org/x/term"
 	"io"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
-const rotationPlanUsage = "usage: jms account rotation targets|plans|runs|audit [--offset 0 --limit 50] [--search TEXT --collector-for ACCOUNT --plan PLAN] | show-plan|show-run ID | create --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | update PLAN --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | delete PLAN --revision N | run PLAN [--request-id ID --wait --timeout-seconds 300] | cancel|recover RUN | export RUN --out NEW.csv"
+const rotationPlanUsage = "usage: jms account rotation targets|plans|runs|audit [--offset 0 --limit 50] [--search TEXT --collector-for ACCOUNT --plan PLAN] | show-plan|show-run ID | create --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | update PLAN --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | delete PLAN --revision N | run PLAN [--request-id ID --wait --timeout-seconds 300] | retry RUN --plan-revision N [--items ITEM_ID,ITEM_ID --request-id ID --wait --timeout-seconds 300] | cancel|recover RUN | export RUN --out NEW.csv"
 
 func executeRotationPlans(ctx context.Context, c *sessionclient.Client, args []string, output io.Writer) error {
 	return executeRotationPlansInput(ctx, c, args, nil, output)
@@ -149,10 +151,35 @@ func executeRotationPlansInput(ctx context.Context, c *sessionclient.Client, arg
 			return errors.New(rotationPlanUsage)
 		}
 		return emit(map[string]string{"state": "deleted"}, c.DeleteRotationPlan(ctx, args[1], *revision))
-	case "run":
+	case "run", "retry":
 		id, wait, seconds := f.String("request-id", "", ""), f.Bool("wait", false, ""), f.Int("timeout-seconds", 300, "")
+		var revision *int
+		var items *string
+		if args[0] == "retry" {
+			revision = f.Int("plan-revision", 0, "")
+			items = f.String("items", "", "")
+		}
 		if len(args) < 2 || f.Parse(args[2:]) != nil || f.NArg() != 0 || *seconds < 1 || *seconds > 3600 {
 			return errors.New(rotationPlanUsage)
+		}
+		var retryItems []string
+		if args[0] == "retry" {
+			if *revision < 1 || *revision > 1<<53-1 {
+				return errors.New(rotationPlanUsage)
+			}
+			if *items != "" {
+				retryItems = strings.Split(*items, ",")
+				if len(retryItems) > 500 {
+					return errors.New(rotationPlanUsage)
+				}
+				seen := map[string]bool{}
+				for _, item := range retryItems {
+					if !rotationplans.IDPattern.MatchString(item) || seen[item] {
+						return errors.New(rotationPlanUsage)
+					}
+					seen[item] = true
+				}
+			}
 		}
 		if *id == "" {
 			var raw [16]byte
@@ -161,7 +188,13 @@ func executeRotationPlansInput(ctx context.Context, c *sessionclient.Client, arg
 			}
 			*id = hex.EncodeToString(raw[:])
 		}
-		run, e := c.RunRotationPlan(ctx, args[1], *id)
+		var run sessionclient.RotationRun
+		var e error
+		if args[0] == "retry" {
+			run, e = c.RetryRotationRun(ctx, args[1], sessionclient.RotationRetryInput{RequestID: *id, PlanRevision: *revision, ItemIDs: retryItems})
+		} else {
+			run, e = c.RunRotationPlan(ctx, args[1], *id)
+		}
 		if e != nil {
 			return e
 		}

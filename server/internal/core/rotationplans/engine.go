@@ -108,7 +108,7 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 	for _, r := range s.data.Runs {
 		if r.Actor.ID == actor.ID && r.RequestID == requestID {
 			s.mu.Unlock()
-			if r.PlanID != planID || r.Scheduled != scheduled {
+			if r.PlanID != planID || r.Scheduled != scheduled || r.ParentRunID != "" {
 				return Run{}, ErrConflict
 			}
 			return cloneRun(r.Run), nil
@@ -219,7 +219,7 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 		}
 		for _, r := range d.Runs {
 			if r.Actor.ID == actor.ID && r.RequestID == requestID {
-				if r.PlanID != planID || r.Scheduled != scheduled {
+				if r.PlanID != planID || r.Scheduled != scheduled || r.ParentRunID != "" {
 					return ErrConflict
 				}
 				out = cloneRun(r.Run)

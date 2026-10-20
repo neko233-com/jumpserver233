@@ -41,6 +41,8 @@ type Plan = {
   error_code?: string;
 };
 type Item = Ref & {
+  source_item_id?: string;
+  retry_run_id?: string;
   id: string;
   state: string;
   error_code?: string;
@@ -50,6 +52,7 @@ type Item = Ref & {
   finished_at?: string;
 };
 type Run = {
+  parent_run_id?: string;
   id: string;
   plan_id: string;
   password_mode?: string;
@@ -85,10 +88,13 @@ type Draft = {
   accounts: Record<string, Ref>;
 };
 type Confirm = {
-  mode: "run" | "delete" | "cancel" | "recover";
+  mode: "run" | "delete" | "cancel" | "recover" | "retry";
   id: string;
   name: string;
   revision?: number;
+  itemIDs?: string[];
+  requestID?: string;
+  plan?: Plan;
 };
 const newRequestID = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) =>
@@ -96,6 +102,9 @@ const newRequestID = () =>
   ).join("");
 const empty = <T,>(): Page<T> => ({ results: [], total: 0 });
 const active = (state: string) => ["queued", "running", "recovery_required"].includes(state);
+const retryable = (item: Item) =>
+  !item.retry_run_id &&
+  ["failed", "denied", "changed", "cancelled", "interrupted"].includes(item.state);
 const codes = new Set([
   "invalid",
   "denied",
@@ -466,6 +475,18 @@ export default function RotationPlansPage() {
         pending.current = null;
         setSelectedRun(data);
         setItemOffset(0);
+      } else if (next.mode === "retry") {
+        const data = await request(`runs/${encodeURIComponent(next.id)}/retry`, {
+          method: "POST",
+          body: JSON.stringify({
+            request_id: next.requestID,
+            plan_revision: next.revision,
+            ...(next.itemIDs ? { item_ids: next.itemIDs } : {}),
+          }),
+        }).then((r) => r.json());
+        if (life.current?.signal.aborted) return;
+        setSelectedRun(data);
+        setItemOffset(0);
       } else if (next.mode === "delete")
         await request(`plans/${encodeURIComponent(next.id)}?revision=${next.revision}`, {
           method: "DELETE",
@@ -483,6 +504,26 @@ export default function RotationPlansPage() {
               : "submitted",
       );
       setEpoch((v) => v + 1);
+    });
+  }
+  async function prepareRetry(itemIDs?: string[]) {
+    if (!selectedRun) return;
+    const run = selectedRun;
+    await action(async () => {
+      const plan: Plan = await request(`plans/${encodeURIComponent(run.plan_id)}`).then((r) =>
+        r.json(),
+      );
+      if (plan.password_mode === "fixed" && !fixedAllowed) throw new RotationError("denied");
+      if (!life.current?.signal.aborted)
+        setConfirm({
+          mode: "retry",
+          id: run.id,
+          name: plan.name,
+          revision: plan.revision,
+          itemIDs,
+          requestID: newRequestID(),
+          plan,
+        });
     });
   }
   async function exportRun(id: string) {
@@ -1110,6 +1151,20 @@ export default function RotationPlansPage() {
           )}
           <p role="status">{state(selectedRun.state)}</p>
           <dl className="rotation-meta">
+            {selectedRun.parent_run_id && (
+              <>
+                <dt>{t("rotationPlans.parentRun")}</dt>
+                <dd>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void showRun(selectedRun.parent_run_id!)}
+                  >
+                    {selectedRun.parent_run_id}
+                  </button>
+                </dd>
+              </>
+            )}
             <dt>{t("rotationPlans.request")}</dt>
             <dd>{selectedRun.request_id}</dd>
             <dt>{t("rotationPlans.createdAt")}</dt>
@@ -1160,6 +1215,31 @@ export default function RotationPlansPage() {
                           })}
                         </small>
                       )}
+                      {item.source_item_id && (
+                        <small>{t("rotationPlans.sourceItem", { id: item.source_item_id })}</small>
+                      )}
+                      {item.retry_run_id ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void showRun(item.retry_run_id!)}
+                        >
+                          {t("rotationPlans.openRetry")}
+                        </button>
+                      ) : (
+                        !active(selectedRun.state) &&
+                        retryable(item) &&
+                        execute &&
+                        (all || selectedRun.owner.id === userID) && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void prepareRetry([item.id])}
+                          >
+                            {t("rotationPlans.retryAccount")}
+                          </button>
+                        )
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1179,6 +1259,14 @@ export default function RotationPlansPage() {
             <button type="button" disabled={busy} onClick={() => void exportRun(selectedRun.id)}>
               {t("rotationPlans.export")}
             </button>
+            {!active(selectedRun.state) &&
+              selectedRun.items?.some(retryable) &&
+              execute &&
+              (all || selectedRun.owner.id === userID) && (
+                <button type="button" disabled={busy} onClick={() => void prepareRetry()}>
+                  {t("rotationPlans.retryFailed")}
+                </button>
+              )}
             {active(selectedRun.state) &&
               !selectedRun.cancelled &&
               manage &&
@@ -1219,6 +1307,29 @@ export default function RotationPlansPage() {
             <strong>{confirm.name}</strong>
           </p>
           <p>{t(`rotationPlans.confirmHints.${confirm.mode}`)}</p>
+          {confirm.mode === "retry" && confirm.plan && (
+            <>
+              <p>
+                {t("rotationPlans.retryConfiguration", {
+                  revision: confirm.revision,
+                  mode: t(
+                    confirm.plan.password_mode === "fixed"
+                      ? "rotationPlans.fixedMode"
+                      : "rotationPlans.generatedMode",
+                  ),
+                })}
+              </p>
+              {confirm.plan.password_policy ? (
+                <SSHPasswordRuleFields
+                  rules={confirm.plan.password_policy}
+                  disabled
+                  onChange={() => {}}
+                />
+              ) : (
+                <p className="settings-help">{t("rotationPlans.inheritedPolicy")}</p>
+              )}
+            </>
+          )}
           {confirm.mode === "run" && (
             <p className="settings-help">{t("rotationPlans.retryHint")}</p>
           )}
@@ -1238,7 +1349,7 @@ export default function RotationPlansPage() {
               onClick={() => void confirmed()}
             >
               {t(
-                `rotationPlans.${confirm.mode === "delete" ? "delete" : confirm.mode === "cancel" ? "cancel" : confirm.mode === "recover" ? "recover" : "run"}`,
+                `rotationPlans.${confirm.mode === "delete" ? "delete" : confirm.mode === "cancel" ? "cancel" : confirm.mode === "recover" ? "recover" : confirm.mode === "retry" ? "retry" : "run"}`,
               )}
             </button>
           </div>

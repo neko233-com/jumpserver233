@@ -1,5 +1,12 @@
 export default {
   rotationPlans: {
+    retry: "Submit retry",
+    retryAccount: "Retry this account",
+    retryFailed: "Retry unsuccessful accounts",
+    openRetry: "Open retry",
+    parentRun: "Original execution",
+    sourceItem: "Original item: {{id}}",
+    retryConfiguration: "Use current plan revision {{revision}} · {{mode}}",
     passwordMode: "Password source",
     generatedMode: "Random password per run",
     fixedMode: "Protected fixed password",
@@ -19,7 +26,7 @@ export default {
     title: "Credential rotation plans",
     hint: "Rotate managed SSH passwords and keys across hosts, with per-account results and durable recovery.",
     coverage:
-      "Passwords use generated values. SSH keys keep their current type. Duplicate records for the same remote account share one operation; credentials stay in the encrypted server Vault.",
+      "Passwords use the configured generated or protected fixed strategy. SSH keys keep their current type. Duplicate records for the same remote account share one operation; credentials stay in the encrypted server Vault.",
     refresh: "Refresh",
     create: "Create plan",
     edit: "Edit plan",
@@ -136,12 +143,15 @@ export default {
       outcome_unavailable: "No final result is available; reconcile the existing operation.",
     },
     confirmTitles: {
+      retry: "Retry unsuccessful accounts",
       run: "Start credential rotation",
       delete: "Delete this plan",
       cancel: "Cancel remaining rotation steps",
       recover: "Recover the existing operation",
     },
     confirmHints: {
+      retry:
+        "Create a new linked execution for the selected unsuccessful items using the current plan settings shown below. Successful and not-due items are excluded. Linked aliases retry together. Pending operations require recovery first. Each source item can start one retry; further attempts use that retry's results.",
       run: "This changes selected remote credentials immediately, including accounts that are not due. The server applies the configured password/key strategy and verifies credentials; results are recorded per account.",
       delete: "Remove this plan and its schedule. Completed execution history remains available.",
       cancel:
@@ -150,6 +160,7 @@ export default {
         "Recheck the existing staged credentials and finish their recorded operation. Recovery uses your current permissions and access policy; it does not start a new rotation.",
     },
     auditActions: {
+      retried: "Unsuccessful items retried",
       saved: "Plan saved",
       deleted: "Plan deleted",
       submitted: "Run submitted",

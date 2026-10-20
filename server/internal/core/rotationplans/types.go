@@ -108,6 +108,8 @@ type Plan struct {
 }
 type Item struct {
 	Ref
+	SourceItemID   string    `json:"source_item_id,omitempty"`
+	RetryRunID     string    `json:"retry_run_id,omitempty"`
 	ID             string    `json:"id"`
 	State          string    `json:"state"`
 	ErrorCode      string    `json:"error_code,omitempty"`
@@ -118,6 +120,9 @@ type Item struct {
 	FinishedAt     time.Time `json:"finished_at,omitzero"`
 }
 type Run struct {
+	ParentRunID    string                 `json:"parent_run_id,omitempty"`
+	RetryItemIDs   []string               `json:"retry_item_ids,omitempty"`
+	RetryAll       bool                   `json:"retry_all,omitempty"`
 	PasswordMode   string                 `json:"password_mode,omitempty"`
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	AccessOrigin   accesspolicies.Origin  `json:"access_origin,omitempty"`
@@ -135,15 +140,29 @@ type Run struct {
 	Items          []Item                 `json:"items"`
 }
 type Audit struct {
-	RequestID string                `json:"request_id,omitempty"`
-	Origin    accesspolicies.Origin `json:"access_origin,omitempty"`
-	At        time.Time             `json:"at"`
-	Actor     Actor                 `json:"actor"`
-	Action    string                `json:"action"`
-	PlanID    string                `json:"plan_id"`
-	RunID     string                `json:"run_id,omitempty"`
-	Revision  int                   `json:"revision,omitempty"`
+	ParentRunID string                `json:"parent_run_id,omitempty"`
+	RequestID   string                `json:"request_id,omitempty"`
+	Origin      accesspolicies.Origin `json:"access_origin,omitempty"`
+	At          time.Time             `json:"at"`
+	Actor       Actor                 `json:"actor"`
+	Action      string                `json:"action"`
+	PlanID      string                `json:"plan_id"`
+	RunID       string                `json:"run_id,omitempty"`
+	Revision    int                   `json:"revision,omitempty"`
 }
+
+// RetryInput starts a new, linked run using an explicitly observed plan revision.
+// Empty ItemIDs selects every remaining retryable item; aliases expand together.
+type RetryInput struct {
+	RequestID    string   `json:"request_id"`
+	PlanRevision int      `json:"plan_revision"`
+	ItemIDs      []string `json:"item_ids,omitempty"`
+}
+
+func RetryableItem(state string) bool {
+	return state == "failed" || state == "denied" || state == "changed" || state == "cancelled" || state == "interrupted"
+}
+
 type RunSummary struct {
 	Run
 	Total     int `json:"total"`
@@ -152,12 +171,20 @@ type RunSummary struct {
 	Skipped   int `json:"skipped"`
 }
 type Runner struct {
-	AuthorizeFixed func(Actor) error
-	Prepare        func(context.Context, Actor, []Selection) ([]Prepared, error)
-	Execute        func(context.Context, Intent, func() error) (Outcome, error)
-	Inspect        func(context.Context, Intent) (Outcome, error)
-	Authorize      func(Actor) error
-	Recover        func(context.Context, Intent, Actor, func() error) (Outcome, error)
+	AuthorizeTargets func(Actor, []Selection) error
+	AuthorizeFixed   func(Actor) error
+	Prepare          func(context.Context, Actor, []Selection) ([]Prepared, error)
+	Execute          func(context.Context, Intent, func() error) (Outcome, error)
+	Inspect          func(context.Context, Intent) (Outcome, error)
+	Authorize        func(Actor) error
+	Recover          func(context.Context, Intent, Actor, func() error) (Outcome, error)
+}
+
+func (r Runner) authorizeTargets(a Actor, selected []Selection) error {
+	if r.AuthorizeTargets != nil {
+		return r.AuthorizeTargets(a, selected)
+	}
+	return nil
 }
 
 func (r Runner) authorizeMode(a Actor, mode string) error {

@@ -4,10 +4,11 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { classifyNativeBrowserLog } from "./native-browser-logs.mjs";
 import { verifyFixedPassword, verifyFixedPasswordAfterRestart } from "./fixed-password-qa.mjs";
+import { verifyRotationRetry, verifyRotationRetryAfterRestart } from "./rotation-retry-qa.mjs";
 export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api,operator,sshHost,fingerprint,chromium,expect,report,stopSelected,startSelected,inContainer}){
  report.sshPasswordPolicyStep="configuration";
  const path="/api/v1/accounts/password-policy";
- let admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token, planProof, fixedProof;
+ let admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token, planProof, fixedProof, retryProof;
  const initial=await api("GET",path,undefined,admin);
  await api("GET",path,undefined,await operator(),403);
  const target=await api("POST","/api/v1/assets",{name:"Password policy SSH",host:sshHost,port:22,username:"rotationqa",password:"synthetic-keyhost-password-233",host_key_fingerprint:fingerprint},admin,201);
@@ -28,6 +29,7 @@ export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api
   await page.getByRole("button",{name:"中文",exact:true}).click();await page.setViewportSize({width:390,height:844});const chinese=page.getByRole("region",{name:"SSH 生成密码策略",exact:true});await expect(chinese.getByLabel("最少数字",{exact:true})).toHaveValue("5");if(!await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))throw Error("SSH policy overflows mobile viewport");await chinese.screenshot({path:resolve(output,"password-policy.zh.png")});
   report.sshPasswordPolicyStep="plan_browser";planProof=await verifyPlanPasswordPolicy({page,context,expect,api,admin,target,output});
   report.sshPasswordPolicyStep="fixed_browser";fixedProof=await verifyFixedPassword({page,context,expect,api,admin,target,output,runInput,owner});
+  report.sshPasswordPolicyStep="retry_browser";retryProof=await verifyRotationRetry({page,context,expect,api,admin,target,output,run,owner,sshHost,fingerprint,operator});
  }finally{await browser.close()}
  if(errors.length)throw Error("SSH policy browser diagnostics failed");
  report.sshPasswordPolicyStep="rotation";
@@ -47,6 +49,7 @@ export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api
  await run("docker",["exec",owner,"sh","-ceu",'JMS_DATA_DIR=/tmp/policy-restored JMS_RELEASE_ROOT= exec "$1" --check-data',"sh",`/tmp/releases/releases/${installed.current.archive_sha256}/jms233-server`]);
  report.sshPasswordPolicyStep="restart";await startSelected("v0.0.7");admin=(await api("POST","/api/v1/authentication/auth/",{username:"root",password:"root"})).access_token;await ssh();
  const fixedRestart=await verifyFixedPasswordAfterRestart({api,admin,proof:fixedProof});
+ const retryRestart=await verifyRotationRetryAfterRestart({api,admin,proof:retryProof});
  const final=await api("GET",path,undefined,admin);if(final.policy.revision!==saved.policy.revision||final.audit.length!==initial.audit.length+1)throw Error("Restart changed SSH policy audit/revision");
  const finalPlan=await api("GET","/api/v1/accounts/rotation-plans/"+planProof.planID,undefined,admin),finalRun=await api("GET","/api/v1/accounts/rotation-runs/"+planProof.runID,undefined,admin);
  if(finalPlan.password_policy?.min_length!==60||finalRun.password_policy?.min_length!==56||finalRun.state!=="succeeded")throw Error("Restart lost plan revision or immutable run policy snapshot");
@@ -54,6 +57,7 @@ export async function verifySSHPasswordPolicy({run,runInput,owner,url,output,api
  report.sshPasswordPolicy={defaultRevision:initial.policy.revision,configuredRevision:saved.policy.revision,webAndCLI:true,receiptReplay:true,staleRevisionRejected:true,nonAdminDenied:true,realSSHRotation:true,realSSHAfterRestart:true,encryptedBackupRestore:true,restoredDataPreflight:true,backupRestoreReplay:true,languages:["en","zh-CN"],mobileWidth:390,pageErrors:errors.length,expectedBrowserDiagnostics:diagnostics};
  report.planPasswordPolicy={...planProof,webAndCLI:true,encryptedBackupRestore:true,restartSnapshotPreserved:true,nonAdminDenied:true};
  report.fixedPassword={...fixedProof,...fixedRestart,encryptedBackupRestore:true};
+ report.rotationRetry={...retryProof,...retryRestart};
  report.sshPasswordPolicyStep="complete";
 }
 
