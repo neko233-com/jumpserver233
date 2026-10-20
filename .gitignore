@@ -92,6 +92,9 @@ __pycache__/
 **/.labels-*
 **/ssh-certificates.json
 **/.ssh-certificates-*
+**/replay-archive.json
+**/.replay-archive-*
+**/replay-cache/
 # Local backup archives, recovery control state and interrupted atomic writes
 *.jmsbackup
 vault.key

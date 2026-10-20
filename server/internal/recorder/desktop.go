@@ -75,9 +75,25 @@ func (d *Desktop) Read(frame DesktopFrame) ([]byte, error) {
 	}
 	defer file.Close()
 	data, e := io.ReadAll(io.LimitReader(file, (40<<20)+1024))
-	if e != nil || len(data) < d.aead.NonceSize()+d.aead.Overhead() || len(data) > (40<<20)+128 {
+	if e != nil {
+		return nil, e
+	}
+	return decodeDesktopFrame(d.aead, d.session, frame, data)
+}
+
+// DecodeDesktopFrame authenticates one archived ciphertext frame against the
+// unchanged local audit index. It does not create a recording directory.
+func DecodeDesktopFrame(id string, key []byte, frame DesktopFrame, data []byte) ([]byte, error) {
+	a, e := newSessionAEAD(key, "desktop:"+id)
+	if e != nil {
+		return nil, e
+	}
+	return decodeDesktopFrame(a, id, frame, data)
+}
+func decodeDesktopFrame(a cipher.AEAD, id string, frame DesktopFrame, data []byte) ([]byte, error) {
+	if frame.Index < 0 || frame.Index >= MaxDesktopFrames || frame.AtMS < 0 || frame.Width < 1 || frame.Height < 1 || len(data) < a.NonceSize()+a.Overhead() || len(data) > (40<<20)+128 {
 		return nil, errors.New("invalid desktop frame")
 	}
 	aad, _ := json.Marshal(frame)
-	return d.aead.Open(nil, data[:d.aead.NonceSize()], data[d.aead.NonceSize():], append([]byte(d.session+":"), aad...))
+	return a.Open(nil, data[:a.NonceSize()], data[a.NonceSize():], append([]byte(id+":"), aad...))
 }

@@ -27,6 +27,7 @@ var (
 // Each Save is one atomic upsert. The namespace keeps independent clusters
 // from sharing data when they use the same PostgreSQL database.
 type Documents struct {
+	blobs     *replayBlobSchema
 	db        *sql.DB
 	namespace string
 	prefix    string
@@ -46,7 +47,7 @@ func (d *Documents) Scoped(scope string) (*Documents, error) {
 	if d.prefix != "" {
 		return nil, ErrInvalidDocument
 	}
-	return &Documents{db: d.db, namespace: d.namespace, prefix: scope + ":"}, nil
+	return &Documents{db: d.db, namespace: d.namespace, prefix: scope + ":", blobs: d.blobs}, nil
 }
 func (d *Documents) documentKey(key string) (string, error) {
 	if e := validateKey(key); e != nil {
@@ -107,7 +108,7 @@ func OpenPostgres(ctx context.Context, databaseURL, namespace string) (*Document
 		_ = db.Close()
 		return nil, fmt.Errorf("commit shared state migration: %w", err)
 	}
-	return &Documents{db: db, namespace: namespace}, nil
+	return &Documents{db: db, namespace: namespace, blobs: &replayBlobSchema{}}, nil
 }
 
 func (d *Documents) Load(key string) ([]byte, error) {

@@ -2,6 +2,8 @@
 
 > 中文 | [English](./TESTING.en.md)
 
+[录像外部存储](./REPLAY-STORAGE.md)已编写 Testify 签名/HTTPS、数据库事务/隔离、SFTP、加密配置回执、上传响应丢失、并发幂等、重启、损坏拒绝、终端/桌面密文格式与缓存清理用例。Linux race 入口已加入无 SSH 夹具依赖的归档/对象/数据库用例；真实 SFTP 用例保留独立夹具条件。运行时/API/Web/CLI/备份链路及其用例仍待补齐，本轮未运行任何测试、构建、浏览器或 Docker，不形成新增验收证据。
+
 ## 全量实现门禁与待运行用例（2026-10-20）
 
 [SSH 用户证书](./SSH-CERTIFICATES.md)已预写 Testify、OpenBao HTTPS 签名夹具、缓存/修订/轮换/拒绝、API/CLI、组织重开、PostgreSQL 接管、加密备份和中英 Web 用例。`scripts/ssh-certificates-qa.mjs` 接入原生包入口，复用 OpenSSH 容器和既有重启，覆盖证书专用账号的监控、CLI、SFTP、信任分发、Web SSH 与在线策略撤销；未执行这些用例，不产生新验收证据。

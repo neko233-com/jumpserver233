@@ -10,6 +10,8 @@ Phase 7 新增 [SSH 账号连接性检测](./ACCOUNT-CHECKS.md)：默认/具名�
 
 E36 [SSH 用户证书](./SSH-CERTIFICATES.md)的内置 CA/OpenBao、短期签发、账号/网关路由、两步 CA 轮换、Web/CLI/SDK、用例与双语说明已编写，等待全量实现后的统一验证。
 
+E35 [录像外部存储](./REPLAY-STORAGE.md)已编写 S3/OSS/COS/OBS/SFTP/PostgreSQL 对象后端、加密归档状态、重试、读回校验、录像认证/缓存和 Testify 用例。运行时、鉴权 API、Web/CLI/SDK 与备份尚未接入，仍为部分完成；不启动验证。
+
 Phase 7 新增[SSH 改密单项与批量重试](./ROTATION-RETRIES.md)：已结束运行的失败项选择、成功项排除、别名合并、当前计划修订、一次来源占用、Web/CLI/SDK、关联审计和持久化接管。完整企业版仍在进行。
 
 新增[固定密码计划与幂等保存](./FIXED-PASSWORDS.md)：指定/随机来源、独立权限、只写输入、保存回执、不可变快照、组织约束和恢复。默认七天自动改密继续随机生成；完整企业版目标继续推进。

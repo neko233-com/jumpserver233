@@ -2,6 +2,8 @@
 
 > [中文](./TESTING.md) | English
 
+[External replay storage](./REPLAY-STORAGE.en.md) authors Testify signing/HTTPS, database transactions/isolation, SFTP, encrypted configuration receipts, lost upload responses, concurrent idempotency, restart, corruption refusal, terminal/desktop ciphertext formats and cache cleanup. The Linux race entrypoint includes archive/object/database cases without an SSH fixture dependency; the real SFTP case retains its separate fixture requirement. Runtime/API/Web/CLI/backups and their cases remain incomplete. No tests, builds, browser or Docker runs occurred in this batch, providing no new acceptance evidence.
+
 ## Full implementation gate and authored cases (2026-10-20)
 
 [SSH user certificate](./SSH-CERTIFICATES.en.md) cases author Testify, OpenBao HTTPS signing fixtures, cache/revisions/rotation/refusal, API/CLI, organization reopen, PostgreSQL takeover, encrypted backups and bilingual Web flows. `scripts/ssh-certificates-qa.mjs` joins native packaging and reuses its OpenSSH container/existing restart for certificate-only monitoring, CLI, SFTP, trust distribution, Web SSH and live policy revocation. These cases have not run and provide no new acceptance evidence.

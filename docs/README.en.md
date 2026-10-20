@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[External replay storage](./REPLAY-STORAGE.en.md): authored object backends, archive state/retries, readback verification, recording authentication and caching. Runtime/API/Web/CLI/backups remain unwired; E35 is partial and unverified.
+
 [Delivery progress and fixed acceptance checklist](./PROGRESS.en.md): separate stable-SSH and full-baseline counts, batch delta, unverified changes, remaining gaps and the unified acceptance gate.
 
 [Platform announcements](./ANNOUNCEMENTS.en.md): bilingual plain text, drafts/publication windows, pinning, per-revision reading receipts, system management permission, encryption and Web/CLI/SDK. Source/cases are authored and await verification after all features are implemented.

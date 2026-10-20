@@ -27,6 +27,9 @@ CODELY.md
 **/.labels-*
 **/ssh-certificates.json
 **/.ssh-certificates-*
+**/replay-archive.json
+**/.replay-archive-*
+**/replay-cache
 server/bin
 server/internal/agentbundle/artifacts/jms-agent-*
 server/internal/agentbundle/artifacts/manifest.json

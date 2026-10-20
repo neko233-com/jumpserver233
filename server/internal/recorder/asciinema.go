@@ -169,6 +169,15 @@ func OpenReplay(path, sessionID string, vaultKey []byte) (io.ReadCloser, error) 
 	if err != nil {
 		return nil, fmt.Errorf("open session recording: %w", err)
 	}
+	return OpenReplayReader(file, sessionID, vaultKey)
+}
+
+// OpenReplayReader takes ownership of ciphertext already authorized by the
+// caller. Remote storage callers must verify its whole-object digest first.
+func OpenReplayReader(file io.ReadCloser, sessionID string, vaultKey []byte) (io.ReadCloser, error) {
+	if file == nil {
+		return nil, fmt.Errorf("session recording source is required")
+	}
 	marker := make([]byte, len(recordingMagic))
 	if _, err := io.ReadFull(file, marker); err != nil || string(marker) != recordingMagic {
 		_ = file.Close()
@@ -190,7 +199,7 @@ func OpenReplay(path, sessionID string, vaultKey []byte) (io.ReadCloser, error) 
 
 type replayReadCloser struct {
 	gzip *gzip.Reader
-	file *os.File
+	file io.ReadCloser
 }
 
 func (r *replayReadCloser) Read(p []byte) (int, error) { return r.gzip.Read(p) }
