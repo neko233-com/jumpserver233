@@ -439,6 +439,9 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 		return ErrRotationPending
 	}
 	ps := c.participants(passwordIdentity(a))
+	if c.certificateParticipant(passwordIdentity(a)) {
+		return ErrCredentialType
+	}
 	if len(ps) < 2 || credentialType(a.CredentialType) != CredentialPassword {
 		return s.rotatePasswordToLocal(ctx, id, trigger, actor, backupID)
 	}

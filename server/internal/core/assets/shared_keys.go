@@ -233,6 +233,13 @@ func (c *PasswordCoordinator) withKeyChange(ctx context.Context, s *Service, id 
 	}
 	defer c.mu.Unlock()
 	if !cancelOperation {
+		a, e := s.Get(id)
+		if e != nil {
+			return ListItem{}, e
+		}
+		if c.certificateParticipant(passwordIdentity(a)) {
+			return ListItem{}, ErrCredentialType
+		}
 		if e := s.guardManagedRotation(ctx, id); e != nil {
 			return ListItem{}, e
 		}

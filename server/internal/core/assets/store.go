@@ -22,6 +22,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sqlclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/sshclient"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/telnetclient"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sshcertificates"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 )
 
@@ -162,6 +163,7 @@ type pendingRotation struct {
 // Store persists assets and AES-GCM-encrypted credentials in a single-user
 // standalone file. The key is supplied separately from the data file.
 type Store struct {
+	certificates       *sshcertificates.Store
 	passwordPolicy     *credentialpolicy.Store
 	admission          *workgate.Gate
 	mu                 sync.RWMutex

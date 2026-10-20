@@ -8,6 +8,7 @@ const PasswordChangePage = lazy(() => import("./pages/PasswordChangePage"));
 const ConsoleLayout = lazy(() => import("./layouts/ConsoleLayout"));
 const AnnouncementsPage = lazy(() => import("./pages/AnnouncementsPage"));
 const LabelsPage = lazy(() => import("./pages/LabelsPage"));
+const SSHCertificatesPage = lazy(() => import("./pages/SSHCertificatesPage"));
 const AssetDiscoveryPage = lazy(() => import("./pages/AssetDiscoveryPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -96,6 +97,7 @@ export default function App() {
               <Route path="branding" element={<BrandingPage />} />
               <Route path="announcements" element={<AnnouncementsPage />} />
               <Route path="labels" element={<LabelsPage />} />
+              <Route path="ssh-certificates" element={<SSHCertificatesPage />} />
               <Route path="roles" element={<RolesPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="organizations" element={<OrganizationsPage />} />

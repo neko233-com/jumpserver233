@@ -67,6 +67,8 @@ func (s *Service) BindConnection(asset Asset) (string, error) {
 
 func (s *Store) connectionBindingLocked(id string) (string, error) {
 	route := []connectionSnapshot{}
+	certificates := []string{}
+	hasCertificatePolicy := false
 	seen := map[string]bool{}
 	for id != "" {
 		if seen[id] || len(route) > 3 {
@@ -80,8 +82,24 @@ func (s *Store) connectionBindingLocked(id string) (string, error) {
 		if !IsSSH(row.Asset) || row.AccountDisabled || remoteAccountPending(row.Asset) {
 			return "", ErrConnectionChanged
 		}
+		certificate := ""
+		if s.certificates != nil {
+			var e error
+			certificate, e = s.certificates.ConnectionIdentity(id)
+			if e != nil {
+				return "", e
+			}
+		}
 		route = append(route, snapshotConnection(row.Asset))
+		certificates = append(certificates, certificate)
+		hasCertificatePolicy = hasCertificatePolicy || certificate != ""
 		id = row.GatewayID
+	}
+	if hasCertificatePolicy {
+		return s.importMAC("connection-authorization/certificates/v1", struct {
+			Route        []connectionSnapshot
+			Certificates []string
+		}{route, certificates}), nil
 	}
 	return s.importMAC("connection-authorization/v1", route), nil
 }

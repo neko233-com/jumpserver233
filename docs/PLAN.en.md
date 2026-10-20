@@ -6,6 +6,8 @@
 
 The user's 2026-10-20 workflow instruction requires all checklist features, cases and bilingual docs before tests, builds, browser or Docker verification. SSH remains the development priority; prior SSH-only acceptance batches no longer apply. [Platform announcement](./ANNOUNCEMENTS.en.md) and [organization label](./LABELS.en.md) source, cases and bilingual docs are authored. E41 is implementation-ready, awaiting verification with no accepted credit.
 
+E36 [SSH user certificates](./SSH-CERTIFICATES.en.md) author built-in CA/OpenBao signing, short-lived account/gateway authentication, two-phase CA rotation, Web/CLI/SDK, cases and bilingual docs. They await unified verification after full implementation.
+
 Phase 7 adds [SSH account connectivity checks](./ACCOUNT-CHECKS.en.md): password/key authentication for default and named accounts, independent scheduling, results/failure notifications, explicit retries and no automatic replay after interruption. Full Enterprise parity remains in progress.
 
 Phase 7 adds [individual/bulk SSH rotation retries](./ROTATION-RETRIES.en.md): select unsuccessful items from terminal runs, exclude successes, combine aliases, bind current plan revision, claim each source once and retain Web/CLI/SDK, linked audit and takeover. Full Enterprise parity remains active.

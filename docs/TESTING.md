@@ -4,6 +4,8 @@
 
 ## 全量实现门禁与待运行用例（2026-10-20）
 
+[SSH 用户证书](./SSH-CERTIFICATES.md)已预写 Testify、OpenBao HTTPS 签名夹具、缓存/修订/轮换/拒绝、API/CLI、组织重开、PostgreSQL 接管、加密备份和中英 Web 用例。`scripts/ssh-certificates-qa.mjs` 接入原生包入口，复用 OpenSSH 容器和既有重启，覆盖证书专用账号的监控、CLI、SFTP、信任分发、Web SSH 与在线策略撤销；未执行这些用例，不产生新验收证据。
+
 用户要求完整 42 组功能、用例及双语文档先实现，再统一验证。目录/升级、平台公告与组织标签的新源码尚未运行测试、构建、浏览器或 Docker，下文历史通过结果不覆盖这些改动。标签已编写 Testify 核心/并发/PostgreSQL、API、CLI、组织运行时重开、整站备份恢复和中英 390px Playwright 用例。原生标签/公告加密、回执及 CLI 用例复用 `native-package-qa.mjs` 已有的重启，未增加独立容器或额外重启；Linux race 包含标签包。仅在全部实现就绪后统一执行并补充实际结果，报告保留与幂等清理沿用既有入口。
 
 ## SSH 账号连接性检测（2026-10-20）

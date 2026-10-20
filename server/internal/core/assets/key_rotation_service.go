@@ -38,6 +38,9 @@ type SSHKeyRotationStatus struct {
 }
 
 func (s *Service) sshKeyRotationStatus(asset Asset) *SSHKeyRotationStatus {
+	if s.certificateRequired(asset.ID) {
+		return &SSHKeyRotationStatus{State: "disabled"}
+	}
 	s.store.mu.RLock()
 	record, ok := s.store.assets[asset.ID]
 	s.store.mu.RUnlock()
@@ -111,6 +114,9 @@ func (s *Service) keyListItem(id string) (ListItem, error) {
 func (s *Service) claimKeyChange(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.certificateRequired(id) {
+		return ErrCredentialType
+	}
 	if s.rotationRunning[id] {
 		return ErrRotationInProgress
 	}
@@ -466,7 +472,7 @@ func (s *Service) RotateDueSSHKeys(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		if asset.AccountDisabled || asset.CredentialType != CredentialSSHKey || !asset.KeyRotationEnabled || s.store.HasPendingSSHKeyChange(asset.ID) || time.Now().UTC().Before(asset.KeyRotatedAt.Add(SSHKeyRotationInterval)) || s.keyChangeCoolingDown(asset.ID, time.Now().UTC()) {
+		if s.certificateRequired(asset.ID) || asset.AccountDisabled || asset.CredentialType != CredentialSSHKey || !asset.KeyRotationEnabled || s.store.HasPendingSSHKeyChange(asset.ID) || time.Now().UTC().Before(asset.KeyRotatedAt.Add(SSHKeyRotationInterval)) || s.keyChangeCoolingDown(asset.ID, time.Now().UTC()) {
 			continue
 		}
 		var token [16]byte

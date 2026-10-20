@@ -8,6 +8,8 @@
 
 [组织标签](./LABELS.md)：统一目录、资产/节点继承、筛选、组织权限和审计、加密持久化及 Web/CLI/SDK；源码和用例已写，等待统一验证。
 
+[SSH 用户证书](./SSH-CERTIFICATES.md)：内置 CA/OpenBao、短期证书、账号/网关认证、两步 CA 轮换、权限、审计、Web/CLI/SDK；源码及用例待统一验证。
+
 [SSH 账号连接性检测](./ACCOUNT-CHECKS.md)：已保存密码/密钥的手动和独立周期认证、逐账号结果、显式重试、安全通知及备份保留。
 
 [SSH 执行工作区](./SSH-WORKSPACES.md)：原生 Linux helper 的目录树文件限制与 Web/CLI 入口。新增[受控执行目录](./EXECUTION-DIRECTORIES.md)：单命令作业的真实起始目录、精确/子树/正则规则和审批绑定；完整交互式 cwd 仍待完成。

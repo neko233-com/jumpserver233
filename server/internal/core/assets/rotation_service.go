@@ -76,6 +76,9 @@ func NewServiceWithPasswordRotation(store *Store, probe ProbeFunc, change Passwo
 }
 
 func (s *Service) passwordRotationStatus(asset Asset) *PasswordRotationStatus {
+	if s.certificateRequired(asset.ID) {
+		return &PasswordRotationStatus{State: "disabled"}
+	}
 	if !IsSSH(asset) {
 		return nil
 	}
@@ -262,7 +265,7 @@ func (s *Service) RotateDuePasswords(ctx context.Context) {
 	limit := make(chan struct{}, 4)
 	var workers sync.WaitGroup
 	for _, asset := range assets {
-		if s.store.HasPendingPasswordRotation(asset.ID) || baseRotationStatus(asset, now).State != "due" || s.rotationAttemptCoolingDown(asset.ID, now) {
+		if s.certificateRequired(asset.ID) || s.store.HasPendingPasswordRotation(asset.ID) || baseRotationStatus(asset, now).State != "due" || s.rotationAttemptCoolingDown(asset.ID, now) {
 			continue
 		}
 		select {
@@ -467,6 +470,9 @@ func (s *Service) reconcilePendingRotation(ctx context.Context, asset Asset, tri
 func (s *Service) claimRotation(id string, at time.Time, state string, requireDue bool) (Asset, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.certificateRequired(id) {
+		return Asset{}, ErrCredentialType
+	}
 	if s.rotationRunning[id] {
 		return Asset{}, ErrRotationInProgress
 	}

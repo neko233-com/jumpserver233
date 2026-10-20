@@ -25,6 +25,8 @@ CODELY.md
 **/.announcements-*
 **/labels.json
 **/.labels-*
+**/ssh-certificates.json
+**/.ssh-certificates-*
 server/bin
 server/internal/agentbundle/artifacts/jms-agent-*
 server/internal/agentbundle/artifacts/manifest.json

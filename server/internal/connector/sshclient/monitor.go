@@ -25,8 +25,9 @@ type Target struct {
 
 // Credentials are supplied by the server-side vault and are never returned to callers.
 type Credentials struct {
-	Password   string
-	PrivateKey []byte
+	Password    string
+	PrivateKey  []byte
+	Certificate []byte `json:"certificate,omitempty"`
 }
 
 // Metrics contains host counters from one SSH probe. Rates are calculated by the
@@ -112,6 +113,9 @@ func clientConfig(target Target, credentials Credentials) (*xssh.ClientConfig, e
 	}
 
 	methods := make([]xssh.AuthMethod, 0, 2)
+	if len(credentials.Certificate) > 0 && (len(credentials.PrivateKey) == 0 || credentials.Password != "") {
+		return nil, fmt.Errorf("SSH certificate requires its private key without password fallback")
+	}
 	if credentials.Password != "" {
 		methods = append(methods, xssh.Password(credentials.Password))
 	}
@@ -119,6 +123,20 @@ func clientConfig(target Target, credentials Credentials) (*xssh.ClientConfig, e
 		signer, err := xssh.ParsePrivateKey(credentials.PrivateKey)
 		if err != nil {
 			return nil, fmt.Errorf("parse SSH private key: %w", err)
+		}
+		if len(credentials.Certificate) > 0 {
+			public, _, options, rest, e := xssh.ParseAuthorizedKey(credentials.Certificate)
+			cert, ok := public.(*xssh.Certificate)
+			if e != nil || !ok || len(options) > 0 || strings.TrimSpace(string(rest)) != "" || cert.CertType != xssh.UserCert || len(cert.ValidPrincipals) != 1 || cert.ValidPrincipals[0] != target.Username {
+				return nil, fmt.Errorf("invalid SSH user certificate")
+			}
+			if e = (&xssh.CertChecker{}).CheckCert(target.Username, cert); e != nil {
+				return nil, fmt.Errorf("invalid SSH user certificate")
+			}
+			signer, e = xssh.NewCertSigner(cert, signer)
+			if e != nil {
+				return nil, fmt.Errorf("SSH certificate key mismatch")
+			}
 		}
 		methods = append(methods, xssh.PublicKeys(signer))
 	}

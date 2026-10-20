@@ -60,6 +60,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/servicemaintenance"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sshcertificates"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/core/updates"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
@@ -439,6 +440,12 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	defer root.Labels.Close()
+	root.SSHCertificates, err = sshcertificates.Open(filepath.Join(cfg.DataDir, "ssh-certificates.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	defer root.SSHCertificates.Close()
+	assetService.SetSSHCertificates(root.SSHCertificates)
 	root.Updates = updateStore
 	root.ReleaseRoot, root.InstallationDataDir = cfg.ReleaseRoot, cfg.DataDir
 	root.Maintenance, err = servicemaintenance.New(admission, !cfg.ClusterMode, updateStore.RecordMaintenance)

@@ -39,6 +39,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sshcertificates"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
@@ -432,6 +433,12 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			r.stop(&organizationRuntime{d: d}, false)
 			return nil, e
 		}
+		d.SSHCertificates, e = sshcertificates.Open(filepath.Join(orgPath, "ssh-certificates.json"), orgKey, docs)
+		if e != nil {
+			r.stop(&organizationRuntime{d: d}, false)
+			return nil, e
+		}
+		d.Assets.SetSSHCertificates(d.SSHCertificates)
 	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID && !r.suspended {
@@ -477,6 +484,9 @@ func (r *organizationRuntimes) changed(id string) {
 	}
 }
 func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) {
+	if current.d.SSHCertificates != nil {
+		current.d.SSHCertificates.Close()
+	}
 	if current.d.Labels != nil {
 		current.d.Labels.Close()
 	}

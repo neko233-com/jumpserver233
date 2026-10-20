@@ -83,6 +83,9 @@ func run(args []string) error {
 	if len(args) > 0 && args[0] == "labels" {
 		return runLabels(args[1:])
 	}
+	if len(args) > 0 && args[0] == "ssh-certificates" {
+		return runSSHCertificates(args[1:])
+	}
 	if len(args) > 0 && args[0] == "ticket" {
 		return runTickets(args[1:])
 	}

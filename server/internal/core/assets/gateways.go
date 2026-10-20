@@ -95,7 +95,14 @@ func (s *Store) connectionForProtocolBound(id string, requireSSH bool, binding s
 		if e != nil {
 			return Asset{}, sshclient.Target{}, sshclient.Credentials{}, e
 		}
-		hops = append(hops, sshclient.Hop{Target: sshTarget(gateway.Asset), Credentials: decodeCredentials(gateway.CredentialType, secret)})
+		credentials := decodeCredentials(gateway.CredentialType, secret)
+		if s.certificates != nil {
+			credentials, e = s.certificates.Resolve(SSHCertificateTarget(gateway.Asset), credentials)
+			if e != nil {
+				return Asset{}, sshclient.Target{}, sshclient.Credentials{}, e
+			}
+		}
+		hops = append(hops, sshclient.Hop{Target: sshTarget(gateway.Asset), Credentials: credentials})
 		ids = append(ids, gateway.ID)
 		current = gateway
 	}
@@ -106,7 +113,14 @@ func (s *Store) connectionForProtocolBound(id string, requireSSH bool, binding s
 	target.Gateways = hops
 	asset := record.Asset
 	asset.GatewayIDs = ids
-	return asset, target, decodeCredentials(record.CredentialType, password), nil
+	credentials := decodeCredentials(record.CredentialType, password)
+	if s.certificates != nil && IsSSH(asset) {
+		credentials, e = s.certificates.Resolve(SSHCertificateTarget(asset), credentials)
+		if e != nil {
+			return Asset{}, sshclient.Target{}, sshclient.Credentials{}, e
+		}
+	}
+	return asset, target, credentials, nil
 }
 func normalizeGateway(input *string) string {
 	if input == nil {

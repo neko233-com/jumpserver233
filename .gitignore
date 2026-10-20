@@ -90,6 +90,8 @@ __pycache__/
 **/.announcements-*
 **/labels.json
 **/.labels-*
+**/ssh-certificates.json
+**/.ssh-certificates-*
 # Local backup archives, recovery control state and interrupted atomic writes
 *.jmsbackup
 vault.key

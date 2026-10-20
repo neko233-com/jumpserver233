@@ -26,6 +26,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/console/reports", label: t("nav.reports"), end: false },
     { to: "/console/announcements", label: t("nav.announcements"), end: false },
     { to: "/console/labels", label: t("nav.labels"), end: false },
+    ...(allows("ssh_certificates.view")
+      ? [{ to: "/console/ssh-certificates", label: t("nav.sshCertificates"), end: false }]
+      : []),
     { to: "/console/login-audit", label: t("nav.loginAudit"), end: false },
     ...(allows("monitoring.view") || allows("monitoring.manage")
       ? [{ to: "/console/monitoring", label: t("nav.monitoring"), end: false }]

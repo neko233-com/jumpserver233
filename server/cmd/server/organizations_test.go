@@ -19,6 +19,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sshcertificates"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
 	"github.com/stretchr/testify/assert"
@@ -243,6 +244,11 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 		require.Error(t, e)
 	})
 	// Disable/restore keeps encrypted resources while preventing access.
+	var organizationCA sshcertificates.Issuer
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "POST", "/api/v1/settings/ssh-certificates/issuers", token, org.ID, sshcertificates.Input{Name: "Organization CA", Provider: "builtin", Enabled: true, RequestID: "organization-ca-001"}, 201), &organizationCA))
+	orgCertInput := sshcertificates.BindingInput{IssuerID: organizationCA.ID, RequestID: "organization-bind-ca-001"}
+	orgHTTP(t, address, "PUT", "/api/v1/settings/ssh-certificates/bindings/"+b.ID, token, org.ID, orgCertInput, 200)
+	assert.NotContains(t, string(orgHTTP(t, address, "GET", "/api/v1/settings/ssh-certificates/issuers", token, "", nil, 200)), organizationCA.ID)
 	in := org.Input
 	in.Enabled = false
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/organizations/"+org.ID, token, "", in, 200), &org))
@@ -255,6 +261,10 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	var preservedBinding labels.Binding
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/labels/bindings/asset/"+b.ID, token, org.ID, orgLabelInput, 200), &preservedBinding))
 	assert.Equal(t, 1, preservedBinding.Revision)
+	assert.Contains(t, string(orgHTTP(t, address, "GET", "/api/v1/settings/ssh-certificates/issuers", token, org.ID, nil, 200)), organizationCA.ID)
+	var restoredCertificatePolicy sshcertificates.Binding
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/settings/ssh-certificates/bindings/"+b.ID, token, org.ID, orgCertInput, 200), &restoredCertificatePolicy))
+	assert.Equal(t, 1, restoredCertificatePolicy.Revision)
 	orgHTTP(t, address, "DELETE", "/api/v1/organizations/"+org.ID+"?revision="+strconv.Itoa(org.Revision), token, "", nil, 204)
 	orgHTTP(t, address, "GET", "/api/v1/assets", token, org.ID, nil, 404)
 	orgHTTP(t, address, "POST", "/api/v1/organizations/"+org.ID+"/restore?revision="+strconv.Itoa(org.Revision+1), token, "", nil, 204)

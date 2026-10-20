@@ -42,6 +42,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/servicemaintenance"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
+	"github.com/neko233-com/jumpserver233/server/internal/core/sshcertificates"
 	"github.com/neko233-com/jumpserver233/server/internal/core/tickets"
 	"github.com/neko233-com/jumpserver233/server/internal/core/updates"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
@@ -49,6 +50,7 @@ import (
 )
 
 type Dependencies struct {
+	SSHCertificates       *sshcertificates.Store
 	Labels                *labels.Store
 	Announcements         *announcements.Store
 	SSHPasswordPolicy     *credentialpolicy.Store
@@ -227,6 +229,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	if len(dependencies) > 0 && dependencies[0].Assets != nil {
 		registerAssetRoutes(mux, dependencies[0].Assets, dependencies[0].AdminToken, dependencies[0].Auth, dependencies[0].Grants, dependencies[0].Groups, dependencies[0].Nodes, accessMu, dependencies[0].Labels)
 		registerLabelRoutes(mux, dependencies[0], accessMu)
+		registerSSHCertificateRoutes(mux, dependencies[0], accessMu)
 		registerManagedAccountRoutes(mux, dependencies[0], accessMu)
 		registerAccountImportRoutes(mux, dependencies[0], accessMu)
 	}

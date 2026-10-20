@@ -4,6 +4,8 @@
 
 ## Full implementation gate and authored cases (2026-10-20)
 
+[SSH user certificate](./SSH-CERTIFICATES.en.md) cases author Testify, OpenBao HTTPS signing fixtures, cache/revisions/rotation/refusal, API/CLI, organization reopen, PostgreSQL takeover, encrypted backups and bilingual Web flows. `scripts/ssh-certificates-qa.mjs` joins native packaging and reuses its OpenSSH container/existing restart for certificate-only monitoring, CLI, SFTP, trust distribution, Web SSH and live policy revocation. These cases have not run and provide no new acceptance evidence.
+
 The user requires all 42 groups, cases and bilingual docs before unified verification. New directory/upgrade, announcement and label source has not run tests, builds, browser or Docker verification; historical passes below do not cover it. Authored label cases cover Testify core/concurrency/PostgreSQL, API, CLI, organization-runtime reopen, full-backup recovery and bilingual 390px Playwright flows. Native encryption, receipt and CLI cases reuse the existing `native-package-qa.mjs` restart without separate containers or another restart; Linux race includes labels. Run these only after all implementation is ready, record actual outcomes and use existing report retention/idempotent cleanup.
 
 ## SSH account connectivity checks (2026-10-20)

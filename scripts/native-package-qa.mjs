@@ -19,6 +19,7 @@ import { verifyAutomaticInstallation } from "./automatic-install-qa.mjs";
 import { historicalBaseline, prepareHistoricalPackage, verifyHistoricalManifests } from "./historical-source.mjs";
 import { verifySSHPasswordPolicy } from "./ssh-password-policy-qa.mjs";
 import { verifyOperationDirectories, verifyOperationDirectoryBrowser } from "./operation-directories-qa.mjs";
+import { verifySSHCertificates, verifySSHCertificateRestart, verifySSHCertificateBrowser } from "./ssh-certificates-qa.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
 const options = process.argv.slice(2), historical = options.includes("--historical");
@@ -451,6 +452,7 @@ try {
   report.executionDirectories = { exactTreeAndRegex: true, deniedCommandsNeverCreatedFiles: true, pathBoundaryPreserved: true, symlinkAndOutsideRefused: true, loginReviewReplacementCreatesNewApproval: true, loginRetryIdempotent: true, commandReviewReplacementRefused: true, sameNamePolicyReplacementRefused: true, approvedCwdVerified: true, retryWithoutLiveSSH: true, changedDirectoryRetryConflict: true, nativeCLI: true };
   await verifyOperationDirectories({api, admin: recoveredLogin.access_token, run, runInput, owner, sshHost: owner + "-ssh", fingerprint, workspace, directory: deployDirectory, sibling: siblingDirectory, primary: asset, report});
   const completedDirectoryRun = await api("GET", `/api/v1/ops/runs/${report.operationDirectories.playbookRunID}`, undefined, recoveredLogin.access_token);
+  const certificateFixture=await verifySSHCertificates({api,admin:recoveredLogin.access_token,run,runInput,owner,sshHost:owner+"-ssh",fingerprint,url,report});
   const nativeLabelInput = {name: "Native lifecycle", value: "encrypted-restart", request_id: randomUUID()};
   const nativeLabel = await api("POST", "/api/v1/labels/labels", nativeLabelInput, recoveredLogin.access_token, 201);
   const nativeLabelBindingInput = {label_ids: [nativeLabel.id], revision: 0, request_id: randomUUID()};
@@ -464,6 +466,7 @@ try {
   const restartedDirectoryRun = await api("GET", `/api/v1/ops/runs/${completedDirectoryRun.id}`, undefined, recoveredLogin.access_token);
   if (restartedDirectoryRun.state !== "succeeded" || restartedDirectoryRun.working_directory !== deployDirectory || JSON.stringify(restartedDirectoryRun.items.map(i => i.steps.map(s => s.job_id))) !== JSON.stringify(completedDirectoryRun.items.map(i => i.steps.map(s => s.job_id)))) throw Error("Restart lost directory snapshots or replayed completed steps");
   report.operationDirectories.restartPreservesSnapshotsWithoutReplay = true;
+  await verifySSHCertificateRestart({api,admin:recoveredLogin.access_token,fixture:certificateFixture,report});
   const nativeLabelAfter = await api("POST", "/api/v1/labels/labels", nativeLabelInput, recoveredLogin.access_token, 201);
   const nativeBindingAfter = await api("PUT", `/api/v1/labels/bindings/asset/${asset.id}`, nativeLabelBindingInput, recoveredLogin.access_token);
   const nativeReadingAfter = await api("POST", `/api/v1/announcements/${nativeNotice.id}/read`, {revision: nativeNotice.revision}, recoveredLogin.access_token);
@@ -612,6 +615,7 @@ try {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.getByRole("button", { name: "EN", exact: true }).click();
     await verifyOperationDirectoryBrowser({page, expect, url, api, admin: recoveredLogin.access_token, directory: deployDirectory, output, report});
+    await verifySSHCertificateBrowser({page,expect,url,api,admin:recoveredLogin.access_token,report});
     await page.goto(url + "/console/settings");
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     const card = page.locator(".update-settings-card");

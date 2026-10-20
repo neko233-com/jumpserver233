@@ -32,6 +32,7 @@ var catalog = []string{
 	"reports.export", "reports.audit",
 	"announcements.manage",
 	"labels.manage", "labels.assign", "labels.audit",
+	"ssh_certificates.view", "ssh_certificates.manage", "ssh_certificates.assign", "ssh_certificates.audit",
 	"audit.logins.view_all", "audit.logins.export",
 	"organizations.manage", "organizations.members.manage",
 	"roles.manage", "users.manage", "users.credentials.manage", "groups.manage", "grants.manage", "nodes.manage",
