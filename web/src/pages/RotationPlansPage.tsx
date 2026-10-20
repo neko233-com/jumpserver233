@@ -1268,9 +1268,11 @@ export default function RotationPlansPage() {
             <dt>{t("rotationPlans.finishedAt")}</dt>
             <dd>{date(selectedRun.finished_at)}</dd>
           </dl>
-          <p className="settings-help">{t("rotationPlans.resultHint")}</p>
+          {selectedRun.operation !== "check" && (
+            <p className="settings-help">{t("rotationPlans.resultHint")}</p>
+          )}
           <div
-            className="rotation-table"
+            className={`rotation-table${selectedRun.operation === "check" ? " rotation-check-results" : ""}`}
             tabIndex={0}
             role="region"
             aria-label={t("rotationPlans.accounts")}
@@ -1295,8 +1297,10 @@ export default function RotationPlansPage() {
                         </small>
                       )}
                     </td>
-                    <td>{t(`rotationPlans.credentials.${item.credential_type}`)}</td>
-                    <td>{state(item.state)}</td>
+                    <td data-label={t("rotationPlans.credential")}>
+                      {t(`rotationPlans.credentials.${item.credential_type}`)}
+                    </td>
+                    <td data-label={t("rotationPlans.state")}>{state(item.state)}</td>
                     <td>
                       {selectedRun.operation === "check"
                         ? t("rotationPlans.checkDuration", {
