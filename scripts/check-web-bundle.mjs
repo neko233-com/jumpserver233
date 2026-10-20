@@ -69,5 +69,6 @@ if(!manifest[updates]?.isDynamicEntry||initial.has(updates))throw new Error("Upd
 // Allocate 10 kB while retaining the initial and individual chunk caps.
 // Organization SSH generation policy and both lazy locales: 8 kB allowance.
 // Write-only fixed-password controls, save nonces and both lazy locales: 8 kB.
-if (largest > 500_000 || initialBytes > 500_000 || total > 1_657_200) throw new Error("Production JavaScript exceeds the recorded size budget");
+// Batch/template/Playbook directory snapshots and bilingual controls: 4 kB.
+if (largest > 500_000 || initialBytes > 500_000 || total > 1_661_200) throw new Error("Production JavaScript exceeds the recorded size budget");
 console.log(JSON.stringify({ initialJavaScriptBytes: initialBytes, initialGzipBytes: initialGzip, totalJavaScriptBytes: total, largestChunkBytes: largest, lazyLogin: true }));

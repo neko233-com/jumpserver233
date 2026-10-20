@@ -12,7 +12,19 @@ Web 工作台的单命令作业和 `jms exec` 支持在已配置的 SSH 工作�
 jms exec ASSET_ID --directory /srv/work/deploy --timeout 60 --json -- pwd
 ```
 
-`POST /api/v1/ops/jobs` 新增可选 `working_directory`，必须是工作区内规范化的 Linux 绝对路径。Job 保留该请求参数；`execution_directory` 表示远端预检实际验证的目录。没有配置工作区的资产不能使用该参数，系统不会回退到 `cd` 字符串拼接。批量计划、Playbook 和固定管理操作尚未提供这个目录参数。
+`POST /api/v1/ops/jobs` 新增可选 `working_directory`，必须是工作区内规范化的 Linux 绝对路径。Job 保留该请求参数；`execution_directory` 表示远端预检实际验证的目录。没有配置工作区的资产不能使用该参数，系统不会回退到 `cd` 字符串拼接。固定插件、账号收集和账号管理操作不接受自定义目录。
+
+### 批量、模板、调度与 Playbook
+
+本批实现将 `working_directory` 接入个人命令模板、计划与运行快照，覆盖 batch/once/interval/cron 和手动触发；新增部分正在等待统一验证，不沿用上方单命令的通过结论。Web 工作台提供目录输入及快照显示，CLI/SDK 使用相同 JSON 字段，例如 `jms ops create --file plan.json`。
+
+命令模板保存目录；创建计划时冻结模板的命令、超时、目录与修订，不能用计划参数改写模板目录。模板以后修改或删除不改变旧计划；相同创建请求返回旧快照，改换目录返回 `409`。只修改调度不会改变目录。
+
+创建计划只检查各目标配置的工作区范围，不连接 SSH，也不把输入字符串当作真实目录证明。手动触发/恢复计划复查当前权限；需要目录证明的命令交给实际子作业预检，已知拒绝继续拒绝。每个子作业共用前述固定连接、真实根/cwd、规则摘要和一次性审批。重启保留目录；已领取但结果不明的工作不会自动重放。
+
+Playbook 的每个远端步骤使用计划起始目录，内部执行许可同时绑定 run/step/program、主机、命令摘要与目录；公开 JSON 不能伪造该许可。该目录不会跟随前一步的 `cd` 改变，也不会把 YAML `chdir` 转换成逐命令目录证明。命令过滤不支持的生成脚本在适用规则存在时仍拒绝，不因 Playbook 身份放行。
+
+operations 加密 envelope 升为 v5；v1–v4 原有内容保持可读，旧格式夹带非空目录字段拒绝。新数据不能直接交给只支持 v4 的旧程序；升级/回退边界见[升级兼容范围](./UPGRADE-COMPATIBILITY.md)。
 
 命令过滤表单新增执行目录范围，对应以下可选字段：
 

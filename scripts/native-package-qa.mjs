@@ -18,6 +18,7 @@ import { verifyScheduledInstallation } from "./scheduled-install-qa.mjs";
 import { verifyAutomaticInstallation } from "./automatic-install-qa.mjs";
 import { historicalBaseline, prepareHistoricalPackage, verifyHistoricalManifests } from "./historical-source.mjs";
 import { verifySSHPasswordPolicy } from "./ssh-password-policy-qa.mjs";
+import { verifyOperationDirectories, verifyOperationDirectoryBrowser } from "./operation-directories-qa.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
 const options = process.argv.slice(2), historical = options.includes("--historical");
@@ -199,6 +200,8 @@ try {
   await viewOnly(operatorBefore.access_token);
   const execSSH = async (bearer, text) => { const job = await api("POST", "/api/v1/ops/jobs", { asset_id: asset.id, command: "printf " + text, timeout_seconds: 10, request_id: randomUUID() }, bearer, 201); for (let attempt = 0; attempt < 100; attempt++) { const state = await api("GET", "/api/v1/ops/jobs/" + job.id, undefined, bearer); if (state.state === "succeeded" && state.stdout === text) return job.id; if (["failed", "interrupted", "denied"].includes(state.state)) throw new Error("Native installation real SSH failed"); await delay(100); } throw new Error("Native installation SSH timed out"); };
   const originalJob = await execSSH(loginBefore.access_token, "native-before-upgrade");
+  const compatibilityTemplate = await api("POST", "/api/v1/ops/templates", {name: "Upgrade preservation template", command: "pwd -P", timeout_seconds: 10}, loginBefore.access_token, 201);
+  const compatibilityPlan = await api("POST", "/api/v1/ops/plans", {name: "Upgrade preservation plan", template_id: compatibilityTemplate.id, asset_ids: [asset.id], kind: "once", run_at: new Date(Date.now() + 86400000).toISOString(), request_id: randomUUID()}, loginBefore.access_token, 201);
   const rotationBefore = (await api("GET", "/api/v1/assets", undefined, loginBefore.access_token)).find(a => a.id === asset.id)?.password_rotation;
   if (!rotationBefore || Date.parse(rotationBefore.next_rotation_at) - Date.parse(rotationBefore.last_rotated_at) !== 7 * 86400000) throw new Error("Baseline seven-day SSH rotation schedule is unavailable");
   await inContainer(["update", "stage", "--root", "/tmp/releases", "--file", "/artifact/upgrade.tar.gz", "--sha256", upgradeSHA]);
@@ -209,6 +212,14 @@ try {
   let rolledBack = false; try { await inContainer(installArgs(upgradeSHA, 1, "native-linux-failed"), password); } catch (e) { const receipt = JSON.parse(e.stdout); rolledBack = receipt.status === "rolled_back" && receipt.current.version === report.testVersion; }
   if (!rolledBack || (await run("docker", ["exec", owner, "cat", "/tmp/data/users.json"])).stdout !== "synthetic invalid store") throw new Error("Failed native preflight did not preserve its original checkpoint");
   await runInput("docker", ["exec", "-i", owner, "sh", "-ceu", "cat > /tmp/data/users.json"], users);
+  const legacyOperations = (await run("docker", ["exec", owner, "cat", "/tmp/data/operations.json"])).stdout;
+  const unknownOperations = JSON.stringify({...JSON.parse(legacyOperations), version: 999});
+  await runInput("docker", ["exec", "-i", owner, "sh", "-ceu", "cat > /tmp/data/operations.json"], unknownOperations);
+  let unknownFormatRefused = false;
+  try { await inContainer(installArgs(upgradeSHA, 1, "native-future-operations"), password); }
+  catch (e) { const receipt = JSON.parse(e.stdout); unknownFormatRefused = receipt.status === "rolled_back" && receipt.current.version === report.testVersion; }
+  if (!unknownFormatRefused || (await run("docker", ["exec", owner, "cat", "/tmp/data/operations.json"])).stdout !== unknownOperations) throw Error("Unknown data format was accepted or changed during failed upgrade");
+  await runInput("docker", ["exec", "-i", owner, "sh", "-ceu", "cat > /tmp/data/operations.json"], legacyOperations);
   const upgraded = JSON.parse((await inContainer(installArgs(upgradeSHA, 1, "native-linux-upgrade"), password)).stdout);
   const replayed = JSON.parse((await inContainer(installArgs(upgradeSHA, 1, "native-linux-upgrade"), password)).stdout);
   if (upgraded.status !== "selected" || upgraded.revision !== 2 || !replayed.unchanged || replayed.transaction_id !== upgraded.transaction_id) throw new Error("Native upgrade selection replay failed");
@@ -216,6 +227,11 @@ try {
   const loginAfter = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
   if (loginAfter.user.id !== loginBefore.user.id || (await api("GET", "/api/v1/ops/jobs/" + originalJob, undefined, loginAfter.access_token)).state !== "succeeded") throw new Error("Native upgrade lost identity or command audit");
   await execSSH(loginAfter.access_token, "native-after-upgrade");
+  const restoredTemplates = await api("GET", "/api/v1/ops/templates", undefined, loginAfter.access_token);
+  const restoredPlan = await api("GET", `/api/v1/ops/plans/${compatibilityPlan.id}`, undefined, loginAfter.access_token);
+  if (!restoredTemplates.some(t => t.id === compatibilityTemplate.id && t.command === compatibilityTemplate.command && !t.working_directory) || restoredPlan.template_id !== compatibilityTemplate.id || restoredPlan.command !== compatibilityTemplate.command || restoredPlan.working_directory) throw Error("Upgrade lost or reinterpreted legacy operation snapshots");
+  await api("PUT", `/api/v1/ops/plans/${restoredPlan.id}`, {enabled: false, revision: restoredPlan.config_revision}, loginAfter.access_token);
+  report.upgradeCompatibility = {officialRelease: false, sourceCommit: old?.manifest.commit || report.commit, targetCommit: report.commit, legacyOperationFormat: JSON.parse(legacyOperations).version, targetOperationFormat: 5, unknownFutureFormatRefused: unknownFormatRefused, failedPreflightPreservedOriginalBytes: true, legacyTemplateAndPlanPreserved: true, noDirectorySemanticsAdded: true};
   const operatorAfter = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword });
   if (operatorAfter.user.id !== operatorBefore.user.id) throw new Error("Native operator identity changed");
   await viewOnly(operatorAfter.access_token);
@@ -433,6 +449,12 @@ try {
   const cwdCLI = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/controller/jms exec "$1" --directory "$2" --json -- pwd -P', "sh", asset.id, deployDirectory])).stdout);
   if (cwdCLI.state !== "succeeded" || cwdCLI.stdout.trim() !== deployDirectory) throw new Error("Native CLI did not select actual cwd");
   report.executionDirectories = { exactTreeAndRegex: true, deniedCommandsNeverCreatedFiles: true, pathBoundaryPreserved: true, symlinkAndOutsideRefused: true, loginReviewReplacementCreatesNewApproval: true, loginRetryIdempotent: true, commandReviewReplacementRefused: true, sameNamePolicyReplacementRefused: true, approvedCwdVerified: true, retryWithoutLiveSSH: true, changedDirectoryRetryConflict: true, nativeCLI: true };
+  await verifyOperationDirectories({api, admin: recoveredLogin.access_token, run, runInput, owner, sshHost: owner + "-ssh", fingerprint, workspace, directory: deployDirectory, sibling: siblingDirectory, primary: asset, report});
+  const completedDirectoryRun = await api("GET", `/api/v1/ops/runs/${report.operationDirectories.playbookRunID}`, undefined, recoveredLogin.access_token);
+  await stopSelected(); await startSelected(report.recoveryVersion);
+  const restartedDirectoryRun = await api("GET", `/api/v1/ops/runs/${completedDirectoryRun.id}`, undefined, recoveredLogin.access_token);
+  if (restartedDirectoryRun.state !== "succeeded" || restartedDirectoryRun.working_directory !== deployDirectory || JSON.stringify(restartedDirectoryRun.items.map(i => i.steps.map(s => s.job_id))) !== JSON.stringify(completedDirectoryRun.items.map(i => i.steps.map(s => s.job_id)))) throw Error("Restart lost directory snapshots or replayed completed steps");
+  report.operationDirectories.restartPreservesSnapshotsWithoutReplay = true;
   report.activation = { privateReadinessAndHTTPProbe: true, businessGateBeforeCommit: true, preCommitFailureRolledBack: true, oldServiceAutomaticallyResumed: true, failedTrialWriteRemoved: trialWriteAbsent, monotonicRollbackRevision: 4, postCommitFailurePreservedVersionAndData: true, forwardRecoveryVersion: report.recoveryVersion, finalRevision: 6, realSSHAfterRollbackAndForwardRecovery: true };
   report.installation = { initialVersion: report.testVersion, selectedVersion: report.upgradeVersion, revision: upgraded.revision, runningUpgradeRefused: busy, failedPreflightRolledBack: rolledBack, checkpointBytesPreserved: true, idempotent: true, userIDPreserved: true, realSSHBeforeAndAfter: true, commandAuditPreserved: true, operatorViewGrantPreserved: true, operatorConnectDeniedBeforeAndAfter: true };
   const html = await (await fetch(url + "/console/settings")).text();
@@ -573,6 +595,7 @@ try {
     report.executionDirectories.browserBilingualDesktopAndMobile = true;
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.getByRole("button", { name: "EN", exact: true }).click();
+    await verifyOperationDirectoryBrowser({page, expect, url, api, admin: recoveredLogin.access_token, directory: deployDirectory, output, report});
     await page.goto(url + "/console/settings");
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     const card = page.locator(".update-settings-card");

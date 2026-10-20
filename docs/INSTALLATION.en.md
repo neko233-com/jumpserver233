@@ -2,6 +2,8 @@
 
 > [中文](./INSTALLATION.md) | English
 
+See [upgrade compatibility](./UPGRADE-COMPATIBILITY.en.md) for supported versions, formats and rejection rules. No historical formal Release exists; pinned-source rehearsal and published-release migration are recorded separately.
+
 The native CLI binds a staged version to fixed data, verifies an encrypted checkpoint, runs offline preflight and awaits first-start acceptance. Business traffic and remote work stay gated until acceptance. Failure restores old data/selection and resumes an existing managed version. After release, new data is preserved and failures require forward repair. [Scheduled standalone installation](./INSTALLATION-SCHEDULE.en.md) connects fixed verified candidates to scheduling, drain, shutdown and startup. [Automatic preparation/window installation](./AUTOMATIC-UPDATES.en.md) is added; historical-version migration acceptance remains pending.
 
 ## Prerequisites

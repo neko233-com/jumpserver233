@@ -4,6 +4,8 @@
 
 工作台 `/workbench`、Ops CLI 和 SDK 共用带版本的 YAML 工作空间、计划源文件快照及逐主机步骤审计。格式为 `jms233-native-v1`，控制器使用 Go，远端通过现有 SSH 连接执行 Linux 工具。单机优先，状态沿用组织加密存储及 PostgreSQL 单活接管。
 
+本批新增计划 `working_directory`，绑定每个远端步骤的真实起始目录、执行许可、命令规则与审批；正在等待统一验收。参数、快照、重试与限制见[执行目录](./EXECUTION-DIRECTORIES.md)。YAML `chdir` 不提供任意 shell 的逐命令 cwd 证明。
+
 2026-10-18，隔离 Docker 中真实 OpenSSH 手动重跑：文件模块幂等、循环、跳过及步骤输出。
 
 ![原生 Playbook 步骤](./images/playbooks-live.zh-CN.png)

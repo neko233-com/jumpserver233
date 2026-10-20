@@ -367,8 +367,12 @@ func (s *Service) ReplayPlan(owner string, in PlanInput) (Plan, bool, error) {
 		}
 		in.Command = found.Command
 		in.TimeoutSeconds = found.TimeoutSeconds
+		if in.WorkingDirectory != "" && in.WorkingDirectory != found.WorkingDirectory {
+			return Plan{}, true, ErrConflict
+		}
+		in.WorkingDirectory = found.WorkingDirectory
 	}
-	validated, e := jobs.Validate(jobs.Input{AssetID: "replay", Command: in.Command, TimeoutSeconds: in.TimeoutSeconds})
+	validated, e := jobs.Validate(jobs.Input{WorkingDirectory: in.WorkingDirectory, AssetID: "replay", Command: in.Command, TimeoutSeconds: in.TimeoutSeconds})
 	if e != nil {
 		return Plan{}, true, ErrConflict
 	}

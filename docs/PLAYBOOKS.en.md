@@ -4,6 +4,8 @@
 
 Workbench `/workbench`, Ops CLI and SDK share revisioned YAML workspaces, immutable plan source snapshots and per-host step audit. The format is `jms233-native-v1`: a Go controller uses existing SSH connections to run Linux tools. Standalone comes first; state uses organization encryption and PostgreSQL single-active takeover.
 
+This batch adds plan `working_directory`, binding every remote step's actual starting directory, execution authority, command policy and review; unified acceptance is pending. See [execution directories](./EXECUTION-DIRECTORIES.en.md) for parameters, snapshots, retries and limits. YAML `chdir` does not prove per-command cwd for arbitrary shells.
+
 2026-10-18: saved run source in isolated Docker with a real OpenSSH target, from the English 1440px acceptance flow.
 
 ![Native Playbook source](./images/playbooks.en.png)

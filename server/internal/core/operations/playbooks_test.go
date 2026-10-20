@@ -52,7 +52,7 @@ func finishNative(t *testing.T, s *Service, now *time.Time, p Plan) Run {
 	}, 5*time.Second, 2*time.Millisecond)
 	return r
 }
-func TestNativePlaybookCatalogSnapshotsAndEncryptedVersionFour(t *testing.T) {
+func TestNativePlaybookCatalogSnapshotsAndEncryptedCurrentVersion(t *testing.T) {
 	s, _, _ := nativeSetup(t, nil)
 	source := "- tasks: [{debug: {msg: original}}]"
 	book, p := nativePlan(t, s, source, "interval")
@@ -88,7 +88,7 @@ func TestNativePlaybookCatalogSnapshotsAndEncryptedVersionFour(t *testing.T) {
 	assert.ErrorIs(t, e, ErrNotFound)
 	raw, e := os.ReadFile(s.path)
 	require.NoError(t, e)
-	assert.Contains(t, string(raw), `"version":4`)
+	assert.Contains(t, string(raw), `"version":5`)
 	assert.NotContains(t, string(raw), "original")
 	restored, e := Open(s.path, make([]byte, 32), nil, s.jobs)
 	require.NoError(t, e)
@@ -214,9 +214,9 @@ func TestNativePlaybookRecoveryNeverReplaysAmbiguousClaim(t *testing.T) {
 	require.Len(t, r.Items[0].Steps, 1)
 	step := r.Items[0].Steps[0]
 	meta := playbooks.Execution{RunID: r.ID, StepID: step.ID, ProgramID: r.ProgramID, TaskIndex: 0}
-	assert.True(t, s.WorkflowJobAllowed("owner", "a", meta, step.Command))
-	assert.False(t, s.WorkflowJobAllowed("foreign", "a", meta, step.Command))
-	assert.False(t, s.WorkflowJobAllowed("owner", "a", meta, "forged"))
+	assert.True(t, s.WorkflowJobAllowed("owner", "a", meta, step.Command, ""))
+	assert.False(t, s.WorkflowJobAllowed("foreign", "a", meta, step.Command, ""))
+	assert.False(t, s.WorkflowJobAllowed("owner", "a", meta, "forged", ""))
 	require.NoError(t, s.mutateStep(r.ID, 0, step.ID, func(c *StepResult, _ *Item, _ *Run) error { c.State = "dispatching"; return nil }))
 	restored, e := Open(s.path, make([]byte, 32), nil, js)
 	require.NoError(t, e)

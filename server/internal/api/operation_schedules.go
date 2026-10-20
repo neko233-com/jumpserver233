@@ -40,7 +40,8 @@ func authorizeOperationOwner(d Dependencies, p operations.Plan, authorize calend
 	}
 	for _, id := range p.AssetIDs {
 		_, _, decision, status := authorize(owner, id, p.Command, origin)
-		if status != http.StatusOK || p.ProgramID == "" && !decision.Allowed {
+		deferredDirectory := decision.DirectoryRequired && operationDirectoryProofPossible(d, id, p.WorkingDirectory)
+		if status != http.StatusOK || validateOperationDirectoryAsset(d, id, p.WorkingDirectory) != nil || p.ProgramID == "" && !decision.Allowed && !deferredDirectory {
 			return false
 		}
 	}

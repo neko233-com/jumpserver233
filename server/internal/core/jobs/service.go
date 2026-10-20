@@ -205,7 +205,7 @@ func validState(v string) bool {
 	return false
 }
 func Validate(in Input) (Input, error) {
-	if in.WorkingDirectory != "" && (hostagent.ValidateWorkspace(in.WorkingDirectory) != nil || in.Plugin != nil || in.Discovery != nil || in.RemoteAccount != nil || in.PlaybookStep != nil) {
+	if in.WorkingDirectory != "" && (hostagent.ValidateWorkspace(in.WorkingDirectory) != nil || in.Plugin != nil || in.Discovery != nil || in.RemoteAccount != nil) {
 		return in, ErrInvalid
 	}
 	if in.ConnectionScope != "" {

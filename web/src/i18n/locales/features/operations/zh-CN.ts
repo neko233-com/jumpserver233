@@ -1,6 +1,10 @@
 import calendar from "./calendar.zh-CN.ts";
 export default {
   operations: {
+    templateDirectory: "模板执行目录（可选）",
+    directorySnapshot: "起始目录快照",
+    directoryHint:
+      "目录必须位于每台已选主机的 SSH 工作区内；每个远端作业验证真实目录和当前规则。命令模板使用其保存的目录，Playbook 步骤共用计划起始目录。",
     title: "批量命令与定时任务",
     description:
       "对最多 50 台已授权主机执行命令；每次派发复查当前权限和审批。日历计划明确时区和错过触发策略。",

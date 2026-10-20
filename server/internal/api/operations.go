@@ -138,6 +138,10 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 				writeJobError(w, operations.ErrDenied)
 				return
 			}
+			if e := validateOperationDirectoryAsset(d, assetID, prepared.WorkingDirectory); e != nil {
+				writeJobError(w, e)
+				return
+			}
 		}
 		p, err := d.Operations.CreatePlan(user.ID, user.Username, prepared, revision)
 		if err != nil {

@@ -1,6 +1,10 @@
 import calendar from "./calendar.en.ts";
 export default {
   operations: {
+    templateDirectory: "Template execution directory (optional)",
+    directorySnapshot: "Starting directory snapshot",
+    directoryHint:
+      "The directory must be inside every selected SSH workspace. Each remote job verifies the directory and current rules. Command templates supply their saved directory; Playbook steps share the plan's starting directory.",
     title: "Batch commands and schedules",
     description:
       "Run commands on up to 50 authorized hosts. Every dispatch checks current permissions and review rules. Calendar plans have explicit timezones and missed-run policies.",

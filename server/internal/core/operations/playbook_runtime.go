@@ -184,16 +184,16 @@ func initPlaybookRun(r *Run, p Plan, st *state, now time.Time) {
 }
 func stepInput(r Run, asset string, step StepResult) jobs.Input {
 	sum := sha256.Sum256([]byte(r.ID + ":" + asset + ":" + step.ID))
-	return jobs.Input{PlaybookStep: &playbooks.Execution{RunID: r.ID, StepID: step.ID, ProgramID: r.ProgramID, TaskIndex: step.TaskIndex}, Origin: r.AccessOrigin, AssetID: asset, Command: step.Command, TimeoutSeconds: step.TimeoutSeconds, RequestID: "operation-" + hex.EncodeToString(sum[:])}
+	return jobs.Input{WorkingDirectory: r.WorkingDirectory, PlaybookStep: &playbooks.Execution{RunID: r.ID, StepID: step.ID, ProgramID: r.ProgramID, TaskIndex: step.TaskIndex}, Origin: r.AccessOrigin, AssetID: asset, Command: step.Command, TimeoutSeconds: step.TimeoutSeconds, RequestID: "operation-" + hex.EncodeToString(sum[:])}
 }
-func (s *Service) WorkflowJobAllowed(owner, asset string, meta playbooks.Execution, command string) bool {
+func (s *Service) WorkflowJobAllowed(owner, asset string, meta playbooks.Execution, command, directory string) bool {
 	if meta.Validate() != nil {
 		return false
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	r, ok := s.data.Runs[meta.RunID]
-	if !ok || r.OwnerID != owner || r.ProgramID != meta.ProgramID || r.Cancelled || terminalRun(r.State) || !s.now().Before(r.Deadline) {
+	if !ok || r.OwnerID != owner || r.ProgramID != meta.ProgramID || r.Cancelled || terminalRun(r.State) || !s.now().Before(r.Deadline) || directory != r.WorkingDirectory {
 		return false
 	}
 	sum := sha256.Sum256([]byte(command))
@@ -949,7 +949,7 @@ func (s *Service) TriggerPlan(id, requestID string, actor ScheduleActor, origin 
 			return e
 		}
 		now := s.now().UTC()
-		r := Run{ID: runID, PlanID: p.ID, PlanRevision: p.ConfigRevision, OwnerID: p.OwnerID, Owner: p.Owner, Name: p.Name, Command: p.Command, TimeoutSeconds: p.TimeoutSeconds, CreatedAt: now, ScheduledFor: now, State: "running", Items: []Item{}, Trigger: "manual", TriggeredBy: actor, RequestID: requestID, AccessOrigin: origin}
+		r := Run{WorkingDirectory: p.WorkingDirectory, ID: runID, PlanID: p.ID, PlanRevision: p.ConfigRevision, OwnerID: p.OwnerID, Owner: p.Owner, Name: p.Name, Command: p.Command, TimeoutSeconds: p.TimeoutSeconds, CreatedAt: now, ScheduledFor: now, State: "running", Items: []Item{}, Trigger: "manual", TriggeredBy: actor, RequestID: requestID, AccessOrigin: origin}
 		initPlaybookRun(&r, p, st, now)
 		for _, asset := range p.AssetIDs {
 			r.Items = append(r.Items, Item{AssetID: asset, State: "pending"})

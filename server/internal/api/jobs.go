@@ -86,7 +86,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 				return jobs.ErrAccessDenied
 			}
 		}
-		if job.PlaybookStep != nil && (d.Operations == nil || !d.Operations.WorkflowJobAllowed(job.OperatorID, job.AssetID, *job.PlaybookStep, job.Command)) {
+		if job.PlaybookStep != nil && (d.Operations == nil || !d.Operations.WorkflowJobAllowed(job.OperatorID, job.AssetID, *job.PlaybookStep, job.Command, job.WorkingDirectory)) {
 			return jobs.ErrAccessDenied
 		}
 		owner, ok := jobOwner(d, job.OperatorID)
@@ -121,7 +121,7 @@ func registerJobRoutes(mux *http.ServeMux, d Dependencies, accessMu *sync.RWMute
 		}
 		accessMu.RLock()
 		defer accessMu.RUnlock()
-		if input.PlaybookStep != nil && (d.Operations == nil || !d.Operations.WorkflowJobAllowed(user.ID, input.AssetID, *input.PlaybookStep, input.Command)) {
+		if input.PlaybookStep != nil && (d.Operations == nil || !d.Operations.WorkflowJobAllowed(user.ID, input.AssetID, *input.PlaybookStep, input.Command, input.WorkingDirectory)) {
 			return operations.Submission{}, operations.ErrDenied
 		}
 		if !pluginJobAllowed(d, user, input.AssetID, input.Plugin) || !discoveryJobAllowed(d, user, input.AssetID, input.Discovery, input.Origin) || !remoteAccountJobAllowed(d, user, input.AssetID, input.RemoteAccount, input.Origin) {

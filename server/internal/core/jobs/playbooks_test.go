@@ -32,6 +32,13 @@ func TestNativeStepMetadataControlsMultilineAndRequiresExecutionGuard(t *testing
 	var public Input
 	require.NoError(t, json.Unmarshal([]byte(`{"asset_id":"asset","command":"id","playbook_step":{"run_id":"forged"}}`), &public))
 	assert.Nil(t, public.PlaybookStep)
+	public.Command, public.WorkingDirectory = in.Command, "/srv/work/deploy"
+	_, e = Validate(public)
+	assert.ErrorIs(t, e, ErrInvalid, "public JSON cannot grant multiline workflow authority")
+	withDirectory := in
+	withDirectory.WorkingDirectory = "/srv/work/deploy"
+	_, e = Validate(withDirectory)
+	require.NoError(t, e, "trusted workflow steps can select an execution directory")
 	var calls atomic.Int32
 	s, e := Open(filepath.Join(t.TempDir(), "jobs.json"), make([]byte, 32), nil, func(context.Context, string, string) (sshclient.ExecResult, error) {
 		calls.Add(1)

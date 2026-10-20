@@ -316,7 +316,7 @@ func TestOperationsPostgresPersistence(t *testing.T) {
 	_, js, _ := setup(t, nil)
 	s, err := Open(filepath.Join(t.TempDir(), "operations.json"), make([]byte, 32), docs, js)
 	require.NoError(t, err)
-	p := plan(t, s, PlanInput{})
+	p := plan(t, s, PlanInput{WorkingDirectory: "/srv/work/deploy"})
 	s.submit = nil
 	s.Tick()
 	s.Close()
@@ -327,4 +327,8 @@ func TestOperationsPostgresPersistence(t *testing.T) {
 	require.NoError(t, err)
 	defer next.Close()
 	assert.Equal(t, "pending", lastRun(t, next, p).Items[0].State)
+	assert.Equal(t, p.WorkingDirectory, lastRun(t, next, p).WorkingDirectory)
+	loaded, err := next.Plan(p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, p.WorkingDirectory, loaded.WorkingDirectory)
 }

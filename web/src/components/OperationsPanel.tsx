@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { usePermissions } from "../auth/usePermissions";
 import "../i18n/locales/features/operations/register";
 import "../i18n/locales/features/playbooks/register";
+import "../i18n/locales/features/workspaces/register";
 import { jsonBindings, type Playbook, type WorkflowRun } from "./playbooks";
 import OperationScheduleFields from "./OperationScheduleFields";
 import { scheduleDraft, schedulePayload, type ScheduledPlan } from "./operationSchedules";
@@ -12,6 +13,7 @@ const PlaybookRunDetails = lazy(() => import("./PlaybookRunDetails"));
 
 type Asset = { id: string; name: string; username: string };
 type Template = {
+  working_directory?: string;
   id: string;
   name: string;
   command: string;
@@ -19,6 +21,7 @@ type Template = {
   revision: number;
 };
 type Plan = ScheduledPlan & {
+  working_directory?: string;
   playbook_id?: string;
   playbook_revision?: number;
   host_plugin?: object;
@@ -42,6 +45,7 @@ type Item = {
   error_code?: string;
 };
 type Run = WorkflowRun & {
+  working_directory?: string;
   scheduled_for?: string;
   plan_revision?: number;
   lateness_seconds?: number;
@@ -79,6 +83,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
   const [name, setName] = useState("");
   const [targets, setTargets] = useState<string[]>([]);
   const [command, setCommand] = useState("");
+  const [workingDirectory, setWorkingDirectory] = useState("");
   const [timeout, setTimeoutSeconds] = useState(60);
   const [templateID, setTemplateID] = useState("");
   const playbookID = templateID.startsWith("playbook-") ? templateID : "";
@@ -87,6 +92,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
   const [editing, setEditing] = useState<Template | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [templateCommand, setTemplateCommand] = useState("");
+  const [templateDirectory, setTemplateDirectory] = useState("");
   const [templateTimeout, setTemplateTimeout] = useState(60);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -159,6 +165,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
     setEditing(template);
     setTemplateName(template?.name || "");
     setTemplateCommand(template?.command || "");
+    setTemplateDirectory(template?.working_directory || "");
     setTemplateTimeout(template?.timeout_seconds || 60);
   }
   async function saveTemplate(event: FormEvent) {
@@ -173,6 +180,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
           body: JSON.stringify({
             name: templateName,
             command: templateCommand,
+            working_directory: templateDirectory || undefined,
             timeout_seconds: templateTimeout,
             revision: editing?.revision || 0,
           }),
@@ -218,6 +226,8 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
       const body = {
         name,
         asset_ids: targets,
+        working_directory:
+          (!templateID || playbookID) && workingDirectory ? workingDirectory : undefined,
         ...schedulePayload(schedule),
         request_id: requestID.current,
         ...(playbookID
@@ -375,6 +385,16 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                   max={300}
                   value={templateTimeout}
                   onChange={(event) => setTemplateTimeout(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                {t("operations.templateDirectory")}
+                <input
+                  value={templateDirectory}
+                  maxLength={1024}
+                  autoComplete="off"
+                  spellCheck={false}
+                  onChange={(e) => setTemplateDirectory(e.target.value)}
                 />
               </label>
               <div>
@@ -542,6 +562,25 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                 </label>
               </>
             )}
+            <label>
+              {t("directoryPolicy.workingDirectory")}
+              <input
+                value={
+                  templateID && !playbookID
+                    ? templates.find((item) => item.id === templateID)?.working_directory || ""
+                    : workingDirectory
+                }
+                disabled={busy || Boolean(templateID && !playbookID)}
+                maxLength={1024}
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => {
+                  setWorkingDirectory(event.target.value);
+                  resetID();
+                }}
+              />
+              <small>{t("operations.directoryHint")}</small>
+            </label>
             <OperationScheduleFields
               value={schedule}
               onChange={(value) => {
@@ -570,7 +609,14 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
               <tbody>
                 {plans.map((plan) => (
                   <tr key={plan.id}>
-                    <td>{plan.name}</td>
+                    <td>
+                      {plan.name}
+                      {plan.working_directory && (
+                        <small>
+                          {t("operations.directorySnapshot")}: <code>{plan.working_directory}</code>
+                        </small>
+                      )}
+                    </td>
                     <td>
                       {plan.playbook_id && (
                         <>
@@ -719,6 +765,11 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                 </button>
               </header>
               <p>{t(`operations.states.${selected.state}`)}</p>
+              {selected.working_directory && (
+                <p>
+                  {t("operations.directorySnapshot")}: <code>{selected.working_directory}</code>
+                </p>
+              )}
               {selected.scheduled_for && (
                 <p>
                   {t("calendar.scheduledFor")}:{" "}

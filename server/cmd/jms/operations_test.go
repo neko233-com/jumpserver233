@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,29 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestOperationsCLIDirectorySurvivesStrictJSONAndSDK(t *testing.T) {
+	requests := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			WorkingDirectory string `json:"working_directory"`
+		}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&input))
+		assert.Equal(t, "/srv/work/deploy", input.WorkingDirectory)
+		requests++
+		_ = json.NewEncoder(w).Encode(input)
+	}))
+	defer srv.Close()
+	c, err := sessionclient.New(srv.URL, "synthetic-token")
+	require.NoError(t, err)
+	for _, command := range []string{"create", "template-create"} {
+		var out bytes.Buffer
+		err := executeOperations(context.Background(), c, []string{command, "--file", "-"}, strings.NewReader(`{"name":"directory","command":"pwd","working_directory":"/srv/work/deploy"}`), &out)
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), `"working_directory":"/srv/work/deploy"`)
+	}
+	assert.Equal(t, 2, requests)
+}
 
 func TestOperationsCLICompleteCommandSurfaceAndStrictInputs(t *testing.T) {
 	id := "plan-" + strings.Repeat("a", 32)

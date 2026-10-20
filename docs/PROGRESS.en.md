@@ -9,7 +9,7 @@
 | Current stable SSH release | 9/12 | 3 | 0 | **75%** |
 | Full baseline (Community core, Enterprise enhancements and user additions) | 16/42 | 16 | 10 | **38%** |
 
-This is the first checkpoint with fixed denominators; historical percentages are not reconstructed. This assessment adds **0** accepted items and only records scope, evidence and delivery rules. **26 groups** remain open in the full baseline and **3 items** remain for stable SSH. The checklists overlap and cannot be added together.
+Denominators were first fixed on 2026-10-20 without reconstructing historical percentages. This batch implements S10 directory propagation and S11 upgrade compatibility boundaries, with unified acceptance pending and **0** newly accepted items. **26 groups** remain open in the full baseline and **3 items** remain for stable SSH. The checklists overlap and cannot be added together.
 
 The percentage is closed capability groups divided by the fixed checklist total. Partial implementations receive no fractional credit. It does not measure code volume, remaining hours or production readiness; groups differ in effort. Changing or splitting the denominator requires the requirement source, reason and before/after counts. Vendor support, commercial licensing and supplier SLAs are excluded from software scope.
 
@@ -23,7 +23,7 @@ The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.
 
 The last accepted and pushed functional baseline is `4b96cb3ebc8b92cc813c05abd70db3d0619b0e40`. Its preceding verification recorded **1744 Go passes, 114 skips**, **350 Linux race passes** and **87/87 production-browser passes**. The full browser suite used `04bf60a`; the mobile result correction at `8188747` received native-lifecycle and bilingual narrow-screen acceptance without repeating all 87 cases. The final baseline commit updated acceptance docs. See [verification](./TESTING.en.md) and the locally ignored `.cache/qa-reports/account-checks/summary.json`; test counts do not determine feature completion.
 
-There are also **15 uncommitted implementation/test/bundle-budget files** for batch execution directory propagation. Unified verification for those changes has not started, and they receive no closed credit. This checkpoint runs no application, build, browser or Docker; earlier passes do not cover the new changes.
+The current batch includes directory implementation, Go/API/CLI cases, real SSH/bilingual browser entrypoints and the [upgrade compatibility matrix](./UPGRADE-COMPATIBILITY.en.md). It receives no closed credit before acceptance; earlier passes do not cover new changes. Complete the code, cases and bilingual documentation together before starting unified verification.
 
 ## Stable SSH: 12 fixed items
 

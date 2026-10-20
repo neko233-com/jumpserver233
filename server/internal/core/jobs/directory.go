@@ -8,7 +8,7 @@ import (
 )
 
 func validJobDirectory(j Job, version int) bool {
-	if j.WorkingDirectory != "" && (hostagent.ValidateWorkspace(j.WorkingDirectory) != nil || j.Plugin != nil || j.Discovery != nil || j.RemoteAccount != nil || j.PlaybookStep != nil) {
+	if j.WorkingDirectory != "" && (hostagent.ValidateWorkspace(j.WorkingDirectory) != nil || j.Plugin != nil || j.Discovery != nil || j.RemoteAccount != nil) {
 		return false
 	}
 	if j.WorkingDirectory == "" && j.ExecutionDirectory == "" && !strings.HasPrefix(j.ConnectionScope, "cx2-") {

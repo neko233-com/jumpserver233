@@ -37,10 +37,11 @@ var (
 )
 
 type TemplateInput struct {
-	Name           string `json:"name"`
-	Command        string `json:"command"`
-	TimeoutSeconds int    `json:"timeout_seconds"`
-	Revision       int    `json:"revision"`
+	WorkingDirectory string `json:"working_directory,omitempty"`
+	Name             string `json:"name"`
+	Command          string `json:"command"`
+	TimeoutSeconds   int    `json:"timeout_seconds"`
+	Revision         int    `json:"revision"`
 }
 type Template struct {
 	ID      string `json:"id"`
@@ -50,6 +51,7 @@ type Template struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 type PlanInput struct {
+	WorkingDirectory string                `json:"working_directory,omitempty"`
 	ProgramID        string                `json:"-"`
 	PlaybookRevision int                   `json:"-"`
 	Inventory        map[string]string     `json:"-"`
@@ -111,6 +113,7 @@ type Item struct {
 	RetryAt    time.Time    `json:"retry_at,omitzero"`
 }
 type Run struct {
+	WorkingDirectory    string                      `json:"working_directory,omitempty"`
 	ProgramID           string                      `json:"program_id,omitempty"`
 	PlaybookID          string                      `json:"playbook_id,omitempty"`
 	PlaybookRevision    int                         `json:"playbook_revision,omitempty"`
@@ -214,7 +217,7 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 	formatVersion := 1
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 4 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 5 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid operations store")
 		}
@@ -230,6 +233,10 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 		}
 	}
 	changed := false
+	if err := validateOperationDirectories(s.data, formatVersion); err != nil {
+		cancel()
+		return nil, err
+	}
 	if err := validatePrograms(&s.data, formatVersion); err != nil {
 		cancel()
 		return nil, err
@@ -377,7 +384,7 @@ func validName(name string) bool {
 }
 func (s *Service) SaveTemplate(id, ownerID, owner string, in TemplateInput) (Template, error) {
 	in.Name = strings.TrimSpace(in.Name)
-	validated, err := jobs.Validate(jobs.Input{AssetID: "template", Command: in.Command, TimeoutSeconds: in.TimeoutSeconds})
+	validated, err := jobs.Validate(jobs.Input{WorkingDirectory: in.WorkingDirectory, AssetID: "template", Command: in.Command, TimeoutSeconds: in.TimeoutSeconds})
 	if err != nil || !validName(in.Name) {
 		return Template{}, ErrInvalid
 	}
@@ -470,9 +477,13 @@ func (s *Service) Prepare(owner string, in PlanInput) (PlanInput, int, error) {
 		}
 		in.Command = t.Command
 		in.TimeoutSeconds = t.TimeoutSeconds
+		if in.WorkingDirectory != "" && in.WorkingDirectory != t.WorkingDirectory {
+			return in, 0, ErrInvalid
+		}
+		in.WorkingDirectory = t.WorkingDirectory
 		revision = t.Revision
 	}
-	validated, err := jobs.Validate(jobs.Input{AssetID: in.AssetIDs[0], Command: in.Command, TimeoutSeconds: in.TimeoutSeconds})
+	validated, err := jobs.Validate(jobs.Input{WorkingDirectory: in.WorkingDirectory, AssetID: in.AssetIDs[0], Command: in.Command, TimeoutSeconds: in.TimeoutSeconds})
 	if err != nil {
 		return in, 0, err
 	}
@@ -492,6 +503,9 @@ func (s *Service) CreatePlan(ownerID, owner string, in PlanInput, revision int) 
 	return s.createPlan(ownerID, owner, in, revision, nil, nil, "", "", "")
 }
 func (s *Service) createPlan(ownerID, owner string, in PlanInput, revision int, plugin *hostplugins.Operation, discovery *accountdiscovery.Operation, parent, account, assetName string) (Plan, error) {
+	if !validOperationDirectory(in.WorkingDirectory, plugin != nil || discovery != nil) {
+		return Plan{}, ErrInvalid
+	}
 	var result Plan
 	err := s.mutate(func(next *state) error {
 		for _, p := range next.Plans {
@@ -796,7 +810,7 @@ func (s *Service) Tick() {
 				}
 				p.CollectionSequence++
 			}
-			r := Run{HostPlugin: clonePlugin(p.HostPlugin), CollectionSequence: p.CollectionSequence, CollectionAccount: p.CollectionAccount, CollectionAssetName: p.CollectionAssetName, AccessOrigin: origin, ID: runID, PlanID: p.ID, OwnerID: p.OwnerID, Name: p.Name, Command: p.Command, TimeoutSeconds: p.TimeoutSeconds, CreatedAt: now, State: "running", Items: []Item{}}
+			r := Run{WorkingDirectory: p.WorkingDirectory, HostPlugin: clonePlugin(p.HostPlugin), CollectionSequence: p.CollectionSequence, CollectionAccount: p.CollectionAccount, CollectionAssetName: p.CollectionAssetName, AccessOrigin: origin, ID: runID, PlanID: p.ID, OwnerID: p.OwnerID, Name: p.Name, Command: p.Command, TimeoutSeconds: p.TimeoutSeconds, CreatedAt: now, State: "running", Items: []Item{}}
 			initPlaybookRun(&r, p, next, now)
 			r.Trigger = "schedule"
 			r.TriggeredBy = ScheduleActor{"system", "system"}
@@ -956,7 +970,7 @@ func (s *Service) updateItem(id string, index int, fn func(*Item)) error {
 }
 func jobInput(r Run, assetID string) jobs.Input {
 	digest := sha256.Sum256([]byte(r.ID + ":" + assetID))
-	return jobs.Input{Discovery: cloneDiscovery(r.Discovery), Plugin: clonePlugin(r.HostPlugin), Origin: r.AccessOrigin, AssetID: assetID, Command: r.Command, TimeoutSeconds: r.TimeoutSeconds, RequestID: "operation-" + hex.EncodeToString(digest[:])}
+	return jobs.Input{WorkingDirectory: r.WorkingDirectory, Discovery: cloneDiscovery(r.Discovery), Plugin: clonePlugin(r.HostPlugin), Origin: r.AccessOrigin, AssetID: assetID, Command: r.Command, TimeoutSeconds: r.TimeoutSeconds, RequestID: "operation-" + hex.EncodeToString(digest[:])}
 }
 func runState(r Run) string {
 	if r.Cancelled {
@@ -993,6 +1007,9 @@ func (s *Service) persist(next state) error {
 	if s.abandoned {
 		return ErrBusy
 	}
+	if err := validateOperationDirectories(next, 5); err != nil {
+		return err
+	}
 	plain, err := json.Marshal(next)
 	if err != nil {
 		return err
@@ -1001,7 +1018,7 @@ func (s *Service) persist(next state) error {
 	if _, err = rand.Read(nonce); err != nil {
 		return err
 	}
-	version := 4
+	version := 5
 	data, err := json.Marshal(envelope{Version: version, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte(fmt.Sprintf("jms233/operations/v%d", version)))})
 	if err != nil {
 		return err

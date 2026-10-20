@@ -12,7 +12,19 @@ Configure a Linux asset's [SSH workspace](./SSH-WORKSPACES.en.md), for example `
 jms exec ASSET_ID --directory /srv/work/deploy --timeout 60 --json -- pwd
 ```
 
-`POST /api/v1/ops/jobs` accepts optional `working_directory`, a canonical Linux absolute path inside the workspace. Jobs retain that request parameter; `execution_directory` identifies the directory actually verified by remote preflight. Assets without a workspace cannot use the parameter. There is no fallback that concatenates a `cd` command. Batch schedules, Playbooks and fixed management operations do not yet expose this parameter.
+`POST /api/v1/ops/jobs` accepts optional `working_directory`, a canonical Linux absolute path inside the workspace. Jobs retain that request parameter; `execution_directory` identifies the directory actually verified by remote preflight. Assets without a workspace cannot use the parameter. There is no fallback that concatenates a `cd` command. Fixed plugin, account-discovery and account-management operations reject custom directories.
+
+### Batch, templates, schedules and Playbooks
+
+This batch connects `working_directory` to personal command templates, plans and run snapshots for batch/once/interval/cron and manual triggers. These additions await unified verification and do not inherit the single-command acceptance above. The Web workbench adds input/snapshot displays; CLI/SDK use the same JSON field, for example `jms ops create --file plan.json`.
+
+Command templates save their directory. Plan creation freezes the template command, timeout, directory and revision; plan parameters cannot override the template directory. Editing/deleting a template does not change prior plans. Repeated creation requests return the original snapshot; changing the directory returns `409`. Schedule-only edits preserve the directory.
+
+Plan creation checks each target's configured workspace range without connecting SSH or treating input strings as directory proof. Manual triggers/resume recheck current authorization. Unknown-directory decisions are deferred to actual child-job preflight; known denials remain denied. Each child uses the pinned connection, real root/cwd, policy digest and one-use review described above. Restarts preserve the directory; claimed work with uncertain outcomes is not automatically replayed.
+
+Every remote Playbook step uses the plan starting directory. Internal authority binds run/step/program, host, command digest and directory; public JSON cannot forge it. A previous step's `cd` does not change this directory, and YAML `chdir` does not establish per-command directory proof. Generated scripts unsupported by applicable command rules remain denied without a Playbook bypass.
+
+Operations encrypted envelopes advance to v5. Valid original v1–v4 records remain readable; nonempty directory fields in old formats are rejected. New data cannot be passed directly to a v4-only program; see [upgrade compatibility](./UPGRADE-COMPATIBILITY.en.md).
 
 Command-filter forms add an execution-directory scope through these optional fields:
 
