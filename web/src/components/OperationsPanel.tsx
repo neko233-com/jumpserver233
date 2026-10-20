@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { usePermissions } from "../auth/usePermissions";
 import "../i18n/locales/features/operations/register";
@@ -67,6 +76,7 @@ const isActive = (state: string) => ["running", "waiting_review"].includes(state
 
 export default function OperationsPanel({ assets, request, onJob }: Props) {
   const { t, i18n } = useTranslation();
+  const directoryHintID = useId();
   const { allows, userID } = usePermissions();
   const [open, setOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -589,6 +599,8 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
             <label>
               {t("directoryPolicy.workingDirectory")}
               <input
+                aria-label={t("directoryPolicy.workingDirectory")}
+                aria-describedby={directoryHintID}
                 value={
                   templateID && !playbookID
                     ? templates.find((item) => item.id === templateID)?.working_directory || ""
@@ -603,7 +615,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
                   resetID();
                 }}
               />
-              <small>{t("operations.directoryHint")}</small>
+              <small id={directoryHintID}>{t("operations.directoryHint")}</small>
             </label>
             <OperationScheduleFields
               value={schedule}
