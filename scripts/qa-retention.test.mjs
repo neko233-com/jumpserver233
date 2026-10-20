@@ -433,6 +433,55 @@ test("unchanged runner PID becoming active after preview also cancels deletion",
   plan.selected.forEach(f => assert.ok(existsSync(f.path)));
 });
 
+test("a reused receipt PID no longer protects a completed batch; repeated cleanup is empty", t => {
+  for (const field of ["pid", "buildPID", "playwrightPID", "childPID"]) {
+    const { root, browser, put } = fixture(t), folder = browser(0);
+    const receipt = put(`${folder}/lifecycle.json`, { status: "passed", [field]: 12345 });
+    utimesSync(receipt, new Date(1000), new Date(1000));
+    const options = { isAlive: pid => pid === 12345, processStartedAt: () => 10000 };
+    const plan = planRetention(root, options);
+    assert.ok(plan.selected.length > 0); assert.equal(plan.skipped.length, 0);
+    assert.ok(applyRetention(plan, options).removedFiles > 0);
+    assert.ok(existsSync(resolve(folder, "summary.json")));
+    assert.equal(retainQAArtifacts(root, options).removedFiles, 0);
+  }
+});
+
+test("unavailable or original process start times still protect runner receipts", t => {
+  const { root, browser, put } = fixture(t), folder = browser(0);
+  const receipt = put(`${folder}/lifecycle.json`, { status: "passed", pid: 12345 });
+  utimesSync(receipt, new Date(1000), new Date(1000));
+  for (const started of [null, undefined, NaN, 500, 1000, 3000]) {
+    const plan = planRetention(root, { isAlive: pid => pid === 12345, processStartedAt: () => started });
+    assert.equal(plan.selected.length, 0); assert.match(plan.skipped[0].reason, /active process/);
+  }
+  const options = { isAlive: pid => pid === 12345, processStartedAt: () => 10000 };
+  const plan = planRetention(root, options);
+  assert.ok(plan.selected.length > 0);
+  assert.throws(() => applyRetention(plan, { ...options, processStartedAt: () => null }), /became active/);
+  plan.selected.forEach(f => assert.ok(existsSync(f.path)));
+});
+
+test("PID reuse does not release PID lock files, failed results or incomplete cleanup", t => {
+  const { root, browser, put } = fixture(t), options = { isAlive: pid => pid === 12345, processStartedAt: () => 10000 };
+  for (let i = 0; i < 3; i++) {
+    const folder = browser(i, i === 2 ? { cleaned: false } : {});
+    const receipt = put(`${folder}/lifecycle.json`, { status: i === 1 ? "failed" : "passed", pid: 12345 });
+    utimesSync(receipt, new Date(1000), new Date(1000));
+    if (i === 0) put(`${folder}/runner.pid`, "12345");
+    if (i === 1) put(`${folder}/summary.json`, { status: "failed" });
+  }
+  const plan = planRetention(root, options);
+  // The existing browser policy compacts failures too, without expiring the
+  // failed batch's result or its retained screenshot pair.
+  assert.ok(plan.selected.every(f => f.path.includes("browser-1792400000001") && !f.path.endsWith("summary.json")));
+  assert.equal(plan.directories.length, 0);
+  assert.ok(plan.skipped.some(row => /active PID file/.test(row.reason)));
+  assert.ok(plan.skipped.some(row => /incomplete cleanup/.test(row.reason)));
+  applyRetention(plan, options);
+  assert.ok(existsSync(resolve(root, ".cache/qa-reports/browser-1792400000001/summary.json")));
+});
+
 test("a later changed artifact is found before any file is removed", t => {
   const { root, browser } = fixture(t);
   browser(0);
@@ -477,7 +526,11 @@ test("Git excludes generated evidence and secrets while keeping product screensh
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 0, `${path} must be ignored`);
   }
-  for (const path of ["docs/images/inventory.en.png", "docs/images/screenshot-guide.png", "web/src/main.tsx", "scripts/qa-retention.mjs", "web/.env.example", ".env.development.example", "web/src/components/icon.png", "web/src/components/screenshot-icon.png", "server/testsupport/fixture.json", "server/testsupport/junit.xml", "release-please-config.json", "web/pnpm-lock.yaml", "example.tar.gz"]) {
+  for (const path of ["scripts/Screenshot-qa.png", "scripts/screenshot-qa.jpg", "server/screenshot-auth.jpeg", "server/Screenshot-check.webp", "web/e2e/screenshot.png", "web/e2e/screenshot.jpg", "web/e2e/screenshot.jpeg", "web/e2e/Screenshot.webp", "scripts/codex-clipboard-123.png", "server/codex-clipboard-123.png", "web/e2e/codex-clipboard-123.png", "web/playwright/.auth/operator.json", "scripts/playwright/.auth/storage.json", "scripts/.pytest_cache/nodeids", ".mypy_cache/cache.json", "scripts/.ruff_cache/cache", "scripts/local.pyo", "scripts/junit-run.xml"]) {
+    const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
+    assert.equal(result.status, 0, `${path} must be ignored`);
+  }
+  for (const path of ["docs/images/inventory.en.png", "docs/images/screenshot-guide.png", "web/src/main.tsx", "scripts/qa-retention.mjs", "web/.env.example", ".env.development.example", "web/src/components/icon.png", "web/src/components/screenshot-icon.png", "server/testsupport/fixture.json", "server/testsupport/junit.xml", "server/testsupport/screenshots-fixture.png", "release-please-config.json", "web/pnpm-lock.yaml", "example.tar.gz"]) {
     const result = spawnSync("git", ["check-ignore", "--quiet", "--no-index", "--", path], { cwd: root });
     assert.equal(result.status, 1, `${path} must remain visible`);
   }
@@ -485,6 +538,7 @@ test("Git excludes generated evidence and secrets while keeping product screensh
   assert.equal(tracked.status, 0); assert.equal(tracked.stdout.trim(), "", "Ignore rules must not hide tracked source");
   const dockerIgnore = readFileSync(resolve(root, ".dockerignore"), "utf8").split(/\r?\n/);
   for (const rule of ["**/screenshots", "**/.jms233-schedule.json", "**/.jms233-automatic.json", "server/testsupport/**/artifacts", "**/.playwright-mcp", "**/.playwright-cli", "/[Ss]creenshot*.png", "/web/[Ss]creenshot*.webp", "/codex-clipboard-*.png", "/junit*.xml", "/jms233-server", "**/*.orig", "**/*.rej"]) assert.ok(dockerIgnore.includes(rule), `Build context must exclude ${rule}`);
+  for (const rule of ["/scripts/[Ss]creenshot*.png", "/server/[Ss]creenshot*.jpeg", "/web/e2e/[Ss]creenshot*.webp", "/scripts/codex-clipboard-*.png", "/server/codex-clipboard-*.png", "/web/e2e/codex-clipboard-*.png", "**/playwright/.auth", "**/.pytest_cache", "**/.mypy_cache", "**/.ruff_cache", "**/*.pyo", "/scripts/junit*.xml"]) assert.ok(dockerIgnore.includes(rule), `Build context must exclude ${rule}`);
 });
 
 test("content checks reject newly orphaned product images and the negative fixture is removed", () => {

@@ -37,6 +37,23 @@ web/playwright/.cache/
 /web/[Ss]creenshot*.webp
 /codex-clipboard-*.png
 /web/codex-clipboard-*.png
+# Ad hoc tools may run from scripts, server, or the browser fixture root.
+/scripts/[Ss]creenshot*.png
+/scripts/[Ss]creenshot*.jpg
+/scripts/[Ss]creenshot*.jpeg
+/scripts/[Ss]creenshot*.webp
+/server/[Ss]creenshot*.png
+/server/[Ss]creenshot*.jpg
+/server/[Ss]creenshot*.jpeg
+/server/[Ss]creenshot*.webp
+/web/e2e/[Ss]creenshot*.png
+/web/e2e/[Ss]creenshot*.jpg
+/web/e2e/[Ss]creenshot*.jpeg
+/web/e2e/[Ss]creenshot*.webp
+/scripts/codex-clipboard-*.png
+/server/codex-clipboard-*.png
+/web/e2e/codex-clipboard-*.png
+**/playwright/.auth/
 scripts/artifacts/
 server/testsupport/artifacts/
 server/testsupport/**/artifacts/
@@ -54,6 +71,10 @@ server/testsupport/**/artifacts/
 *.tsbuildinfo
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 /tmp/
 /temp/
 
@@ -94,6 +115,7 @@ coverage/
 /junit*.xml
 /server/junit*.xml
 /web/junit*.xml
+/scripts/junit*.xml
 *.prof
 *.cpuprofile
 *.heapprofile

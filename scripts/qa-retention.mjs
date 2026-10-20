@@ -2,6 +2,7 @@ import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, open
 import { createHash } from "node:crypto";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 
 const workspace = fileURLToPath(new URL("..", import.meta.url));
 const browserName = /^browser-\d{13}$/;
@@ -31,6 +32,35 @@ function fingerprint(path, info = lstatSync(path)) {
   } finally { closeSync(fd); }
 }
 const alive = pid => { if (!Number.isSafeInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; } };
+
+// PID numbers can belong to unrelated processes after a runner exits. Only a
+// process created after the receipt was written is demonstrably a replacement.
+// Read no command lines or environment; an unavailable start time stays live.
+function processStartReader() {
+  const known = new Map();
+  return pid => {
+    if (known.has(pid)) return known.get(pid);
+    let value = null;
+    if (Number.isSafeInteger(pid) && pid > 0) try {
+      const windows = process.platform === "win32";
+      const output = execFileSync(windows ? "powershell.exe" : "ps", windows ? ["-NoProfile", "-NonInteractive", "-Command", `$ErrorActionPreference='Stop'; (Get-Process -Id ${pid}).StartTime.ToUniversalTime().ToString('O')`] : ["-p", String(pid), "-o", "lstart="], { encoding: "utf8", windowsHide: true, timeout: 3000, stdio: ["ignore", "pipe", "ignore"], env: { ...process.env, LC_ALL: "C" } }).trim();
+      const parsed = Date.parse(output);
+      if (Number.isFinite(parsed)) value = parsed;
+    } catch { /* Fail closed when the process cannot be inspected. */ }
+    known.set(pid, value);
+    return value;
+  };
+}
+
+function activeRunner(state, path, current, isAlive, processStartedAt) {
+  const writtenAt = lstatSync(path).mtimeMs;
+  return [state.pid, state.buildPID, state.playwrightPID, state.childPID].some(pid => {
+    if (!isAlive(pid) || current && pid === process.pid && terminal.has(state.status)) return false;
+    const started = processStartedAt(pid);
+    // Allow timestamp precision differences between filesystems and Unix ps.
+    return !Number.isFinite(started) || started <= writtenAt + 2000;
+  });
+}
 
 // Validate each ancestor, including junctions. Never follow an artifact link.
 function checked(root, path) {
@@ -100,7 +130,7 @@ function runnerGuard(root, folder, current, items) {
   }) };
 }
 
-function validateRunner(root, guard, isAlive, removed = new Set()) {
+function validateRunner(root, guard, isAlive, processStartedAt, removed = new Set()) {
   checked(root, guard.folder);
   if (!existsSync(guard.folder)) return;
   const pids = files(root, guard.folder, true);
@@ -118,13 +148,13 @@ function validateRunner(root, guard, isAlive, removed = new Set()) {
   }
   for (const name of receiptNames.slice(0, 3)) {
     const state = json(resolve(guard.folder, name));
-    if (state && [state.pid, state.buildPID, state.playwrightPID, state.childPID].some(pid => isAlive(pid) && !(guard.current && pid === process.pid && terminal.has(state.status)))) {
+    if (state && activeRunner(state, resolve(guard.folder, name), guard.current, isAlive, processStartedAt)) {
       throw new Error("Runner became active since preview; rerun retention");
     }
   }
 }
 
-export function planRetention(root = workspace, { legacy = false, currentRun, now = Date.now(), isAlive = alive } = {}) {
+export function planRetention(root = workspace, { legacy = false, currentRun, now = Date.now(), isAlive = alive, processStartedAt = processStartReader() } = {}) {
   root = realpathSync(root);
   if (currentRun) currentRun = realpathSync(currentRun);
   const reportRoot = resolve(root, ".cache/qa-reports"), dockerRoot = resolve(root, ".cache/docker-qa");
@@ -145,7 +175,6 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
         if ([["lifecycle.json", lifecycle], ["native-packages.json", native], ["linux-race.json", race]].some(([name, value]) => !value && existsSync(resolve(folder, name)))) {
           liveRun = true; plan.skipped.push({ name: row.name, reason: "unreadable runner receipt" }); continue;
         }
-        const states = [lifecycle, native, race].filter(Boolean);
         const pids = items.filter(file => pidArtifact.test(file.path)).map(filePID);
         if (pids.some(pid => !pid)) {
           liveRun = true; plan.skipped.push({ name: row.name, reason: "unreadable PID file" }); continue;
@@ -153,7 +182,7 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
         if (pids.some(pid => isAlive(pid))) {
           liveRun = true; plan.skipped.push({ name: row.name, reason: "active PID file" }); continue;
         }
-        if (states.some(state => [state.pid, state.buildPID, state.playwrightPID, state.childPID].some(pid => isAlive(pid) && !(current && pid === process.pid && terminal.has(state.status))))) {
+        if ([["lifecycle.json", lifecycle], ["native-packages.json", native], ["linux-race.json", race]].some(([name, state]) => state && activeRunner(state, resolve(folder, name), current, isAlive, processStartedAt))) {
           liveRun = true; plan.skipped.push({ name: row.name, reason: "active process" }); continue;
         }
         const summary = json(resolve(folder, "summary.json")) || json(resolve(folder, "report.json")) || native || race, cleanup = json(resolve(folder, "cleanup.json"));
@@ -244,15 +273,15 @@ export function planRetention(root = workspace, { legacy = false, currentRun, no
   return plan;
 }
 
-export function applyRetention(plan, { isAlive = alive } = {}) {
+export function applyRetention(plan, { isAlive = alive, processStartedAt = processStartReader() } = {}) {
   const root = realpathSync(plan.root), removed = [], removedPaths = new Set();
   const receipt = () => ({ at: new Date().toISOString(), removedFiles: removed.length, removedBytes: removed.reduce((n, f) => n + f.bytes, 0), removed, skipped: plan.skipped });
   try {
     // Revalidate the entire batch before the first unlink, then recheck its
     // runner immediately before each deletion. A new/restarted run wins.
     const guards = plan.guards || [];
-    guards.forEach(guard => validateRunner(root, guard, isAlive));
-    if (plan.selected.some(file => legacyHelperPath(root, file.path)) && planRetention(root, { isAlive }).skipped.some(row => /^(?:active |unreadable (?:runner receipt|PID file))/.test(row.reason))) {
+    guards.forEach(guard => validateRunner(root, guard, isAlive, processStartedAt));
+    if (plan.selected.some(file => legacyHelperPath(root, file.path)) && planRetention(root, { isAlive, processStartedAt }).skipped.some(row => /^(?:active |unreadable (?:runner receipt|PID file))/.test(row.reason))) {
       throw new Error("QA activity changed since preview; rerun retention before deleting legacy helpers");
     }
     function validateFile(file) {
@@ -266,7 +295,7 @@ export function applyRetention(plan, { isAlive = alive } = {}) {
     plan.selected.forEach(validateFile);
     for (const file of plan.selected) {
       const guard = guards.find(g => file.path.startsWith(g.folder + sep));
-      if (guard) validateRunner(root, guard, isAlive, removedPaths);
+      if (guard) validateRunner(root, guard, isAlive, processStartedAt, removedPaths);
       const valid = validateFile(file);
       if (!valid) continue;
       const { path, rel } = valid;
@@ -290,6 +319,7 @@ export function applyRetention(plan, { isAlive = alive } = {}) {
 }
 
 export function retainQAArtifacts(root = workspace, options = {}) {
+  options = { ...options, processStartedAt: options.processStartedAt ?? processStartReader() };
   const plan = planRetention(root, options);
   const parent = checked(plan.root, resolve(plan.root, ".cache/qa-reports"));
   mkdirSync(parent, { recursive: true });

@@ -42,6 +42,10 @@ node scripts/qa-retention.mjs --apply --legacy
 
 Git 与 Docker 还忽略 `.playwright-mcp/`、`.playwright-cli/`、根目录和 `web/` 下按 screenshot/codex-clipboard 命名的散落图片、根目录/web/server 的 `junit*.xml`、本地构建的 jms 程序及 `.orig`/`.rej` 合并残留。这些忽略规则不触发删除；自动清理仍限于已核对的 QA 目录，不扫描或删除开发依赖、业务数据、未知历史结果或正式文档图片。默认搜索遵循 `.gitignore`，只有明确调查历史问题时才检索忽略目录。
 
+`scripts/`、`server/`、`web/e2e/` 入口目录内直接导出的 screenshot/codex-clipboard 图片、脚本 JUnit 报告、`playwright/.auth/`、Python 优化字节码及 pytest/mypy/Ruff 缓存，也同步排除于 Git 和 Docker 上下文。截图文件名规则仅匹配这些入口目录；源码图片夹具和被引用的正式图片保持可见。
+
+回执中的 PID 仍存在时，保留器核对进程创建时间。进程创建时间晚于该回执的文件修改时间超过两秒，说明 PID 已被复用，不再保护旧批次。每次清理对每个 PID 最多查询一次，仅读取 PID 和启动时间，不读取命令行或环境。进程信息不可用、活动 PID 锁文件、回执变更、失败结果及清理未完成仍受既有规则保护；每次删除前继续复核 runner 回执。此逻辑处理历史 PID 复用，不终止进程，也不改写历史报告。
+
 Git 和 Docker 上下文还排除脚本/协议夹具目录中的测试截图与 artifacts、任意层级的 coverage、PID 与 PID lock 文件。不会全局忽略图片或归档；正式图片仍需通过文档引用检查。
 
 `.gitignore` 与 `.dockerignore` 同步排除备份/密钥、浏览器输出、性能分析、临时构建和 QA 证据，以及 Node/Go/Vite 本地缓存；任意层级的 `test-results/`、`playwright-report/`、`blob-report/` 都被忽略，不全局忽略图片或归档。忽略规则不会自动删除文件。正式产品截图保存在被文档引用的 `docs/images/`，文件清理器不会访问该目录。复用工具提交到 `scripts/`；临时内容集中放在忽略目录。资源清理与文件保留分开，下面的 Docker 资源清理命令仍按归属检查容器与卷。
