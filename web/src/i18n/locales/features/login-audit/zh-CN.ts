@@ -60,6 +60,9 @@ export default {
       unavailable: "平台登录审计暂不可用。",
     },
     methods: {
+      wecom: "企业微信",
+      dingtalk: "钉钉",
+      feishu: "飞书 / Lark",
       radius: "RADIUS",
       local: "密码",
       ldap: "LDAP",

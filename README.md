@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[企业扫码登录](./docs/ENTERPRISE-LOGIN.md)已编写企微、钉钉、飞书/Lark 原生链路、租户/成员校验、MFA/审计、中英 Web、CLI/SDK 和用例；E05 实现待验，尚未执行验证。
+
 [多身份源与目录同步](./docs/IDENTITY-SOURCES.md)已编写具名 LDAP/OIDC/CAS/SAML、独立加密/回调/凭据撤销、LDAP 完整采集、组/组织映射、计划/重试/中止、中英 Web、CLI/SDK 与用例；E04 实现待验，未启动验证。
 
 [软件更新检查](./docs/UPDATES.md)提供正式稳定版检查、可选自动检查、原生下载校验与 Web/CLI/SDK，配套 Linux/macOS/Windows 原生 Release 打包。受控安装、迁移和自动回滚继续完善。

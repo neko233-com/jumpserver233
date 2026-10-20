@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-const identitySourcesUsage = "usage: jms identity-sources list|audit|get ID|save [ID] --file JSON_OR_- | sync ID settings|save|entries|runs|audit|preview|apply|abort [--file JSON_OR_- --offset 0 --limit 100]"
+const identitySourcesUsage = "usage: jms identity-sources list|audit|get ID|save [ID] --file JSON_OR_- | sync ID settings|save|entries|runs|audit|preview|apply|abort [--file JSON_OR_- --offset 0 --limit 100] | provider ID wecom|dingtalk|feishu settings|save|check|audit|prepare [--file JSON_OR_-]"
 
 func runIdentitySources(args []string) error {
 	endpoint := os.Getenv("JMS_SERVER_URL")
@@ -29,6 +29,7 @@ func executeIdentitySources(ctx context.Context, c *sessionclient.Client, args [
 	}
 	command, args := args[0], args[1:]
 	id, resource := "", ""
+	kind := ""
 	if command == "get" {
 		if len(args) < 1 {
 			return errors.New(identitySourcesUsage)
@@ -41,6 +42,11 @@ func executeIdentitySources(ctx context.Context, c *sessionclient.Client, args [
 			return errors.New(identitySourcesUsage)
 		}
 		id, resource, args = args[0], args[1], args[2:]
+	} else if command == "provider" {
+		if len(args) < 3 {
+			return errors.New(identitySourcesUsage)
+		}
+		id, kind, resource, args = args[0], args[1], args[2], args[3:]
 	}
 	fs := flag.NewFlagSet("identity-sources", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -50,6 +56,14 @@ func executeIdentitySources(ctx context.Context, c *sessionclient.Client, args [
 	case "list", "audit", "get":
 	case "save":
 		fs.StringVar(&file, "file", "", "")
+	case "provider":
+		switch resource {
+		case "settings", "check", "audit":
+		case "save", "prepare":
+			fs.StringVar(&file, "file", "", "")
+		default:
+			return errors.New(identitySourcesUsage)
+		}
 	case "sync":
 		switch resource {
 		case "settings":
@@ -96,6 +110,28 @@ func executeIdentitySources(ctx context.Context, c *sessionclient.Client, args [
 			var v sessionclient.IdentitySyncOperation
 			if e = operationJSON(file, in, &v); e == nil {
 				result, e = c.DirectorySyncAction(ctx, id, resource, v)
+			}
+		}
+	case "provider":
+		switch resource {
+		case "settings":
+			result, e = c.EnterpriseLogin(ctx, id, kind)
+		case "check":
+			result, e = c.CheckEnterpriseLogin(ctx, id, kind)
+		case "audit":
+			result, e = c.EnterpriseLoginAudit(ctx, id, kind)
+		case "save":
+			var v sessionclient.EnterpriseLoginInput
+			if e = operationJSON(file, in, &v); e == nil {
+				result, e = c.SaveEnterpriseLogin(ctx, id, kind, v)
+			}
+		case "prepare":
+			var v struct {
+				Subject  string `json:"subject"`
+				Username string `json:"username"`
+			}
+			if e = operationJSON(file, in, &v); e == nil {
+				result, e = c.PrepareEnterpriseLoginUser(ctx, id, kind, v.Subject, v.Username)
 			}
 		}
 	}

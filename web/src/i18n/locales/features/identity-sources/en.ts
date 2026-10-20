@@ -1,7 +1,7 @@
 export default {
   identitySources: {
     title: "Identity sources",
-    hint: "Manage independent LDAP, OIDC, CAS and SAML sources. Existing default providers keep their endpoints.",
+    hint: "Manage independent directory, federation and enterprise sign-in sources. Existing default providers keep their endpoints.",
     signIn: "Sign in with {{name}}",
     add: "Add source",
     edit: "Edit source",
@@ -21,6 +21,9 @@ export default {
     disableHint:
       "Disabling or archiving a source revokes its existing credentials. Enabling it again requires fresh sign-in. Configure the provider separately before enabling login.",
     kinds: {
+      wecom: "WeCom",
+      dingtalk: "DingTalk",
+      feishu: "Feishu / Lark",
       ldap: "LDAP / Active Directory",
       oidc: "OpenID Connect",
       cas: "CAS",

@@ -12,7 +12,11 @@ const base = "/api/v1/identity-sources/"
 
 var sourceID = regexp.MustCompile(`^idp-[a-f0-9]{32}$`)
 
-func ValidID(id string) bool { return sourceID.MatchString(id) }
+func ValidID(id string) bool      { return sourceID.MatchString(id) }
+func NativeKind(kind string) bool { return kind == "wecom" || kind == "dingtalk" || kind == "feishu" }
+func Kind(kind string) bool {
+	return kind == "ldap" || kind == "oidc" || kind == "cas" || kind == "saml" || NativeKind(kind)
+}
 func Prefix(id string) string {
 	if !ValidID(id) {
 		return ""

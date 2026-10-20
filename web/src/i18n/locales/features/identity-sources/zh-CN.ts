@@ -1,7 +1,7 @@
 export default {
   identitySources: {
     title: "身份源",
-    hint: "独立管理多个 LDAP、OIDC、CAS 与 SAML 源；默认身份源保留原有入口。",
+    hint: "独立管理目录、联合认证及企业登录身份源；默认身份源保留原有入口。",
     signIn: "使用 {{name}} 登录",
     add: "添加身份源",
     edit: "编辑身份源",
@@ -21,6 +21,9 @@ export default {
     disableHint:
       "停用或归档会撤销此源用户的已有凭据；重新启用后需重新登录。请单独完成提供方设置再开放登录。",
     kinds: {
+      wecom: "企业微信",
+      dingtalk: "钉钉",
+      feishu: "飞书 / Lark",
       ldap: "LDAP / Active Directory",
       oidc: "OpenID Connect",
       cas: "CAS",

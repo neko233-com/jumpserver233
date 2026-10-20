@@ -318,6 +318,8 @@ export default defineConfig({
         JMS_DEFAULT_ADMIN_ENABLED: "false",
         JMS_MONITOR_INTERVAL: "1h",
         JMS_PUBLIC_URL: "http://127.0.0.1:5177",
+        HTTPS_PROXY: "http://127.0.0.1:12226",
+        NO_PROXY: "localhost,127.0.0.0/8,::1",
       },
     },
     {

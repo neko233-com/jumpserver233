@@ -12,6 +12,7 @@ const SSHCertificatesPage = lazy(() => import("./pages/SSHCertificatesPage"));
 const ReplayStoragePage = lazy(() => import("./pages/ReplayStoragePage"));
 const IdentitySourcesPage = lazy(() => import("./pages/IdentitySourcesPage"));
 const DirectorySyncPage = lazy(() => import("./pages/DirectorySyncPage"));
+const EnterpriseLoginSettingsPage = lazy(() => import("./pages/EnterpriseLoginSettingsPage"));
 const AssetDiscoveryPage = lazy(() => import("./pages/AssetDiscoveryPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -111,6 +112,7 @@ export default function App() {
               <Route path="identity" element={<OIDCSettingsPage />} />
               <Route path="identity-sources" element={<IdentitySourcesPage />} />
               <Route path="directory-sync" element={<DirectorySyncPage />} />
+              <Route path="enterprise-login" element={<EnterpriseLoginSettingsPage />} />
               <Route path="directory" element={<LDAPSettingsPage />} />
               <Route path="saml" element={<SAMLSettingsPage />} />
               <Route path="passkeys" element={<PasskeySettingsPage />} />

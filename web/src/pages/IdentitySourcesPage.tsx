@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { usePermissions } from "../auth/usePermissions";
-import { identitySourcePrefix } from "../auth/identitySource";
+import { identitySourcePrefix, nativeLoginKind, type IdentityKind } from "../auth/identitySource";
 import { useIdentitySourceAPI } from "./identity-source-api";
 import "../i18n/locales/features/identity-sources/register";
 import "./IdentitySourcesPage.css";
 
-type Kind = "ldap" | "oidc" | "cas" | "saml";
+type Kind = IdentityKind;
 type Source = {
   id: string;
   name: string;
@@ -33,6 +33,9 @@ const settings: Record<Kind, string> = {
   oidc: "identity",
   cas: "cas",
   saml: "saml",
+  wecom: "enterprise-login",
+  dingtalk: "enterprise-login",
+  feishu: "enterprise-login",
 };
 
 export default function IdentitySourcesPage() {
@@ -145,11 +148,13 @@ export default function IdentitySourcesPage() {
               value={draft.kind}
               onChange={(e) => setDraft({ ...draft, kind: e.target.value as Kind })}
             >
-              {(["ldap", "oidc", "cas", "saml"] as const).map((kind) => (
-                <option key={kind} value={kind}>
-                  {t("identitySources.kinds." + kind)}
-                </option>
-              ))}
+              {(["ldap", "oidc", "cas", "saml", "wecom", "dingtalk", "feishu"] as const).map(
+                (kind) => (
+                  <option key={kind} value={kind}>
+                    {t("identitySources.kinds." + kind)}
+                  </option>
+                ),
+              )}
             </select>
           </label>
           <label className="identity-source-check">
@@ -221,7 +226,9 @@ export default function IdentitySourcesPage() {
               >
                 {t("identitySources.edit")}
               </button>
-              <Link to={`/console/${settings[row.kind]}?source_id=${row.id}`}>
+              <Link
+                to={`/console/${settings[row.kind]}?source_id=${row.id}${nativeLoginKind(row.kind) ? "&provider=" + row.kind : ""}`}
+              >
                 {t("identitySources.configure")}
               </Link>
               {row.kind === "ldap" && (

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net"
 	"net/http"
 	"os"
 
+	"github.com/neko233-com/jumpserver233/server/testsupport/enterpriseprovider"
 	"github.com/neko233-com/jumpserver233/server/testsupport/oidcprovider"
 )
 
@@ -26,5 +28,24 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Fatal(http.Serve(listener, provider))
+	enterprise, err := enterpriseprovider.New()
+	if err != nil {
+		log.Fatal("synthetic enterprise provider failed")
+	}
+	defer enterprise.Close()
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /enterprise/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"ca_pem": enterprise.CAPEM})
+	})
+	for _, kind := range []string{"wecom", "dingtalk", "feishu"} {
+		mux.HandleFunc("GET /enterprise/authorize/"+kind, func(w http.ResponseWriter, r *http.Request) { enterprise.Authorize(w, r, kind) })
+	}
+	mux.Handle("/", provider)
+	log.Fatal(http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if enterprise.HandleProxy(w, r) {
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})))
 }

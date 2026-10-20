@@ -283,6 +283,9 @@ func openService(path string, documents *storage.Documents, key []byte) (*Servic
 		if user.SourceID != "" && (user.Source == "" || !identityscope.ValidID(user.SourceID)) {
 			return nil, ErrUserStoreCorrupt
 		}
+		if identityscope.NativeKind(user.Source) && !identityscope.ValidID(user.SourceID) {
+			return nil, ErrUserStoreCorrupt
+		}
 		if user.SourceSuspended && (user.Source != "ldap" || !identityscope.ValidID(user.SourceID)) {
 			return nil, ErrUserStoreCorrupt
 		}

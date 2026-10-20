@@ -3,9 +3,19 @@ import { passwordRedirect } from "../auth/passwordRedirect";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { type LoginReviewPending } from "./LoginReviewPanel";
+import type { NativeLoginKind } from "../auth/identitySource";
 type Setup = {
   token: string;
   enrollment: { secret: string; provisioning_uri: string; expires_at: string };
+};
+export type LoginCompletionProps = {
+  onComplete: () => void;
+  onCancel: () => void;
+  onReview: (pending: LoginReviewPending) => void;
+  onFactor?: () => void;
+  source?: "oidc" | "cas" | "saml" | "passkey" | "radius" | NativeLoginKind;
+  identitySourceID?: string;
+  namespace?: string;
 };
 export default function OIDCLogin({
   onComplete,
@@ -14,16 +24,11 @@ export default function OIDCLogin({
   onFactor,
   source = "oidc",
   identitySourceID = "",
-}: {
-  onComplete: () => void;
-  onCancel: () => void;
-  onReview: (pending: LoginReviewPending) => void;
-  onFactor?: () => void;
-  source?: "oidc" | "cas" | "saml" | "passkey" | "radius";
-  identitySourceID?: string;
-}) {
+  namespace,
+}: LoginCompletionProps) {
   const { t, i18n } = useTranslation();
   const prefix = identitySourcePrefix(identitySourceID);
+  const textSource = namespace ?? source;
   const [active, setActive] = useState(false);
   const [otpRequired, setOtpRequired] = useState(false);
   const [otp, setOTP] = useState("");
@@ -111,8 +116,8 @@ export default function OIDCLogin({
   }
   return (
     <section className="oidc-login">
-      <h2>{t(`${source}.finishTitle`)}</h2>
-      <p>{t(`${source}.finishHint`)}</p>
+      <h2>{t(`${textSource}.finishTitle`)}</h2>
+      <p>{t(`${textSource}.finishHint`)}</p>
       <form
         onSubmit={(e) => {
           void submit(e);
@@ -150,11 +155,11 @@ export default function OIDCLogin({
         )}
         {error && (
           <p role="alert" className="login-error">
-            {t(policyDenied ? "acl.loginDenied" : `${source}.loginError`)}
+            {t(policyDenied ? "acl.loginDenied" : `${textSource}.loginError`)}
           </p>
         )}
         <button type="submit" disabled={!active || busy}>
-          {t(setup ? "login.mfaEnableAndSignIn" : `${source}.finish`)}
+          {t(setup ? "login.mfaEnableAndSignIn" : `${textSource}.finish`)}
         </button>
       </form>
       <button

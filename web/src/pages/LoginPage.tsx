@@ -1,5 +1,7 @@
 import {
   identitySourcePrefix,
+  nativeLoginKind,
+  type NativeLoginKind,
   validIdentitySource,
   type NamedLoginSource,
 } from "../auth/identitySource";
@@ -17,6 +19,7 @@ import { getPasskey, passkeysSupported, type PasskeyRequestOptions } from "../au
 import OIDCLogin from "../components/OIDCLogin";
 import LoginReviewPanel, { type LoginReviewPending } from "../components/LoginReviewPanel";
 import "../i18n/locales/features/radius/register";
+const EnterpriseLogin = lazy(() => import("../components/EnterpriseLogin"));
 const RadiusPrimary = lazy(() => import("../components/RadiusPrimary"));
 const RadiusFactor = lazy(() => import("../components/RadiusFactor"));
 
@@ -95,27 +98,32 @@ export default function LoginPage() {
   const [authSource, setAuthSource] = useState(() =>
     new URLSearchParams(location.search).get("radius") === "challenge"
       ? "radius"
-      : validIdentitySource(new URLSearchParams(location.search).get("identity_source"))
+      : !new URLSearchParams(location.search).has("enterprise_error") &&
+          validIdentitySource(new URLSearchParams(location.search).get("identity_source"))
         ? new URLSearchParams(location.search).get("identity_source")!
         : "local",
   );
   const [directoryPending, setDirectoryPending] = useState(false);
-  const [ssoSource, setSsoSource] = useState<"oidc" | "cas" | "saml" | "passkey" | "radius" | null>(
-    () => {
-      const q = new URLSearchParams(window.location.search);
-      if (q.get("radius") === "continue") return "radius";
-      return q.get("passkey") === "continue"
-        ? "passkey"
-        : q.get("saml") === "continue"
-          ? "saml"
-          : q.get("cas") === "continue"
-            ? "cas"
-            : q.get("sso") === "continue"
-              ? "oidc"
-              : null;
-    },
-  );
+  const [ssoSource, setSsoSource] = useState<
+    "oidc" | "cas" | "saml" | "passkey" | "radius" | NativeLoginKind | null
+  >(() => {
+    const q = new URLSearchParams(window.location.search);
+    const native = q.get("enterprise");
+    if (nativeLoginKind(native) && q.get("continue") === "1") return native;
+    if (q.get("radius") === "continue") return "radius";
+    return q.get("passkey") === "continue"
+      ? "passkey"
+      : q.get("saml") === "continue"
+        ? "saml"
+        : q.get("cas") === "continue"
+          ? "cas"
+          : q.get("sso") === "continue"
+            ? "oidc"
+            : null;
+  });
   const ssoPending = ssoSource !== null;
+  const Completion = nativeLoginKind(ssoSource) ? EnterpriseLogin : OIDCLogin;
+  const enterpriseError = new URLSearchParams(window.location.search).has("enterprise_error");
   const namedDirectory = namedSources.find((v) => v.id === authSource && v.kind === "ldap");
   const isDirectorySource = authSource === "ldap" || !!namedDirectory;
   const directoryPrefix = identitySourcePrefix(namedDirectory?.id);
@@ -128,7 +136,9 @@ export default function LoginPage() {
         if (!c.signal.aborted && Array.isArray(rows))
           setNamedSources(
             rows.filter(
-              (v) => validIdentitySource(v.id) && ["ldap", "oidc", "cas", "saml"].includes(v.kind),
+              (v) =>
+                validIdentitySource(v.id) &&
+                ["ldap", "oidc", "cas", "saml", "wecom", "dingtalk", "feishu"].includes(v.kind),
             ),
           );
       })
@@ -462,22 +472,24 @@ export default function LoginPage() {
               onCancel={cancelReview}
             />
           ) : ssoPending ? (
-            <OIDCLogin
-              onFactor={waitForFactor}
-              onReview={waitForReview}
-              source={ssoSource ?? "oidc"}
-              identitySourceID={namedSourceID}
-              key={ssoSource}
-              onComplete={() => {
-                setCookieSession();
-                finishNavigation();
-              }}
-              onCancel={() => {
-                setAuthSource("local");
-                setSsoSource(null);
-                navigate("/login", { replace: true });
-              }}
-            />
+            <Suspense fallback={null}>
+              <Completion
+                onFactor={waitForFactor}
+                onReview={waitForReview}
+                source={ssoSource ?? "oidc"}
+                identitySourceID={namedSourceID}
+                key={ssoSource}
+                onComplete={() => {
+                  setCookieSession();
+                  finishNavigation();
+                }}
+                onCancel={() => {
+                  setAuthSource("local");
+                  setSsoSource(null);
+                  navigate("/login", { replace: true });
+                }}
+              />
+            </Suspense>
           ) : authSource === "radius" ? (
             <Suspense fallback={null}>
               <RadiusPrimary
@@ -679,6 +691,11 @@ export default function LoginPage() {
                 <button type="button" onClick={() => passkeyOperation.current?.abort()}>
                   {t("passkey.cancel")}
                 </button>
+              )}
+              {enterpriseError && (
+                <p role="alert" className="login-error">
+                  {t("login.enterpriseError")}
+                </p>
               )}
               {(ssoError || casError || samlError) && (
                 <p role="alert" className="login-error">

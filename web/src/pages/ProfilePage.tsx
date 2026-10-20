@@ -1,3 +1,5 @@
+import { nativeLoginKind } from "../auth/identitySource";
+import "../i18n/locales/features/enterprise-login/register";
 import PasswordRules from "../components/PasswordRules";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -52,9 +54,11 @@ export default function ProfilePage() {
     profile?.source === "ldap" ||
     profile?.source === "cas" ||
     profile?.source === "saml" ||
-    profile?.source === "radius";
-  const externalNamespace =
-    profile?.source === "radius"
+    profile?.source === "radius" ||
+    nativeLoginKind(profile?.source);
+  const externalNamespace = nativeLoginKind(profile?.source)
+    ? "enterpriseLogin"
+    : profile?.source === "radius"
       ? "radius"
       : profile?.source === "saml"
         ? "saml"
@@ -71,7 +75,13 @@ export default function ProfilePage() {
       if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
       if (init.body) headers.set("Content-Type", "application/json");
       const response = await fetch(path, { ...init, headers });
-      if (!response.ok) { if(path === "/api/v1/users/me/password/change") { const data = await response.json() as {error_code?:string};throw new Error(data.error_code || String(response.status)); } throw new Error(String(response.status)); }
+      if (!response.ok) {
+        if (path === "/api/v1/users/me/password/change") {
+          const data = (await response.json()) as { error_code?: string };
+          throw new Error(data.error_code || String(response.status));
+        }
+        throw new Error(String(response.status));
+      }
       if (response.status === 204) return undefined as T;
       return response.json() as Promise<T>;
     },
@@ -131,15 +141,21 @@ export default function ProfilePage() {
   function reportPasswordError(error: unknown) {
     const status = error instanceof Error ? error.message : "";
     const key =
-      status === "password_history" ? "passwordSecurity.password_history" : status === "password_policy" ? "passwordSecurity.password_policy" : status === "user_revision" ? "profile.passwordConflict" : status === "401"
-        ? "profile.errorAuth"
-        : status === "403"
-          ? "profile.passwordCurrentInvalid"
-          : status === "400"
-            ? "profile.passwordInvalid"
-            : status === "409"
-              ? "profile.passwordConflict"
-              : "profile.errorGeneric";
+      status === "password_history"
+        ? "passwordSecurity.password_history"
+        : status === "password_policy"
+          ? "passwordSecurity.password_policy"
+          : status === "user_revision"
+            ? "profile.passwordConflict"
+            : status === "401"
+              ? "profile.errorAuth"
+              : status === "403"
+                ? "profile.passwordCurrentInvalid"
+                : status === "400"
+                  ? "profile.passwordInvalid"
+                  : status === "409"
+                    ? "profile.passwordConflict"
+                    : "profile.errorGeneric";
     setPasswordErrorKey(key);
   }
 
@@ -401,7 +417,7 @@ export default function ProfilePage() {
             </div>
           </div>
           <form className="mfa-form" onSubmit={(event) => void changePassword(event)}>
- <PasswordRules admin={profile?.role === "admin"} />
+            <PasswordRules admin={profile?.role === "admin"} />
             <label className="mfa-field">
               <span>{t("profile.password")}</span>
               <input

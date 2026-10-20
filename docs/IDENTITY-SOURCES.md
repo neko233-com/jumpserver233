@@ -8,7 +8,7 @@
 
 单机默认使用本地加密文件，无需新增数据库或常驻同步进程。PostgreSQL 部署沿用现有文档存储；每个源使用独立命名空间与派生加密密钥。身份源属于安装全局，资源权限仍遵循组织边界。
 
-在 `/console/identity-sources` 创建 LDAP、OIDC、CAS 或 SAML 源，进入对应提供方设置，再启用。原有默认提供方及其 URL 不变；新源与默认源不自动合并。同一个 issuer/subject 在两个源中创建不同普通身份，名称、邮件和角色声明不用于关联本地用户或提权。
+在 `/console/identity-sources` 创建 LDAP、OIDC、CAS、SAML、企微、钉钉或飞书/Lark 源，进入对应提供方设置，再启用。三个原生企业提供方的应用配置与成员校验见[企业扫码登录](./ENTERPRISE-LOGIN.md)。原有默认提供方及其 URL 不变；新源与默认源不自动合并。同一个 issuer/subject 在两个源中创建不同普通身份，名称、邮件和角色声明不用于关联本地用户或提权。
 
 新源路径前缀为 `/api/v1/identity-sources/<source_id>`；提供方保留原路径后缀，例如：
 

@@ -20,6 +20,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/databasequery"
 	"github.com/neko233-com/jumpserver233/server/internal/core/directorysync"
+	"github.com/neko233-com/jumpserver233/server/internal/core/enterpriselogin"
 	corefiles "github.com/neko233-com/jumpserver233/server/internal/core/files"
 	coregrants "github.com/neko233-com/jumpserver233/server/internal/core/grants"
 	coregroups "github.com/neko233-com/jumpserver233/server/internal/core/groups"
@@ -53,6 +54,7 @@ import (
 )
 
 type Dependencies struct {
+	EnterpriseLogin       *enterpriselogin.Service
 	DirectorySync         *directorysync.Store
 	IdentitySources       *identitysources.Store
 	ReplayArchive         *replayarchive.Store

@@ -63,6 +63,9 @@ export default {
       unavailable: "Platform sign-in audit is temporarily unavailable.",
     },
     methods: {
+      wecom: "WeCom",
+      dingtalk: "DingTalk",
+      feishu: "Feishu / Lark",
       radius: "RADIUS",
       local: "Password",
       ldap: "LDAP",

@@ -131,6 +131,7 @@ func registerIdentitySourceRoutes(mux *http.ServeMux, d Dependencies) {
 			scoped.OIDC = runtime.OIDC
 			scoped.CAS = runtime.CAS
 			scoped.SAML = runtime.SAML
+			scoped.EnterpriseLogin = runtime.Enterprise
 			switch source.Kind {
 			case "ldap":
 				registerLDAPRoutes(child, scoped)
@@ -140,6 +141,8 @@ func registerIdentitySourceRoutes(mux *http.ServeMux, d Dependencies) {
 				registerCASRoutes(child, scoped)
 			case "saml":
 				registerSAMLRoutes(child, scoped)
+			case "wecom", "dingtalk", "feishu":
+				registerEnterpriseLoginRoutes(child, scoped, source.Kind)
 			}
 			children[id] = child
 		}

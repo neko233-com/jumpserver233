@@ -2,6 +2,8 @@
 
 > 中文 | [English](./TESTING.en.md)
 
+[企业扫码登录](./ENTERPRISE-LOGIN.md)已编写三个厂商真实 HTTPS 协议夹具、Feishu/Lark v2/v3 与 PKCE、租户/成员拒绝、令牌并发/刷新、授权码/流程/MFA 重放、修订/幂等、加密隔离、关闭排空、PostgreSQL 重开、API/CLI 与浏览器用例。`enterprise-login.spec.ts` 复用现有 OAuth 夹具进程及隔离 CONNECT 代理，不新增容器；仅保留秘密清空后的两张中英截图。全部仅编写，未运行；实际租户/手机扫码不由夹具替代。
+
 [多身份源与目录同步](./IDENTITY-SOURCES.md)已编写跨源/默认源、MFA/单次重放、原 URI 签名、停用/恢复、派生密钥隔离、真实 TLS 分页、嵌套组/循环、批量建号、人工授权优先、缺失策略、计划、排空/关闭、重启/中止、PostgreSQL 重开和 CLI 用例。`identity-sources.spec.ts` 复用现有 LDAP 夹具，覆盖实际登录、同步映射、回执重试与中英 390px；Linux race 入口已纳入相关包和用例。仅编写与格式整理，未执行测试、构建、浏览器或 Docker。
 
 [录像外部存储](./REPLAY-STORAGE.md)已编写 Testify 签名/HTTPS、数据库事务/隔离、SFTP、加密回执、上传响应丢失、并发、排空、重启、损坏拒绝、加密终端/桌面格式、本地清理/部分重试、缓存句柄关闭、API 可见性/分页、CLI 脱敏和备份恢复用例。`replay-storage.spec.ts` 编写真正 SSH/SFTP、设置/回放/清理/重放与中英窄屏；原生包入口复用现有 OpenSSH/证书夹具、一次重启和报告，检查实际 Web SSH 输出的远程回放。Linux race 已加入归档/对象/数据库/API/CLI/桌面收尾，真实独立 SFTP 用例保留夹具条件。源码已接入运行时和 Web/CLI/SDK，本轮仅编写/格式整理，未执行测试、构建、浏览器或 Docker，不形成新增验收与性能/体积结果。

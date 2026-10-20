@@ -1374,6 +1374,7 @@ const zhCN = {
     signOut: "退出登录",
   },
   login: {
+    enterpriseError: "企业登录失败或已过期，请重新发起。",
     namedSource: "使用 {{name}} 登录",
     username: "用户名",
     password: "密码",

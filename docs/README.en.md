@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Enterprise QR sign-in](./ENTERPRISE-LOGIN.en.md): native WeCom, DingTalk and Feishu/Lark protocols, tenant/membership checks, MFA/review/audit, bilingual administration and CLI/SDK. Code and cases are authored; E05 awaits verification, including actual tenants and mobile scanning.
+
 [Multiple identity sources and directory synchronization](./IDENTITY-SOURCES.en.md) authors named LDAP/OIDC/CAS/SAML, separate encryption/callbacks/credential revocation, complete LDAP collection, group/organization mappings, schedules/retry/abort, bilingual Web, CLI/SDK and cases. E04 is implementation-ready and unverified.
 
 [External replay storage](./REPLAY-STORAGE.en.md): authored object backends, lifecycle/drain integration, archives/retries, authorized replay, local removal, cache/backups, bilingual Web, CLI/SDK and cases. E35 is implementation-ready and unverified.

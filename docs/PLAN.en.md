@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+[Enterprise QR sign-in](./ENTERPRISE-LOGIN.en.md) authors native WeCom, DingTalk and Feishu/Lark authorization, tenant/internal membership checks, isolated sources, MFA/review/audit, bilingual Web, CLI/SDK and cases. E05 awaits verification. No tests, builds, browser or Docker runs; actual tenants and mobile scanning await unified acceptance.
+
 [Multiple identity sources and directory synchronization](./IDENTITY-SOURCES.en.md) authors named LDAP/OIDC/CAS/SAML, separate encryption/callbacks/credential revocation, complete LDAP collection, group/organization mappings, schedules/retry/abort, bilingual Web, CLI/SDK and cases. E04 is implementation-ready and unverified.
 
 [Fixed acceptance checklist and overall progress](./PROGRESS.en.md) separately counts stable SSH and the full baseline, recording closed/partial/undelivered items, batch delta and closing gates. Progress follows this checklist and named acceptance, rather than test or phase counts.

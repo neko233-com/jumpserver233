@@ -26,6 +26,41 @@ func externalService(t *testing.T) *Service {
 	return s
 }
 
+func TestEnterpriseLoginNativeKindsRequireNamedSourceAndIsolateIdentities(t *testing.T) {
+	for _, kind := range []string{"wecom", "dingtalk", "feishu"} {
+		t.Run(kind, func(t *testing.T) {
+			s := externalService(t)
+			const a = "idp-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+			const b = "idp-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+			const issuer = "synthetic-enterprise-namespace"
+			_, e := s.EnsureExternalUser(kind, issuer, "stable-subject", "", true)
+			assert.ErrorIs(t, e, ErrInvalidCredentials)
+			for _, id := range []string{a, b} {
+				s.SetNamedExternalSourceAllowed(kind, id, func(got string) bool { return got == issuer })
+			}
+			one, e := s.EnsureNamedExternalLoginUser(kind, a, issuer, "stable-subject", "", true)
+			require.NoError(t, e)
+			two, e := s.EnsureNamedExternalLoginUser(kind, b, issuer, "stable-subject", "", true)
+			require.NoError(t, e)
+			assert.NotEqual(t, one.ID, two.ID)
+			assert.Equal(t, RoleOperator, one.Role)
+			_, _, e = s.AuthenticateExternalUser(one.ID, "oidc", "")
+			assert.ErrorIs(t, e, ErrInvalidCredentials)
+			_, e = s.Authenticate(one.Username, "synthetic-password")
+			assert.ErrorIs(t, e, ErrInvalidCredentials)
+			session, _, e := s.AuthenticateExternalUser(one.ID, kind, "")
+			require.NoError(t, e)
+			require.NoError(t, s.RevokeNamedExternalSource(kind, a))
+			_, ok := s.ValidateToken(session.AccessToken)
+			assert.False(t, ok)
+			_, ok = s.ActiveUserByID(two.ID)
+			assert.True(t, ok)
+			_, e = s.EnsureNamedExternalLoginUser(kind, b, issuer, "different", "", true, func() bool { return false })
+			assert.ErrorIs(t, e, ErrInvalidCredentials)
+		})
+	}
+}
+
 func TestExternalLoginFailsWithoutProviderInitializer(t *testing.T) {
 	s := externalService(t)
 	user, err := s.EnsureOIDCUser("https://issuer.example.invalid", "subject", "", true)

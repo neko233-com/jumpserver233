@@ -17,7 +17,7 @@ var ErrExternalIdentity = errors.New("password is managed by an external identit
 var ErrExternalReauthRequired = errors.New("a recent SSO session is required")
 
 func isExternalSource(source string) bool {
-	return source == "oidc" || source == "ldap" || source == "cas" || source == "saml" || source == "radius"
+	return identityscope.Kind(source) || source == "radius"
 }
 
 func (s *Service) SetExternalIssuerAllowed(check func(string) bool) {
@@ -143,7 +143,7 @@ func (s *Service) EnsureNamedExternalLoginUser(source, id, issuer, subject, alia
 	return s.ensureExternalUser(source, id, issuer, subject, alias, provision, check)
 }
 func (s *Service) ensureExternalUser(source, sourceID, issuer, subject, alias string, provision bool, requireActive ...func() bool) (User, error) {
-	if !isExternalSource(source) || issuer == "" || subject == "" || len(issuer) > 2048 || len(subject) > 1024 {
+	if !isExternalSource(source) || identityscope.NativeKind(source) && !identityscope.ValidID(sourceID) || issuer == "" || subject == "" || len(issuer) > 2048 || len(subject) > 1024 {
 		return User{}, ErrInvalidCredentials
 	}
 	identityInput := issuer + "\x00" + subject

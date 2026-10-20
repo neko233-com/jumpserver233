@@ -26,8 +26,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/neko233-com/jumpserver233/server/internal/connector/enterpriseoauth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/caslogin"
+	"github.com/neko233-com/jumpserver233/server/internal/core/enterpriselogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/identityscope"
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/oidclogin"
@@ -85,6 +87,7 @@ type envelope struct {
 // Runtime is immutable after publication. Its enabled flag is checked without
 // acquiring registry locks while auth holds its own credential lock.
 type Runtime struct {
+	Enterprise  *enterpriselogin.Service
 	LDAP        *ldaplogin.Service
 	OIDC        *oidclogin.Service
 	CAS         *caslogin.Service
@@ -101,6 +104,8 @@ func (r *Runtime) Ready() bool {
 		return false
 	}
 	switch {
+	case r.Enterprise != nil:
+		return r.Enterprise.Available()
 	case r.LDAP != nil:
 		return r.LDAP.Snapshot().Enabled
 	case r.OIDC != nil:
@@ -117,6 +122,8 @@ func (r *Runtime) allowed(issuer string) bool {
 		return false
 	}
 	switch {
+	case r.Enterprise != nil:
+		return r.Enterprise.IssuerAllowed(issuer)
 	case r.LDAP != nil:
 		return r.LDAP.IssuerAllowed(issuer)
 	case r.OIDC != nil:
@@ -170,6 +177,8 @@ func (r *Runtime) OpenCookie(name, value string) string {
 }
 
 type Store struct {
+	enterprise      enterpriseoauth.Provider
+	closeDone       chan struct{}
 	mu              sync.Mutex
 	path, publicURL string
 	key             []byte
@@ -189,9 +198,7 @@ func prepare(in Input) (Input, error) {
 	if in.Name == "" || !validText(in.Name, 160) || in.Revision < 0 || in.Revision >= 1_000_000_000 || in.Archived && in.Enabled {
 		return in, ErrInvalid
 	}
-	switch in.Kind {
-	case "ldap", "oidc", "cas", "saml":
-	default:
+	if !identityscope.Kind(in.Kind) {
 		return in, ErrInvalid
 	}
 	return in, nil
@@ -221,7 +228,20 @@ func validate(st state) error {
 	}
 	return nil
 }
-func Open(path string, key []byte, docs *storage.Documents, publicURL string, identities *auth.Service) (*Store, error) {
+
+type Options struct{ EnterpriseProvider enterpriseoauth.Provider }
+
+func Open(path string, key []byte, docs *storage.Documents, publicURL string, identities *auth.Service, options ...Options) (*Store, error) {
+	if len(options) > 1 {
+		return nil, ErrInvalid
+	}
+	var provider enterpriseoauth.Provider
+	if len(options) == 1 {
+		provider = options[0].EnterpriseProvider
+	}
+	if provider == nil {
+		provider = enterpriseoauth.NewClient()
+	}
 	b, e := aes.NewCipher(key)
 	if e != nil {
 		return nil, e
@@ -233,7 +253,7 @@ func Open(path string, key []byte, docs *storage.Documents, publicURL string, id
 	if identities == nil {
 		return nil, ErrInvalid
 	}
-	s := &Store{path: path, publicURL: publicURL, key: slices.Clone(key), docs: docs, aead: a, auth: identities, runtimes: map[string]*Runtime{}, data: state{Sources: map[string]Source{}, Receipts: []receipt{}, Audit: []Audit{}}}
+	s := &Store{enterprise: provider, closeDone: make(chan struct{}), path: path, publicURL: publicURL, key: slices.Clone(key), docs: docs, aead: a, auth: identities, runtimes: map[string]*Runtime{}, data: state{Sources: map[string]Source{}, Receipts: []receipt{}, Audit: []Audit{}}}
 	var raw []byte
 	if docs != nil {
 		raw, e = docs.LoadOrImport("identity-sources", path)
@@ -299,6 +319,8 @@ func (s *Store) openRuntime(source Source) (*Runtime, error) {
 		r.CAS, e = caslogin.Open(path, key, docs, s.publicURL, nil, prefix)
 	case "saml":
 		r.SAML, e = samllogin.Open(path, key, docs, s.publicURL, prefix)
+	case "wecom", "dingtalk", "feishu":
+		r.Enterprise, e = enterpriselogin.Open(source.Kind, path, key, docs, s.publicURL, prefix, s.enterprise)
 	default:
 		e = ErrInvalid
 	}
@@ -471,13 +493,23 @@ func (s *Store) Audit() []Audit {
 }
 func (s *Store) Close() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.closed {
+		s.mu.Unlock()
+		<-s.closeDone
 		return
 	}
 	s.closed = true
+	children := []*enterpriselogin.Service{}
 	for _, r := range s.runtimes {
 		r.enabled.Store(false)
+		if r.Enterprise != nil {
+			children = append(children, r.Enterprise)
+		}
 	}
 	clear(s.key)
+	s.mu.Unlock()
+	for _, child := range children {
+		child.Close()
+	}
+	close(s.closeDone)
 }

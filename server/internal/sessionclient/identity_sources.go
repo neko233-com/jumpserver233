@@ -49,7 +49,7 @@ func (c *Client) IdentitySource(ctx context.Context, id string) (IdentitySource,
 }
 func (c *Client) SaveIdentitySource(ctx context.Context, id string, in IdentitySourceInput) (IdentitySource, error) {
 	var out IdentitySource
-	if id != "" && !identityscope.ValidID(id) || !slices.Contains([]string{"ldap", "oidc", "cas", "saml"}, in.Kind) || in.Name == "" || in.Revision < 0 || !identityRequest.MatchString(in.RequestID) {
+	if id != "" && !identityscope.ValidID(id) || !identityscope.Kind(in.Kind) || in.Name == "" || in.Revision < 0 || !identityRequest.MatchString(in.RequestID) {
 		return out, errors.New("invalid identity source input")
 	}
 	method, path := "POST", identitySourcesBase

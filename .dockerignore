@@ -150,3 +150,6 @@ web/testsupport
 /identity-sources/
 /server/identity-sources/
 /web/identity-sources/
+
+# Atomic writes of native enterprise identity configuration
+**/.enterprise-login-*

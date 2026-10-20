@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Enterprise QR sign-in](./docs/ENTERPRISE-LOGIN.en.md) authors native WeCom, DingTalk and Feishu/Lark flows, tenant/membership checks, MFA/audit, bilingual Web, CLI/SDK and cases. E05 awaits verification; no validation has run.
+
 [Multiple identity sources and directory synchronization](./docs/IDENTITY-SOURCES.en.md) authors named LDAP/OIDC/CAS/SAML, separate encryption/callbacks/credential revocation, complete LDAP collection, group/organization mappings, schedules/retry/abort, bilingual Web, CLI/SDK and cases. E04 is implementation-ready and unverified.
 
 [Software update checks](./docs/UPDATES.en.md) provide published stable-release checks, optional automatic checks, verified native downloads and Web/CLI/SDK access, with Linux/macOS/Windows release packaging. Controlled installation, migration and automatic rollback remain in progress.

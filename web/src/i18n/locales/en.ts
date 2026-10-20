@@ -1478,6 +1478,7 @@ const en = {
     signOut: "Sign out",
   },
   login: {
+    enterpriseError: "Enterprise sign-in failed or expired. Start again.",
     namedSource: "Sign in with {{name}}",
     username: "Username",
     password: "Password",

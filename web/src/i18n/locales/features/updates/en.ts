@@ -128,6 +128,7 @@ export default {
         credential_operations: "Credential operations",
         ssh_jobs: "Executing SSH jobs",
         directory_sync: "Directory synchronization",
+        enterprise_login: "Enterprise sign-in exchange",
         replay_archive: "Encrypted replay uploads and readback",
         probes: "Host probes",
         plan_dispatch: "Plan dispatch cycles",

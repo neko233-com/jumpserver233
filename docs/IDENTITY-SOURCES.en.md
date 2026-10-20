@@ -8,7 +8,7 @@ Go, API, bilingual Web, CLI/SDK and cases are authored, **unverified**. The comp
 
 Standalone installations use encrypted local files without another database or background service. PostgreSQL deployments reuse document storage with a separate namespace and derived encryption key per source. Identity sources are installation-wide; resource authorization remains organization-scoped.
 
-Create LDAP, OIDC, CAS or SAML sources at `/console/identity-sources`, configure the provider, then enable it. Existing default provider URLs remain compatible. A source does not merge with another source or its default provider. The same issuer/subject in two sources produces different operator identities. Display names, email addresses and role claims never link local accounts or promote users.
+Create LDAP, OIDC, CAS, SAML, WeCom, DingTalk or Feishu/Lark sources at `/console/identity-sources`, configure the provider, then enable it. See [Enterprise QR sign-in](./ENTERPRISE-LOGIN.en.md) for native application settings and membership checks. Existing default provider URLs remain compatible. A source does not merge with another source or its default provider. The same issuer/subject in two sources produces different operator identities. Display names, email addresses and role claims never link local accounts or promote users.
 
 New sources use `/api/v1/identity-sources/<source_id>` followed by the existing provider suffix:
 
