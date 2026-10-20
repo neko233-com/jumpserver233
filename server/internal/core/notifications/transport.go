@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/connector/cloudnotify"
 	"io"
 	"mime"
 	"mime/quotedprintable"
@@ -132,6 +133,17 @@ func TransportSend(ctx context.Context, v Outbound) Outcome {
 	case "email":
 		return sendSMTP(ctx, v)
 	case "webhook", "sms":
+		if v.Channel == "webhook" && cloudnotify.ChatKind(v.Settings.Webhook.Provider) {
+			_, body := titleAndBody(v)
+			out := cloudnotify.New().SendChat(ctx, v.Settings.Webhook.Provider, v.HTTPBearer, v.HTTPSecret, v.Settings.Webhook.CA, v.ID, body, v.Guard)
+			return Outcome{State: out.State, Code: out.Code, Receipt: out.Receipt}
+		}
+		if v.Channel == "sms" && cloudnotify.SMSKind(v.Settings.SMS.Provider) {
+			title, _ := titleAndBody(v)
+			fields := map[string]string{"title": title, "state": v.Message.State, "id": v.Message.Source.ID, "time": v.Message.At.UTC().Format(time.RFC3339), "link": v.Message.Link, "code": v.VerificationCode}
+			out := cloudnotify.New().SendSMS(ctx, v.Settings.SMS.Provider, v.Settings.SMS.NativeSMS, v.HTTPSecret, v.Settings.SMS.CA, v.Destination, v.ID, v.VerificationCode != "", fields, v.Guard)
+			return Outcome{State: out.State, Code: out.Code, Receipt: out.Receipt}
+		}
 		return sendHTTP(ctx, v)
 	default:
 		return Outcome{State: "failed", Code: "invalid_configuration"}

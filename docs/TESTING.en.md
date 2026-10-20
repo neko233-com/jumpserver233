@@ -2,6 +2,8 @@
 
 > [中文](./TESTING.md) | English
 
+[Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors three cloud SMS providers, CMPP 2.0, four bots, settings receipts/secret isolation, bilingual Web, CLI/SDK, protocol/permission/reopen and browser cases. E22 awaits verification. Cases reuse the TLS/CONNECT fixture and a temporary organization, with essential screenshots and repeated cleanup. No validation has run; E06 login SMS MFA remains separate.
+
 [Enterprise QR sign-in](./ENTERPRISE-LOGIN.en.md) authors three native HTTPS fixtures, Feishu/Lark v2/v3 with PKCE, tenant/membership rejection, token coalescing/refresh, code/flow/MFA replay, revision/idempotency, encrypted isolation, close/drain, PostgreSQL reopen, API/CLI and browser cases. `enterprise-login.spec.ts` reuses the OAuth fixture process and an isolated CONNECT proxy without another container; it retains two bilingual screenshots after clearing secrets. These cases have not run; fixtures do not replace actual tenants or mobile scanning.
 
 [Identity sources and directory synchronization](./IDENTITY-SOURCES.en.md) authors source/default isolation, MFA/one-time replay, original-URI signatures, disable/re-enable, derived-key isolation, actual TLS paging, nested/cyclic groups, batch provisioning, manual precedence, absence policy, schedules, drain/close, restart/abort, PostgreSQL reopen and CLI cases. `identity-sources.spec.ts` reuses the existing LDAP fixture for real login, mappings, receipt retries and bilingual 390px UI. Linux race includes the related packages and cases. Only authoring/formatting was performed; no tests, builds, browser or Docker runs.

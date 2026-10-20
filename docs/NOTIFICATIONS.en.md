@@ -2,6 +2,8 @@
 
 > English | [中文](./NOTIFICATIONS.md)
 
+[Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors Alibaba/Tencent/Huawei SMS, CMPP 2.0, WeCom/DingTalk/Feishu/Lark group bots, settings receipts, bilingual Web, CLI/SDK and cases. E22 awaits verification without tests or builds. Historical acceptance below covers previous channels; E06 login SMS MFA remains separate work.
+
 Unsuccessful terminal [SSH connectivity checks](./ACCOUNT-CHECKS.en.md) use the `account_checks` source and `security` topic for the run owner. Healthy results stay silent and do not count as rotations. Related details expose metadata and a result link only.
 
 Platform identities use independent [platform notifications and sign-in audit](./LOGIN-AUDIT.en.md). Preferences, contacts, channels, deliveries and audit are isolated from organizations and use global authority. External messages also exclude login usernames and source IP. Header unread counts combine both scopes.
@@ -28,7 +30,7 @@ The console header opens notifications with unread filtering, mark all read and 
 | SSH host alerts and recovery | monitoring.view plus current host visibility; firing messages recheck rule authority, mute, acknowledgement and state, linking directly to [monitoring details](./MONITOR-ALERTS.en.md) |
 | System test | Caller with active account and organization |
 
-Messages contain only type, resource name, state, time, ID and detail link, excluding commands, stdout/stderr, comment text, target credentials and rotation secrets. Platform sign-in reviews retain their separate global entry. Native cloud SMS/CMPP, instant messaging adapters and overall Enterprise parity remain pending.
+Messages contain only type, resource name, state, time, ID and detail link, excluding commands, stdout/stderr, comment text, target credentials and rotation secrets. Platform sign-in reviews retain their separate global entry. Native cloud SMS/CMPP and instant messaging source is described above; overall Enterprise parity remains in progress.
 
 ## Security messages and native reviews
 

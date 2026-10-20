@@ -13,6 +13,25 @@ import (
 	"testing"
 )
 
+func TestNativeNotificationCLISettingsStdinAndProviderSecretRedaction(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v1/notifications/settings", r.URL.Path)
+		var input map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&input))
+		assert.Equal(t, "native-cli-001", input["request_id"])
+		assert.Equal(t, "synthetic-provider-secret", input["sms_secret"])
+		_, _ = w.Write([]byte(`{"revision":2,"sms":{"provider":"huawei","secret_configured":true},"sms_secret":"synthetic-provider-secret","webhook_bearer":"synthetic-provider-secret"}`))
+	}))
+	defer server.Close()
+	c, e := sessionclient.New(server.URL, "synthetic-token")
+	require.NoError(t, e)
+	var out bytes.Buffer
+	body := `{"revision":1,"request_id":"native-cli-001","sms":{"provider":"huawei"},"sms_secret":"synthetic-provider-secret"}`
+	require.NoError(t, executeNotifications(t.Context(), c, []string{"settings-save", "--file", "-"}, strings.NewReader(body), &out))
+	assert.Contains(t, out.String(), "huawei")
+	assert.NotContains(t, out.String(), "synthetic-provider-secret")
+}
+
 func TestNotificationCLIAndSDKPathsCASStdinVerificationAndRedaction(t *testing.T) {
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

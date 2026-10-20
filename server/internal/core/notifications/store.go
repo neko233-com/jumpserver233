@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/neko233-com/jumpserver233/server/internal/connector/cloudnotify"
 	"io"
 	"os"
 	"path/filepath"
@@ -36,6 +37,35 @@ type config struct {
 	Settings
 	SMTPPassword, WebhookBearer, WebhookSecret, SMSBearer, SMSSecret string
 }
+type settingsReceipt struct {
+	ActorID, RequestID, Hash string
+	Result                   Settings
+}
+
+func (c config) Validate() error {
+	if c.Settings.Validate() != nil {
+		return ErrInvalid
+	}
+	if c.Webhook.Enabled && cloudnotify.ChatKind(c.Webhook.Provider) && (!botTokenValid(c.WebhookBearer) || c.Webhook.Provider == "dingtalk" && c.WebhookSecret == "") {
+		return ErrInvalid
+	}
+	if c.SMS.Enabled && cloudnotify.SMSKind(c.SMS.Provider) && (c.SMSSecret == "" || !validText(c.SMSSecret, 4096)) {
+		return ErrInvalid
+	}
+	return nil
+}
+func botTokenValid(v string) bool {
+	if len(v) < 8 || len(v) > 256 {
+		return false
+	}
+	for _, r := range v {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-') {
+			return false
+		}
+	}
+	return true
+}
+
 type delivery struct {
 	Delivery
 	Address, Code, ChallengeHash string
@@ -47,14 +77,15 @@ type cursor struct {
 	At     time.Time
 }
 type state struct {
-	Version    int
-	CreatedAt  time.Time
-	Config     config
-	Profiles   map[string]profile
-	Messages   map[string]Message
-	Deliveries map[string]delivery
-	Cursors    map[string]cursor
-	Audit      []Audit
+	SettingsReceipts []settingsReceipt
+	Version          int
+	CreatedAt        time.Time
+	Config           config
+	Profiles         map[string]profile
+	Messages         map[string]Message
+	Deliveries       map[string]delivery
+	Cursors          map[string]cursor
+	Audit            []Audit
 }
 type envelope struct {
 	Version    int    `json:"version"`
@@ -177,6 +208,11 @@ func cloneMessage(m Message) Message {
 }
 func clone(d state) state {
 	v := d
+	v.Config.Settings = cloneSettings(d.Config.Settings)
+	v.SettingsReceipts = slices.Clone(d.SettingsReceipts)
+	for i := range v.SettingsReceipts {
+		v.SettingsReceipts[i].Result = cloneSettings(v.SettingsReceipts[i].Result)
+	}
 	v.Profiles = map[string]profile{}
 	for k, p := range d.Profiles {
 		v.Profiles[k] = cloneProfile(p)
@@ -214,6 +250,14 @@ func validLink(v string) bool {
 	return len(v) <= 2048 && strings.HasPrefix(v, "/") && !strings.HasPrefix(v, "//") && validText(v, 2048) && !strings.Contains(v, "\\")
 }
 func validate(d state) error {
+	if len(d.SettingsReceipts) > 2000 {
+		return ErrInvalid
+	}
+	for _, r := range d.SettingsReceipts {
+		if !idPattern.MatchString(r.ActorID) || !idPattern.MatchString(r.RequestID) || !validHash(r.Hash) || r.Result.Validate() != nil {
+			return ErrInvalid
+		}
+	}
 	if d.Version != 1 || d.CreatedAt.IsZero() || d.Config.Revision < 1 || d.Config.Validate() != nil || d.Profiles == nil || d.Messages == nil || d.Deliveries == nil || d.Cursors == nil || len(d.Messages) > MaxMessages || len(d.Deliveries) > MaxDeliveries || len(d.Audit) > MaxAudit || len(d.Cursors) > 16 || len(d.Profiles) > 20000 {
 		return ErrInvalid
 	}

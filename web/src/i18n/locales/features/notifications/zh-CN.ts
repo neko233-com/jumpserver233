@@ -1,5 +1,39 @@
 export default {
   notifications: {
+    native: {
+      provider: "提供方",
+      providers: {
+        custom: "自定义 HTTPS 网关",
+        aliyun: "阿里云短信",
+        tencent: "腾讯云短信",
+        huawei: "华为云短信",
+        cmpp: "CMPP 2.0（TLS）",
+        wecom: "企微群机器人",
+        dingtalk: "钉钉群机器人",
+        feishu: "飞书群机器人",
+        lark: "Lark 群机器人",
+      },
+      smsHint:
+        "使用已审核的验证码和通知模板。参数按顺序填写字段名：验证码为 code；通知可用 title、state、id、time、link。秘密只写；切换提供方会清除旧凭据。",
+      chatHint:
+        "在 Bearer 令牌中填写机器人 key、access token 或 hook ID，下方填写签名秘密。通知发送至指定群，仅含元数据；钉钉必须填写签名秘密。",
+      fields: {
+        access_key_id: "AccessKey / 应用 Key / CMPP 源 ID",
+        region: "地域",
+        app_id: "短信 SDK 应用 ID",
+        endpoint: "应用 / TLS 网关地址",
+        sender: "发送方 / 通道号码",
+        service_id: "CMPP 业务 ID",
+        sign_name: "已审核的签名名称",
+      },
+      verification: "验证码模板",
+      notification: "通知模板",
+      templateID: "已审核的模板 ID",
+      templateText: "CMPP 正文模板，可使用 {字段} 占位符",
+      parameters: "按顺序填写参数字段，空格分隔",
+      cmppHint:
+        "CMPP 2.0 使用校验证书的 TLS 网关与六位源 ID，仅支持中国大陆手机号。单条 UCS-2（含签名）最多 70 字，不自动拆分或重发。",
+    },
     platformTitle: "平台通知",
     platformHint: "平台登录、新来源、连续失败及登录复核。",
     scopeSwitcher: "通知范围",

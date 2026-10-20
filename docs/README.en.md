@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors three cloud SMS providers, CMPP 2.0, four bots, settings receipts/secret isolation, bilingual Web, CLI/SDK, protocol/permission/reopen and browser cases. E22 awaits verification. Cases reuse the TLS/CONNECT fixture and a temporary organization, with essential screenshots and repeated cleanup. No validation has run; E06 login SMS MFA remains separate.
+
 [Enterprise QR sign-in](./ENTERPRISE-LOGIN.en.md): native WeCom, DingTalk and Feishu/Lark protocols, tenant/membership checks, MFA/review/audit, bilingual administration and CLI/SDK. Code and cases are authored; E05 awaits verification, including actual tenants and mobile scanning.
 
 [Multiple identity sources and directory synchronization](./IDENTITY-SOURCES.en.md) authors named LDAP/OIDC/CAS/SAML, separate encryption/callbacks/credential revocation, complete LDAP collection, group/organization mappings, schedules/retry/abort, bilingual Web, CLI/SDK and cases. E04 is implementation-ready and unverified.

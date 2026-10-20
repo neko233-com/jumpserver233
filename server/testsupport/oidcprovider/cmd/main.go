@@ -38,6 +38,10 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"ca_pem": enterprise.CAPEM})
 	})
+	mux.HandleFunc("GET /enterprise/notifications", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(enterprise.NotificationCaptures())
+	})
 	for _, kind := range []string{"wecom", "dingtalk", "feishu"} {
 		mux.HandleFunc("GET /enterprise/authorize/"+kind, func(w http.ResponseWriter, r *http.Request) { enterprise.Authorize(w, r, kind) })
 	}

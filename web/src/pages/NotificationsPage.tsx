@@ -3,6 +3,10 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
+import NativeNotificationFields, {
+  nativeChannel,
+  type NativeChannel,
+} from "../components/NativeNotificationFields";
 import "../i18n/locales/features/notifications/register";
 import "./rotation-plans.css";
 import "./notifications.css";
@@ -52,13 +56,7 @@ type SMTP = {
   ca: string;
   password_configured: boolean;
 };
-type HTTPChannel = {
-  enabled: boolean;
-  url: string;
-  ca: string;
-  bearer_configured: boolean;
-  secret_configured: boolean;
-};
+type HTTPChannel = NativeChannel;
 type Settings = { revision: number; smtp: SMTP; webhook: HTTPChannel; sms: HTTPChannel };
 type Audit = {
   at: string;
@@ -125,6 +123,7 @@ export default function NotificationsPage({ platform = false }: { platform?: boo
     [notice, setNotice] = useState(""),
     [version, setVersion] = useState(0);
   const [dirty, setDirty] = useState(false);
+  const settingsOperation = useRef<{ body: string; id: string } | null>(null);
   const life = useRef<AbortController | null>(null),
     sequence = useRef(0),
     confirmFocus = useRef<HTMLButtonElement | null>(null);
@@ -695,7 +694,17 @@ export default function NotificationsPage({ platform = false }: { platform?: boo
               const fields: Record<string, string> = {};
               for (const [k, v] of Object.entries(secrets)) if (v) fields[k] = v;
               for (const [k, v] of Object.entries(clear)) if (v) fields[k] = "";
-              setSettings(await request<Settings>("settings", "PUT", { ...settings, ...fields }));
+              const payload = { ...settings, ...fields };
+              const body = JSON.stringify(payload);
+              if (settingsOperation.current?.body !== body)
+                settingsOperation.current = { body, id: crypto.randomUUID() };
+              setSettings(
+                await request<Settings>("settings", "PUT", {
+                  ...payload,
+                  request_id: settingsOperation.current.id,
+                }),
+              );
+              settingsOperation.current = null;
               setSecrets({});
               setClear({});
               setDirty(false);
@@ -807,28 +816,52 @@ export default function NotificationsPage({ platform = false }: { platform?: boo
                 />
                 {t("notifications.enabled")}
               </label>
-              <label>
-                {t("notifications.url")}
-                <input
-                  type="url"
-                  value={settings[channel].url}
-                  maxLength={2048}
-                  onChange={(e) =>
-                    editSettings({ [channel]: { ...settings[channel], url: e.target.value } })
-                  }
-                />
-              </label>
-              {(["bearer", "secret"] as const).map((kind) => (
-                <Secret
-                  key={kind}
-                  name={`${channel}_${kind}`}
-                  configured={settings[channel][`${kind}_configured`]}
-                  value={secrets[`${channel}_${kind}`] || ""}
-                  clear={clear[`${channel}_${kind}`] || false}
-                  change={(v) => setSecrets((s) => ({ ...s, [`${channel}_${kind}`]: v }))}
-                  clearChange={(v) => setClear((s) => ({ ...s, [`${channel}_${kind}`]: v }))}
-                />
-              ))}
+              <NativeNotificationFields
+                channel={channel}
+                value={settings[channel]}
+                change={(v) => editSettings({ [channel]: v })}
+                providerChange={() => {
+                  setSecrets((s) => ({
+                    ...s,
+                    [`${channel}_bearer`]: "",
+                    [`${channel}_secret`]: "",
+                  }));
+                  setClear((s) => ({
+                    ...s,
+                    [`${channel}_bearer`]: false,
+                    [`${channel}_secret`]: false,
+                  }));
+                }}
+              />
+              {!nativeChannel(settings[channel]) && (
+                <label>
+                  {t("notifications.url")}
+                  <input
+                    type="url"
+                    value={settings[channel].url}
+                    maxLength={2048}
+                    onChange={(e) =>
+                      editSettings({ [channel]: { ...settings[channel], url: e.target.value } })
+                    }
+                  />
+                </label>
+              )}
+              {(["bearer", "secret"] as const)
+                .filter(
+                  (kind) =>
+                    !(channel === "sms" && nativeChannel(settings[channel]) && kind === "bearer"),
+                )
+                .map((kind) => (
+                  <Secret
+                    key={kind}
+                    name={`${channel}_${kind}`}
+                    configured={settings[channel][`${kind}_configured`]}
+                    value={secrets[`${channel}_${kind}`] || ""}
+                    clear={clear[`${channel}_${kind}`] || false}
+                    change={(v) => setSecrets((s) => ({ ...s, [`${channel}_${kind}`]: v }))}
+                    clearChange={(v) => setClear((s) => ({ ...s, [`${channel}_${kind}`]: v }))}
+                  />
+                ))}
               <label>
                 {t("notifications.ca")}
                 <textarea

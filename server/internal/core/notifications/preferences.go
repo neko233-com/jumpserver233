@@ -3,7 +3,10 @@ package notifications
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"slices"
@@ -13,8 +16,15 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/eventfeed"
 )
 
+func cloneSettings(s Settings) Settings {
+	s.SMS.NativeSMS.Verification.Parameters = slices.Clone(s.SMS.NativeSMS.Verification.Parameters)
+	s.SMS.NativeSMS.Notification.Parameters = slices.Clone(s.SMS.NativeSMS.Notification.Parameters)
+	s.Webhook.NativeSMS.Verification.Parameters = slices.Clone(s.Webhook.NativeSMS.Verification.Parameters)
+	s.Webhook.NativeSMS.Notification.Parameters = slices.Clone(s.Webhook.NativeSMS.Notification.Parameters)
+	return s
+}
 func publicSettings(c config) Settings {
-	out := c.Settings
+	out := cloneSettings(c.Settings)
 	out.SMTP.PasswordConfigured = c.SMTPPassword != ""
 	out.Webhook.BearerConfigured = c.WebhookBearer != ""
 	out.Webhook.SecretConfigured = c.WebhookSecret != ""
@@ -42,13 +52,44 @@ func (s *Service) SaveSettings(ctx context.Context, id string, in SettingsInput)
 	if !p.CanManage {
 		return Settings{}, ErrDenied
 	}
+	if in.RequestID != "" && !idPattern.MatchString(in.RequestID) {
+		return Settings{}, ErrInvalid
+	}
+	raw, e := json.Marshal(in)
+	if e != nil {
+		return Settings{}, ErrInvalid
+	}
+	digest := sha256.Sum256(raw)
+	hash := hex.EncodeToString(digest[:])
 	var out Settings
 	e = s.mutate(func(d *state) error {
+		if in.RequestID != "" {
+			for _, r := range d.SettingsReceipts {
+				if r.ActorID == id && r.RequestID == in.RequestID {
+					if r.Hash != hash {
+						return ErrConflict
+					}
+					out = cloneSettings(r.Result)
+					return nil
+				}
+			}
+			if len(d.SettingsReceipts) >= 2000 {
+				return ErrCapacity
+			}
+		}
 		if d.Config.Revision != in.Revision {
 			return ErrConflict
 		}
 		next := d.Config
-		next.Settings = Settings{Revision: in.Revision + 1, SMTP: in.SMTP, Webhook: in.Webhook, SMS: in.SMS}
+		next.Settings = cloneSettings(Settings{Revision: in.Revision + 1, SMTP: in.SMTP, Webhook: in.Webhook, SMS: in.SMS})
+		if d.Config.Webhook.Provider != in.Webhook.Provider {
+			next.WebhookBearer = ""
+			next.WebhookSecret = ""
+		}
+		if d.Config.SMS.Provider != in.SMS.Provider {
+			next.SMSBearer = ""
+			next.SMSSecret = ""
+		}
 		for _, pair := range []struct {
 			input  *string
 			value  *string
@@ -68,6 +109,9 @@ func (s *Service) SaveSettings(ctx context.Context, id string, in SettingsInput)
 		}
 		d.Config = next
 		out = publicSettings(next)
+		if in.RequestID != "" {
+			d.SettingsReceipts = append(d.SettingsReceipts, settingsReceipt{ActorID: id, RequestID: in.RequestID, Hash: hash, Result: cloneSettings(out)})
+		}
 		audit(d, Audit{At: s.now().UTC(), Actor: p.Actor, Action: "settings_saved"})
 		return nil
 	})

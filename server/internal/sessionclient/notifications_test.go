@@ -10,6 +10,29 @@ import (
 	"testing"
 )
 
+func TestNativeNotificationSDKPreservesProviderAndDropsUnrecognizedSecretFields(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		assert.Equal(t, "PUT", r.Method)
+		var input map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&input))
+		assert.Equal(t, "sdk-native-settings-001", input["request_id"])
+		_, _ = w.Write([]byte(`{"revision":2,"sms":{"provider":"tencent","secret_configured":true,"sms_secret":"synthetic-hidden","native_sms":{"access_key_id":"synthetic-id","verification":{"id":"verify","parameters":["code"]}}},"webhook":{"provider":"wecom","bearer_configured":true,"token":"synthetic-hidden"},"webhook_secret":"synthetic-hidden"}`))
+	}))
+	defer srv.Close()
+	c, e := New(srv.URL, "synthetic-token")
+	require.NoError(t, e)
+	out, e := c.SaveNotificationSettings(t.Context(), NotificationSettingsInput{Revision: 1, RequestID: "sdk-native-settings-001"})
+	require.NoError(t, e)
+	assert.Equal(t, "tencent", out.SMS.Provider)
+	assert.Equal(t, "wecom", out.Webhook.Provider)
+	raw, e := json.Marshal(out)
+	require.NoError(t, e)
+	assert.NotContains(t, string(raw), "synthetic-hidden")
+	assert.Equal(t, 1, calls)
+}
+
 func TestNotificationSourceSDKScopesValidatesAndDecodesOnlyDTO(t *testing.T) {
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

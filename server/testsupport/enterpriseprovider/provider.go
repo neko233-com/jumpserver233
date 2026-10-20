@@ -39,21 +39,22 @@ const WeComSubject = "wecom.operator"
 const DingSubject = "ding-union-operator"
 const FeishuSubject = "ou_synthetic_operator"
 
-var hosts = []string{"qyapi.weixin.qq.com", "login.work.weixin.qq.com", "api.dingtalk.com", "oapi.dingtalk.com", "login.dingtalk.com", "open.feishu.cn", "accounts.feishu.cn", "open.larksuite.com", "accounts.larksuite.com"}
+var hosts = []string{"qyapi.weixin.qq.com", "login.work.weixin.qq.com", "api.dingtalk.com", "oapi.dingtalk.com", "login.dingtalk.com", "open.feishu.cn", "accounts.feishu.cn", "open.larksuite.com", "accounts.larksuite.com", "dysmsapi.aliyuncs.com", "sms.tencentcloudapi.com", "smsapi.cn-north-4.myhuaweicloud.com"}
 
 type claim struct{ Kind, Client, Callback, Challenge, Scenario string }
 type Server struct {
-	CAPEM       string
-	TLS         *httptest.Server
-	mu          sync.Mutex
-	codes       map[string]claim
-	users       map[string]claim
-	connections map[net.Conn]bool
-	proxy       sync.WaitGroup
-	closed      bool
-	AppTokens   atomic.Int32
-	Exchanges   atomic.Int32
-	Requests    atomic.Int32
+	notifications []NotificationCapture
+	CAPEM         string
+	TLS           *httptest.Server
+	mu            sync.Mutex
+	codes         map[string]claim
+	users         map[string]claim
+	connections   map[net.Conn]bool
+	proxy         sync.WaitGroup
+	closed        bool
+	AppTokens     atomic.Int32
+	Exchanges     atomic.Int32
+	Requests      atomic.Int32
 }
 
 func New() (*Server, error) {
@@ -212,6 +213,9 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	s.Requests.Add(1)
 	if !official(strings.Split(r.Host, ":")[0]) {
 		http.NotFound(w, r)
+		return
+	}
+	if s.serveNativeNotification(w, r) {
 		return
 	}
 	in := map[string]string{}

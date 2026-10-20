@@ -1,5 +1,39 @@
 export default {
   notifications: {
+    native: {
+      provider: "Provider",
+      providers: {
+        custom: "Custom HTTPS gateway",
+        aliyun: "Alibaba Cloud SMS",
+        tencent: "Tencent Cloud SMS",
+        huawei: "Huawei Cloud SMS",
+        cmpp: "CMPP 2.0 over TLS",
+        wecom: "WeCom group bot",
+        dingtalk: "DingTalk group bot",
+        feishu: "Feishu group bot",
+        lark: "Lark group bot",
+      },
+      smsHint:
+        "Use approved verification and notification templates. Parameters are ordered field names: code for verification; title, state, id, time and link for notifications. Secrets stay write-only. Changing providers clears old credentials.",
+      chatHint:
+        "Enter the bot key, access token or hook ID in Bearer token, and its signing secret below. Messages go to the configured group and contain metadata only. DingTalk requires a signing secret.",
+      fields: {
+        access_key_id: "Access key / application key / CMPP source ID",
+        region: "Region",
+        app_id: "SMS SDK application ID",
+        endpoint: "Application / TLS gateway endpoint",
+        sender: "Sender / source number",
+        service_id: "CMPP service ID",
+        sign_name: "Approved signature name",
+      },
+      verification: "Verification template",
+      notification: "Notification template",
+      templateID: "Approved template ID",
+      templateText: "CMPP text template with {field} placeholders",
+      parameters: "Ordered parameter fields, separated by spaces",
+      cmppHint:
+        "CMPP 2.0 requires a certificate-verified TLS gateway and a six-digit source ID. Mainland China destinations only. One UCS-2 message, including signature, is limited to 70 characters. No automatic split or retransmission.",
+    },
     platformTitle: "Platform notifications",
     platformHint: "Platform sign-in, source changes, repeated failures and sign-in reviews.",
     scopeSwitcher: "Notification scope",

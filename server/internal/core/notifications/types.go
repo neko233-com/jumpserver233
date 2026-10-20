@@ -14,6 +14,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/neko233-com/jumpserver233/server/internal/connector/cloudnotify"
 	"github.com/neko233-com/jumpserver233/server/internal/core/eventfeed"
 )
 
@@ -136,11 +137,13 @@ type SMTP struct {
 	PasswordConfigured bool   `json:"password_configured"`
 }
 type HTTPChannel struct {
-	Enabled          bool   `json:"enabled"`
-	URL              string `json:"url"`
-	CA               string `json:"ca"`
-	BearerConfigured bool   `json:"bearer_configured"`
-	SecretConfigured bool   `json:"secret_configured"`
+	Provider         string                `json:"provider,omitempty"`
+	NativeSMS        cloudnotify.SMSConfig `json:"native_sms"`
+	Enabled          bool                  `json:"enabled"`
+	URL              string                `json:"url"`
+	CA               string                `json:"ca"`
+	BearerConfigured bool                  `json:"bearer_configured"`
+	SecretConfigured bool                  `json:"secret_configured"`
 }
 type Settings struct {
 	Revision int         `json:"revision"`
@@ -149,6 +152,7 @@ type Settings struct {
 	SMS      HTTPChannel `json:"sms"`
 }
 type SettingsInput struct {
+	RequestID     string      `json:"request_id,omitempty"`
 	Revision      int         `json:"revision"`
 	SMTP          SMTP        `json:"smtp"`
 	Webhook       HTTPChannel `json:"webhook"`
@@ -240,10 +244,19 @@ func (s Settings) Validate() error {
 			return ErrInvalid
 		}
 	}
-	for _, v := range []HTTPChannel{s.Webhook, s.SMS} {
-		if v.Enabled && !validEndpoint(v.URL) {
+	if v := s.Webhook; v.Provider != "" && v.Provider != "custom" {
+		if !cloudnotify.ChatKind(v.Provider) || v.URL != "" {
 			return ErrInvalid
 		}
+	} else if v.Enabled && !validEndpoint(v.URL) {
+		return ErrInvalid
+	}
+	if v := s.SMS; v.Provider != "" && v.Provider != "custom" {
+		if !cloudnotify.SMSKind(v.Provider) || v.URL != "" || v.Enabled && cloudnotify.ValidateSMS(v.Provider, v.NativeSMS) != nil {
+			return ErrInvalid
+		}
+	} else if v.Enabled && !validEndpoint(v.URL) {
+		return ErrInvalid
 	}
 	return nil
 }

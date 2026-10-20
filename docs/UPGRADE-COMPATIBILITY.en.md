@@ -19,6 +19,7 @@ The first formal stable release establishes the published-version baseline. Each
 | Jobs | Encrypted envelopes 1–6; directory proofs require v6 | New JSON fields in old formats cannot enable directory execution semantics |
 | Batch/schedules/Playbooks | Encrypted envelopes 1–5; nonempty directory snapshots require v5; native Playbooks require v4+ | Read valid original v1–v4 records; reject directory fields in those versions; normal mutations write v5 |
 | Full-site backup | Archive format 1, integrity and Vault-key binding | Wrong passphrases, unknown formats, unsafe paths or corrupt archives do not overwrite business data |
+| Native enterprise notifications | Existing notification envelope 1 gains provider configuration and encrypted settings receipts; new code reads older documents with these fields omitted | Older programs are not guaranteed to read new fields; downgrade requires the pre-upgrade data snapshot without deleting new configuration or receipts |
 | Downgrade | Managed installations reject downgrade, different builds of the same version and data-directory rebinding | Restore the old checkpoint before activation; retain new data and repair forward after activation |
 
 Old programs generally cannot read new formats. Replacing only executable files is insufficient for rollback. After operation directories first write v5, returning to a v4-only program requires its matching old checkpoint; old software must not silently ignore directories and execute.

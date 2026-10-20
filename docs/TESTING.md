@@ -2,6 +2,8 @@
 
 > 中文 | [English](./TESTING.en.md)
 
+[原生云短信与企业机器人](./NATIVE-NOTIFICATIONS.md)已编写三类云短信、CMPP 2.0、四类群机器人、配置幂等/秘密隔离、中英 Web、CLI/SDK、协议/权限/重开及浏览器用例，E22 实现待验。复用既有 TLS/CONNECT 夹具与临时组织，仅保留必要截图并重复清理；未执行验证。E06 登录短信 MFA 独立补齐。
+
 [企业扫码登录](./ENTERPRISE-LOGIN.md)已编写三个厂商真实 HTTPS 协议夹具、Feishu/Lark v2/v3 与 PKCE、租户/成员拒绝、令牌并发/刷新、授权码/流程/MFA 重放、修订/幂等、加密隔离、关闭排空、PostgreSQL 重开、API/CLI 与浏览器用例。`enterprise-login.spec.ts` 复用现有 OAuth 夹具进程及隔离 CONNECT 代理，不新增容器；仅保留秘密清空后的两张中英截图。全部仅编写，未运行；实际租户/手机扫码不由夹具替代。
 
 [多身份源与目录同步](./IDENTITY-SOURCES.md)已编写跨源/默认源、MFA/单次重放、原 URI 签名、停用/恢复、派生密钥隔离、真实 TLS 分页、嵌套组/循环、批量建号、人工授权优先、缺失策略、计划、排空/关闭、重启/中止、PostgreSQL 重开和 CLI 用例。`identity-sources.spec.ts` 复用现有 LDAP 夹具，覆盖实际登录、同步映射、回执重试与中英 390px；Linux race 入口已纳入相关包和用例。仅编写与格式整理，未执行测试、构建、浏览器或 Docker。

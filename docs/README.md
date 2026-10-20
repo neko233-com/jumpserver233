@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[原生云短信与企业机器人](./NATIVE-NOTIFICATIONS.md)已编写三类云短信、CMPP 2.0、四类群机器人、配置幂等/秘密隔离、中英 Web、CLI/SDK、协议/权限/重开及浏览器用例，E22 实现待验。复用既有 TLS/CONNECT 夹具与临时组织，仅保留必要截图并重复清理；未执行验证。E06 登录短信 MFA 独立补齐。
+
 [企业扫码登录](./ENTERPRISE-LOGIN.md)：企微、钉钉、飞书/Lark 原生协议、企业/成员校验、MFA/复核/审计、中英管理与 CLI/SDK；代码和用例已编写，E05 实现待验，真实租户与手机扫码尚未验证。
 
 [多身份源与目录同步](./IDENTITY-SOURCES.md)已编写具名 LDAP/OIDC/CAS/SAML、独立加密/回调/凭据撤销、LDAP 完整采集、组/组织映射、计划/重试/中止、中英 Web、CLI/SDK 与用例；E04 实现待验，未启动验证。
