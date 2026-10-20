@@ -495,6 +495,8 @@ try {
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext({ locale: "en-US", viewport: { width: 1280, height: 900 } });
+    context.setDefaultTimeout(10000);
+    context.setDefaultNavigationTimeout(15000);
     const page = await context.newPage(), errors = [], httpFailures = [], diagnostics = { anonymous_session_probe: 0, headless_gpu_readback: 0 };
 	page.on("response", response => { if(response.status()>=400) { const path=new URL(response.url()).pathname; if (!(response.status()===401 && path==="/api/v1/authentication/session/" && report.browserLoginStatus!==200)) httpFailures.push({method:response.request().method(),path,status:response.status()}); } });
     page.on("pageerror", e => errors.push(e.message));

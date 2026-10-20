@@ -116,7 +116,8 @@ export async function verifyOperationDirectoryBrowser({page, expect, url, api, a
   if (planResponse.status() !== 201) throw Error("Browser directory plan creation failed");
   const plan = await planResponse.json();
   if (plan.asset_ids.length !== 1 || plan.asset_ids[0] !== host || plan.working_directory !== directory) throw Error("Browser plan lost selected host or saved directory");
-  const row = panel.locator("table").first().getByRole("row").filter({hasText: name});
+  const row = panel.locator(":scope > div > .jobs-table-scroll > table.jobs-table").first().getByRole("row").filter({hasText: name});
+  await expect(row).toBeVisible({timeout: 10000});
   await expect(row).toContainText(directory);
   await row.screenshot({path: resolve(output, "execution.en.png")});
   await expect.poll(async () => (await api("GET", `/api/v1/ops/plans/${plan.id}`, undefined, admin)).last_run_id).not.toBe("");
@@ -128,7 +129,7 @@ export async function verifyOperationDirectoryBrowser({page, expect, url, api, a
   await page.getByRole("button", {name: "中文", exact: true}).click();
   await page.setViewportSize({width: 390, height: 844});
   await expect(panel.getByLabel("执行目录（可选）", {exact: true})).toHaveValue(directory);
-  const form = panel.locator("form.operations-form");
+  const form = panel.locator(":scope > div > form.operations-form");
   await form.screenshot({path: resolve(output, "execution.zh.png")});
   const box = await form.boundingBox();
   if (!box || box.x < 0 || box.x + box.width > 392) throw Error("Operation directory form overflows mobile viewport");
