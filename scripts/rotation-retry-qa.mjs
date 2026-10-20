@@ -10,6 +10,7 @@ async function verifySSH(api,admin,id){const job=await api("POST","/api/v1/ops/j
 export async function verifyRotationRetry({page,context,expect,api,admin,target,output,run,owner,sshHost,fingerprint,operator}){
  const name="Native selective retry",makeAsset=async label=>api("POST","/api/v1/assets",{name:label,host:sshHost,port:22,username:"rotationha",password:"synthetic-keyhost-password-233",host_key_fingerprint:fingerprint},admin,201);
  const bad=await makeAsset("Retry SSH account"),alias=await makeAsset("Retry SSH alias");
+ const readAsset=async id=>{const rows=await api("GET","/api/v1/assets",undefined,admin);const found=rows.find(row=>row.id===id);if(!found)throw Error("Retry asset is absent from authoritative inventory");return found};
  const plan=await api("POST",base+"plans",{name,kind:"manual",targets:[{account_id:target.id},{account_id:bad.id},{account_id:alias.id}]},admin,201);
  const sudo=async enabled=>run("docker",["exec",sshHost,"sh","-ceu",enabled?"printf '%s\\n' 'rotationha ALL=(root) NOPASSWD: /usr/sbin/chpasswd' >>/etc/sudoers.d/qa-password-rotation":"sed -i '/^rotationha /d' /etc/sudoers.d/qa-password-rotation"]);
  const parents=[],children=[];
@@ -18,7 +19,7 @@ export async function verifyRotationRetry({page,context,expect,api,admin,target,
    await sudo(false);
    const submitted=await api("POST",base+`plans/${plan.id}/runs`,{request_id:randomUUID()},admin,202),parent=await finished(api,admin,submitted.id);
    if(parent.state!=="partial"||parent.items.find(i=>i.account_id===target.id)?.state!=="succeeded"||parent.items.filter(i=>i.state==="failed").length!==2)throw Error("Retry fixture did not produce independent success and linked failures");
-   const good=await api("GET","/api/v1/assets/"+target.id,undefined,admin),goodRevision=good.credential_revision;
+   const good=await readAsset(target.id),goodRevision=good.credential_revision;
    if(!Number.isSafeInteger(goodRevision)||goodRevision<1)throw Error("Successful credential has no authoritative revision");
    await sudo(true);
    await page.reload();await page.getByRole("row").filter({hasText:name}).getByRole("button",{name:"Latest result",exact:true}).click();
@@ -30,7 +31,7 @@ export async function verifyRotationRetry({page,context,expect,api,admin,target,
    if(response.status()!==202)throw Error("Browser retry submission failed");const input=response.request().postDataJSON(),created=await response.json(),child=await finished(api,admin,created.id);
    if(child.state!=="succeeded"||child.parent_run_id!==parent.id||child.items.length!==2||child.items.some(i=>i.account_id===target.id||!i.source_item_id))throw Error("Retry did not isolate unsuccessful aliases");
    await expect(detail.getByRole("status")).toHaveText("Succeeded",{timeout:45000});
-   const after=await api("GET","/api/v1/assets/"+target.id,undefined,admin);if(after.credential_revision!==goodRevision)throw Error("Retry changed an already successful credential");
+   const after=await readAsset(target.id);if(after.credential_revision!==goodRevision)throw Error("Retry changed an already successful credential");
    const endpoint=new URL(base+`runs/${parent.id}/retry`,page.url()).href;
    const replay=await context.request.post(endpoint,{data:input});if(replay.status()!==202||(await replay.json()).id!==child.id)throw Error("Retry request replay created another run");
    await api("POST",base+`runs/${parent.id}/retry`,{...input,request_id:randomUUID()},admin,409);
