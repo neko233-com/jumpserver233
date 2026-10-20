@@ -79,7 +79,8 @@ export default {
           "This policy/digest has already been attempted. Inspect installation results before authorizing another policy revision.",
       },
       failures: {
-        attempt_limit: "The current policy reached its attempt limit. Inspect results and save an explicit new revision.",
+        attempt_limit:
+          "The current policy reached its attempt limit. Inspect results and save an explicit new revision.",
         authorization:
           "The supervisor cannot authorize its own child. Check the persistent platform credential and loopback URL.",
         network: "The official release service was unavailable. The running service was retained.",
@@ -126,6 +127,7 @@ export default {
         asset_cycles: "Inventory monitor cycles",
         credential_operations: "Credential operations",
         ssh_jobs: "Executing SSH jobs",
+        replay_archive: "Encrypted replay uploads and readback",
         probes: "Host probes",
         plan_dispatch: "Plan dispatch cycles",
         terminal_sessions: "Terminal sessions and tickets",

@@ -69,6 +69,11 @@ func reserved(name string) bool {
 	return strings.EqualFold(name, manifestName) || strings.EqualFold(name, receiptName) || strings.EqualFold(strings.SplitN(name, "/", 2)[0], controlName)
 }
 
+func replayCacheDirectory(name string) bool {
+	parts := strings.Split(name, "/")
+	return strings.EqualFold(parts[0], "replay-cache") || len(parts) >= 3 && strings.EqualFold(parts[0], "organizations") && strings.EqualFold(parts[2], "replay-cache")
+}
+
 // Case aliases of the actual control directory are valid on Windows/macOS.
 // A distinct directory with the same folded name on Linux cannot be portable.
 func actualControl(dataDir, name string) bool {
@@ -302,6 +307,14 @@ func CreateLocked(ctx context.Context, opt Options, lock *Lock) (result Result, 
 		}
 		if name == "." {
 			return nil
+		}
+		// New exports omit disposable ciphertext copies. Existing archives keep
+		// their original manifest semantics and are still accepted on import.
+		if replayCacheDirectory(name) {
+			if !d.IsDir() || d.Type()&os.ModeSymlink != 0 {
+				return ErrInvalid
+			}
+			return fs.SkipDir
 		}
 		if strings.EqualFold(name, controlName) {
 			if !actualControl(lock.DataDir, name) {

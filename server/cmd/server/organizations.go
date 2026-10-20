@@ -439,6 +439,10 @@ func (r *organizationRuntimes) get(id string) (*organizationRuntime, error) {
 			return nil, e
 		}
 		d.Assets.SetSSHCertificates(d.SSHCertificates)
+		if e = openReplayArchive(&d, orgPath, orgKey, docs); e != nil {
+			r.stop(&organizationRuntime{d: d}, false)
+			return nil, e
+		}
 	}
 	runtime := &organizationRuntime{d: d, handler: api.NewRouter(r.cfg.Version, d)}
 	if id != organizations.DefaultID && !r.suspended {
@@ -540,6 +544,9 @@ func (r *organizationRuntimes) stop(current *organizationRuntime, abandon bool) 
 	if current.d.Desktops != nil {
 		current.d.Desktops.CloseAll()
 	}
+	if current.d.ReplayArchive != nil {
+		current.d.ReplayArchive.Close()
+	}
 	if current.done != nil {
 		<-current.done
 	}
@@ -617,6 +624,13 @@ func (r *organizationRuntimes) start(runtime *organizationRuntime) error {
 	d.Tickets.Start(ctx)
 	d.Notifications.Start(ctx)
 	d.MonitorAlerts.Start(ctx)
+	if d.ReplayArchive != nil {
+		if e := d.ReplayArchive.Start(ctx); e != nil {
+			cancel()
+			runtime.done = nil
+			return e
+		}
+	}
 	go func() { defer close(runtime.done); d.Assets.Run(ctx, r.cfg.MonitorInterval) }()
 	return nil
 }

@@ -189,7 +189,7 @@ func (r *Recordings) prepareDesktop(ctx context.Context, id string) (SeekCloser,
 			return nil, ErrIntegrity
 		}
 		total += int64(len(data))
-		if total > replaystore.MaxObjectBytes-(8<<20) {
+		if total > recorder.MaxDesktopBytes+128 {
 			_ = writer.Close()
 			return nil, ErrCapacity
 		}

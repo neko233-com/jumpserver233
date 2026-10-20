@@ -17,11 +17,13 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/kubeclient"
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandalerts"
+	"github.com/neko233-com/jumpserver233/server/internal/core/replayarchive"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionshares"
 	"github.com/neko233-com/jumpserver233/server/internal/recorder"
@@ -152,6 +154,7 @@ type activeSession struct {
 // Broker owns live SSH PTYs, short-lived single-use WebSocket tickets, and
 // asciinema session recordings.
 type Broker struct {
+	archive        atomic.Pointer[replayarchive.Store]
 	open           OpenFunc
 	dataDir        string
 	vaultKey       []byte
@@ -366,6 +369,9 @@ func (b *Broker) listSessions(operatorID *string, offset, limit int) ([]SessionR
 // validated before being used to form a recording path, and only an ended
 // session from the audit index can be replayed.
 func (b *Broker) OpenReplay(id string) (io.ReadCloser, error) {
+	return b.OpenReplayContext(context.Background(), id)
+}
+func (b *Broker) OpenReplayContext(ctx context.Context, id string) (io.ReadCloser, error) {
 	if !validSessionID(id) {
 		return nil, ErrSessionNotFound
 	}
@@ -380,7 +386,14 @@ func (b *Broker) OpenReplay(id string) (io.ReadCloser, error) {
 		if record.Status != "ended" || !record.ReplayAvailable {
 			return nil, ErrReplayUnavailable
 		}
-		return recorder.OpenReplay(filepath.Join(b.dataDir, "sessions", id+".json.gz.enc"), id, b.vaultKey)
+		local, e := recorder.OpenReplay(filepath.Join(b.dataDir, "sessions", id+".json.gz.enc"), id, b.vaultKey)
+		if !errors.Is(e, os.ErrNotExist) {
+			return local, e
+		}
+		if archive := b.replayArchive(); archive != nil {
+			return archive.OpenReplay(ctx, id, b.vaultKey)
+		}
+		return nil, ErrReplayUnavailable
 	}
 	return nil, ErrSessionNotFound
 }
@@ -474,8 +487,13 @@ func (b *Broker) readSessionRecords() ([]SessionRecord, error) {
 	records := make([]SessionRecord, 0, len(byID))
 	for id, record := range byID {
 		if record.Status == "ended" {
-			_, err := os.Stat(filepath.Join(b.dataDir, "sessions", id+".json.gz.enc"))
-			record.ReplayAvailable = err == nil
+			if archive := b.replayArchive(); archive != nil {
+				record.ReplayAvailable = archive.Available(replayarchive.Ref{Kind: "terminal", SessionID: id})
+			}
+			if !record.ReplayAvailable {
+				_, err := os.Stat(filepath.Join(b.dataDir, "sessions", id+".json.gz.enc"))
+				record.ReplayAvailable = err == nil
+			}
 		}
 		records = append(records, record)
 	}
@@ -832,9 +850,16 @@ func (b *Broker) closeSession(session *activeSession, reason string) {
 			_ = b.appendCommand(session.id, submission, session)
 		}
 		session.inputMu.Unlock()
-		_ = session.recorder.Close()
+		recordingError := session.recorder.Close()
 		session.commands.Close()
-		_ = b.appendAudit(session, "ended", reason)
+		auditError := b.appendAudit(session, "ended", reason)
+		if recordingError == nil && auditError == nil {
+			if archive := b.replayArchive(); archive != nil {
+				if e := archive.Enqueue(replayarchive.Ref{Kind: "terminal", SessionID: session.id}); e != nil {
+					_ = b.appendAudit(session, "archive_queue_failed", "storage_unavailable")
+				}
+			}
+		}
 		// CloseAll must still see closing sessions so it can join closeOnce and
 		// wait for recording/audit writes before storage is released.
 		b.mu.Lock()

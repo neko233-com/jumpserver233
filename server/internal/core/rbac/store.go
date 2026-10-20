@@ -33,6 +33,7 @@ var catalog = []string{
 	"announcements.manage",
 	"labels.manage", "labels.assign", "labels.audit",
 	"ssh_certificates.view", "ssh_certificates.manage", "ssh_certificates.assign", "ssh_certificates.audit",
+	"replay_storage.view", "replay_storage.manage", "replay_storage.archive", "replay_storage.verify", "replay_storage.evict", "replay_storage.audit",
 	"audit.logins.view_all", "audit.logins.export",
 	"organizations.manage", "organizations.members.manage",
 	"roles.manage", "users.manage", "users.credentials.manage", "groups.manage", "grants.manage", "nodes.manage",

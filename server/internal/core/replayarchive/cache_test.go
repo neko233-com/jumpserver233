@@ -32,6 +32,8 @@ func TestReplayArchiveCacheBoundsLeasesAndIdempotentOwnedCleanup(t *testing.T) {
 	require.NoError(t, e)
 	cache.close()
 	cache.close()
+	_, readError := readers[1].Read(make([]byte, 1))
+	assert.Error(t, readError)
 	assert.FileExists(t, foreign)
 	for _, r := range readers[1:] {
 		require.NoError(t, r.Close())
@@ -73,4 +75,25 @@ func TestReplayArchiveFailedDownloadAndCanceledWaitCleanOnlyTheirTemporaryFile(t
 	assert.ErrorIs(t, e, context.Canceled)
 	close(release)
 	require.NoError(t, <-done)
+}
+
+func TestReplayArchiveOfflineOpenPreservesCacheAndStartCleansOnlyKnownFiles(t *testing.T) {
+	s, _ := archiveStore(t)
+	root := s.cache.root
+	require.NoError(t, os.MkdirAll(root, 0700))
+	for _, name := range []string{".replay-cipher-1234", ".replay-pack-5678", "unrelated.txt", ".replay-cipher-custom"} {
+		require.NoError(t, os.WriteFile(filepath.Join(root, name), []byte("preserved-until-owned-cleanup"), 0600))
+	}
+	reopened, e := Open(s.path, s.hashKey, nil, s.source, s.factory)
+	require.NoError(t, e)
+	defer reopened.Close()
+	assert.FileExists(t, filepath.Join(root, ".replay-cipher-1234"))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	require.NoError(t, reopened.Start(ctx))
+	require.NoError(t, reopened.Start(ctx))
+	assert.NoFileExists(t, filepath.Join(root, ".replay-cipher-1234"))
+	assert.NoFileExists(t, filepath.Join(root, ".replay-pack-5678"))
+	assert.FileExists(t, filepath.Join(root, "unrelated.txt"))
+	assert.FileExists(t, filepath.Join(root, ".replay-cipher-custom"))
 }

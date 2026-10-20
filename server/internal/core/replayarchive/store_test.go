@@ -13,9 +13,26 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/connector/replaystore"
+	"github.com/neko233-com/jumpserver233/server/internal/workgate"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestReplayArchiveConfigResultsCannotMutateStoredReceipts(t *testing.T) {
+	s, _ := archiveStore(t)
+	in := Input{Config: Config{Provider: "s3", Enabled: true, Cloud: &replaystore.CloudConfig{Provider: "s3", Endpoint: "https://replay.example.com", Region: "us-east-1", Bucket: "replays", AccessKeyID: "synthetic-key", SecretAccessKey: "synthetic-secret"}}, RequestID: "immutable-config-001"}
+	result, e := s.Save("operator", in)
+	require.NoError(t, e)
+	result.Cloud.SecretAccessKey = "must-not-enter-receipt"
+	result.Cloud.Endpoint = "https://changed.example.com"
+	same, e := s.Save("operator", in)
+	require.NoError(t, e)
+	assert.Empty(t, same.Cloud.SecretAccessKey)
+	assert.Equal(t, in.Cloud.Endpoint, same.Cloud.Endpoint)
+	current, e := s.Config()
+	require.NoError(t, e)
+	assert.Equal(t, same, current)
+}
 
 type memorySource struct{ data []byte }
 type memorySeekCloser struct{ *bytes.Reader }
@@ -332,4 +349,31 @@ func TestReplayArchiveHistoricalLocatorAndSecretRotation(t *testing.T) {
 	s.mu.Unlock()
 	assert.Equal(t, "https://old.example.com", resolved.Cloud.Endpoint)
 	assert.Equal(t, "secret-2", resolved.Cloud.SecretAccessKey)
+}
+
+func TestReplayArchiveDrainRejectsNewUploadsAndCountsAdmittedWork(t *testing.T) {
+	s, objects := archiveStore(t)
+	archiveConfig(t, s)
+	require.NoError(t, s.Enqueue(terminalRef))
+	gate := workgate.New()
+	ctx := workgate.WithGate(context.Background(), gate)
+	gate.SetClosed(true)
+	worked, e := s.ProcessNext(ctx)
+	require.NoError(t, e)
+	assert.False(t, worked)
+	assert.Zero(t, objects.puts)
+	assert.Empty(t, gate.Snapshot())
+	gate.SetClosed(false)
+	entered := make(chan struct{})
+	objects.block = make(chan struct{})
+	s.factory = func(context.Context, Config) (replaystore.Objects, error) { close(entered); return objects, nil }
+	done := make(chan error, 1)
+	go func() { _, e := s.ProcessNext(ctx); done <- e }()
+	<-entered
+	assert.Equal(t, 1, gate.Snapshot()["replay_archive"])
+	gate.SetClosed(true)
+	close(objects.block)
+	require.NoError(t, <-done)
+	assert.Empty(t, gate.Snapshot())
+	assert.True(t, s.Available(terminalRef))
 }

@@ -7,10 +7,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"sort"
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/connector/replaystore"
+	"github.com/neko233-com/jumpserver233/server/internal/workgate"
 )
 
 type contextReader struct {
@@ -73,25 +73,30 @@ func (s *Store) ProcessNext(parent context.Context) (bool, error) {
 		s.mu.Unlock()
 		return false, nil
 	}
-	keys := make([]string, 0, len(s.data.Records))
-	for key, r := range s.data.Records {
-		if r.Status == "queued" && !r.NextAttempt.After(s.now()) && s.busy[key] == nil {
-			keys = append(keys, key)
+	key := ""
+	for candidate, r := range s.data.Records {
+		if r.Status == "queued" && !r.NextAttempt.After(s.now()) && s.busy[candidate] == nil && (key == "" || candidate < key) {
+			key = candidate
 		}
 	}
-	sort.Strings(keys)
-	if len(keys) == 0 {
+	if key == "" {
 		s.mu.Unlock()
 		return false, nil
 	}
-	key := keys[0]
+	admitted, release, admissionError := workgate.FromContext(parent).Enter(parent, "replay_archive")
+	if admissionError != nil {
+		s.mu.Unlock()
+		return false, nil
+	}
+	defer release()
 	r := s.data.Records[key]
 	generation := s.data.Revision
 	c := s.credentials(r.ConfigRevision)
-	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
+	ctx, cancel := context.WithTimeout(admitted, 2*time.Minute)
 	s.busy[key] = cancel
+	s.operations.Add(1)
 	s.mu.Unlock()
-	defer func() { cancel(); s.mu.Lock(); delete(s.busy, key); s.mu.Unlock() }()
+	defer func() { cancel(); s.mu.Lock(); delete(s.busy, key); s.mu.Unlock(); s.operations.Done() }()
 	e := s.transfer(ctx, generation, c, &r)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -222,10 +227,17 @@ func (s *Store) snapshot(ref Ref) (storedRecord, Config, error) {
 // OpenCiphertext returns only SHA-256 verified ciphertext. The existing broker
 // must still check session authorization and authenticate/decrypt its format.
 func (s *Store) OpenCiphertext(ctx context.Context, ref Ref) (SeekCloser, error) {
+	release, e := s.holdOperation()
+	if e != nil {
+		return nil, e
+	}
+	defer release()
 	r, c, e := s.snapshot(ref)
 	if e != nil {
 		return nil, e
 	}
+	ctx, cancel := s.operationContext(ctx)
+	defer cancel()
 	return s.cache.open(ctx, r.Key, r.Size, func(ctx context.Context, w io.Writer) error {
 		o, e := s.factory(ctx, c)
 		if e != nil {
@@ -238,15 +250,39 @@ func (s *Store) OpenCiphertext(ctx context.Context, ref Ref) (SeekCloser, error)
 
 // Verify bypasses the local cache, checks the full remote ciphertext, and adds
 // an audit event only after readback succeeds. It never removes local content.
-func (s *Store) Verify(ctx context.Context, ref Ref, actor string) (Record, error) {
-	if !validActor(actor) {
+func (s *Store) Verify(ctx context.Context, ref Ref, actor string, request ...string) (Record, error) {
+	if !validActor(actor) || !ValidRef(ref) || len(request) > 1 || len(request) == 1 && !requestPattern.MatchString(request[0]) {
 		return Record{}, ErrInvalid
+	}
+	release, e := s.holdOperation()
+	if e != nil {
+		return Record{}, e
+	}
+	defer release()
+	hash := s.requestHash([]any{"verify", ref})
+	if len(request) == 1 {
+		s.mu.Lock()
+		if s.closed {
+			s.mu.Unlock()
+			return Record{}, ErrClosed
+		}
+		r, yes, e := s.replay(actor, request[0], hash)
+		s.mu.Unlock()
+		if yes {
+			if e != nil {
+				return Record{}, e
+			}
+			if r.Record == nil {
+				return Record{}, ErrConflict
+			}
+			return *r.Record, nil
+		}
 	}
 	r, c, e := s.snapshot(ref)
 	if e != nil {
 		return Record{}, e
 	}
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	ctx, cancel := s.operationContext(ctx)
 	defer cancel()
 	o, e := s.factory(ctx, c)
 	if e != nil {
@@ -261,6 +297,17 @@ func (s *Store) Verify(ctx context.Context, ref Ref, actor string) (Record, erro
 	if s.closed {
 		return Record{}, ErrClosed
 	}
+	if len(request) == 1 {
+		if previous, yes, e := s.replay(actor, request[0], hash); yes {
+			if e != nil {
+				return Record{}, e
+			}
+			if previous.Record == nil {
+				return Record{}, ErrConflict
+			}
+			return *previous.Record, nil
+		}
+	}
 	current, ok := s.data.Records[refKey(ref)]
 	if !ok || current.Key != r.Key || current.Status != "stored" {
 		return Record{}, ErrConflict
@@ -268,10 +315,21 @@ func (s *Store) Verify(ctx context.Context, ref Ref, actor string) (Record, erro
 	current.VerifiedAt = s.now().UTC()
 	st := s.copy()
 	st.Records[refKey(ref)] = current
+	if len(request) == 1 {
+		out := current.Record
+		e = s.commit(st, receipt{Actor: actor, Request: request[0], Hash: hash, Record: &out}, Audit{At: s.now().UTC(), ActorID: actor, Action: "verify", Ref: &ref, Revision: s.data.Revision})
+		return out, e
+	}
 	addAudit(&st, Audit{At: s.now().UTC(), ActorID: actor, Action: "verify", Ref: &ref, Revision: s.data.Revision})
 	if e = s.persist(st); e != nil {
 		return Record{}, e
 	}
 	s.data = st
 	return current.Record, nil
+}
+
+func (s *Store) operationContext(parent context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
+	stop := context.AfterFunc(s.lifetime, cancel)
+	return ctx, func() { stop(); cancel() }
 }

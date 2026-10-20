@@ -50,7 +50,14 @@ func TestReplayArchiveTerminalAuthenticatesFinalizedRecordingAndKeepsAsciinema(t
 	}
 	local, e := os.ReadFile(path)
 	require.NoError(t, e)
-	require.NoError(t, os.Remove(path))
+	evicted, e := s.Evict(context.Background(), terminalRef, "operator", "evict-terminal-001")
+	require.NoError(t, e)
+	assert.False(t, evicted.LocalEvictedAt.IsZero())
+	assert.NoFileExists(t, path)
+	assert.FileExists(t, index)
+	again, e := s.Evict(context.Background(), terminalRef, "operator", "evict-terminal-001")
+	require.NoError(t, e)
+	assert.Equal(t, evicted, again)
 	reader, e := s.OpenReplay(context.Background(), id, key)
 	require.NoError(t, e)
 	plain, e := io.ReadAll(reader)
@@ -74,11 +81,16 @@ func TestReplayArchiveDesktopBundlesCiphertextDeterministicallyAndAuthenticatesF
 	frame := recorder.DesktopFrame{Index: 0, AtMS: 1, Sequence: 1, Width: 8, Height: 8}
 	png := []byte{137, 80, 78, 71, 13, 10, 26, 10}
 	require.NoError(t, desktop.Record(frame, png))
+	second := frame
+	second.Index = 1
+	second.Sequence = 2
+	second.AtMS = 2
+	require.NoError(t, desktop.Record(second, png))
 	index := struct {
 		ID     string                  `json:"session_id"`
 		Status string                  `json:"status"`
 		Frames []recorder.DesktopFrame `json:"frames"`
-	}{id, "ended", []recorder.DesktopFrame{frame}}
+	}{id, "ended", []recorder.DesktopFrame{frame, second}}
 	raw, e := json.Marshal(index)
 	require.NoError(t, e)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "index.json"), raw, 0600))
@@ -115,6 +127,16 @@ func TestReplayArchiveDesktopBundlesCiphertextDeterministicallyAndAuthenticatesF
 		assert.Equal(t, png, data)
 	}
 	assert.Equal(t, 2, o.gets)
+	// Resume an interrupted cleanup with one local frame already missing.
+	evicted, e := s.Evict(context.Background(), ref, "operator", "evict-desktop-001")
+	require.NoError(t, e)
+	assert.False(t, evicted.LocalEvictedAt.IsZero())
+	assert.NoFileExists(t, filepath.Join(dir, "000001.png.enc"))
+	assert.Equal(t, 3, o.gets)
+	again, e := s.Evict(context.Background(), ref, "operator", "evict-desktop-001")
+	require.NoError(t, e)
+	assert.Equal(t, evicted, again)
+	assert.Equal(t, 3, o.gets)
 	assert.FileExists(t, filepath.Join(dir, "index.json"))
 	frame.Width++
 	_, e = s.DesktopFrame(context.Background(), id, frame, key)

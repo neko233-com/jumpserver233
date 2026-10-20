@@ -1,0 +1,103 @@
+export default {
+  replayStorage: {
+    title: "Replay storage",
+    description:
+      "Archive completed terminal and desktop recordings as encrypted objects. Existing session permissions still control playback; local storage is the default.",
+    configuration: "Organization storage",
+    provider: "Storage provider",
+    providers: {
+      local: "Local only",
+      s3: "S3 compatible",
+      oss: "Alibaba Cloud OSS",
+      cos: "Tencent Cloud COS",
+      obs: "Huawei Cloud OBS",
+      sftp: "Managed SSH / SFTP",
+      postgres: "Shared PostgreSQL",
+    },
+    enabled: "Enabled",
+    disabled: "Disabled",
+    revision: "Revision {{revision}}",
+    edit: "Edit storage",
+    refresh: "Reload",
+    save: "Save storage",
+    cancel: "Cancel",
+    saved: "Storage saved. New completed recordings use this configuration.",
+    actionSaved: "Request saved. Reload to see worker progress.",
+    denied: "Replay storage access is not granted.",
+    prefix: "Object prefix",
+    fields: {
+      endpoint: "HTTPS storage origin",
+      region: "Region",
+      bucket: "Bucket",
+      access_key_id: "Access key ID",
+      secret_access_key: "Write-only secret access key",
+      session_token: "Write-only session token (optional)",
+    },
+    secretHint:
+      "Blank secrets retain existing values only for the same location and access key ID. Enter a secret for a new location; secrets are never returned.",
+    clearToken: "Remove the stored session token",
+    advanced: "Connection options",
+    pathStyle: "Use path-style S3 addressing",
+    rootCA: "TLS root certificate PEM (optional)",
+    sftpAsset: "Storage asset or account ID",
+    sftpDirectory: "Relative SFTP directory",
+    sftpHint:
+      "Configure an SSH account with a pinned host key. This system operation requires storage management, asset management and all-assets SFTP authority; login-review targets also require bypass authority. Password rotation preserves the storage binding. Retargeted historical assets require restoring their original binding to read old objects.",
+    postgresHint:
+      "Stores ciphertext chunks in the configured shared PostgreSQL database. Standalone deployment does not require an external database.",
+    backupHint:
+      "Export preserves configuration, locators, keys and local originals, excluding disposable cache copies. External objects require their own storage backup and retention policy.",
+    archiveExisting: "Archive a completed recording",
+    kind: "Recording type",
+    kinds: { terminal: "Terminal", desktop: "Desktop" },
+    sessionID: "Session ID",
+    records: "Archive records",
+    empty: "No visible archive records.",
+    status: { queued: "Queued", stored: "Stored and verified", failed: "Retry required" },
+    size: "Ciphertext size",
+    mib: "{{size}} MiB",
+    attempts: "Failed attempts",
+    verified: "Last verified",
+    localCopy: "Local original",
+    retained: "Retained or not yet removed",
+    removed: "Removed after remote verification",
+    none: "—",
+    actions: {
+      archive: "Queue archive",
+      retry: "Retry archive",
+      verify: "Verify remote copy",
+      evict: "Remove local original",
+    },
+    confirmEvict:
+      "Verify a fresh remote copy and remove matching local ciphertext? Audit indexes, keys and remote objects remain. Interrupted cleanup can be retried.",
+    previous: "Previous",
+    next: "Next",
+    count: "{{count}} records",
+    audit: "Show management audit",
+    auditActions: {
+      configure: "Configure storage",
+      archive: "Queue archive",
+      retry: "Retry archive",
+      verify: "Verify remote copy",
+      evict: "Remove local original",
+    },
+    failures: {
+      source_unavailable: "Finalized local recording is unavailable or cannot be authenticated.",
+      storage_unavailable: "Storage is unavailable; check the configured target and credentials.",
+      integrity_mismatch: "Ciphertext verification failed. Local content was retained.",
+    },
+    errors: {
+      permission_denied: "This operation is not granted.",
+      replay_storage_invalid: "Check the fields, storage provider, session ID and request ID.",
+      replay_storage_not_found:
+        "The completed recording/archive is missing or outside your access.",
+      replay_storage_conflict:
+        "Revision or operation conflicts. Reload before editing or retrying.",
+      replay_storage_integrity:
+        "Ciphertext differs from the archive. Unmatched local files were retained.",
+      replay_storage_capacity: "Archive history or active cache capacity is full.",
+      replay_storage_unavailable:
+        "Replay storage is temporarily unavailable. Retry the unchanged request safely.",
+    },
+  },
+};

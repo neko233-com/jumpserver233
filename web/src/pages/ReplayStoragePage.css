@@ -1,0 +1,30 @@
+.replay-storage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.replay-storage-page .replay-storage-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0;
+}
+.replay-storage-page details {
+  margin: 18px 0;
+}
+.replay-storage-page summary {
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.replay-storage-page dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+}
+.replay-storage-page dd {
+  margin: 0;
+}
+.replay-storage-page code {
+  overflow-wrap: anywhere;
+}

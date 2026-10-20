@@ -142,7 +142,7 @@ func registerRDPRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWMutex) {
 			fail(w, desktop.ErrNotFound)
 			return
 		}
-		data, e := d.Desktops.Frame(r.PathValue("sessionID"), u.ID, hasPermission(r, "audit.replays.view_all"), index)
+		data, e := d.Desktops.FrameContext(r.Context(), r.PathValue("sessionID"), u.ID, hasPermission(r, "audit.replays.view_all"), index)
 		if e != nil {
 			fail(w, e)
 			return

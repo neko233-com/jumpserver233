@@ -266,9 +266,9 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 		var replay io.ReadCloser
 		var err error
 		if hasPermission(r, "audit.replays.view_all") {
-			replay, err = broker.OpenReplay(r.PathValue("sessionID"))
+			replay, err = broker.OpenReplayContext(r.Context(), r.PathValue("sessionID"))
 		} else {
-			replay, err = broker.OpenReplayForOperator(r.PathValue("sessionID"), principal.ID)
+			replay, err = broker.OpenReplayForOperatorContext(r.Context(), r.PathValue("sessionID"), principal.ID)
 		}
 		if err != nil {
 			switch {

@@ -37,6 +37,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
 	"github.com/neko233-com/jumpserver233/server/internal/core/radiuslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
+	"github.com/neko233-com/jumpserver233/server/internal/core/replayarchive"
 	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rotationplans"
 	"github.com/neko233-com/jumpserver233/server/internal/core/samllogin"
@@ -50,6 +51,8 @@ import (
 )
 
 type Dependencies struct {
+	ReplayArchive         *replayarchive.Store
+	ReplayArchiveDatabase bool
 	SSHCertificates       *sshcertificates.Store
 	Labels                *labels.Store
 	Announcements         *announcements.Store
@@ -230,6 +233,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		registerAssetRoutes(mux, dependencies[0].Assets, dependencies[0].AdminToken, dependencies[0].Auth, dependencies[0].Grants, dependencies[0].Groups, dependencies[0].Nodes, accessMu, dependencies[0].Labels)
 		registerLabelRoutes(mux, dependencies[0], accessMu)
 		registerSSHCertificateRoutes(mux, dependencies[0], accessMu)
+		registerReplayStorageRoutes(mux, dependencies[0], accessMu)
 		registerManagedAccountRoutes(mux, dependencies[0], accessMu)
 		registerAccountImportRoutes(mux, dependencies[0], accessMu)
 	}

@@ -20,6 +20,7 @@ const kinds = new Set([
   "asset_cycles",
   "credential_operations",
   "ssh_jobs",
+  "replay_archive",
   "probes",
   "plan_dispatch",
   "terminal_sessions",

@@ -446,6 +446,10 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 	defer root.SSHCertificates.Close()
 	assetService.SetSSHCertificates(root.SSHCertificates)
+	if err = openReplayArchive(&root, cfg.DataDir, vaultKey, documents); err != nil {
+		return err
+	}
+	defer func() { desktopBroker.CloseAll(); sessionBroker.CloseAll(); root.ReplayArchive.Close() }()
 	root.Updates = updateStore
 	root.ReleaseRoot, root.InstallationDataDir = cfg.ReleaseRoot, cfg.DataDir
 	root.Maintenance, err = servicemaintenance.New(admission, !cfg.ClusterMode, updateStore.RecordMaintenance)
@@ -553,6 +557,10 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 
 	nodeCtx, cancelNode := context.WithCancel(ctx)
+	if err = root.ReplayArchive.Start(nodeCtx); err != nil {
+		cancelNode()
+		return err
+	}
 	updateDone := make(chan struct{})
 	go func() { defer close(updateDone); updateStore.Run(nodeCtx) }()
 	defer func() { cancelNode(); <-updateDone }()

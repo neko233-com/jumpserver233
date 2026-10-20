@@ -9,6 +9,7 @@ const ConsoleLayout = lazy(() => import("./layouts/ConsoleLayout"));
 const AnnouncementsPage = lazy(() => import("./pages/AnnouncementsPage"));
 const LabelsPage = lazy(() => import("./pages/LabelsPage"));
 const SSHCertificatesPage = lazy(() => import("./pages/SSHCertificatesPage"));
+const ReplayStoragePage = lazy(() => import("./pages/ReplayStoragePage"));
 const AssetDiscoveryPage = lazy(() => import("./pages/AssetDiscoveryPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -98,6 +99,7 @@ export default function App() {
               <Route path="announcements" element={<AnnouncementsPage />} />
               <Route path="labels" element={<LabelsPage />} />
               <Route path="ssh-certificates" element={<SSHCertificatesPage />} />
+              <Route path="replay-storage" element={<ReplayStoragePage />} />
               <Route path="roles" element={<RolesPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="organizations" element={<OrganizationsPage />} />

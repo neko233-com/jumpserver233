@@ -109,6 +109,7 @@ export default {
         asset_cycles: "资产监控周期",
         credential_operations: "凭据操作",
         ssh_jobs: "正在执行的 SSH 作业",
+        replay_archive: "录像密文上传与读回",
         probes: "主机检测",
         plan_dispatch: "计划派发周期",
         terminal_sessions: "终端会话与待连接票据",

@@ -2,8 +2,11 @@ package replayarchive
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
+	"path/filepath"
+	"regexp"
 	"sync"
 	"time"
 
@@ -11,12 +14,13 @@ import (
 )
 
 type cacheEntry struct {
-	path  string
-	size  int64
-	refs  int
-	used  time.Time
-	ready chan struct{}
-	err   error
+	path    string
+	size    int64
+	refs    int
+	readers map[*os.File]bool
+	used    time.Time
+	ready   chan struct{}
+	err     error
 }
 type cipherCache struct {
 	mu      sync.Mutex
@@ -30,6 +34,51 @@ func newCipherCache(root string) *cipherCache {
 	return &cipherCache{root: root, entries: map[string]*cacheEntry{}}
 }
 
+var cacheTemporaryName = regexp.MustCompile(`^\.replay-(cipher|pack)-[0-9]+$`)
+
+// Only Start under the installation's active-owner gate calls this cleanup.
+// Opening a store for offline preflight/backup never removes cached files.
+func (c *cipherCache) cleanStale() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return ErrClosed
+	}
+	if len(c.entries) > 0 {
+		return nil
+	}
+	info, e := os.Lstat(c.root)
+	if os.IsNotExist(e) {
+		return nil
+	}
+	if e != nil {
+		return e
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return ErrInvalid
+	}
+	entries, e := os.ReadDir(c.root)
+	if e != nil {
+		return e
+	}
+	for _, entry := range entries {
+		if !cacheTemporaryName.MatchString(entry.Name()) {
+			continue
+		}
+		info, e := entry.Info()
+		if e != nil {
+			return e
+		}
+		if !info.Mode().IsRegular() {
+			return ErrInvalid
+		}
+		if e = os.Remove(filepath.Join(c.root, entry.Name())); e != nil && !os.IsNotExist(e) {
+			return e
+		}
+	}
+	return nil
+}
+
 type cachedReader struct {
 	*os.File
 	once    sync.Once
@@ -38,10 +87,19 @@ type cachedReader struct {
 
 func (r *cachedReader) Close() error {
 	var e error
-	r.once.Do(func() { e = r.File.Close(); r.release() })
+	r.once.Do(func() {
+		e = r.File.Close()
+		if errors.Is(e, os.ErrClosed) {
+			e = nil
+		}
+		r.release()
+	})
 	return e
 }
 func (c *cipherCache) remove(key string, e *cacheEntry) {
+	if c.entries[key] != e {
+		return
+	}
 	delete(c.entries, key)
 	c.bytes -= e.size
 	_ = os.Remove(e.path)
@@ -82,12 +140,17 @@ func (c *cipherCache) open(ctx context.Context, key string, size int64, load fun
 				return nil, ErrUnavailable
 			}
 			e.refs++
+			if e.readers == nil {
+				e.readers = map[*os.File]bool{}
+			}
+			e.readers[f] = true
 			e.used = time.Now()
 			c.mu.Unlock()
 			return &cachedReader{File: f, release: func() {
 				c.mu.Lock()
 				defer c.mu.Unlock()
 				e.refs--
+				delete(e.readers, f)
 				if c.closed && e.refs == 0 {
 					c.remove(key, e)
 				}
@@ -154,7 +217,10 @@ func (c *cipherCache) close() {
 	defer c.mu.Unlock()
 	c.closed = true
 	for key, e := range c.entries {
-		if e.ready == nil && e.refs == 0 {
+		if e.ready == nil {
+			for f := range e.readers {
+				_ = f.Close()
+			}
 			c.remove(key, e)
 		}
 	}

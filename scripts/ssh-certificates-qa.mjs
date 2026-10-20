@@ -46,7 +46,7 @@ export async function verifySSHCertificateBrowser({page,expect,url,api,admin,rep
   let output="";const handler=socket=>socket.on("framereceived",event=>{if(Buffer.isBuffer(event.payload))output+=event.payload.toString("utf8");});page.on("websocket",handler);
   try{
     await page.goto(url+"/console?asset_id="+report.sshCertificates.assetID);
-    const english=page.getByRole("button",{name:"English",exact:true});if(await english.count())await english.click();
+    const english=page.getByRole("button",{name:"EN",exact:true});if(await english.count())await english.click();
     const row=page.getByRole("row").filter({hasText:"Native certificate SSH"});await row.getByRole("button",{name:"Connect",exact:true}).click();
     const terminal=page.locator(".ssh-terminal-dialog");await expect(terminal.locator(".ssh-terminal-status.connected")).toBeVisible();
     const marker="certificate-web-ok",octal=Array.from(Buffer.from(marker+"\n"),b=>"\\"+b.toString(8)).join("");await terminal.locator(".xterm-helper-textarea").pressSequentially(`printf '${octal}'`);await terminal.locator(".xterm-helper-textarea").press("Enter");
@@ -58,6 +58,6 @@ export async function verifySSHCertificateBrowser({page,expect,url,api,admin,rep
     await terminal.getByRole("button",{name:"Close terminal",exact:true}).click();report.sshCertificates.livePolicyRevocation=true;
     await page.goto(url+"/console/ssh-certificates?asset_id="+report.sshCertificates.assetID);await expect(page.getByRole("heading",{name:"SSH certificates",exact:true})).toBeVisible();
     await page.setViewportSize({width:390,height:844});await page.getByRole("button",{name:"中文",exact:true}).click();await expect(page.getByRole("heading",{name:"SSH 证书",exact:true})).toBeVisible();
-    if(!await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth))throw Error("Certificate page overflows mobile viewport");await page.getByRole("button",{name:"English",exact:true}).click();await page.setViewportSize({width:1280,height:900});report.sshCertificates.webSSHAndBilingualMobile=true;
+    if(!await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth))throw Error("Certificate page overflows mobile viewport");await page.getByRole("button",{name:"EN",exact:true}).click();await page.setViewportSize({width:1280,height:900});report.sshCertificates.webSSHAndBilingualMobile=true;
   }finally{page.off("websocket",handler);}
 }

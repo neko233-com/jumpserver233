@@ -8,7 +8,7 @@ The user's 2026-10-20 workflow instruction requires all checklist features, case
 
 E36 [SSH user certificates](./SSH-CERTIFICATES.en.md) author built-in CA/OpenBao signing, short-lived account/gateway authentication, two-phase CA rotation, Web/CLI/SDK, cases and bilingual docs. They await unified verification after full implementation.
 
-E35 [external replay storage](./REPLAY-STORAGE.en.md) authors S3/OSS/COS/OBS/SFTP/PostgreSQL objects, encrypted archive state, retries, readback validation, recording authentication/cache and Testify cases. Runtime, authorized API, Web/CLI/SDK and backups remain unwired. It stays partial without starting verification.
+E35 [external replay storage](./REPLAY-STORAGE.en.md) authors S3/OSS/COS/OBS/SFTP/PostgreSQL objects, encrypted archives/retries, lifecycle/drain integration, authorized replay, controlled local removal, cache/backups, bilingual Web, CLI/SDK and cases. It is implementation-ready awaiting verification. Actual SSH/SFTP, Web SSH output, one restart, receipts and bilingual narrow-screen cases join existing unified entrypoints without executing early.
 
 Phase 7 adds [SSH account connectivity checks](./ACCOUNT-CHECKS.en.md): password/key authentication for default and named accounts, independent scheduling, results/failure notifications, explicit retries and no automatic replay after interruption. Full Enterprise parity remains in progress.
 

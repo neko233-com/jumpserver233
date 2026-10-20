@@ -19,6 +19,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
+	"github.com/neko233-com/jumpserver233/server/internal/core/replayarchive"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sshcertificates"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
@@ -91,6 +92,10 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	orgLabelInput := labels.BindingInput{LabelIDs: []string{isolatedLabel.ID}, RequestID: "org-label-bind-001"}
 	orgHTTP(t, address, "PUT", "/api/v1/labels/bindings/asset/"+b.ID, token, org.ID, orgLabelInput, 200)
 	assert.NotContains(t, string(orgHTTP(t, address, "GET", "/api/v1/labels/choices", token, "", nil, 200)), isolatedLabel.ID)
+	orgStorageInput := replayarchive.Input{Config: replayarchive.Config{Provider: "sftp", Enabled: false, Prefix: "org-archive", SFTPAssetID: b.ID, SFTPDirectory: "archives"}, RequestID: "organization-storage-001"}
+	var orgStorage replayarchive.Config
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/settings/replay-storage", token, org.ID, orgStorageInput, 200), &orgStorage))
+	assert.NotContains(t, string(orgHTTP(t, address, "GET", "/api/v1/settings/replay-storage", token, "", nil, 200)), orgStorage.SFTPTarget)
 	orgHTTP(t, address, "GET", "/api/v1/labels/bindings/asset/"+b.ID, token, "", nil, 404)
 	orgHTTP(t, address, "GET", "/api/v1/labels/choices", operator.AccessToken, org.ID, nil, 403)
 	orgHTTP(t, address, "POST", "/api/v1/ops/templates", token, org.ID, map[string]any{"name": "Organization-only template", "command": "printf isolated", "timeout_seconds": 5}, 201)
@@ -261,6 +266,9 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	var preservedBinding labels.Binding
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/labels/bindings/asset/"+b.ID, token, org.ID, orgLabelInput, 200), &preservedBinding))
 	assert.Equal(t, 1, preservedBinding.Revision)
+	var restoredStorage replayarchive.Config
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/settings/replay-storage", token, org.ID, orgStorageInput, 200), &restoredStorage))
+	assert.Equal(t, orgStorage, restoredStorage)
 	assert.Contains(t, string(orgHTTP(t, address, "GET", "/api/v1/settings/ssh-certificates/issuers", token, org.ID, nil, 200)), organizationCA.ID)
 	var restoredCertificatePolicy sshcertificates.Binding
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/settings/ssh-certificates/bindings/"+b.ID, token, org.ID, orgCertInput, 200), &restoredCertificatePolicy))

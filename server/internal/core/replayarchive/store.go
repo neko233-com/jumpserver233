@@ -85,6 +85,7 @@ type Record struct {
 	NextAttempt    time.Time `json:"next_attempt,omitzero"`
 	StoredAt       time.Time `json:"stored_at,omitzero"`
 	VerifiedAt     time.Time `json:"verified_at,omitzero"`
+	LocalEvictedAt time.Time `json:"local_evicted_at,omitzero"`
 }
 type storedRecord struct {
 	Record
@@ -130,22 +131,26 @@ type Source interface {
 }
 type Factory func(context.Context, Config) (replaystore.Objects, error)
 type Store struct {
-	mu        sync.Mutex
-	path      string
-	docs      *storage.Documents
-	aead      cipher.AEAD
-	hashKey   []byte
-	data      state
-	source    Source
-	factory   Factory
-	now       func() time.Time
-	busy      map[string]context.CancelFunc
-	wake      chan struct{}
-	closed    bool
-	startOnce sync.Once
-	stop      context.CancelFunc
-	workers   sync.WaitGroup
-	cache     *cipherCache
+	mu             sync.Mutex
+	path           string
+	docs           *storage.Documents
+	aead           cipher.AEAD
+	hashKey        []byte
+	data           state
+	source         Source
+	factory        Factory
+	now            func() time.Time
+	busy           map[string]context.CancelFunc
+	wake           chan struct{}
+	closed         bool
+	startOnce      sync.Once
+	stop           context.CancelFunc
+	lifetime       context.Context
+	cancelLifetime context.CancelFunc
+	startError     error
+	workers        sync.WaitGroup
+	operations     sync.WaitGroup
+	cache          *cipherCache
 }
 
 func cloneConfig(c Config) Config {
@@ -255,6 +260,9 @@ func validate(st state) error {
 		default:
 			return ErrInvalid
 		}
+		if r.Status != "stored" && !r.LocalEvictedAt.IsZero() {
+			return ErrInvalid
+		}
 		if r.ErrorCode != "" && r.ErrorCode != "source_unavailable" && r.ErrorCode != "storage_unavailable" && r.ErrorCode != "integrity_mismatch" {
 			return ErrInvalid
 		}
@@ -281,7 +289,7 @@ func validate(st state) error {
 		}
 	}
 	for _, a := range st.Audit {
-		if a.At.IsZero() || !validActor(a.ActorID) || a.Revision < 1 || a.Revision > st.Revision || a.Action != "configure" && a.Action != "retry" && a.Action != "verify" || a.Ref != nil && !ValidRef(*a.Ref) {
+		if a.At.IsZero() || !validActor(a.ActorID) || a.Revision < 1 || a.Revision > st.Revision || a.Action != "configure" && a.Action != "archive" && a.Action != "retry" && a.Action != "verify" && a.Action != "evict" || a.Ref != nil && !ValidRef(*a.Ref) {
 			return ErrInvalid
 		}
 	}
@@ -300,6 +308,7 @@ func Open(path string, key []byte, docs *storage.Documents, source Source, facto
 		return nil, e
 	}
 	s := &Store{path: path, docs: docs, aead: a, hashKey: append([]byte(nil), key...), source: source, factory: factory, now: time.Now, busy: map[string]context.CancelFunc{}, wake: make(chan struct{}, 2), cache: newCipherCache(filepath.Join(filepath.Dir(path), "replay-cache")), data: state{History: map[int]Config{}, Records: map[string]storedRecord{}, Receipts: []receipt{}, Audit: []Audit{}}}
+	s.lifetime, s.cancelLifetime = context.WithCancel(context.Background())
 	var raw []byte
 	if docs != nil {
 		raw, e = docs.LoadOrImport("replay-archive", path)
@@ -509,7 +518,7 @@ func (s *Store) Save(actor string, in Input) (Config, error) {
 		cancel()
 	}
 	s.notify()
-	return out, nil
+	return cloneConfig(out), nil
 }
 
 // Enqueue records only a locator and identity; preparation and network I/O happen
@@ -601,17 +610,32 @@ func (s *Store) Get(ref Ref) (Record, error) {
 }
 func (s *Store) Available(ref Ref) bool { r, e := s.Get(ref); return e == nil && r.Status == "stored" }
 func (s *Store) List(offset, limit int) ([]Record, int, error) {
+	return s.ListFor(offset, limit, nil)
+}
+
+// Visibility callbacks run outside the state lock, before sorting/pagination.
+func (s *Store) ListFor(offset, limit int, visible func(Ref) bool) ([]Record, int, error) {
 	if offset < 0 || limit < 1 || limit > 100 {
 		return nil, 0, ErrInvalid
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.closed {
+		s.mu.Unlock()
 		return nil, 0, ErrClosed
 	}
 	rows := make([]Record, 0, len(s.data.Records))
 	for _, r := range s.data.Records {
 		rows = append(rows, r.Record)
+	}
+	s.mu.Unlock()
+	if visible != nil {
+		filtered := rows[:0]
+		for _, r := range rows {
+			if visible(r.Ref) {
+				filtered = append(filtered, r)
+			}
+		}
+		rows = filtered
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].QueuedAt.Equal(rows[j].QueuedAt) {
@@ -624,12 +648,15 @@ func (s *Store) List(offset, limit int) ([]Record, int, error) {
 	return rows[offset:min(offset+limit, n)], n, nil
 }
 func (s *Store) Audit(offset, limit int) ([]Audit, int, error) {
+	return s.AuditFor(offset, limit, nil)
+}
+func (s *Store) AuditFor(offset, limit int, visible func(Ref) bool) ([]Audit, int, error) {
 	if offset < 0 || limit < 1 || limit > 100 {
 		return nil, 0, ErrInvalid
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.closed {
+		s.mu.Unlock()
 		return nil, 0, ErrClosed
 	}
 	rows := append([]Audit{}, s.data.Audit...)
@@ -641,6 +668,16 @@ func (s *Store) Audit(offset, limit int) ([]Audit, int, error) {
 			v := *rows[i].Ref
 			rows[i].Ref = &v
 		}
+	}
+	s.mu.Unlock()
+	if visible != nil {
+		filtered := rows[:0]
+		for _, a := range rows {
+			if a.Ref == nil || visible(*a.Ref) {
+				filtered = append(filtered, a)
+			}
+		}
+		rows = filtered
 	}
 	n := len(rows)
 	offset = min(offset, n)
@@ -659,11 +696,16 @@ func (s *Store) credentials(rev int) Config {
 	}
 	return cloneConfig(c)
 }
-func (s *Store) Start(ctx context.Context) {
+func (s *Store) Start(ctx context.Context) error {
 	s.startOnce.Do(func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if s.closed {
+			s.startError = ErrClosed
+			return
+		}
+		if e := s.cache.cleanStale(); e != nil {
+			s.startError = e
 			return
 		}
 		ctx, s.stop = context.WithCancel(ctx)
@@ -672,10 +714,12 @@ func (s *Store) Start(ctx context.Context) {
 			go s.worker(ctx)
 		}
 	})
+	return s.startError
 }
 func (s *Store) Close() {
 	s.mu.Lock()
 	s.closed = true
+	s.cancelLifetime()
 	if s.stop != nil {
 		s.stop()
 	}
@@ -684,5 +728,16 @@ func (s *Store) Close() {
 	}
 	s.mu.Unlock()
 	s.workers.Wait()
+	s.operations.Wait()
 	s.cache.close()
+}
+
+func (s *Store) holdOperation() (func(), error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return nil, ErrClosed
+	}
+	s.operations.Add(1)
+	return s.operations.Done, nil
 }

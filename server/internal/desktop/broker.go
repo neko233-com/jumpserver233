@@ -13,6 +13,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/neko233-com/jumpserver233/server/internal/connector/rdpclient"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
+	"github.com/neko233-com/jumpserver233/server/internal/core/replayarchive"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/recorder"
 	"io"
@@ -23,6 +24,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -88,9 +90,11 @@ type active struct {
 	expiry       time.Time
 	consumed     bool
 	closed       bool
+	finished     chan struct{}
 	socket       *websocket.Conn
 }
 type Broker struct {
+	archive   atomic.Pointer[replayarchive.Store]
 	monitorMu sync.Mutex
 	monitors  map[[32]byte]*monitor
 	policy    func() sessionpolicy.Settings
@@ -285,6 +289,10 @@ func (b *Broker) end(a *active, reason string) {
 		return
 	}
 	a.closed = true
+	if a.finished == nil {
+		a.finished = make(chan struct{})
+	}
+	defer close(a.finished)
 	a.token = [32]byte{}
 	at := time.Now().UTC()
 	a.record.Status = "ended"
@@ -293,9 +301,15 @@ func (b *Broker) end(a *active, reason string) {
 	if e := b.capture(a); e != nil {
 		a.record.EndReason = "recording_failed"
 	}
-	_ = b.persist(a)
+	persistError := b.persist(a)
 	socket := a.socket
+	id := a.record.ID
 	a.mu.Unlock()
+	if persistError == nil {
+		if archive := b.replayArchive(); archive != nil {
+			_ = archive.Enqueue(replayarchive.Ref{Kind: "desktop", SessionID: id})
+		}
+	}
 	a.display.Close()
 	if socket != nil {
 		socket.CloseNow()
@@ -306,7 +320,7 @@ func (b *Broker) end(a *active, reason string) {
 			b.stopMonitorLocked(viewer)
 		}
 	}
-	delete(b.live, a.record.ID)
+	delete(b.live, id)
 	b.mu.Unlock()
 }
 func (b *Broker) CloseAll() {
@@ -319,6 +333,12 @@ func (b *Broker) CloseAll() {
 	b.mu.Unlock()
 	for _, a := range list {
 		b.end(a, "server_shutdown")
+		a.mu.Lock()
+		finished := a.finished
+		a.mu.Unlock()
+		if finished != nil {
+			<-finished
+		}
 	}
 }
 func (b *Broker) readIndex(id string) (Record, error) {
@@ -394,6 +414,9 @@ func (b *Broker) Stop(id, owner string, all bool) error {
 	return nil
 }
 func (b *Broker) Frame(id, owner string, all bool, index int) ([]byte, error) {
+	return b.FrameContext(context.Background(), id, owner, all, index)
+}
+func (b *Broker) FrameContext(ctx context.Context, id, owner string, all bool, index int) ([]byte, error) {
 	r, e := b.Get(id, owner, all)
 	// Historic replay authority must not become an unaudited live screen feed.
 	if e != nil || r.Status == "active" && r.OperatorID != owner || index < 0 || index >= len(r.Frames) {
@@ -403,7 +426,13 @@ func (b *Broker) Frame(id, owner string, all bool, index int) ([]byte, error) {
 	if e != nil {
 		return nil, e
 	}
-	return d.Read(r.Frames[index])
+	data, e := d.Read(r.Frames[index])
+	if errors.Is(e, os.ErrNotExist) && r.Status == "ended" {
+		if archive := b.replayArchive(); archive != nil {
+			return archive.DesktopFrame(ctx, id, r.Frames[index], b.key)
+		}
+	}
+	return data, e
 }
 func (b *Broker) ServeWS(w http.ResponseWriter, r *http.Request) {
 	set := func(code int) { http.Error(w, "desktop session unavailable", code) }

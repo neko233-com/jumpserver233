@@ -2,7 +2,7 @@
 
 > [中文](./TESTING.md) | English
 
-[External replay storage](./REPLAY-STORAGE.en.md) authors Testify signing/HTTPS, database transactions/isolation, SFTP, encrypted configuration receipts, lost upload responses, concurrent idempotency, restart, corruption refusal, terminal/desktop ciphertext formats and cache cleanup. The Linux race entrypoint includes archive/object/database cases without an SSH fixture dependency; the real SFTP case retains its separate fixture requirement. Runtime/API/Web/CLI/backups and their cases remain incomplete. No tests, builds, browser or Docker runs occurred in this batch, providing no new acceptance evidence.
+[External replay storage](./REPLAY-STORAGE.en.md) authors Testify signing/HTTPS, database transactions/isolation, SFTP, encrypted receipts, lost responses, concurrency, drain, restart, corruption refusal, encrypted terminal/desktop formats, local/partial removal, cache-handle teardown, API visibility/pagination, CLI redaction and backup recovery. `replay-storage.spec.ts` authors actual SSH/SFTP, settings/replay/removal/receipts and bilingual narrow-screen flows. Native packaging reuses existing OpenSSH/certificate fixtures, one restart and its report, checking real Web SSH output in remote playback. Linux race includes archives/objects/database/API/CLI/desktop teardown; the separate real SFTP case retains fixture requirements. Runtime and Web/CLI/SDK are wired in source. This batch only authors/formats files without tests, builds, browser or Docker execution, adding no acceptance or performance/size results.
 
 ## Full implementation gate and authored cases (2026-10-20)
 
