@@ -1,21 +1,29 @@
-# Delivery progress and fixed acceptance checklist
+# Delivery progress and acceptance checklist
 
 > [中文](./PROGRESS.md) | English
 
-## Current assessment (2026-10-20)
+## Current assessment (2026-10-21: mini SSH scope correction)
 
-| Scope | Closed | Implementation awaiting verification | Partial | Undelivered | Closure by acceptance items |
+The current objective is a standalone mini SSH bastion for small and medium businesses: few dependencies, easy use/maintenance, security and efficiency. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) is authoritative. The user's explicit correction replaces the former primary 42-group Enterprise goal with the existing S01–S12 checklist, 12 items. Changing scope adds no completed work.
+
+The newly authored Azure/Google/OpenStack expansion and interfaces have been withdrawn. This batch's unpublished PDF/email reports, scheduling and permanent statistics warehouse were also withdrawn, restoring existing statistics/CSV. Retain SSH job/operation history, request deduplication and directory security; add offline per-row integrity and WAL-backup cases. Current source remains unverified; old results do not validate it.
+
+Finish the necessary mini release batch, then perform unified verification, repairs and cleanup. Do not wait for the former 15 Enterprise groups. Remaining priorities are S10 directory enforcement acceptance, S11 the supported update/data-preservation boundary, and S12 bilingual UX, performance/size, browser/Docker, idempotent cleanup and final delivery.
+
+| Scope | Closed | Implementation awaiting verification | Partial | Undelivered | Accepted coverage |
 |---|---:|---:|---:|---:|---:|
-| Current stable SSH release | 9/12 | 1 | 2 | 0 | **75%** |
-| Full baseline (Community core, Enterprise enhancements and user additions) | 16/42 | 11 | 12 | 3 | **38%** |
+| Current mini SSH release (historical acceptance baseline) | 9/12 | 1 | 2 | 0 | **75%** |
+| Historical Enterprise research (outside current objective) | 16/42 | 11 | 12 | 3 | **38%, archived** |
 
-Denominators were fixed on 2026-10-20. The user requires **all features implemented before unified verification**. The 16 accepted groups plus E41, E36, E35, E04, E05, E22, E06, E08, E14, E34 and E18 make **27/42 implementation-ready (64%)**, leaving **15 groups** for code/cases/docs. Acceptance remains **16/42 (38%)**, with 26 unclosed groups. This batch authors E18 Windows local-account and four-database PAM: **one additional implementation-ready group, zero accepted groups** relative to `9fbc94d`. The remaining unready groups are E21, E24–E33 and E37–E40. Actual Windows/databases, vendors, Linux host policy and regression await unified acceptance. The overlapping checklists cannot be added together.
+The previous 27/42 (64%) readiness and 16/42 (38%) acceptance belong to the superseded full-Enterprise objective. The mini checklist retains its existing 12 items: nine historically accepted, S10 authored/unverified, S11/S12 partial. This scope correction accepts zero new items. Current changes require unified verification; report named gaps without inventing remaining hours.
 
-The percentage is closed capability groups divided by the fixed checklist total. Partial implementations receive no fractional credit. It does not measure code volume, remaining hours or production readiness; groups differ in effort. Changing or splitting the denominator requires the requirement source, reason and before/after counts. Vendor support, commercial licensing and supplier SLAs are excluded from software scope.
+Percentages count accepted groups, not code volume, effort or production-readiness probability. Record explicit user requirements and before/after denominators for scope changes. The historical tables overlap and cannot be added.
 
-The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html). Scope comes from [BASELINE](./BASELINE.en.md), [PLAN](./PLAN.en.md) and user additions. Delivery order follows [stable SSH](./SSH-FIRST.en.md); other Enterprise extensions do not enter this release's closing scope.
+[JumpServer Enterprise](https://www.jumpserver.org/enterprise.html) remains a reference. The user's 2026-10-21 correction and [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) define current requirements. BASELINE and E01–E42 are historical comparison material and must not automatically create new work.
 
 ## Status and evidence
+
+Unified verification is in progress, without final acceptance credit: the complete Go/Testify run passed 2037 tests with 133 skips; vet, lint, bilingual content and frontend builds passed. Seventeen Enterprise pages leave the default graph while asset labels remain; total JavaScript is 1,641,477 bytes within the unchanged budget. Linux race passed 194 tests with 4 skips and repeated resource cleanup; retention recovery remains. The first browser run exposed null empty history, stale navigation locators and an obsolete proxy; fixes require reruns. Native packages/upgrades and final Docker browser acceptance remain. These interim results add no closed S01–S12 items.
 
 - **Closed**: committed implementation and relevant acceptance evidence within the boundary stated in the row; this does not cover every extension in the competitor's equivalent module.
 - **Implementation awaiting verification**: code, cases and bilingual docs are authored and await the full-scope unified run; contributes no closed credit.
@@ -43,9 +51,9 @@ After E34 source checkpoint `9fbc94d`, this batch authors [Windows/database acco
 | S09 | Standalone offline full-site export/import | Closed | Encryption/integrity, idempotent restore, no overwrite on invalid input and restart retention; cross-version upgrades are S11. |
 | S10 | Directory rules across controlled execution paths | Implementation awaiting verification | Single jobs were accepted. Batch/template/schedule/Playbook and native interactive submission cwd, sharing/review/audit and cases are authored; unknown cwd denies conservatively, arbitrary internal shell semantics are excluded. Unified verification has not run. |
 | S11 | Update checks, data-preserving upgrades and supported-version boundaries | Partial | Install/rollback and a historical-source drill exist; freeze the minimum supported version, historical artifact/format migration and rejection of older versions. |
-| S12 | Final unified verification and delivery after all implementation | Partial | Complete all 42 groups, cases and bilingual docs, then verify, clean, report, commit and push once; include bilingual, performance and size gates. |
+| S12 | Final mini-release verification and delivery | Partial | Complete the necessary mini implementation, cases and bilingual docs, then verify, clean, report, commit and push once. Include core UX, performance, size and simple deployment; do not wait for historical Enterprise extensions. |
 
-## Full baseline: 42 fixed groups
+## Historical Enterprise research: 42 groups, outside the current objective
 
 Each row names a capability group and its accepted boundary or remaining extensions. Contract-level subfeature parity requires an explicit revision of this checklist; group counts must not be presented as coverage of every competitor subfeature.
 
@@ -71,10 +79,10 @@ Each row names a capability group and its accepted boundary or remaining extensi
 | E18 | [Windows/database account PAM](./ACCOUNT-PAM.en.md) | Implementation awaiting verification | Windows local SAM and PostgreSQL/MySQL/MariaDB/SQL Server identity collection/enrollment, native batch reset/check/recovery, permissions/encryption/idempotence/reopen/shared transactions, bilingual Web, CLI/SDK and native/browser cases are authored. Actual runs await unified acceptance; other database protocols remain E26. |
 | E19 | [SSH host monitoring, history and alerts](./MONITOR-ALERTS.en.md) | Closed | CPU/memory/disk/network, historical charts, authorization, offline/threshold alerts and notifications. |
 | E20 | [Remote tools and native agent](./HOST-PLUGINS.en.md) | Closed | banhack233/node_exporter detection/install, startup/recovery, upgrade/rollback, policy and audit. |
-| E21 | [Jobs, templates, schedules and Playbooks](./PLAYBOOKS.en.md) | Partial | Bounded Go orchestration and cron exist; full Ansible scope, directory propagation and long-term history capacity remain open. |
+| E21 | [Jobs, templates, schedules and Playbooks](./PLAYBOOKS.en.md) | Historical extension | Retain native Go jobs/plans, encrypted history, durable request deduplication and directory security. This batch's Ansible/Docker entrypoint is withdrawn and outside mini scope. |
 | E22 | [Enterprise notification channels](./NATIVE-NOTIFICATIONS.en.md) | Implementation awaiting verification | Existing inbox/TLS mail/gateway plus native Alibaba/Tencent/Huawei/CMPP 2.0 SMS, WeCom/DingTalk/Feishu/Lark bots, receipts, permissions/queue, bilingual Web, CLI/SDK and cases are authored; actual vendors/carriers and unified verification have not run. |
 | E23 | [Multi-stage access-request tickets](./ACCESS-TICKETS.en.md) | Closed | One to five review stages, published scopes, amendment reset, temporary grants, revocation and recovery. |
-| E24 | [Enterprise operations reports](./REPORTS.en.md) | Partial | Authorized statistics, UTC trends and CSV exist; scheduled reports, PDF and a full historical warehouse remain open. |
+| E24 | [Enterprise operations reports](./REPORTS.en.md) | Historical extension | Preserve original statistics/CSV; withdraw this batch's unpublished PDF/scheduling/mail/warehouse. Outside the mini objective. |
 | E25 | [Cloud inventory coverage and live-cloud acceptance](./ASSET-DISCOVERY.en.md) | Partial | LAN/AWS/Alibaba ECS/Tencent CVM exist; cloud adapters use signed fixtures, with real-account acceptance and remaining providers open. |
 | E26 | [Enterprise SQL database protocols](./SQLSERVER.en.md) | Partial | PostgreSQL/MySQL/MariaDB/SQL Server/ClickHouse exist; Oracle/DB2/Dameng and complete native-client proxying remain open. |
 | E27 | [Redis/MongoDB and native-client proxying](./NOSQL.en.md) | Partial | Native protocol consoles exist; node discovery and native TCP client proxying remain open. |
@@ -96,8 +104,8 @@ Each row names a capability group and its accepted boundary or remaining extensi
 
 ## Closing order and verification gate
 
-1. **Implement all 42 groups with cases and bilingual docs first.** SSH remains the development priority, but completing an SSH-only batch cannot start verification. Preserve directory/upgrade source and address remaining groups. If no historical formal Release exists, state support boundaries without fabricating release-migration evidence.
+1. **Author the necessary mini SSH release, cases and bilingual docs first.** Finish S10/S11 and core UX/maintenance. Stop cloud and other competitor expansions. If no historical formal Release exists, state support boundaries without fabricating migration evidence.
 2. **Run unified verification only after every implementation is ready.** Until then, run no tests, builds, browser or Docker verification. Author idempotency, revision conflict, approval replay, restart, recovery and cross-module cases in advance, then run existing entrypoints together. Repair failures and rerun affected checks; expand regression for shared-path impact or unresolved failures.
-3. **Clean and deliver.** Keep summaries and essential screenshots, clean owned resources safely and idempotently, then commit and push accepted scope. Intranet deployment remains cancelled; publication/changelog follow existing authorization and workflow. The complete Enterprise objective and 42-group denominator remain unchanged.
+3. **Clean and deliver.** Keep summaries and essential screenshots, clean owned resources safely and idempotently, then commit and push accepted scope. Intranet deployment remains cancelled. Publish once after the mini gate is met; generate changelog only with a release.
 
 Every delivery must update this document and tell the user the **current scope, closed/total and percentage, batch delta, named remaining gaps, verified source and unverified changes**. New requirements must identify which scope changes. Do not keep starting more features and full regressions without this information, and do not equate passing tests with complete functionality.

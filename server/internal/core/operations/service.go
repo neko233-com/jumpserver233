@@ -22,6 +22,7 @@ import (
 
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
+	"github.com/neko233-com/jumpserver233/server/internal/core/executionhistory"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/playbooks"
@@ -113,6 +114,7 @@ type Item struct {
 	RetryAt    time.Time    `json:"retry_at,omitzero"`
 }
 type Run struct {
+	Archived            bool                        `json:"archived,omitempty"`
 	WorkingDirectory    string                      `json:"working_directory,omitempty"`
 	ProgramID           string                      `json:"program_id,omitempty"`
 	PlaybookID          string                      `json:"playbook_id,omitempty"`
@@ -172,6 +174,7 @@ type Service struct {
 	tickMu            sync.Mutex
 	path              string
 	documents         *storage.Documents
+	history           *executionhistory.Store
 	aead              cipher.AEAD
 	data              state
 	jobs              *jobs.Service
@@ -217,7 +220,7 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 	formatVersion := 1
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 5 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 6 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid operations store")
 		}
@@ -329,6 +332,11 @@ func Open(path string, key []byte, documents *storage.Documents, jobService *job
 			cancel()
 			return nil, err
 		}
+	}
+	s.history, err = executionhistory.Open(filepath.Join(filepath.Dir(path), "execution-history.sqlite"), key, documents)
+	if err != nil {
+		cancel()
+		return nil, err
 	}
 	return s, nil
 }
@@ -647,7 +655,12 @@ func (s *Service) Run(id string) (Run, error) {
 	defer s.mu.Unlock()
 	r, ok := s.data.Runs[id]
 	if !ok {
-		return r, ErrNotFound
+		value, err := s.historicalRunLocked(id)
+		if err != nil {
+			return Run{}, err
+		}
+		value.Run.Archived = true
+		return cloneWorkflowRun(value.Run), nil
 	}
 	r.Items = append([]Item(nil), r.Items...)
 	r.HostPlugin = clonePlugin(r.HostPlugin)
@@ -661,6 +674,9 @@ func (s *Service) CancelRun(id string) error {
 		r, ok := next.Runs[id]
 		if !ok {
 			return ErrNotFound
+		}
+		if terminalRun(r.State) {
+			return ErrConflict
 		}
 		r.Cancelled = true
 		book = r.ProgramID != ""
@@ -725,6 +741,12 @@ func (s *Service) Tick() {
 	s.tickMu.Lock()
 	defer s.tickMu.Unlock()
 	if s.ctx.Err() != nil {
+		return
+	}
+	s.mu.Lock()
+	archiveErr := s.compactHistoryLocked()
+	s.mu.Unlock()
+	if archiveErr != nil {
 		return
 	}
 	s.archiveCollectors()
@@ -1001,8 +1023,25 @@ func runState(r Run) string {
 	}
 	return "failed"
 }
-func (s *Service) Close()   { s.mu.Lock(); s.cancel(); s.mu.Unlock(); s.wg.Wait() }
-func (s *Service) Abandon() { s.mu.Lock(); s.abandoned = true; s.cancel(); s.mu.Unlock() }
+func (s *Service) Close() {
+	s.mu.Lock()
+	s.cancel()
+	s.mu.Unlock()
+	s.wg.Wait()
+	if s.history != nil {
+		_ = s.history.Close()
+	}
+}
+func (s *Service) Abandon() {
+	s.mu.Lock()
+	s.abandoned = true
+	s.cancel()
+	s.mu.Unlock()
+	s.wg.Wait()
+	if s.history != nil {
+		_ = s.history.Close()
+	}
+}
 func (s *Service) persist(next state) error {
 	if s.abandoned {
 		return ErrBusy
@@ -1018,7 +1057,7 @@ func (s *Service) persist(next state) error {
 	if _, err = rand.Read(nonce); err != nil {
 		return err
 	}
-	version := 5
+	version := 6
 	data, err := json.Marshal(envelope{Version: version, Nonce: nonce, Ciphertext: s.aead.Seal(nil, nonce, plain, []byte(fmt.Sprintf("jms233/operations/v%d", version)))})
 	if err != nil {
 		return err

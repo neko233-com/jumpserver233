@@ -1,5 +1,6 @@
 .git
 .github
+.agents
 .codely-cli
 CODELY.md
 **/node_modules
@@ -155,3 +156,7 @@ web/testsupport
 **/.enterprise-login-*
 **/sms-mfa.json
 **/.sms-mfa-*
+**/execution-history.sqlite
+**/execution-history.sqlite-wal
+**/execution-history.sqlite-shm
+**/execution-history.sqlite-journal

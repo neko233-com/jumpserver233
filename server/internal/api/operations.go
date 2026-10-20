@@ -219,7 +219,11 @@ func registerOperationRoutes(mux *http.ServeMux, d Dependencies, authorize func(
 		if hasPermission(r, "plans.view_all") {
 			owner = ""
 		}
-		items, total := d.Operations.Runs(owner, offset, limit)
+		items, total, err := d.Operations.ListRuns(owner, offset, limit)
+		if err != nil {
+			writeJobError(w, err)
+			return
+		}
 		for i := range items {
 			items[i] = operations.PublicRun(items[i])
 		}

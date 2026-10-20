@@ -551,7 +551,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		return err
 	}
 	if cfg.CheckData {
-		return ctx.Err()
+		return runtimes.checkHistory(ctx)
 	}
 	var activationReady atomic.Bool
 	if cfg.ActivationID != "" {

@@ -14,8 +14,11 @@ const id = randomUUID(), owner = `jms233-updates-race-${id}`, db = `${owner}-db`
 const labels = ["--label", `com.jumpserver233.qa.owner=${owner}`, "--label", `com.jumpserver233.qa.workspace=${root}`];
 const options = process.argv.slice(2), focusIndex = options.indexOf("--rotation-plans-only"), rotationPlansOnly = focusIndex >= 0;
 if (rotationPlansOnly) options.splice(focusIndex, 1);
+const miniIndex = options.indexOf("--mini"), mini = miniIndex >= 0;
+if (mini) options.splice(miniIndex, 1);
+if (mini && rotationPlansOnly) throw new Error("Choose --mini or --rotation-plans-only");
 const batch = options.length===0 ? "execution-directories" : options.length===2 && options[0]==="--batch" && /^[a-z][a-z0-9-]{0,63}$/.test(options[1]) ? options[1] : null;
-if (!batch) throw new Error("Use [--batch lowercase-name] [--rotation-plans-only]");
+if (!batch) throw new Error("Use [--batch lowercase-name] [--mini | --rotation-plans-only]");
 const output = resolve(root, `.cache/qa-reports/${batch}/linux-race.json`); mkdirSync(resolve(output, ".."), { recursive: true });
 const report = { at: new Date().toISOString(), pid: process.pid, owner, network: owner, database: db, runner, status: "preparing", tests: [], packages: [], cleanup: {} };
 const save = () => writeFileSync(output, JSON.stringify(report, null, 2));
@@ -29,13 +32,15 @@ save();
 try {
   report.commit = (await run("git", ["rev-parse", "HEAD"])).stdout.trim();
   report.sourceDirty = Boolean((await run("git", ["status", "--porcelain"])).stdout.trim());
-  report.scope = rotationPlansOnly ? "rotation-plans" : "update-and-ssh";
+  report.scope = mini ? "mini-standalone" : rotationPlansOnly ? "rotation-plans" : "update-and-ssh";
   save();
   await run("docker", ["network", "create", ...labels, owner]);
+  if (!mini) {
   await run("docker", ["run", "--detach", "--name", db, ...labels, "--network", owner, "--tmpfs", "/var/lib/postgresql:rw,nosuid,size=256m", "--env", "POSTGRES_USER=jumpserver", "--env", `POSTGRES_PASSWORD=${password}`, "--env", "POSTGRES_DB=jumpserver_test", "postgres:17"]);
   let ready = false;
   for (let attempt = 0; attempt < 100; attempt++) { try { await run("docker", ["exec", db, "pg_isready", "-U", "jumpserver", "-d", "jumpserver_test"]); ready = true; break; } catch { await delay(100); } }
   if (!ready) throw new Error("QA database not ready");
+  }
   const modules = (await execute("go", ["env", "GOMODCACHE"], { cwd: resolve(root, "server") })).stdout.trim();
   const args = ["run", "--rm", "--name", runner, ...labels, "--network", owner,
     "--mount", `type=bind,source=${root},target=/work,readonly`, "--mount", `type=bind,source=${modules},target=/gomod,readonly`,
@@ -45,6 +50,16 @@ try {
   if (rotationPlansOnly) {
     args[args.indexOf("-run") + 1] = ".";
     args.splice(args.indexOf("./internal/core/replayarchive"), args.length, "./internal/core/rotationplans");
+  }
+  if (mini) {
+    const dsnIndex = args.findIndex(value => value.startsWith("JMS_TEST_DATABASE_URL="));
+    args[dsnIndex] = "JMS_TEST_DATABASE_URL=";
+    args[args.indexOf("-run") + 1] = "History|Directory|Workspace|Input|Backup|Upgrade|Preflight|Drain|Admission|AccessSession|ConnectionScope|ConnectionBinding|NativeStep|Operation|Playbook|ExecGuard|CloseSessionIdempotent";
+    args.splice(args.indexOf("./internal/core/replayarchive"), args.length,
+      "./internal/storage", "./internal/core/executionhistory", "./internal/core/jobs",
+      "./internal/core/operations", "./internal/gateway", "./internal/terminalwire",
+      "./internal/hostagent", "./internal/connector/sshclient", "./internal/maintenance",
+      "./internal/core/servicemaintenance", "./cmd/server");
   }
   const started = performance.now();
   report.code = await new Promise((done, reject) => {

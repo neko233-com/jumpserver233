@@ -64,7 +64,7 @@ func TestSSHCertificateBuiltinCacheTwoPhaseRotationRestartAndNoFallback(t *testi
 	assert.Empty(t, c.Password)
 	cert := parseCert(t, c)
 	assert.Equal(t, []string{target.Username}, cert.ValidPrincipals)
-	assert.Equal(t, xssh.UserCert, cert.CertType)
+	assert.Equal(t, uint32(xssh.UserCert), cert.CertType)
 	assert.LessOrEqual(t, cert.ValidBefore, uint64(now.Add(300*time.Second).Unix()))
 	require.Len(t, s.data.Audit, 3)
 	c.Certificate[0] = '!'

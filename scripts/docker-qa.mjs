@@ -161,6 +161,7 @@ async function browserSmoke() {
     await page.getByRole("button", { name: "中文", exact: true }).click();
     await expect(page.getByRole("heading", { name: "资产", exact: true })).toBeVisible();
     await page.screenshot({ path: resolve(output, "production.zh-CN.png") });
+    await page.getByRole("button", { name: "更多功能", exact: true }).click();
     await page.getByRole("link", { name: "账号风险", exact: true }).click();
     await expect(page.getByRole("heading", { name: "账号风险", exact: true })).toBeVisible();
     if (command === "verify") {

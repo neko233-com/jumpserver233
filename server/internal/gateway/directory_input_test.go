@@ -94,7 +94,7 @@ func TestDirectoryTerminalGatewayReviewRefusesReplacedDirectoryAndOneTimeReplay(
 	b.mu.Lock()
 	live := b.sessions[session.SessionID]
 	b.mu.Unlock()
-	live.commands.ObserveOutput([]byte("ops$ "))
+	live.commands.ObserveOutput([]byte("\r\nops$ "))
 	require.NoError(t, conn.Write(ctx, websocket.MessageBinary, []byte("pwd\r")))
 	readShareUntil(t, ctx, conn, "command_review_pending")
 	readShareUntil(t, ctx, conn, "pwd")
@@ -173,11 +173,11 @@ func TestDirectoryTerminalSharedControllerUsesKernelProofAndCurrentPolicy(t *tes
 	b.mu.Lock()
 	live := b.sessions[s.SessionID]
 	b.mu.Unlock()
-	live.commands.ObserveOutput([]byte("ops$ "))
+	live.commands.ObserveOutput([]byte("\r\nops$ "))
 	require.NoError(t, peer.Write(ctx, websocket.MessageBinary, []byte("pwd\r")))
 	readShareUntil(t, ctx, peer, "pwd")
 	revoked.Store(true)
-	live.commands.ObserveOutput([]byte("ops$ "))
+	live.commands.ObserveOutput([]byte("\r\nops$ "))
 	require.NoError(t, peer.Write(ctx, websocket.MessageBinary, []byte("pwd\r")))
 	readShareUntil(t, ctx, peer, "command_blocked")
 	require.Eventually(t, func() bool { rows, _, e := b.ListCommands(s.SessionID, 0, 50); return e == nil && len(rows) == 2 }, time.Second, time.Millisecond)

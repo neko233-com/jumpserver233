@@ -22,6 +22,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/accesspolicies"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accessreviews"
 	"github.com/neko233-com/jumpserver233/server/internal/core/accountdiscovery"
+	"github.com/neko233-com/jumpserver233/server/internal/core/executionhistory"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
 	"github.com/neko233-com/jumpserver233/server/internal/core/playbooks"
 	"github.com/neko233-com/jumpserver233/server/internal/hostagent"
@@ -37,6 +38,7 @@ var (
 )
 
 type Input struct {
+	Stdin            []byte                      `json:"-"`
 	WorkingDirectory string                      `json:"working_directory,omitempty"`
 	ConnectionScope  string                      `json:"-"`
 	PlaybookStep     *playbooks.Execution        `json:"-"`
@@ -50,6 +52,9 @@ type Input struct {
 	RequestID        string                      `json:"request_id"`
 }
 type Job struct {
+	input              []byte
+	InputDigest        string                      `json:"input_digest,omitempty"`
+	Archived           bool                        `json:"archived,omitempty"`
 	WorkingDirectory   string                      `json:"working_directory,omitempty"`
 	ExecutionDirectory string                      `json:"execution_directory,omitempty"`
 	ConnectionScope    string                      `json:"connection_scope,omitempty"`
@@ -78,11 +83,13 @@ type Job struct {
 }
 type Executor func(context.Context, string, string) (sshclient.ExecResult, error)
 type Service struct {
+	history           *executionhistory.Store
 	admission         *workgate.Gate
 	mu                sync.Mutex
 	path              string
 	documents         *storage.Documents
 	aead              cipher.AEAD
+	inputKey          []byte
 	jobs              map[string]Job
 	running           map[string]context.CancelFunc
 	ctx               context.Context
@@ -115,7 +122,7 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 		return nil, fmt.Errorf("job executor is required")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Service{path: path, documents: documents, aead: aead, jobs: map[string]Job{}, running: map[string]context.CancelFunc{}, ctx: ctx, cancel: cancel, exec: exec}
+	s := &Service{path: path, documents: documents, aead: aead, inputKey: append([]byte(nil), key...), jobs: map[string]Job{}, running: map[string]context.CancelFunc{}, ctx: ctx, cancel: cancel, exec: exec}
 	var data []byte
 	if documents != nil {
 		data, err = documents.LoadOrImport("ssh-jobs", path)
@@ -131,7 +138,7 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 	}
 	if len(data) > 0 {
 		var e envelope
-		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 6 || len(e.Nonce) != aead.NonceSize() {
+		if json.Unmarshal(data, &e) != nil || e.Version < 1 || e.Version > 7 || len(e.Nonce) != aead.NonceSize() {
 			cancel()
 			return nil, fmt.Errorf("invalid encrypted job store")
 		}
@@ -146,7 +153,7 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 			return nil, fmt.Errorf("invalid job records")
 		}
 		for _, j := range records {
-			if !validJobDirectory(j, e.Version) {
+			if !validJobDirectory(j, e.Version) || !validJobInput(j, e.Version) {
 				cancel()
 				return nil, ErrInvalid
 			}
@@ -179,9 +186,14 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 			s.jobs[j.ID] = j
 		}
 	}
+	s.history, err = executionhistory.Open(filepath.Join(filepath.Dir(path), "execution-history.sqlite"), key, documents)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 	changed := false
 	for id, j := range s.jobs {
-		if j.State == "running" {
+		if j.State == "running" || j.State == "pending_review" && j.InputDigest != "" {
 			j.State = "interrupted"
 			j.ErrorCode = "node_restarted"
 			j.FinishedAt = time.Now().UTC()
@@ -191,6 +203,7 @@ func Open(path string, key []byte, documents *storage.Documents, exec Executor) 
 	}
 	if changed {
 		if err := s.persistLocked(); err != nil {
+			_ = s.history.Close()
 			cancel()
 			return nil, err
 		}
@@ -205,6 +218,10 @@ func validState(v string) bool {
 	return false
 }
 func Validate(in Input) (Input, error) {
+	if len(in.Stdin) > 2048 || len(in.Stdin) > 0 && in.PlaybookStep == nil {
+		return in, ErrInvalid
+	}
+	in.Stdin = append([]byte(nil), in.Stdin...)
 	if in.WorkingDirectory != "" && (hostagent.ValidateWorkspace(in.WorkingDirectory) != nil || in.Plugin != nil || in.Discovery != nil || in.RemoteAccount != nil) {
 		return in, ErrInvalid
 	}
@@ -282,11 +299,17 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 	}
 	for _, j := range s.jobs {
 		if in.RequestID != "" && j.OperatorID == actorID && j.RequestID == in.RequestID {
-			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || j.WorkingDirectory != in.WorkingDirectory || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery) || !sameRemoteAccount(j.RemoteAccount, in.RemoteAccount) || !samePlaybookStep(j.PlaybookStep, in.PlaybookStep)) {
+			if !s.jobMatches(j, in) {
 				return Job{}, ErrConflict
 			}
 			return cloneJob(j), nil
 		}
+	}
+	if archived, found, e := s.historyRequestLocked(actorID, in); e != nil || found {
+		return archived, e
+	}
+	if e := s.archiveHistoryLocked(); e != nil {
+		return Job{}, e
 	}
 	if len(s.jobs) >= 1000 {
 		return Job{}, ErrBusy
@@ -296,12 +319,15 @@ func (s *Service) SubmitWithGate(in Input, actorID, actor, assetName, account, d
 		return Job{}, err
 	}
 	j := Job{ConnectionScope: in.ConnectionScope, PlaybookStep: in.PlaybookStep, RemoteAccount: in.RemoteAccount, Discovery: in.Discovery, Plugin: in.Plugin, AccessOrigin: in.Origin, ID: "job-" + hex.EncodeToString(raw[:]), AssetID: in.AssetID, AssetName: assetName, Account: account, OperatorID: actorID, Operator: actor, Command: in.Command, TimeoutSeconds: in.TimeoutSeconds, RequestID: in.RequestID, RuleName: rule, CreatedAt: time.Now().UTC(), ExecResult: sshclient.ExecResult{ExitCode: -1}}
+	j.input = append([]byte(nil), in.Stdin...)
+	j.InputDigest = s.inputDigest(in.Stdin)
 	j.WorkingDirectory = in.WorkingDirectory
 	if proof, err := accessreviews.ParseConnectionScope(in.ConnectionScope); err == nil {
 		j.ExecutionDirectory = proof.WorkingDirectory
 	}
 	switch decision {
 	case "deny":
+		j.input = nil
 		j.State = "denied"
 		j.ErrorCode = "command_denied"
 		j.FinishedAt = j.CreatedAt
@@ -367,6 +393,7 @@ func (s *Service) Review(id, reviewer string, approve bool) (Job, error) {
 		j.StartedAt = time.Now().UTC()
 	} else {
 		j.State = "denied"
+		j.input = nil
 		j.ErrorCode = "review_denied"
 		j.FinishedAt = time.Now().UTC()
 	}
@@ -395,6 +422,7 @@ func sameDiscovery(a, b *accountdiscovery.Operation) bool {
 }
 
 func cloneJob(j Job) Job {
+	j.input = append([]byte(nil), j.input...)
 	if j.PlaybookStep != nil {
 		copy := *j.PlaybookStep
 		j.PlaybookStep = &copy
@@ -531,6 +559,7 @@ func (s *Service) launchLocked(j Job) {
 					}
 				}
 				if err == nil {
+					ctx = sshclient.WithExecInput(ctx, j.input)
 					result, err = s.exec(ctx, j.AssetID, j.Command)
 				}
 			}
@@ -547,6 +576,7 @@ func (s *Service) launchLocked(j Job) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		current := s.jobs[j.ID]
+		current.input = nil
 		delete(s.running, j.ID)
 		current.ExecResult = result
 		current.FinishedAt = time.Now().UTC()
@@ -593,6 +623,18 @@ func (s *Service) Get(id string) (Job, error) {
 	}
 	j, ok := s.jobs[id]
 	if !ok {
+		if s.history != nil {
+			record, e := s.history.Get(context.Background(), "job", id)
+			if errors.Is(e, executionhistory.ErrNotFound) {
+				return Job{}, ErrNotFound
+			}
+			if e != nil {
+				return Job{}, e
+			}
+			job, e := decodeHistoryJob(record, true)
+			job.Archived = true
+			return job, e
+		}
 		return Job{}, ErrNotFound
 	}
 	return cloneJob(j), nil
@@ -602,13 +644,13 @@ func (s *Service) FindRequest(owner string, in Input) (Job, bool, error) {
 	defer s.mu.Unlock()
 	for _, j := range s.jobs {
 		if in.RequestID != "" && j.OperatorID == owner && j.RequestID == in.RequestID {
-			if j.AssetID != in.AssetID || j.Command != in.Command || j.TimeoutSeconds != in.TimeoutSeconds || j.WorkingDirectory != in.WorkingDirectory || (!samePlugin(j.Plugin, in.Plugin) || !sameDiscovery(j.Discovery, in.Discovery) || !sameRemoteAccount(j.RemoteAccount, in.RemoteAccount) || !samePlaybookStep(j.PlaybookStep, in.PlaybookStep)) {
+			if !s.jobMatches(j, in) {
 				return Job{}, false, ErrConflict
 			}
 			return cloneJob(j), true, nil
 		}
 	}
-	return Job{}, false, nil
+	return s.historyRequestLocked(owner, in)
 }
 func (s *Service) List(owner string, offset, limit int) ([]Job, int, error) {
 	s.mu.Lock()
@@ -623,6 +665,9 @@ func (s *Service) List(owner string, offset, limit int) ([]Job, int, error) {
 			j.Stderr = ""
 			all = append(all, cloneJob(j))
 		}
+	}
+	if s.history != nil {
+		return s.historyListLocked(owner, offset, limit, all)
 	}
 	sort.Slice(all, func(i, j int) bool {
 		if all[i].CreatedAt.Equal(all[j].CreatedAt) {
@@ -642,6 +687,7 @@ func (s *Service) expireLocked() error {
 		old[id] = j
 		if j.State == "pending_review" && now.Sub(j.CreatedAt) >= 5*time.Minute {
 			j.State = "timed_out"
+			j.input = nil
 			j.ErrorCode = "review_expired"
 			j.FinishedAt = now
 			s.jobs[id] = j
@@ -672,6 +718,7 @@ func (s *Service) Cancel(id string) error {
 	}
 	old := j
 	j.State = "cancelled"
+	j.input = nil
 	j.ErrorCode = "cancelled"
 	j.FinishedAt = time.Now().UTC()
 	s.jobs[id] = j
@@ -681,11 +728,28 @@ func (s *Service) Cancel(id string) error {
 	}
 	return nil
 }
-func (s *Service) Close() { s.mu.Lock(); s.cancel(); s.mu.Unlock(); s.wg.Wait() }
+func (s *Service) Close() {
+	s.mu.Lock()
+	s.cancel()
+	s.mu.Unlock()
+	s.wg.Wait()
+	if s.history != nil {
+		_ = s.history.Close()
+	}
+}
 
 // Abandon prevents a node that lost leadership from overwriting shared state.
 // The next leader marks persisted running jobs interrupted without replay.
-func (s *Service) Abandon() { s.mu.Lock(); s.abandoned = true; s.cancel(); s.mu.Unlock(); s.wg.Wait() }
+func (s *Service) Abandon() {
+	s.mu.Lock()
+	s.abandoned = true
+	s.cancel()
+	s.mu.Unlock()
+	s.wg.Wait()
+	if s.history != nil {
+		_ = s.history.Close()
+	}
+}
 func (s *Service) persistLocked() error {
 	if s.abandoned {
 		return fmt.Errorf("job store leadership was lost")
@@ -712,6 +776,9 @@ func (s *Service) persistLocked() error {
 		if j.ConnectionScope != "" {
 			version = 5
 		}
+	}
+	if s.history != nil {
+		version = 7
 	}
 	for _, j := range records {
 		if j.PlaybookStep != nil {
@@ -756,8 +823,8 @@ func (s *Service) persistLocked() error {
 	return os.Rename(file.Name(), s.path)
 }
 
-// Only the internal scheduled reader can leave hot history after its full
-// receipt was durably archived. General jobs keep their existing retention.
+// Collector outboxes retain their own complete receipts. Ordinary terminal
+// jobs move to the encrypted indexed history through archiveHistoryLocked.
 func (s *Service) PruneCollector(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

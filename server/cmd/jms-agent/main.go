@@ -82,11 +82,15 @@ func run(args []string) int {
 			raw, e := io.ReadAll(io.LimitReader(os.Stdin, 16385))
 			var request struct {
 				Command string `json:"command"`
+				Input   []byte `json:"input,omitempty"`
 			}
 			if e != nil || len(raw) > 16384 || json.Unmarshal(raw, &request) != nil {
 				return 2
 			}
 			command = request.Command
+			if hostagent.SetWorkspaceInput(request.Input) != nil {
+				return 2
+			}
 		}
 		var execError error
 		if *workingDirectory != "" {

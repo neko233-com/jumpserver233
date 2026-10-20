@@ -15,9 +15,10 @@ If a doc conflicts with a user instruction, follow the user and say so. If a doc
 
 ## 2. Project
 
-jumpserver233 reimplements JumpServer in Go + React. The competitor is JumpServer Enterprise; the roadmap is phased (Community first, X-Pack parity later).
+jumpserver233 is an independent mini SSH bastion in Go + React for small and medium businesses. Standalone deployment, few runtime dependencies, usability, security and maintenance are the product goals. JumpServer Enterprise is a reference, not a parity requirement. The user's 2026-10-21 correction supersedes the earlier full-Enterprise scope.
 
-- Scope and roadmap: [docs/PLAN.md](./docs/PLAN.md) — authoritative for scope disputes
+- Product scope: [docs/PRODUCT-SCOPE.en.md](./docs/PRODUCT-SCOPE.en.md) — authoritative for scope disputes
+- Roadmap: [docs/PLAN.md](./docs/PLAN.md)
 - Feature baseline: [docs/BASELINE.md](./docs/BASELINE.md) — research snapshot of upstream JumpServer
 - Delivery counts and remaining gaps: [docs/PROGRESS.en.md](./docs/PROGRESS.en.md)
 - Docs index: [docs/README.md](./docs/README.md)
@@ -81,8 +82,17 @@ Put generated evidence in ignored `.cache/qa-reports/`; put reusable QA entrypoi
 
 ## 6. Roadmap discipline
 
-- Keep the SSH stable-release scope separate from full Enterprise parity. Every delivery must update PROGRESS in both languages and report closed/total items, percentage, batch delta, named remaining gaps, verified source and unverified changes. Partial or untested work receives no closed credit; changing the checklist denominator requires an explicit requirement source and before/after counts.
-- The user's 2026-10-20 instruction sets the implementation gate to the entire 42-group checklist in PROGRESS. Author all missing features, cases and bilingual docs before running tests, builds, browser or Docker verification. An SSH-only batch does not open this gate. Report implementation readiness separately from accepted completion; writing tests does not authorize running them early. After the unified run, repair failures and rerun affected checks, expanding regression for shared-path impact or unresolved failures.
+- The current primary checklist is the 12-item mini SSH release in PROGRESS. The user's 2026-10-21 correction replaces the former 42-group Enterprise objective; preserve that table as historical research, not a completion gate. Report accepted/total, readiness, named gaps and the verified source separately; a scope change grants no completion credit.
+- Author the necessary mini stable-release batch, cases and bilingual docs before unified tests, builds, browser and Docker verification. Do not wait for deferred Enterprise modules. After the unified run repair failures and rerun affected checks; expand regression for shared-path impact or unresolved failures.
 - Work one phase at a time; update the status column in docs/PLAN.md when a phase lands.
-- Stay inside the current phase's scope; enterprise (X-Pack) features wait for Phase 7 unless the user says otherwise.
+- Do not add cloud vendors, protocols, app markets, face recognition, external runtimes or complex enterprise integrations merely to match the competitor. Require an explicit product use case; keep standalone operation free of external service dependencies.
 - When the task is unclear, ask one focused question rather than guessing on scope-affecting choices.
+
+## 7. Project UI skill
+
+For UI design or visual improvements, read the project-local [oil-ui skill](./.agents/skills/oil-ui/SKILL.md), installed from `oil-oil/dsh-oil-ui`. Installation, pinned provenance and the console direction are documented in [UI design](./docs/UI-DESIGN.en.md).
+
+- Reuse the existing compact operational console, brand variables and bilingual components. The user's SSH reference establishes the current direction; routine refinement does not require another style-selection round.
+- The upstream skill mentions DeepSeek Harness tools (`oil_ui_*`); this Codex project uses its available file tools, image viewer and browser tools instead. Do not claim unavailable plugin tools are installed or launch another harness.
+- User instructions and the full-batch verification gate in section 6 take precedence over the skill's per-page review cadence. Author UI cases now; run browser checks with the unified verification batch. Put evidence in ignored `.cache/qa-reports/`.
+- Keep vendored skill files and licenses intact. Project-owned guidance remains bilingual; upstream skill documentation retains its original language and hashes. Update the pinned source only on explicit request.

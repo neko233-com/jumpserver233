@@ -2,6 +2,12 @@
 
 > [中文](./README.md) | English
 
+[Current product scope](./PRODUCT-SCOPE.en.md): a standalone mini SSH bastion for small and medium businesses, with few dependencies, usability, security and efficiency. Finish S01–S12. Enterprise entries below describe existing work/historical research rather than automatic requirements; the user's correction supersedes the former 42-group gate.
+
+[Project UI skill and design direction](./UI-DESIGN.en.md): project-local oil-ui, pinned provenance, compact operational navigation and bilingual/narrow-screen cases; awaiting unified verification.
+
+This batch's unverified PDF/email reports, report scheduling and permanent statistics warehouse have been withdrawn. Preserve existing statistics/CSV without adding mini runtime/maintenance burden. Retain [encrypted job/operation history](./EXECUTION-HISTORY.en.md), with standalone upgrade preflight and backup/recovery coverage.
+
 [Windows/database account PAM](./ACCOUNT-PAM.en.md): local Windows accounts, four native databases, enrollment, batch/periodic reset and recovery, bilingual Web, CLI/SDK and unified cases. E18 is implementation ready; verification has not run.
 
 [AI assistant and conversation audit](./AI-ASSISTANT.en.md): organization provider settings/write-only keys, platform authority, native HTTPS, receipts/revisions, revocation, encrypted history/archive, bilingual Web, CLI/SDK and cases are authored. E34 awaits unified verification after all 42 groups are ready.
@@ -153,6 +159,7 @@ SAML signed assertions, browser binding, local MFA, encrypted SP identity, and c
 | [CAS.en.md](./CAS.en.md) | CAS 2/3 tickets, browser binding, local MFA, and audits |
 | [SSHMONITOR.en.md](./SSHMONITOR.en.md) | SSH host metrics, collection, and access boundaries |
 | [JOBS.en.md](./JOBS.en.md) | SSH jobs, batches/templates/schedules, Agent exec, reviews, and audits |
+| [EXECUTION-HISTORY.en.md](./EXECUTION-HISTORY.en.md) | Embedded SQLite / PostgreSQL encrypted job and Playbook history and durable deduplication |
 | [TESTING.en.md](./TESTING.en.md) | Unified Testify, PostgreSQL/HA, race, and browser verification |
 | [PASSWORD-ROTATION.en.md](./PASSWORD-ROTATION.en.md) | Seven-day SSH password rotation, credential protection, and standalone acceptance boundary |
 | [CLUSTER-HA.en.md](./CLUSTER-HA.en.md) | PostgreSQL active/standby, shared storage, health probes, and acceptance boundary |
@@ -174,6 +181,7 @@ SAML signed assertions, browser binding, local MFA, encrypted SP identity, and c
 | [CAS.md](./CAS.md) | CAS 2/3 服务票据、浏览器绑定、本地 MFA 和配置审计 |
 | [SSHMONITOR.md](./SSHMONITOR.md) | SSH 主机监控指标、采集方式与权限边界 |
 | [JOBS.md](./JOBS.md) | SSH 作业、批量/模板/定时计划、Agent exec、命令复核与审计 |
+| [EXECUTION-HISTORY.md](./EXECUTION-HISTORY.md) | 内置 SQLite / PostgreSQL 加密作业与 Playbook 历史、持久化重试去重 |
 | [TESTING.md](./TESTING.md) | Testify、PostgreSQL/HA、race 与浏览器端到端统一验证 |
 | [PASSWORD-ROTATION.md](./PASSWORD-ROTATION.md) | SSH 账号每 7 天密码轮换、凭据保护与单机验收边界 |
 | [CLUSTER-HA.md](./CLUSTER-HA.md) | PostgreSQL 单活热备、共享存储配置、健康探针与验收边界 |

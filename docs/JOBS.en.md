@@ -34,7 +34,7 @@ By default the CLI writes remote stdout/stderr to the corresponding local stream
 ## Resources and failure behavior
 
 - Default execution timeout is 60 seconds, configurable from 1 to 300. Combined stdout/stderr capture is limited to 64 KiB; additional output is drained and discarded.
-- At most eight jobs run globally and two per user. Each user can have 20 pending reviews. The store holds 1000 audit records; new jobs are refused at capacity, without silently deleting old audits.
+- At most eight jobs run globally and two per user, with 20 pending reviews per user. Hot state holds 1,000 records. This batch adds automatic migration of terminal ordinary jobs and Playbook children to [durable execution history](./EXECUTION-HISTORY.en.md), retaining output and request receipts; unified verification is pending.
 - Cancellation, timeout, or node shutdown closes the SSH transport. Detached remote descendants may continue; verify them separately when needed.
 - Restart or HA takeover marks unfinished jobs interrupted without replay. A node that loses its election lock stops writing job documents. Failure to persist the final audit reports `audit_unavailable`; verify the remote outcome before retrying.
 - Current coverage includes SSH jobs, batch dispatch, templates, and interval schedules. Full Ansible and other ticket types remain open; cron/calendar scheduling is described in [Calendar schedules](./SCHEDULING.en.md); access tickets and external notifications are covered in [Access tickets](./ACCESS-TICKETS.en.md) and [Notifications](./NOTIFICATIONS.en.md).
@@ -47,7 +47,7 @@ Expand “Batch commands and schedules” in the workbench, select 1–50 author
 - Only definite capacity rejection and pending login review are retried. Login approval resumes dispatch; denial/expiry terminates that target. Command review uses existing job details. Duplicate requests and capacity rejection do not consume additional login permits.
 - Recurrence uses dispatch time plus the interval. Missed occurrences coalesce into one; an active run or review causes the next occurrence to be skipped. Pause affects future occurrences. Cancel stops undispatched targets and requests cancellation of existing child jobs.
 - A target claim must persist before dispatch. After restart/HA takeover, claimed targets only link an existing job with the same request ID. Ambiguous dispatches become interrupted and are never replayed. Unclaimed targets continue after current authorization checks.
-- Templates, plans, and run indexes are encrypted with Vault-key AES-GCM in local `operations.json` or the PostgreSQL `operations` document for single-active HA. A former leader stops dispatch and writes. Limits are 500 templates, 1000 plans, and 1000 runs. Full history pauses due plans without removing audits. Child jobs also have a separate 1000-record audit limit.
+- Templates, plans and hot runs use Vault-key AES-GCM in local `operations.json` or the PostgreSQL `operations` document for single-active HA. Limits are 500 templates, 1,000 plans and 1,000 hot runs. This batch adds indexed terminal history with complete original source. Capacity protection applies when active/dedicated records cannot move; migration retains the historical audit. Unified verification is pending.
 
 ## API
 

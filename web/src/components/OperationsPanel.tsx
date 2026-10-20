@@ -136,7 +136,11 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
         setRuns(runData.results);
         setTotal(runData.total);
         setSelected((previous) =>
-          previous ? runData.results.find((run) => run.id === previous.id) || previous : null,
+          previous?.archived
+            ? previous
+            : previous
+              ? runData.results.find((run) => run.id === previous.id) || previous
+              : null,
         );
         setError(false);
       } catch {
@@ -161,6 +165,26 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
       window.clearInterval(timer);
     };
   }, [load, open]);
+  const selectedID = selected?.id;
+  const selectedArchived = selected?.archived;
+  useEffect(() => {
+    if (!selectedID || !selectedArchived) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await request(`/api/v1/ops/runs/${encodeURIComponent(selectedID)}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw Error();
+        const full = (await response.json()) as Run;
+        if (!controller.signal.aborted)
+          setSelected((previous) => (previous?.id === selectedID ? full : previous));
+      } catch {
+        if (!controller.signal.aborted) setError(true);
+      }
+    })();
+    return () => controller.abort();
+  }, [request, selectedID, selectedArchived]);
   function edit(template: Template | null) {
     setEditing(template);
     setTemplateName(template?.name || "");

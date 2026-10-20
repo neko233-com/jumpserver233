@@ -54,7 +54,7 @@ async function port() {
 }
 try {
   report.commit = (await run("git", ["rev-parse", "HEAD"])).stdout.trim();
-  report.sourceDirty = Boolean((await run("git", ["status", "--porcelain"])).stdout.trim());
+  report.sourceDirty = Boolean((await run("git", ["-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "status", "--porcelain", "--untracked-files=all"])).stdout.trim());
   if (report.sourceDirty) throw new Error("Commit the source batch before native provenance verification");
   report.builtAt = (await run("git", ["show", "-s", "--format=%cI", "HEAD"])).stdout.trim();
   report.testVersion = "v0.0.0"; report.published = false; save();
@@ -653,6 +653,11 @@ try {
   catch (e) { conflict = String(e.stderr).includes("update destination already exists"); }
   if (!conflict) throw new Error("Native package unexpectedly replaced existing bytes");
   if (createHash("sha256").update(readFileSync(repeatedArchive)).digest("hex") !== originalDigest) throw new Error("Repeated package changed existing bytes");
+  if ((await run("git", ["rev-parse", "HEAD"])).stdout.trim() !== report.commit ||
+      (await run("git", ["-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "status", "--porcelain", "--untracked-files=all"])).stdout.trim()) {
+    throw new Error("Source changed during native provenance verification");
+  }
+  report.sourceUnchanged = true;
   report.replacementRefused = true; report.status = "passed";
 } catch (e) {
   report.status = "failed"; report.error = "Native QA failed; no release or deployment was created"; process.exitCode = 1;

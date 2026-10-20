@@ -42,6 +42,7 @@ export type WorkflowItem = {
   steps?: PlaybookStep[];
 };
 export type WorkflowRun = {
+  archived?: boolean;
   id: string;
   owner_id: string;
   program_id?: string;

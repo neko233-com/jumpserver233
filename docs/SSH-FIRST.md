@@ -2,13 +2,13 @@
 
 > 中文 | [English](./SSH-FIRST.en.md)
 
-2026-10-20 追加流程要求：完整功能清单全部实现后再统一验证。本文只规定开发优先级，不能用 SSH 小批次完成开启测试；以[当前进度门禁](./PROGRESS.md)为准。
+2026-10-21 用户修正为独立 mini SSH 跳板机：[产品定位](./PRODUCT-SCOPE.md)为当前权威范围，主验收清单 S01–S12。先完成 mini 必要实现再统一验证；原 42 组企业清单不再阻塞收尾。
 
-2026-10-19 用户确认：先交付够用、稳定、低依赖的企业级 SSH 跳板机。竞品仍为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，完整企业版功能作为长期参考；其他协议、云厂商和复杂企业功能不作为本次稳定版的前置条件。本文调整近期交付顺序，不代表下列待完成能力已经实现。
+交付够用、稳定、少依赖且易维护的 SSH 跳板机。[JumpServer 企业版](https://www.jumpserver.org/enterprise.html)仅作为参考；不默认追求其功能覆盖率。其他协议、云同步、复杂企业集成及多活只在有明确需求时考虑，不列作当前剩余目标。
 
 ## 默认部署
 
-单机优先。当前默认使用 `JMS_DATA_DIR` 下的本地持久化文件和 Vault key，无需外部数据库、Redis 或常驻 Node。Go 通过 `JMS_WEB_DIR` 在同一端口提供静态网页、API 和 WebSocket。现有文件格式继续兼容；若后续引入 SQLite，必须提供可验证、可恢复且重复执行安全的迁移，不能要求用户手工重建资产或凭据。
+单机优先。当前默认使用 `JMS_DATA_DIR` 下的本地持久化文件和 Vault key，无需外部数据库、Redis 或常驻 Node。Go 通过 `JMS_WEB_DIR` 在同一端口提供静态网页、API 和 WebSocket。本批执行历史使用同目录的内置 SQLite，不新增常驻服务；现有资产与凭据文件保持兼容，迁移、备份与幂等恢复必须统一验证。
 
 PostgreSQL 仅作为显式启用的集群单活热备选项，配置与生产边界见[集群高可用](./CLUSTER-HA.md)。单机安装不得因集群能力而要求部署 PostgreSQL。
 

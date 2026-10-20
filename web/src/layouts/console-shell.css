@@ -1,0 +1,339 @@
+/* Quiet, compact surfaces for long-running operational work. Brand colors stay
+   authoritative; no external fonts, images or animation runtime are required. */
+.layout {
+  --shell-active: color-mix(in srgb, var(--accent) 14%, transparent);
+  --shell-hover: color-mix(in srgb, var(--text) 5%, transparent);
+  --shell-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100dvh;
+}
+
+.layout-header {
+  min-height: 56px;
+  height: auto;
+  padding: 8px 20px;
+  gap: 12px 20px;
+}
+
+.layout-header .brand {
+  flex-shrink: 0;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+
+.view-switch {
+  gap: 4px;
+  min-width: 0;
+}
+
+.view-switch a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 12px;
+  font-weight: 500;
+  border-radius: var(--shell-radius);
+}
+
+.view-switch a.active,
+.layout-sidebar nav a.active {
+  background: var(--shell-active);
+  color: var(--text);
+}
+
+.view-switch a:hover,
+.layout-sidebar nav a:hover {
+  color: var(--text);
+  background: var(--shell-hover);
+}
+
+.view-switch a.active:hover,
+.layout-sidebar nav a.active:hover {
+  background: var(--shell-active);
+}
+
+.layout-header .profile-link,
+.layout-header .lang-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.layout-body {
+  min-width: 0;
+  align-items: flex-start;
+}
+
+.layout-sidebar {
+  flex: 0 0 224px;
+  width: 224px;
+  min-width: 0;
+  align-self: stretch;
+  padding: 0;
+}
+
+.console-sidebar-content {
+  position: sticky;
+  top: 0;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 20px 12px;
+}
+
+.sidebar-title {
+  margin: 0 8px 12px;
+  color: var(--text);
+  text-transform: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.console-nav-search {
+  display: block;
+  margin-bottom: 24px;
+}
+
+.console-nav-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--shell-radius);
+  padding: 7px 10px;
+  color: var(--text);
+  background: var(--bg);
+  font: inherit;
+  font-size: 13px;
+}
+
+.console-nav-search input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.layout-sidebar nav {
+  gap: 24px;
+}
+
+.console-nav-group {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.console-nav-group h2 {
+  margin: 0 8px 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.layout-sidebar nav a {
+  display: block;
+  position: relative;
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  border-radius: var(--shell-radius);
+}
+
+.layout-sidebar nav a.active {
+  font-weight: 600;
+}
+
+.layout-sidebar nav a.active::before {
+  position: absolute;
+  content: "";
+  inset-block: 10px;
+  inset-inline-start: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.console-nav-empty {
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.console-nav-empty button,
+.console-menu-button {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--shell-radius);
+  background: var(--bg);
+  color: var(--text);
+  padding: 7px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.console-menu-button {
+  display: none;
+}
+
+.layout-main {
+  padding: 24px;
+  max-width: 100%;
+}
+
+.layout-main:focus {
+  outline: none;
+}
+
+.layout :where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.console-sr-only,
+.console-skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.console-skip-link:focus {
+  position: fixed;
+  inset-block-start: 8px;
+  inset-inline-start: 8px;
+  z-index: 100;
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--shell-radius);
+  background: var(--panel);
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .view-switch a,
+  .layout-sidebar nav a,
+  .console-menu-button,
+  .layout .button-primary,
+  .layout .button-secondary {
+    transition:
+      background-color 120ms ease-out,
+      color 120ms ease-out,
+      border-color 120ms ease-out;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1400px) {
+  .layout-sidebar {
+    flex-basis: 200px;
+    width: 200px;
+  }
+  .layout-main {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 900px) {
+  .layout-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px 12px;
+  }
+  .view-switch {
+    flex: 1 1 210px;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 760px) {
+  .layout-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .layout-sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .console-menu-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: calc(100% - 24px);
+    margin: 8px 12px;
+    font-size: 13px;
+  }
+  .console-menu-button::after {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin-inline-end: 3px;
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    transform: rotate(45deg) translateY(-2px);
+  }
+  .console-menu-button[aria-expanded="true"]::after {
+    transform: rotate(225deg) translateY(-2px);
+  }
+  .console-sidebar-content {
+    position: static;
+    max-height: 65dvh;
+    padding-top: 12px;
+  }
+  .layout-sidebar[data-open="false"] .console-sidebar-content {
+    display: none;
+  }
+  .layout-main {
+    padding: 16px 12px;
+  }
+}
+
+@media print {
+  .console-skip-link,
+  .layout-sidebar,
+  .layout-header {
+    display: none;
+  }
+  .layout-body {
+    display: block;
+  }
+  .layout-main {
+    padding: 0;
+  }
+}
+.console-more-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.console-more-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.console-more-hint {
+  margin: 8px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}

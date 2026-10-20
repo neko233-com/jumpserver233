@@ -42,7 +42,7 @@ func TestConnectionScopeJobsPersistAndRequireContextAfterRestart(t *testing.T) {
 			require.NoError(t, err)
 			var sealed envelope
 			require.NoError(t, json.Unmarshal(raw, &sealed))
-			assert.Equal(t, 5, sealed.Version)
+			assert.Equal(t, 7, sealed.Version)
 			assert.NotContains(t, string(raw), scope)
 			s, err = Open(file, key, nil, executor)
 			require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestExecutionDirectoryJobsPersistV6BindContextAndConflictOnChangedRetry(t *
 	require.NoError(t, err)
 	var sealed envelope
 	require.NoError(t, json.Unmarshal(raw, &sealed))
-	assert.Equal(t, 6, sealed.Version)
+	assert.Equal(t, 7, sealed.Version)
 	assert.NotContains(t, string(raw), proof.WorkingDirectory)
 	s, err = Open(file, key, nil, exec)
 	require.NoError(t, err)

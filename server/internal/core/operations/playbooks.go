@@ -271,6 +271,16 @@ func (s *Service) RunProgram(id, user string, canReadAll bool) (playbooks.Progra
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	r, ok := s.data.Runs[id]
+	if !ok {
+		value, e := s.historicalRunLocked(id)
+		if e != nil {
+			return playbooks.Program{}, e
+		}
+		if value.Run.OwnerID != user && !canReadAll || value.Program == nil {
+			return playbooks.Program{}, ErrNotFound
+		}
+		return playbooks.CloneProgram(*value.Program), nil
+	}
 	if !ok || r.ProgramID == "" || r.OwnerID != user && !canReadAll {
 		return playbooks.Program{}, ErrNotFound
 	}

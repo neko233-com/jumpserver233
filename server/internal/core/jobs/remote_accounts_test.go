@@ -45,7 +45,7 @@ func TestRemoteAccountJobsUseVersion3TypedExecutorAndNeverFallBackToShell(t *tes
 	require.NoError(t, e)
 	var box envelope
 	require.NoError(t, json.Unmarshal(raw, &box))
-	assert.Equal(t, 3, box.Version)
+	assert.Equal(t, 7, box.Version)
 	assert.NotContains(t, string(raw), "remoteqa_test")
 	box.Version = 2
 	downgrade, _ := json.Marshal(box)

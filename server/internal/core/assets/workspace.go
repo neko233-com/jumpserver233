@@ -232,7 +232,8 @@ func (s *Service) execWorkspace(ctx context.Context, target sshclient.Target, cr
 	}
 	request, e := json.Marshal(struct {
 		Command string `json:"command"`
-	}{command})
+		Input   []byte `json:"input,omitempty"`
+	}{command, sshclient.ExecInput(ctx)})
 	if e != nil {
 		return sshclient.ExecResult{ExitCode: -1}, e
 	}

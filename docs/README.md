@@ -2,6 +2,12 @@
 
 > 中文 | [English](./README.en.md)
 
+[当前产品范围](./PRODUCT-SCOPE.md)：中小公司单机 mini SSH 跳板机，少依赖、易用、安全高效。以 S01–S12 收尾；下列企业扩展条目是已有能力/历史研究，不再自动构成待办，旧 42 组门禁已被用户修正覆盖。
+
+[项目 UI 技能与设计方向](./UI-DESIGN.md)：项目级 oil-ui、固定来源、紧凑运维导航与中英/窄屏用例；等待整批统一验证。
+
+已撤回本批尚未验收的 PDF/邮件报表、报表调度与长期统计仓库扩展；保留原有统计/CSV，不增加 mini 运行和维护负担。SSH 作业与执行计划的[加密历史](./EXECUTION-HISTORY.md)仍保留，并纳入单机升级预检和备份恢复。
+
 [Windows/数据库账号 PAM](./ACCOUNT-PAM.md)：Windows 本机账号、四类原生数据库、纳管、批量/周期改密与恢复、中英 Web、CLI/SDK 和统一验证用例；E18 实现待验，尚未运行验证。
 
 [AI 助手与对话审计](./AI-ASSISTANT.md)：组织模型配置/只写密钥、平台权限、原生 HTTPS、对话回执/修订、撤权取消、加密历史及归档、中英 Web、CLI/SDK 和用例已编写。E34 实现待验，仍须全部 42 组就绪后统一验证。
@@ -144,6 +150,7 @@ SAML 签名断言、浏览器绑定、本地 MFA、SP 身份加密和配置审�
 | [BASELINE.md](./BASELINE.md) | JumpServer 社区版功能基线调研快照（需求来源） |
 | [WEBSSH.md](./WEBSSH.md) | Web SSH、Agent CLI 与会话录像当前能力和安全边界 |
 | [JOBS.md](./JOBS.md) | SSH 作业、批量/模板/定时计划、Agent exec、命令复核与审计 |
+| [EXECUTION-HISTORY.md](./EXECUTION-HISTORY.md) | 内置 SQLite / PostgreSQL 加密作业与 Playbook 历史、持久化重试去重 |
 | [TESTING.md](./TESTING.md) | Testify、PostgreSQL/HA、race 与浏览器端到端统一验证 |
 | [ACCESS-REVIEWS.md](./ACCESS-REVIEWS.md) | SSH 登录复核配置、一次性许可、API 与边界 |
 | [COMMAND-FILTERS.md](./COMMAND-FILTERS.md) | SSH 命令过滤规则、优先级、PTY 执行和解析边界 |
@@ -165,6 +172,7 @@ SAML 签名断言、浏览器绑定、本地 MFA、SP 身份加密和配置审�
 | [BASELINE.en.md](./BASELINE.en.md) | Research snapshot of the JumpServer Community feature baseline (requirement source) |
 | [WEBSSH.en.md](./WEBSSH.en.md) | Current Web SSH, agent CLI, recording, and security boundaries |
 | [JOBS.en.md](./JOBS.en.md) | SSH jobs, batches/templates/schedules, Agent exec, reviews, and audits |
+| [EXECUTION-HISTORY.en.md](./EXECUTION-HISTORY.en.md) | Embedded SQLite / PostgreSQL encrypted job and Playbook history and durable deduplication |
 | [TESTING.en.md](./TESTING.en.md) | Unified Testify, PostgreSQL/HA, race, and browser verification |
 | [ACCESS-REVIEWS.en.md](./ACCESS-REVIEWS.en.md) | SSH login review policy, one-time permits, API, and limits |
 | [COMMAND-FILTERS.en.md](./COMMAND-FILTERS.en.md) | SSH command-filter rules, priority, PTY enforcement, and parser limits |

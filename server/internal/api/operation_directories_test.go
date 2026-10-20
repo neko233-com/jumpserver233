@@ -22,7 +22,8 @@ func TestOperationDirectoryAdmissionDefersOnlyProvableUnknownDirectories(t *test
 	owner, err := identities.CreateUser("directory-owner", "synthetic-directory-owner-233", coreauth.RoleOperator)
 	require.NoError(t, err)
 	inventory := testAssetService(t)
-	rooted, err := inventory.Create(assets.Input{Name: "Rooted", Host: "127.0.0.1", Port: 1, Username: "ops", Password: "synthetic-only", HostKeyFingerprint: validTestFingerprint(), SSHWorkspace: "/srv/work"})
+	workspace := "/srv/work"
+	rooted, err := inventory.Create(assets.Input{Name: "Rooted", Host: "127.0.0.1", Port: 1, Username: "ops", Password: "synthetic-only", HostKeyFingerprint: validTestFingerprint(), SSHWorkspace: &workspace})
 	require.NoError(t, err)
 	unrooted, err := inventory.Create(assets.Input{Name: "Unrooted", Host: "127.0.0.1", Port: 1, Username: "ops", Password: "synthetic-only", HostKeyFingerprint: validTestFingerprint()})
 	require.NoError(t, err)

@@ -91,6 +91,26 @@ func TestWorkspaceKernelConfinementSurvivesShellsSymlinksAndRawSyscalls(t *testi
 			assert.NoFileExists(t, filepath.Join(out, "new"))
 		})
 	}
+	t.Run("private-stdin-stays-out-of-arguments-and-files", func(t *testing.T) {
+		before, e := os.ReadDir(root)
+		require.NoError(t, e)
+		input, e := json.Marshal(struct {
+			Command string `json:"command"`
+			Input   []byte `json:"input"`
+		}{"cat", []byte("synthetic private stdin")})
+		require.NoError(t, e)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, self, "workspace", "--directory", root, "--exec-stdin")
+		cmd.Stdin = bytes.NewReader(input)
+		assert.NotContains(t, strings.Join(cmd.Args, " "), "synthetic private stdin")
+		output, e := cmd.CombinedOutput()
+		require.NoError(t, e, string(output))
+		assert.Equal(t, "synthetic private stdin", string(output))
+		after, e := os.ReadDir(root)
+		require.NoError(t, e)
+		assert.Len(t, after, len(before))
+	})
 	alias := filepath.Join(base, "alias")
 	require.NoError(t, os.Symlink(root, alias))
 	_, e = CheckWorkspace(alias)

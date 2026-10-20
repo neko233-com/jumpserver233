@@ -78,7 +78,14 @@ func TestAssistantConnectorRejectsRedirectsToolCallsOversizeAndErrorBodies(t *te
 	}
 }
 func TestAssistantConnectorValidatesConfigurationAndCancellation(t *testing.T) {
-	config, _ := provider(t, func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() })
+	release := make(chan struct{})
+	defer close(release)
+	config, _ := provider(t, func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	})
 	for _, endpoint := range []string{"http://provider.example/v1/chat/completions", "https://user:secret@provider.example/v1/chat/completions", "https://provider.example/v1/chat/completions?key=private", "https://provider.example/v1/chat/completions#x"} {
 		bad := config
 		bad.Endpoint = endpoint

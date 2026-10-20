@@ -134,6 +134,7 @@ func registerReplayStorageRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RW
 		}
 		var in replayarchive.Input
 		if decodeRequestJSON(w, r, &in) != nil {
+			replayStorageError(w, replayarchive.ErrInvalid)
 			return
 		}
 		if in.Provider == "postgres" && !d.ReplayArchiveDatabase {
@@ -249,6 +250,7 @@ func registerReplayStorageRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RW
 				RequestID string `json:"request_id"`
 			}
 			if decodeRequestJSON(w, r, &in) != nil {
+				replayStorageError(w, replayarchive.ErrInvalid)
 				return
 			}
 			u, _ := PrincipalFromContext(r.Context())

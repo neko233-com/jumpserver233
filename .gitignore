@@ -63,6 +63,9 @@ server/testsupport/**/artifacts/
 .jms-auth-*
 
 # Local tooling
+# Keep project skill sources tracked; generated design evidence stays ignored.
+/.agents/skills/**/.work/
+/.agents/skills/**/.curate-cache.json*
 .codely-cli/
 /CODELY.md
 .cache/
@@ -85,6 +88,11 @@ __pycache__/
 !.env.*.example
 /data/
 /server/data/
+# Indexed encrypted execution history and SQLite transient files in custom roots
+execution-history.sqlite
+execution-history.sqlite-wal
+execution-history.sqlite-shm
+execution-history.sqlite-journal
 # Platform notice state and interrupted atomic writes in custom data roots
 **/announcements.json
 **/.announcements-*

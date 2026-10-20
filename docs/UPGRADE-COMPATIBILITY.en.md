@@ -4,7 +4,7 @@
 
 ## Support baseline
 
-On 2026-10-20 the GitHub Release API check (`gh release list --repo neko233-com/jumpserver233 --limit 100 --json tagName,publishedAt,isDraft,isPrerelease`) returned an empty list; there are also no local release tags. No historical formal release archive exists, so formal-release-to-current migration cannot be claimed as accepted.
+On 2026-10-21 the GitHub Release API check (`gh release list --repo neko233-com/jumpserver233 --limit 5 --json tagName,publishedAt,isDraft,isPrerelease`) again returned an empty list; there are no local release tags. `.release-please-manifest.json` starts at `0.1.0`, which is unpublished. The first stable release establishes support. Earlier Alpha/development versions have no version-number compatibility promise; migrate existing data by actual-format preflight under a full backup, without requiring deletion/recreation.
 
 The pinned historical source baseline is `4367285202054181344e386096b89e8ea3059703`, used by the existing native Linux upgrade rehearsal. Versions `v0.0.0 → v0.0.1` identify isolated rehearsal packages without publishing a Release. Verify that source against this candidate with `node scripts/native-package-qa.mjs --batch ssh-stable-closing --historical`; [verification](./TESTING.en.md) records actual results. This document specifies constraints and does not label new cases as passed.
 
@@ -19,8 +19,10 @@ The first formal stable release establishes the published-version baseline. Each
 | Windows/database PAM assets | Asset envelope 5; reads original arrays and v2–v5; PAM identities and collector/binding/recovery fields require v5 | Old formats with new fields are refused; older binaries require the complete pre-upgrade snapshot after v5 writes. Enrollment receipts, encrypted credentials and pending outcomes are retained. Cases authored, not run |
 | Users and SMS MFA | User writes use envelope 4, reading legacy arrays/v2/v3/v4; SMS state uses encrypted envelope 1 | Reject SMS fields in old user formats; enabling policy first writes v4 users, which old readers reject; new migration/takeover cases have not run |
 | AI assistant | Independent encrypted envelope/state 1; offline Open only validates, while active runtime recovers orphaned intents | Unknown/corrupt formats refuse startup; interrupted calls are never resent; older programs lack this module, and rollback uses the full pre-upgrade snapshot |
-| Jobs | Encrypted envelopes 1–6; directory proofs require v6 | New JSON fields in old formats cannot enable directory execution semantics |
-| Batch/schedules/Playbooks | Encrypted envelopes 1–5; nonempty directory snapshots require v5; native Playbooks require v4+ | Read valid original v1–v4 records; reject directory fields in those versions; normal mutations write v5 |
+| Jobs | Read encrypted envelopes 1–7, write v7; directory proofs require v6+; indexed history format 1 | Old formats cannot inject new execution semantics; rollback retains complete pre-upgrade hot state, history and key |
+| Embedded execution history | SQLite application_id `0x4a4d5333`, physical user_version 1, encrypted metadata/body envelope 1 | Offline preflight authenticates every summary/body, including disabled/archived organizations. Reject unknown formats, corruption, wrong keys and orphan WAL/SHM. Do not create missing history or replay work |
+| Batch/schedules/Playbooks | Read encrypted envelopes 1–6, write v6; nonempty directories require v5+; native Playbooks require v4+ | Terminal history retains original sources in the index; unknown formats fail closed; new migration cases have not run |
+| Existing report receipts | Retain original envelope/state v1 and CSV statistics; this batch's PDF/mail/scheduling/warehouse expansion is withdrawn | Add no report format, external service or scheduler for mini |
 | Full-site backup | Archive format 1, integrity and Vault-key binding | Wrong passphrases, unknown formats, unsafe paths or corrupt archives do not overwrite business data |
 | Native enterprise notifications | Existing notification envelope 1 gains provider configuration and encrypted settings receipts; new code reads older documents with these fields omitted | Older programs are not guaranteed to read new fields; downgrade requires the pre-upgrade data snapshot without deleting new configuration or receipts |
 | Downgrade | Managed installations reject downgrade, different builds of the same version and data-directory rebinding | Restore the old checkpoint before activation; retain new data and repair forward after activation |
@@ -28,6 +30,8 @@ The first formal stable release establishes the published-version baseline. Each
 Old programs generally cannot read new formats. Replacing only executable files is insufficient for rollback. After operation directories first write v5, returning to a v4-only program requires its matching old checkpoint; old software must not silently ignore directories and execute.
 
 ## Fixed acceptance evidence for this batch
+
+This batch adds per-row offline history checks, corrupt/future-format and orphan-WAL rejection, and disabled/archived organization coverage. A native child exits after committing to exercise WAL preservation through offline backup, original-request lookup and repeated import preserving later data. Source and Testify cases are authored; unified verification has not run.
 
 - A real historical service creates users, grants, seven-day rotation times, SSH audit, a command template and a one-time plan. After upgrading, check identities, authorization, credential key, schedule times and snapshots, then execute real SSH.
 - Change the operations envelope to future version 999 and use the actual install transaction. Target preflight must reject it, preserving original bytes and selection. Restore known valid input and upgrade; identical repeated requests return the original receipt.

@@ -663,12 +663,12 @@ a {
 
 .button-primary,
 .button-secondary {
-  min-height: 32px;
+  min-height: 36px;
   padding: 6px 11px;
   border: 1px solid transparent;
   border-radius: 6px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -1192,7 +1192,7 @@ a {
   width: 100%;
   min-width: 1160px;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .asset-table th {
@@ -1200,7 +1200,7 @@ a {
   top: 0;
   z-index: 1;
   padding: 11px 12px;
-  background: #161b22;
+  background: var(--panel);
   border-bottom: 1px solid var(--border);
   color: var(--muted);
   font-weight: 600;
@@ -1298,7 +1298,8 @@ a {
 }
 
 .asset-address {
-  color: #c9d1d9;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -1338,8 +1339,9 @@ a {
 }
 
 .metric-detail {
-  color: #c9d1d9;
+  color: var(--text);
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .metric-track {

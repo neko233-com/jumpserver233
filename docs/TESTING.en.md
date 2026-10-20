@@ -2,6 +2,12 @@
 
 > [中文](./TESTING.md) | English
 
+## Current verification scope: mini SSH (2026-10-21)
+
+Use S01–S12 from [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) as the gate without waiting for the historical 42 Enterprise groups. The production browser suite covers shipped mini pages and retains SSH, native-host, authentication and notification fixtures. It starts no SQL, RDP, Kubernetes, cloud or Enterprise identity service. Source and historical cases for the 17 removed pages remain, but provide no current acceptance credit. Run the complete backend Go/Testify suite and vet for compatible APIs and security regression. Keep named results for native packages, data-preserving updates, directory security and cleanup.
+
+Sections below record earlier Enterprise authoring. Their “wait for 42 groups” statements and old counts are superseded by the current scope and cannot justify further expansion or delayed acceptance.
+
 ## E18 authored state (not executed)
 
 [Windows/database PAM](./ACCOUNT-PAM.en.md) includes authored Testify/native TLS database cases, fixed Windows SSH script and optional native SAM cases, permission/API, idempotence/revision/receipts, encrypted reopen, unknown-result recovery, one cross-organization mutation and CLI/SDK cases. `web/e2e/pam.spec.ts` reuses the four existing databases for bilingual/narrow UI, enrollment and batch reset/authentication. It only creates/deletes unique `pamqa_` accounts and repeats cleanup. Existing SQL fixtures add a dedicated `pam_admin`, preserving ordinary query roles and passwords. Native Windows requires an explicitly disposable fixture; a missing-fixture skip provides no native acceptance.

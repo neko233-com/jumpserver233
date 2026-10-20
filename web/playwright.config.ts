@@ -14,8 +14,14 @@ if (!testDataDir)
     "Run browser tests with `pnpm test:e2e` so temporary test data is cleaned safely",
   );
 
-export default defineConfig({
+const config = defineConfig({
   testDir: "./e2e",
+  // Archived Enterprise UI cases remain as source references. The shipped mini
+  // graph has no routes for these pages, and needs no corresponding fixtures.
+  testIgnore: [
+    "**/{announcements,asset-discovery,assistant,branding,clickhouse,database,desktop-monitor,enterprise-login,identity-sources,kubernetes,mysql,native-notifications,nosql,organization-overview,pam,radius,rdp,replay-storage,session-security,sms-mfa,sqlserver,telnet}.spec.ts",
+  ],
+  grepInvert: /signs in over real LDAPS|signs in through a real synthetic OIDC|completes CAS service-ticket|completes SAML signed-assertion/,
   fullyParallel: false,
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
@@ -318,7 +324,6 @@ export default defineConfig({
         JMS_DEFAULT_ADMIN_ENABLED: "false",
         JMS_MONITOR_INTERVAL: "1h",
         JMS_PUBLIC_URL: "http://127.0.0.1:5177",
-        HTTPS_PROXY: "http://127.0.0.1:12226",
         NO_PROXY: "localhost,127.0.0.0/8,::1",
       },
     },
@@ -332,3 +337,11 @@ export default defineConfig({
     },
   ],
 });
+
+// Keep only SSH, native-host, authentication and notification fixtures. In
+// particular no cloud, SQL, Kubernetes, RDP or external IdP service is started.
+const miniPorts = new Set(["12326", "12604", "8085", "15180", "12242", "12238", "18185", "15178", "12223", "8083", "5177"]);
+if (Array.isArray(config.webServer)) {
+  config.webServer = config.webServer.filter((server) => miniPorts.has(new URL(server.url!).port));
+}
+export default config;

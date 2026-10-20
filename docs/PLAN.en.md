@@ -2,6 +2,12 @@
 
 > [中文](./PLAN.md) | English
 
+## Current product scope (2026-10-21)
+
+An independent mini SSH bastion for small and medium businesses: standalone deployment, few dependencies, usability, security, efficiency and maintainability. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) is authoritative. The completion gate is [PROGRESS](./PROGRESS.en.md) S01–S12, rather than 42 Enterprise groups. Cloud sync, extra protocols, app markets and complex enterprise features are not default work.
+
+The feature notes, phases and old counts below retain development history. The user's correction supersedes the former full-Enterprise objective and 42-group verification gate. Unverified source remains unverified; changing scope adds no acceptance credit.
+
 [Windows/database account PAM](./ACCOUNT-PAM.en.md): Windows local SAM and PostgreSQL/MySQL/MariaDB/SQL Server collection/enrollment, pinned native reset/check, shared plans/recovery, encryption/permissions/idempotence, bilingual Web, CLI/SDK and cases are authored. E18 awaits verification after all 42 groups are implementation ready; no deployment dependency is added.
 
 [AI assistant and conversation audit](./AI-ASSISTANT.en.md): organization provider settings/write-only keys, platform authority, native HTTPS, receipts/revisions, revocation, encrypted history/archive, bilingual Web, CLI/SDK and cases are authored. E34 awaits unified verification after all 42 groups are ready.
@@ -137,17 +143,17 @@ Interactive session security adds configurable global idle limits, maximum durat
 
 Active SSH / Telnet / Kubernetes terminals support read-only live monitoring, separate monitoring permission and viewer audit. SSH continuously rechecks current authorization and connection revisions. See [live terminal monitoring](./LIVE-SESSIONS.en.md). Terminal collaboration and read-only RDP monitoring are delivered separately; RDP sharing, collaborative control and full Enterprise parity remain in progress.
 
-### 1.1 Target and competitor
+### 1.1 Current product and reference
 
-- **Competitor = JumpServer Enterprise** (https://www.jumpserver.org/enterprise.html). The end goal is feature parity with Enterprise (the X-Pack add-on plus app-store capabilities).
-- Deliver JumpServer Enterprise features in phases. **Standalone remains the default and prioritized deployment; cluster high availability is also required and will continue to improve.**
-- Cluster roadmap: PostgreSQL-coordinated single-active hot standby is implemented. Active/active load balancing, Kubernetes distributed deployment, and production failover drills remain future work. We do not inherit the Enterprise "flagship-only" restriction. Vendor support services (non-software) are out of scope.
+- [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html) is a reference for suitable SSH usability/security, with no full-parity requirement.
+- Default standalone operation uses one Go service, static assets and local data, without external database, Redis, cloud or enterprise identity prerequisites.
+- Preserve optional existing PostgreSQL single-active standby boundaries. Multi-active, Kubernetes distributed deployment and production cluster drills are outside the current mini objective and require an explicit use case.
 
 Baseline sources: official JumpServer docs (v5), lina frontend routes, the jumpserver backend `apps/` layout, jumpserver.org Enterprise and comparison pages. See [BASELINE.en.md](./BASELINE.en.md).
 
-### 1.2 Enterprise (X-Pack) features — alignment target for Phase 7+
+### 1.2 Historical Enterprise research (no current expansion)
 
-Deferred during the Community phases (1–6), implemented item by item from Phase 7 (per enterprise.html and the comparison page):
+These are former competitor research entries. Preserve existing implementation/evidence; this list does not automatically create new requirements:
 
 - QR-code login (WeCom/DingTalk/Feishu), SMS MFA, RADIUS second-factor, login review
 - RBAC role management pages, multi-org management, global org (the org-switch API stays; no admin page yet)

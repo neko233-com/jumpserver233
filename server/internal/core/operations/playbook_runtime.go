@@ -78,6 +78,8 @@ func cloneWorkflowRun(r Run) Run {
 // Outputs are read through the separate job-output permission boundary.
 func PublicRun(r Run) Run {
 	r = cloneWorkflowRun(r)
+	r.Variables = nil
+	r.Inventory = nil
 	for i := range r.Items {
 		r.Items[i].LoopValues = nil
 		for j := range r.Items[i].Steps {
@@ -918,6 +920,9 @@ func (s *Service) TriggerPlan(id, requestID string, actor ScheduleActor, origin 
 	if requestID == "" || len(requestID) > 100 || strings.ContainsAny(requestID, "\x00\r\n") || actor.ID == "" {
 		return Run{}, ErrInvalid
 	}
+	if e := s.compactHistory(); e != nil {
+		return Run{}, e
+	}
 	var out Run
 	e := s.mutate(func(st *state) error {
 		for _, r := range st.Runs {
@@ -928,6 +933,17 @@ func (s *Service) TriggerPlan(id, requestID string, actor ScheduleActor, origin 
 				out = r
 				return nil
 			}
+		}
+		archived, found, e := s.historicalRequestLocked(id, requestID, actor.ID)
+		if e != nil {
+			return e
+		}
+		if found {
+			if archived.AccessOrigin != origin {
+				return ErrConflict
+			}
+			out = archived
+			return nil
 		}
 		p, ok := st.Plans[id]
 		if !ok {

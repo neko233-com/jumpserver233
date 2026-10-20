@@ -33,6 +33,7 @@ func TestEnterpriseLoginSourceRegistryReopenAndIndependentProviderSecrets(t *tes
 		require.NotNil(t, runtime.Enterprise)
 		assert.False(t, runtime.Ready())
 		cfg := enterpriseprovider.Config(kind, "http://127.0.0.1:5177"+identityscope.Prefix(source.ID)+"/api/v1/authentication/"+kind+"/callback")
+		cfg.AllowLoopbackHTTP = true
 		_, e = runtime.Enterprise.Save(enterpriselogin.Input{Config: enterpriselogin.Config{Config: cfg, Enabled: true}, ClientSecret: enterpriseprovider.Secret, RequestID: "native-provider-" + kind}, "actor", "admin")
 		require.NoError(t, e)
 		assert.True(t, runtime.Ready())

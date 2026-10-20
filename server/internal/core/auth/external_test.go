@@ -48,7 +48,7 @@ func TestEnterpriseLoginNativeKindsRequireNamedSourceAndIsolateIdentities(t *tes
 			assert.ErrorIs(t, e, ErrInvalidCredentials)
 			_, e = s.Authenticate(one.Username, "synthetic-password")
 			assert.ErrorIs(t, e, ErrInvalidCredentials)
-			session, _, e := s.AuthenticateExternalUser(one.ID, kind, "")
+			session, _, e := s.AuthenticateNamedExternalUser(one.ID, kind, a, "")
 			require.NoError(t, e)
 			require.NoError(t, s.RevokeNamedExternalSource(kind, a))
 			_, ok := s.ValidateToken(session.AccessToken)

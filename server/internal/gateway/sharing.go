@@ -423,7 +423,7 @@ func (b *Broker) readShare(ctx context.Context, conn *websocket.Conn, p *sharePe
 				b.closeSession(s, "share_input_cancelled")
 			}
 		})
-		e := b.writeTerminalInput(ctx, conn, s, data, identity)
+		e = b.writeTerminalInput(ctx, conn, s, data, identity)
 		p.inflight.Store(false)
 		stop()
 		s.inputMu.Unlock()

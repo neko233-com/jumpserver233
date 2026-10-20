@@ -88,6 +88,11 @@ export default function PlaybookRunDetails({
   return (
     <section className="playbook-run" aria-label={t("playbooks.steps")}>
       <h4>{t("playbooks.steps")}</h4>
+      {run.error_code && (
+        <p role="status">
+          {t("playbooks.errors." + run.error_code, { defaultValue: t("operations.dispatchError") })}
+        </p>
+      )}
       <p>
         {t("playbooks.revision")}: {run.playbook_revision} · {t("playbooks.trigger")}:{" "}
         {t("playbooks.triggers." + (run.trigger || "schedule"))} · {t("playbooks.actor")}:{" "}

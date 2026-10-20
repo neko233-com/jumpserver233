@@ -2,13 +2,13 @@
 
 > [中文](./SSH-FIRST.md) | English
 
-Additional workflow instruction, 2026-10-20: implement the complete feature checklist before unified verification. This document sets development priority; finishing an SSH-only batch cannot start tests. Follow the [current progress gate](./PROGRESS.en.md).
+The user's 2026-10-21 correction sets the objective to an independent mini SSH bastion. [Product scope](./PRODUCT-SCOPE.en.md) is authoritative, with S01–S12 as the primary checklist. Author the mini release batch before unified verification; the former 42 Enterprise groups no longer block delivery.
 
-On 2026-10-19 the user prioritized a practical, stable enterprise SSH bastion with few deployment dependencies. [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html) remains the competitor and long-term reference. Other protocols, cloud providers and complex Enterprise features are no longer prerequisites for this stable release. This document changes delivery order; it does not claim that pending capabilities are implemented.
+Deliver a practical, stable SSH bastion with few dependencies and easy maintenance. [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html) is a reference, with no default feature-parity target. Other protocols, cloud sync, complex integrations and multi-active operation require a concrete use case and are outside current remaining work.
 
 ## Default deployment
 
-Prefer a single machine. The current default uses local persistent files and a Vault key under `JMS_DATA_DIR`, without an external database, Redis or a resident Node process. Go serves static pages, API and WebSocket on one port through `JMS_WEB_DIR`. Preserve existing file compatibility. Any later SQLite adoption must include verified, recoverable, idempotent migration without asking users to recreate assets or credentials.
+Prefer a single machine. The default uses local persistent files and a Vault key under `JMS_DATA_DIR`, without an external database, Redis or resident Node. Go serves static pages, API and WebSocket on one port through `JMS_WEB_DIR`. This batch's embedded SQLite execution history adds no resident service; existing asset/credential files remain compatible. Migration, backup and idempotent recovery await unified verification.
 
 PostgreSQL is an explicitly enabled option for single-active cluster failover; see [cluster HA](./CLUSTER-HA.en.md) for configuration and production limits. Cluster support must not make PostgreSQL a standalone installation requirement.
 

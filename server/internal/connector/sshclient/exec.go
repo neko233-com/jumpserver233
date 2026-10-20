@@ -1,6 +1,7 @@
 package sshclient
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -50,6 +51,10 @@ func Exec(ctx context.Context, target Target, credentials Credentials, command s
 // operator command. It does not require the host's optional SFTP subsystem.
 func ExecWithGuard(ctx context.Context, target Target, credentials Credentials, command string, guard func() error) (ExecResult, error) {
 	result := ExecResult{ExitCode: -1}
+	input := ExecInput(ctx)
+	if len(input) > 2048 {
+		return result, errors.New("SSH command input exceeds limit")
+	}
 	client, _, err := dial(ctx, target, credentials, 12*time.Second)
 	if err != nil {
 		return result, err
@@ -65,6 +70,7 @@ func ExecWithGuard(ctx context.Context, target Target, credentials Credentials, 
 	budget := &outputBudget{remaining: MaxExecOutput}
 	out, stderr := &limitedOutput{budget: budget}, &limitedOutput{budget: budget}
 	session.Stdout, session.Stderr = out, stderr
+	session.Stdin = bytes.NewReader(input)
 	if guard != nil {
 		if err = guard(); err != nil {
 			return result, err

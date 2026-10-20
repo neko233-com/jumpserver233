@@ -56,7 +56,7 @@ test("labels inherit, filter visible assets, retry idempotently and enforce curr
     expect(created.status(), await created.text()).toBe(201);
     const staging = await created.json();
     labelIDs.push(staging.id);
-    const development = await createLabel("development");
+    await createLabel("development");
     const createNode = async (name: string, parent_id = "") => {
       const r = await admin.request.post("/api/v1/assets/nodes", { data: { name, parent_id } });
       expect(r.status(), await r.text()).toBe(201);

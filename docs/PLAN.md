@@ -2,6 +2,12 @@
 
 > 中文 | [English](./PLAN.en.md)
 
+## 当前产品范围（2026-10-21）
+
+独立 mini SSH 跳板机，面向中小公司单机部署，少依赖、易用、安全高效和易维护。[PRODUCT-SCOPE](./PRODUCT-SCOPE.md)是当前权威范围；完成门槛为 [PROGRESS](./PROGRESS.md) 的 S01–S12，不再是企业版 42 组。云同步、更多协议、应用市场和复杂企业能力不作为默认待办。
+
+以下功能条目、阶段与旧计数保留开发历史；其中此前的企业全量目标和 42 组验证门禁均已被本次用户修正覆盖。未验证源码仍未验证，不能因收缩范围增加验收数。
+
 [Windows/数据库账号 PAM](./ACCOUNT-PAM.md)：Windows 本机 SAM 与 PostgreSQL/MySQL/MariaDB/SQL Server 收集/纳管、固定身份的原生改密/核验、统一计划与恢复、加密/权限/幂等、中英 Web、CLI/SDK 和用例已编写。E18 实现待验；全部 42 组实现就绪后统一验证，不新增部署依赖。
 
 [AI 助手与对话审计](./AI-ASSISTANT.md)：组织模型配置/只写密钥、平台权限、原生 HTTPS、对话回执/修订、撤权取消、加密历史及归档、中英 Web、CLI/SDK 和用例已编写。E34 实现待验，仍须全部 42 组就绪后统一验证。
@@ -137,17 +143,17 @@ SAML 签名断言、浏览器绑定、本地 MFA、SP 身份加密和配置审�
 
 活动 SSH / Telnet / Kubernetes 终端支持只读实时监看、独立监看权限和观看者审计；SSH 持续复查当前授权与连接修订。详见 [在线终端监看](./LIVE-SESSIONS.md)。终端协作与 RDP 只读监看已分别落地；RDP 分享、协同控制及完整企业版仍在进行。
 
-### 1.1 复刻对象与竞品
+### 1.1 当前产品与参考对象
 
-- **竞品 = JumpServer 企业版**（https://www.jumpserver.org/enterprise.html ），最终目标是对齐企业版全部功能（X-Pack 增强包 + 应用商店能力）。
-- 按 JumpServer 企业版功能分阶段交付；**单机模式是默认和优先部署形态，集群高可用也是必保能力并逐步完善**。
-- 集群路线：当前已支持 PostgreSQL 协调的单活热备；多活负载均衡、Kubernetes 分布式部署及生产级故障演练仍在后续范围内。不沿用企业版仅旗舰支持的口径，不含原厂支持服务这类非软件能力。
+- 参考产品为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，只吸收适合 mini SSH 跳板机的交互与安全能力，不要求全量复刻。
+- 默认单机：一个 Go 服务、静态网页、本地数据目录，无外部数据库、Redis、云平台或企业身份服务前置依赖。
+- 保留已有 PostgreSQL 单活热备的可选边界；多活、Kubernetes 分布式和生产集群演练不列入当前 mini 目标，按明确需求再决定。
 
 功能基线来源：JumpServer 官方文档（v5）、lina 前端路由、jumpserver 后端 apps/ 目录结构、jumpserver.org 企业版与版本对比页。详见 [BASELINE.md](./BASELINE.md)。
 
-### 1.2 企业版（X-Pack）功能 —— Phase 7+ 对齐目标
+### 1.2 历史企业版功能研究（当前不继续扩展）
 
-社区版阶段（Phase 1–6）暂缓以下功能，Phase 7 起逐项实现（依据 enterprise.html 与版本对比页）：
+以下为之前按竞品整理的研究条目，保留已有实现和证据；不会按此清单逐项自动新增需求：
 
 - 扫码登录（企微/钉钉/飞书）、短信 MFA、RADIUS 二次认证、登录复核
 - RBAC 角色管理页面、多组织管理、全局组织（组织切换 API 保留但不提供管理页）
