@@ -2,6 +2,13 @@
 
 > [中文](./TESTING.md) | English
 
+## SSH account connectivity checks (2026-10-20)
+
+- Feature source `04bf60a`: Go, including Testify, **1744 passed, 114 platform/fixture skips**, with vet passing. Linux race: **350 passed across 21 packages, no skips**, including 17 account-check cases and real PostgreSQL takeover without repeated authentication. Backend source remained unchanged by the subsequent correction.
+- The complete production browser suite used the `04bf60a` build: **87/87, zero retries**, **1266292 ms**, terminal exit 0 and temporary data removed. It covers existing SSH, monitoring, BanHack/Agent, rotation, approvals, databases and other protocol paths. Frontend helpers passed **6/6**, QA helpers **67/67**; lint, types and bundle gates passed.
+- Screenshot review found horizontally clipped mobile result columns and inapplicable rotation-recovery guidance. Final display correction `8188747` changes only the page, styles and corresponding QA script. That source repeated six-platform package verification, Windows CLI, native Linux installation and real SSH acceptance: check-only roles, password/key/pinned gateways, separate alias checks, Web/CLI idempotent replay, failure notifications, selective retries, revocation, encrypted export/repeated import and authentication after restart. Positive/negative marker controls prove checks open no target command session; credential revisions remain unchanged. Final bilingual screenshots were inspected, with no horizontal result scrolling at 390px and zero application errors. The complete 87-case suite was not repeated after the display correction; coverage combines the complete baseline suite and final-source native/UI acceptance.
+- Final-source clean Docker production browser smoke passed: cached build **6.15 s**, startup **12.13 s**, smoke **8.69 s**, with owned containers, networks, volumes and images removed. After all long tasks exited, temporary/resource cleanup repeated: neither resource sweep found remaining candidates, and repeated file retention removed zero files. An incomplete historical `branding` receipt continues protecting its evidence. Compact results live under `.cache/qa-reports/account-checks/`; final native evidence and two screenshots are under `.cache/qa-reports/account-checks-responsive/`. No Release/tag/CHANGELOG or intranet deployment was created. Full Enterprise parity remains in progress.
+
 ## Individual and bulk SSH rotation retries (2026-10-20)
 
 - Product source `3f66cdd`, verified after authoring the complete batch: Go/Testify **1725 passed, 113 platform/fixture skips, zero failures**; vet, frontend lint and application/E2E types passed. QA helpers **64/64**, rendering/cache helpers **6/6**.

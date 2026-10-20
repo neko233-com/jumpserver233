@@ -42,6 +42,8 @@ Access request tickets provide published scopes, one to five distinct reviewers,
 
 Multi-host SSH rotation plans support passwords/keys, privileged resets, weekly schedules, per-account results and recovery. Web/CLI share organization permissions and encrypted receipts; see [Credential rotation plans](./docs/ROTATION-PLANS.en.md).
 
+SSH accounts also support manual and independently scheduled [connectivity checks](./docs/ACCOUNT-CHECKS.en.md), verifying each stored password/key and pinned gateway with failure notifications and explicit retries. Checks execute no command and change no credentials; Web, CLI and SDK share independent check authority.
+
 2026-10-18: real OpenSSH rotation results in isolated Docker:
 
 ![Credential rotation results](./docs/images/rotation-plans.en.png)

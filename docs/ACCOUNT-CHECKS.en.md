@@ -10,7 +10,7 @@ Choose **Check current credentials** for per-account status, errors, duration an
 
 Execution requires `accounts.rotation.check`, `accounts.rotation.view`, `assets.view_all` and `assets.probe`. It requires no rotation execution, fixed-password or privileged-rotation rights. Plan management additionally needs `accounts.rotation.manage`. Organization, owner/`manage_all` scope and current identity permissions still apply to viewing, execution and retries. Checks join the upgrade drain gate and recheck account/gateway bindings, pending credential recovery and access policies before and after authentication.
 
-Periodic checks default to disabled. Choose 1–720 hours; the editor initially suggests 24 hours. Saving an enabled schedule can authenticate immediately. Checks and manual/once/interval rotations have independent schedules with one serial queue per plan. Checks do not move rotation `next_run`; revoked permission or retention capacity pauses only checks. Every check appears in the host's authentication logs; choose intervals appropriate to host lockout policies.
+Periodic checks default to disabled. Choose 1–720 hours; the editor initially suggests 24 hours. Saving an enabled schedule can authenticate immediately. Checks and manual/once/interval rotations have independent schedules. Each plan permits one unfinished run; the current organization worker processes runs serially. Checks do not move rotation `next_run`; revoked permission or retention capacity pauses only checks. Every check appears in the host's authentication logs; choose intervals appropriate to host lockout policies.
 
 ## API, CLI and SDK
 

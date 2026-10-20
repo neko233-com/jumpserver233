@@ -42,6 +42,8 @@ SSH 命令计划支持五段 cron、显式时区、夏令时、错过触发策�
 
 SSH 多主机改密计划支持密码/密钥、特权账号重置、每周周期、逐项结果及故障恢复，Web/CLI 共用组织权限与加密回执；见[账号改密计划](./docs/ROTATION-PLANS.md)。
 
+SSH 账号还支持手动与独立周期的[连接性检测](./docs/ACCOUNT-CHECKS.md)：逐条验证已保存的密码/密钥及固定网关，提供失败通知和显式重试，不运行命令、不修改凭据；Web、CLI 与 SDK 共用独立检测权限。
+
 2026-10-18，隔离 Docker 中真实 OpenSSH 改密结果：
 
 ![账号改密结果](./docs/images/rotation-plans.zh-CN.png)

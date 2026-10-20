@@ -4,7 +4,7 @@
 
 ## SSH account connectivity checks (2026-10-20)
 
-Checks reuse the plan page, executor and notifications without dependencies, authenticating accounts serially. Bilingual controls receive a 4 KB allocation, raising the total JS limit from 1653200 to 1657200 while retaining 500000-byte entry/chunk limits. Lists omit account items and retry-source ID arrays; details load on demand. Size and build timing must come from this batch's artifacts and do not establish production capacity.
+Final source `8188747`: initial JS **499674** bytes (gzip **161539**), total JS **1657086**, largest chunk **482515**. Total JS adds **7842** bytes over rotation retries with unchanged initial size. Checks reuse the plan page, executor and notifications without dependencies, authenticating accounts serially. Existing headroom plus a 4 KB allocation raises the total JS limit from 1653200 to 1657200, retaining 500000-byte entry/chunk limits. Lists omit account items and retry-source ID arrays; details load on demand. Final clean Docker verification reused caches: build **6.15** seconds, startup **12.13**, browser smoke **8.69**, with resources removed. The first concurrent build took **71.85** seconds. Different cache state and concurrent load prevent inferring build acceleration or production capacity.
 
 ## Individual and bulk rotation retries (2026-10-20)
 
