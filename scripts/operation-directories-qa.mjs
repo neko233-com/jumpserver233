@@ -114,7 +114,12 @@ export async function verifyOperationDirectoryBrowser({page, expect, url, api, a
   await panel.getByRole("button", {name: "Create plan", exact: true}).click();
   const planResponse = await created;
   if (planResponse.status() !== 201) throw Error("Browser directory plan creation failed");
-  const plan = await planResponse.json();
+  // The UI only consumes this POST's status. Read its durable receipt through
+  // the authenticated API, as the production browser suite does; Chromium may
+  // leave an unconsumed fetch body unavailable through DevTools indefinitely.
+  const posted = planResponse.request().postDataJSON();
+  const plan = (await api("GET", "/api/v1/ops/plans", undefined, admin)).find(p => p.request_id === posted.request_id);
+  if (!plan) throw Error("Accepted browser plan has no matching durable receipt");
   if (plan.asset_ids.length !== 1 || plan.asset_ids[0] !== host || plan.working_directory !== directory) throw Error("Browser plan lost selected host or saved directory");
   const row = panel.locator(":scope > div > .jobs-table-scroll > table.jobs-table").first().getByRole("row").filter({hasText: name});
   await expect(row).toBeVisible({timeout: 10000});
