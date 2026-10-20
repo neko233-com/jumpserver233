@@ -2,6 +2,8 @@
 
 > English | [中文](./SESSION-SHARING.md)
 
+[Trusted interactive SSH submission directories](./INTERACTIVE-DIRECTORIES.en.md) authors native private framing, kernel cwd/input-queue proof, one-use leases, approval remeasurement, shared controllers and encrypted audit. Together with batch/template/schedule/Playbook propagation this forms E14. Code, Testify and existing native/bilingual browser entrypoints are authored and unrun; unified verification waits for all 42 groups.
+
 Active SSH, Telnet and Kubernetes terminals support named platform users watching or taking input control. Web and `jms share` use the same server authorization, command review and audit path. Participants receive no target password or private key.
 
 English interface from an isolated Docker instance with real Linux OpenSSH, 2026-10-17. The invitation code has been cleared:

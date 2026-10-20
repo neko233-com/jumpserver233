@@ -29,7 +29,7 @@ The administrator queue is `GET /api/v1/command-reviews`; resolution uses `POST 
 
 ## Current limits
 
-Current regex rules match command input text, not directory permissions. [Controlled execution directories](./EXECUTION-DIRECTORIES.en.md) are connected to single-command Web jobs and `jms exec`, including exact/subtree/full-path RE2 rules and approval binding. Complete interactive cwd proofs remain outstanding. Trusted working directories and resolved paths need a remote Agent or controlled execution channel together with account permissions. A terminal prompt, `PWD` value or inferred `cd` history cannot be the sole security authority.
+Current regex rules match command input text, not directory permissions. [Controlled execution directories](./EXECUTION-DIRECTORIES.en.md) are connected to single-command Web jobs and `jms exec`, including exact/subtree/full-path RE2 rules and approval binding. [Native interactive submission-directory proof](./INTERACTIVE-DIRECTORIES.en.md) and sharing/approval/audit integration are authored and unverified. Trusted working directories and resolved paths need a remote Agent or controlled execution channel together with account permissions. A terminal prompt, `PWD` value or inferred `cd` history cannot be the sole security authority.
 
 Optional [SSH execution workspaces](./SSH-WORKSPACES.en.md) use a native helper and Linux kernel confinement for whole-tree content access. They compose with command filters without replacing exact/regex directory command rules.
 

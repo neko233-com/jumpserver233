@@ -19,6 +19,7 @@ import { verifyAutomaticInstallation } from "./automatic-install-qa.mjs";
 import { historicalBaseline, prepareHistoricalPackage, verifyHistoricalManifests } from "./historical-source.mjs";
 import { verifySSHPasswordPolicy } from "./ssh-password-policy-qa.mjs";
 import { verifyOperationDirectories, verifyOperationDirectoryBrowser } from "./operation-directories-qa.mjs";
+import {verifyInteractiveDirectories} from "./interactive-directories-qa.mjs";
 import { verifySSHCertificates, verifySSHCertificateRestart, verifySSHCertificateBrowser } from "./ssh-certificates-qa.mjs";
 import { verifyReplayStorage, verifyReplayStorageRestart, verifyReplayStorageBrowser } from "./replay-storage-qa.mjs";
 
@@ -452,6 +453,7 @@ try {
   if (cwdCLI.state !== "succeeded" || cwdCLI.stdout.trim() !== deployDirectory) throw new Error("Native CLI did not select actual cwd");
   report.executionDirectories = { exactTreeAndRegex: true, deniedCommandsNeverCreatedFiles: true, pathBoundaryPreserved: true, symlinkAndOutsideRefused: true, loginReviewReplacementCreatesNewApproval: true, loginRetryIdempotent: true, commandReviewReplacementRefused: true, sameNamePolicyReplacementRefused: true, approvedCwdVerified: true, retryWithoutLiveSSH: true, changedDirectoryRetryConflict: true, nativeCLI: true };
   await verifyOperationDirectories({api, admin: recoveredLogin.access_token, run, runInput, owner, sshHost: owner + "-ssh", fingerprint, workspace, directory: deployDirectory, sibling: siblingDirectory, primary: asset, report});
+  await verifyInteractiveDirectories({api,admin:recoveredLogin.access_token,operator:directoryLogin.access_token,asset,workspace,url,run,sshHost:owner+"-ssh",report});
   const completedDirectoryRun = await api("GET", `/api/v1/ops/runs/${report.operationDirectories.playbookRunID}`, undefined, recoveredLogin.access_token);
   const certificateFixture=await verifySSHCertificates({api,admin:recoveredLogin.access_token,run,runInput,owner,sshHost:owner+"-ssh",fingerprint,url,report});
   const replayStorageFixture=await verifyReplayStorage({api,admin:recoveredLogin.access_token,certificateFixture,run,runInput,owner,sshHost:owner+"-ssh",url,report});
@@ -513,12 +515,16 @@ try {
 	await terminal.locator(".xterm-helper-textarea").pressSequentially("printf '\\167\\157\\162\\153\\163\\160\\141\\143\\145\\055\\160\\164\\171\\055\\157\\153\\012'");
 	await page.keyboard.press("Enter");
 	await expect.poll(() => terminalOutput).toContain("workspace-pty-ok");
+	const beforeDirectoryChange = terminalOutput.length;
+	await terminal.locator(".xterm-helper-textarea").pressSequentially("cd "+deployDirectory);
+	await page.keyboard.press("Enter");
+	await expect.poll(()=>terminalOutput.slice(beforeDirectoryChange)).toMatch(/\n[^\r\n]*[$#] $/);
 	await terminal.locator(".xterm-helper-textarea").pressSequentially("mkdir terminal-blocked");
 	await page.keyboard.press("Enter");
-	await expect.poll(() => terminalNotices.some(notice => notice.type === "command_blocked" && notice.directory_required === true)).toBe(true);
+	await expect.poll(() => terminalNotices.some(notice => notice.type === "command_blocked" && notice.directory_required !== true)).toBe(true);
 	await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", workspace + "/terminal-blocked"]);
 	await run("docker", ["exec", owner + "-ssh", "test", "!", "-e", deployDirectory + "/terminal-blocked"]);
-	report.executionDirectories.browserUnverifiedPTYRefused = true;
+	report.executionDirectories.browserVerifiedPTYDirectoryDenied = true;
 	const [deletedSession] = await Promise.all([
       page.waitForResponse(response => response.request().method() === "DELETE" && /\/api\/v1\/sessions\/[^/]+$/.test(new URL(response.url()).pathname)),
       terminal.getByRole("button", { name: "Close terminal", exact: true }).click(),

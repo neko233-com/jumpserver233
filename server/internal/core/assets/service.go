@@ -401,11 +401,11 @@ func (s *Service) OpenShell(ctx context.Context, id string, cols, rows int) (Ass
 		return Asset{}, nil, err
 	}
 	if asset.SSHWorkspace != "" {
-		startup, e := s.workspaceStartup(ctx, target, credentials, asset.SSHWorkspace, false)
+		startup, identity, e := s.workspaceTerminalStartup(ctx, target, credentials, asset.SSHWorkspace, cols, rows)
 		if e != nil {
 			return Asset{}, nil, e
 		}
-		shell, e := sshclient.OpenShellCommand(ctx, target, credentials, 12*time.Second, cols, rows, startup)
+		shell, e := sshclient.OpenDirectoryShellCommand(ctx, target, credentials, 12*time.Second, startup, asset.SSHWorkspace, identity)
 		return asset, shell, e
 	}
 	shell, err := sshclient.OpenShell(ctx, target, credentials, 12*time.Second, cols, rows)

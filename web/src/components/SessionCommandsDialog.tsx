@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 type CommandRecord = {
+  working_directory?: string;
+  directory_verified?: boolean;
   actor?: string;
   id: string;
   command: string;
@@ -110,6 +112,11 @@ export default function SessionCommandsDialog({
                 </span>
                 <div>
                   <code>{entry.command || t("audit.commandUnknownInput")}</code>
+                  {entry.directory_verified && entry.working_directory && (
+                    <small>
+                      {t("audit.commandDirectory", { directory: entry.working_directory })}
+                    </small>
+                  )}
                   {entry.actor && <small>{t("sharing.actor", { name: entry.actor })}</small>}
                   {entry.rule_name && (
                     <small>{t("audit.commandRule", { rule: entry.rule_name })}</small>

@@ -26,7 +26,7 @@ func workspaceSeccomp() error {
 	}
 	denied := []uint32{
 		unix.SYS_SOCKET, unix.SYS_SOCKETPAIR, unix.SYS_CONNECT, unix.SYS_BIND, unix.SYS_SENDTO, unix.SYS_SENDMSG, unix.SYS_RECVMSG,
-		unix.SYS_PTRACE, unix.SYS_PROCESS_VM_READV, unix.SYS_PROCESS_VM_WRITEV, unix.SYS_PIDFD_GETFD, unix.SYS_PIDFD_OPEN, unix.SYS_PIDFD_SEND_SIGNAL,
+		unix.SYS_PTRACE, unix.SYS_PROCESS_VM_READV, unix.SYS_PROCESS_VM_WRITEV, unix.SYS_PIDFD_GETFD, unix.SYS_PIDFD_OPEN, unix.SYS_PIDFD_SEND_SIGNAL, unix.SYS_SETSID,
 		unix.SYS_KILL, unix.SYS_TKILL, unix.SYS_RT_SIGQUEUEINFO, unix.SYS_RT_TGSIGQUEUEINFO,
 		unix.SYS_UNSHARE, unix.SYS_SETNS, unix.SYS_MOUNT, unix.SYS_UMOUNT2, unix.SYS_PIVOT_ROOT, unix.SYS_CHROOT,
 		unix.SYS_OPEN_TREE, unix.SYS_MOVE_MOUNT, unix.SYS_FSOPEN, unix.SYS_FSMOUNT, unix.SYS_FSPICK, unix.SYS_FSCONFIG, unix.SYS_MOUNT_SETATTR,
@@ -62,6 +62,20 @@ func workspaceSeccomp() error {
 	)
 	// clone3 cannot safely inspect its pointed-to flags in classic seccomp BPF.
 	// ENOSYS lets libc use clone/fork, whose namespace flags we inspect below.
+	// A distinct process must not share the shell's cwd, descriptor table or
+	// signal handlers. Threads remain supported; directory proof requires the
+	// observed shell to have exactly one thread. vfork keeps its parent blocked.
+	f = append(f,
+		unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JEQ | unix.BPF_K, K: unix.SYS_CLONE, Jf: 7},
+		unix.SockFilter{Code: unix.BPF_LD | unix.BPF_W | unix.BPF_ABS, K: 16},
+		unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JSET | unix.BPF_K, K: unix.CLONE_THREAD, Jt: 5},
+		unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JSET | unix.BPF_K, K: unix.CLONE_FS | unix.CLONE_FILES | unix.CLONE_SIGHAND, Jt: 3},
+		unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JSET | unix.BPF_K, K: unix.CLONE_VFORK, Jt: 3},
+		unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JSET | unix.BPF_K, K: unix.CLONE_VM, Jt: 1},
+		unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JA, K: 1},
+		unix.SockFilter{Code: unix.BPF_RET | unix.BPF_K, K: unix.SECCOMP_RET_ERRNO | uint32(unix.EPERM)},
+		unix.SockFilter{Code: unix.BPF_LD | unix.BPF_W | unix.BPF_ABS, K: 0},
+	)
 	f = append(f, unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JEQ | unix.BPF_K, K: unix.SYS_CLONE3, Jf: 1}, unix.SockFilter{Code: unix.BPF_RET | unix.BPF_K, K: unix.SECCOMP_RET_ERRNO | uint32(unix.ENOSYS)})
 	f = append(f,
 		unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JEQ | unix.BPF_K, K: unix.SYS_CLONE, Jf: 4},

@@ -19,6 +19,21 @@ import (
 )
 
 func run(args []string) int {
+	if len(args) > 0 && args[0] == "workspace-terminal" {
+		flags := flag.NewFlagSet("workspace-terminal", flag.ContinueOnError)
+		flags.SetOutput(io.Discard)
+		directory, identity := flags.String("directory", "", ""), flags.String("identity", "", "")
+		cols, rows := flags.Int("cols", 80, ""), flags.Int("rows", 24, "")
+		if flags.Parse(args[1:]) != nil || flags.NArg() != 0 {
+			return 2
+		}
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		defer cancel()
+		if hostagent.ServeWorkspaceTerminal(ctx, *directory, *identity, *cols, *rows, os.Stdin, os.Stdout) != nil {
+			return 1
+		}
+		return 0
+	}
 	if len(args) == 1 && args[0] == "workspace-sftp-internal" {
 		if e := hostagent.ServeWorkspaceSFTP(); e != nil {
 			fmt.Fprintln(os.Stderr, "workspace_sftp_unavailable")

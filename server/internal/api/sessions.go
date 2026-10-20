@@ -60,6 +60,7 @@ func registerSessionRoutes(mux *http.ServeMux, broker *gateway.Broker, adminToke
 					nodeIDs = nodes.AncestorIDs(asset.NodeID)
 				}
 				if commandFilters != nil {
+					request.DirectoryCommandPolicy = terminalDirectoryPolicy(policyDependencies(r), principal, asset.ID)
 					request.CommandPolicy = func(command string, supported bool, at time.Time) gateway.CommandPolicyDecision {
 						current, e := assets.Get(asset.ID)
 						if e != nil {

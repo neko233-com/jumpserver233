@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,7 +77,10 @@ func prepareWorkspace(ctx context.Context, h *sshclient.ManagedHost, directory s
 	return startup, state.Identity, err
 }
 
-func prepareWorkspaceStatus(ctx context.Context, h *sshclient.ManagedHost, directory string, execInput bool) (string, hostagent.WorkspaceStatus, error) {
+func prepareWorkspaceStatus(ctx context.Context, h *sshclient.ManagedHost, directory string, execInput bool, modes ...string) (string, hostagent.WorkspaceStatus, error) {
+	if len(modes) > 1 || len(modes) == 1 && (modes[0] != "terminal" || execInput) {
+		return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
+	}
 	if hostagent.ValidateWorkspace(directory) != nil {
 		return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
 	}
@@ -167,7 +171,11 @@ func prepareWorkspaceStatus(ctx context.Context, h *sshclient.ManagedHost, direc
 	if working.identity != "" && working.identity != state.WorkingIdentity {
 		return "", hostagent.WorkspaceStatus{}, ErrConnectionChanged
 	}
-	startup := "set -eu; " + verify + "exec " + command + " workspace --directory " + workspaceQuote(directory) + " --identity " + workspaceQuote(state.Identity)
+	action := "workspace"
+	if len(modes) == 1 {
+		action = "workspace-terminal"
+	}
+	startup := "set -eu; " + verify + "exec " + command + " " + action + " --directory " + workspaceQuote(directory) + " --identity " + workspaceQuote(state.Identity)
 	if working.directory != "" {
 		if !execInput {
 			return "", hostagent.WorkspaceStatus{}, hostagent.ErrWorkspaceInvalid
@@ -178,6 +186,19 @@ func prepareWorkspaceStatus(ctx context.Context, h *sshclient.ManagedHost, direc
 		startup += " --exec-stdin"
 	}
 	return startup, state, nil
+}
+
+func (s *Service) workspaceTerminalStartup(ctx context.Context, target sshclient.Target, credentials sshclient.Credentials, directory string, cols, rows int) (string, string, error) {
+	h, e := sshclient.OpenManagedHost(ctx, target, credentials)
+	if e != nil {
+		return "", "", e
+	}
+	defer h.Close()
+	startup, state, e := prepareWorkspaceStatus(ctx, h, directory, false, "terminal")
+	if e != nil {
+		return "", "", e
+	}
+	return startup + " --cols " + strconv.Itoa(cols) + " --rows " + strconv.Itoa(rows), state.Identity, nil
 }
 
 func (s *Service) openWorkspaceSFTP(ctx context.Context, target sshclient.Target, credentials sshclient.Credentials, directory string) (*sshclient.SFTP, error) {

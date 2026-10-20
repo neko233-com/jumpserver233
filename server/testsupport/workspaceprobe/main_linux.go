@@ -18,9 +18,20 @@ func main() {
 			os.Exit(91)
 		}
 	}
-	for _, nr := range []uintptr{unix.SYS_UNSHARE, unix.SYS_PTRACE, unix.SYS_IO_URING_SETUP, unix.SYS_PIDFD_OPEN, unix.SYS_BPF} {
+	for _, nr := range []uintptr{unix.SYS_UNSHARE, unix.SYS_PTRACE, unix.SYS_IO_URING_SETUP, unix.SYS_PIDFD_OPEN, unix.SYS_BPF, unix.SYS_SETSID} {
 		if _, _, e := unix.Syscall(nr, 0, 0, 0); e != unix.EPERM {
 			os.Exit(92)
+		}
+	}
+	// These flags must fail before the kernel can create a child sharing cwd
+	// or descriptors with the observed shell. SIGCHLD retains normal semantics.
+	for _, flags := range []uintptr{unix.CLONE_FS, unix.CLONE_FILES, unix.CLONE_VM, unix.CLONE_FS | unix.CLONE_VFORK} {
+		pid, _, e := unix.RawSyscall6(unix.SYS_CLONE, flags|uintptr(unix.SIGCHLD), 0, 0, 0, 0, 0)
+		if e != unix.EPERM {
+			if e == 0 && pid == 0 {
+				unix.RawSyscall(unix.SYS_EXIT_GROUP, 96, 0, 0)
+			}
+			os.Exit(96)
 		}
 	}
 	var capabilities [2]unix.CapUserData

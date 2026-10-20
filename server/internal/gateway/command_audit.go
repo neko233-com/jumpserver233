@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/terminalwire"
 	"io"
 	"os"
 	"path/filepath"
@@ -22,15 +23,17 @@ const maxCommandRecordBytes = 64 * 1024
 // CommandRecord is a completed command line submitted at a recognized remote
 // terminal prompt. It does not claim that the remote shell executed it.
 type CommandRecord struct {
-	ActorID     string    `json:"actor_id,omitempty"`
-	Actor       string    `json:"actor,omitempty"`
-	ID          string    `json:"id"`
-	Command     string    `json:"command"`
-	SubmittedAt time.Time `json:"submitted_at"`
-	Outcome     string    `json:"outcome"`
-	RuleName    string    `json:"rule_name,omitempty"`
-	ReviewedBy  string    `json:"reviewed_by,omitempty"`
-	ReviewID    string    `json:"review_id,omitempty"`
+	WorkingDirectory  string    `json:"working_directory,omitempty"`
+	DirectoryVerified bool      `json:"directory_verified,omitempty"`
+	ActorID           string    `json:"actor_id,omitempty"`
+	Actor             string    `json:"actor,omitempty"`
+	ID                string    `json:"id"`
+	Command           string    `json:"command"`
+	SubmittedAt       time.Time `json:"submitted_at"`
+	Outcome           string    `json:"outcome"`
+	RuleName          string    `json:"rule_name,omitempty"`
+	ReviewedBy        string    `json:"reviewed_by,omitempty"`
+	ReviewID          string    `json:"review_id,omitempty"`
 }
 
 type commandRecordEnvelope struct {
@@ -40,15 +43,16 @@ type commandRecordEnvelope struct {
 }
 
 type commandRecordPayload struct {
-	ActorID     string    `json:"actor_id,omitempty"`
-	Actor       string    `json:"actor,omitempty"`
-	ID          string    `json:"id"`
-	Command     string    `json:"command"`
-	SubmittedAt time.Time `json:"submitted_at"`
-	Outcome     string    `json:"outcome,omitempty"`
-	RuleName    string    `json:"rule_name,omitempty"`
-	ReviewedBy  string    `json:"reviewed_by,omitempty"`
-	ReviewID    string    `json:"review_id,omitempty"`
+	Directory   *terminalwire.Proof `json:"directory,omitempty"`
+	ActorID     string              `json:"actor_id,omitempty"`
+	Actor       string              `json:"actor,omitempty"`
+	ID          string              `json:"id"`
+	Command     string              `json:"command"`
+	SubmittedAt time.Time           `json:"submitted_at"`
+	Outcome     string              `json:"outcome,omitempty"`
+	RuleName    string              `json:"rule_name,omitempty"`
+	ReviewedBy  string              `json:"reviewed_by,omitempty"`
+	ReviewID    string              `json:"review_id,omitempty"`
 }
 
 var ErrInvalidCommandRequest = errors.New("invalid command audit request")
@@ -74,7 +78,12 @@ func (b *Broker) appendCommand(sessionID string, submission commandSubmission, c
 	if err != nil {
 		return fmt.Errorf("create command audit ID: %w", err)
 	}
-	payload, err := json.Marshal(commandRecordPayload{ActorID: submission.ActorID, Actor: submission.Actor, ID: id, Command: command, SubmittedAt: submission.SubmittedAt.UTC(), Outcome: submission.Outcome, RuleName: submission.RuleName, ReviewedBy: submission.ReviewedBy, ReviewID: submission.ReviewID})
+	var directory *terminalwire.Proof
+	if submission.Directory.Valid() {
+		value := submission.Directory
+		directory = &value
+	}
+	payload, err := json.Marshal(commandRecordPayload{Directory: directory, ActorID: submission.ActorID, Actor: submission.Actor, ID: id, Command: command, SubmittedAt: submission.SubmittedAt.UTC(), Outcome: submission.Outcome, RuleName: submission.RuleName, ReviewedBy: submission.ReviewedBy, ReviewID: submission.ReviewID})
 	if err != nil {
 		return fmt.Errorf("encode command audit record: %w", err)
 	}
@@ -199,10 +208,17 @@ func (b *Broker) readCommands(sessionID string, offset, limit int) ([]CommandRec
 		if payload.Outcome == "" {
 			payload.Outcome = "allowed" // Backward compatibility with the original audit schema.
 		}
+		if payload.Directory != nil && !payload.Directory.Valid() {
+			return nil, 0, fmt.Errorf("command audit directory is invalid")
+		}
 		if !validSessionID(payload.ID) || (payload.Command == "" && payload.Outcome != "blocked") || len(payload.Command) > maxCommandInputBytes || payload.SubmittedAt.IsZero() || !validCommandOutcome(payload.Outcome) || len(payload.RuleName) > 80 || len(payload.ReviewedBy) > 128 || (payload.ReviewID != "" && !validSessionID(payload.ReviewID)) {
 			return nil, 0, fmt.Errorf("command audit payload is invalid")
 		}
-		commands = append(commands, CommandRecord{ActorID: payload.ActorID, Actor: payload.Actor, ID: payload.ID, Command: payload.Command, SubmittedAt: payload.SubmittedAt, Outcome: payload.Outcome, RuleName: payload.RuleName, ReviewedBy: payload.ReviewedBy, ReviewID: payload.ReviewID})
+		directory := ""
+		if payload.Directory != nil {
+			directory = payload.Directory.Directory
+		}
+		commands = append(commands, CommandRecord{WorkingDirectory: directory, DirectoryVerified: directory != "", ActorID: payload.ActorID, Actor: payload.Actor, ID: payload.ID, Command: payload.Command, SubmittedAt: payload.SubmittedAt, Outcome: payload.Outcome, RuleName: payload.RuleName, ReviewedBy: payload.ReviewedBy, ReviewID: payload.ReviewID})
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, 0, fmt.Errorf("read command audit index: %w", err)

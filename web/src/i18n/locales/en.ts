@@ -1861,6 +1861,7 @@ const en = {
     },
     commandRule: "Rule: {{rule}}",
     commandReviewedBy: "Reviewed by: {{user}}",
+    commandDirectory: "Kernel-verified submission directory: {{directory}}",
     commandUnknownInput: "Unrecognized terminal input",
     commandLoading: "Loading command audit…",
     commandLoadError: "Could not load command records. Check access and server status.",

@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[交互 SSH 可信提交目录](./INTERACTIVE-DIRECTORIES.md)已编写原生私有帧、内核 cwd/输入队列证明、一次性租约、审批重测、共享控制者和加密审计，并与批量/模板/计划/Playbook 目录链路共同组成 E14。代码、Testify 与既有原生/中英浏览器入口已编写，未执行；全部 42 组实现就绪后统一验证。
+
 [全局组织汇总](./GLOBAL-ORGANIZATIONS.md)已编写独立全局只读权限、跨组织库存/缓存监控/活动计数、中英 Web、CLI/SDK、撤权/并发/重开及既有主备接管用例。E08 实现待验；仍等待全部 42 组编写完成后统一验证。
 
 [登录短信 MFA](./SMS-MFA.md)已编写原生平台通道、首次/个人绑定、强制策略、一次性能力、限流/加密、TOTP/RADIUS/复核贯通、中英 Web、CLI/SDK 和用例。E06 实现待验；未运行测试、构建、浏览器或 Docker，仍等待全部 42 组实现就绪。
@@ -24,7 +26,7 @@
 
 [SSH 账号连接性检测](./ACCOUNT-CHECKS.md)：已保存密码/密钥的手动和独立周期认证、逐账号结果、显式重试、安全通知及备份保留。
 
-[SSH 执行工作区](./SSH-WORKSPACES.md)：原生 Linux helper 的目录树文件限制与 Web/CLI 入口。新增[受控执行目录](./EXECUTION-DIRECTORIES.md)：单命令作业的真实起始目录、精确/子树/正则规则和审批绑定；完整交互式 cwd 仍待完成。
+[SSH 执行工作区](./SSH-WORKSPACES.md)：原生 Linux helper 的目录树文件限制与 Web/CLI 入口。新增[受控执行目录](./EXECUTION-DIRECTORIES.md)：单命令作业的真实起始目录、精确/子树/正则规则和审批绑定；交互原生证明见上方新增说明，尚未统一验证。
 
 [软件更新与原生制品](./UPDATES.md)：正式稳定版检查、自动检查策略、平台权限/修订/回执、下载与归档校验及六平台 Release 打包。
 

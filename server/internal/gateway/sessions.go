@@ -27,6 +27,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionshares"
 	"github.com/neko233-com/jumpserver233/server/internal/recorder"
+	"github.com/neko233-com/jumpserver233/server/internal/terminalwire"
 )
 
 const (
@@ -65,13 +66,14 @@ type CreateRequest struct {
 	Open       OpenFunc              `json:"-"`
 	Kubernetes *kubeclient.Selection `json:"kubernetes,omitempty"`
 
-	AccessPolicy  func(context.Context) error `json:"-"`
-	AssetID       string                      `json:"asset_id"`
-	Cols          int                         `json:"cols"`
-	Rows          int                         `json:"rows"`
-	OperatorID    string                      `json:"-"`
-	Operator      string                      `json:"-"`
-	CommandPolicy CommandPolicy               `json:"-"`
+	AccessPolicy           func(context.Context) error `json:"-"`
+	AssetID                string                      `json:"asset_id"`
+	Cols                   int                         `json:"cols"`
+	Rows                   int                         `json:"rows"`
+	OperatorID             string                      `json:"-"`
+	Operator               string                      `json:"-"`
+	CommandPolicy          CommandPolicy               `json:"-"`
+	DirectoryCommandPolicy DirectoryCommandPolicy      `json:"-"`
 }
 
 type CommandPolicyDecision struct {
@@ -83,6 +85,7 @@ type CommandPolicyDecision struct {
 }
 
 type CommandPolicy func(command string, supported bool, at time.Time) CommandPolicyDecision
+type DirectoryCommandPolicy func(command string, supported bool, at time.Time, proof terminalwire.Proof) CommandPolicyDecision
 
 type CreatedSession struct {
 	Watermark    string    `json:"watermark,omitempty"`
@@ -122,33 +125,36 @@ type SessionRecord struct {
 }
 
 type activeSession struct {
-	accessPolicy   func(context.Context) error
-	accessContext  context.Context
-	id             string
-	asset          AssetInfo
-	operatorID     string
-	operator       string
-	terminal       Terminal
-	terminalSocket *websocket.Conn
-	recorder       *recorder.Asciinema
-	commands       *commandCapture
-	commandPolicy  CommandPolicy
-	startedAt      time.Time
-	lastInput      time.Time // guarded by Broker.mu; remote output is not user activity
-	watermark      string
-	ticketHash     [32]byte
-	ticketExpiry   time.Time
-	ticketTimer    *time.Timer
-	closeOnce      sync.Once
-	closing        bool // guarded by Broker.mu; retained in sessions until final audit completes
-	writeMu        sync.Mutex
-	inputMu        sync.Mutex
-	pendingReview  *pendingCommandReview
-	monitors       map[*sessionMonitor]struct{} // guarded by Broker.mu
-	sharePeers     map[*sharePeer]struct{}      // guarded by Broker.mu
-	shareHistory   []byte                       // bounded output tail, guarded by Broker.mu
-	shareNotices   bool                         // immutable after terminal attachment; negotiated v1 extension
-	cols, rows     int                          // guarded by Broker.mu
+	accessPolicy    func(context.Context) error
+	accessContext   context.Context
+	id              string
+	asset           AssetInfo
+	operatorID      string
+	operator        string
+	terminal        Terminal
+	terminalSocket  *websocket.Conn
+	recorder        *recorder.Asciinema
+	commands        *commandCapture
+	commandPolicy   CommandPolicy
+	directoryPolicy DirectoryCommandPolicy
+	inputProof      terminalwire.Proof // guarded by inputMu; never accepted from a client
+	inputChecks     []inputCheck       // guarded by inputMu; rechecked after durable input audit
+	startedAt       time.Time
+	lastInput       time.Time // guarded by Broker.mu; remote output is not user activity
+	watermark       string
+	ticketHash      [32]byte
+	ticketExpiry    time.Time
+	ticketTimer     *time.Timer
+	closeOnce       sync.Once
+	closing         bool // guarded by Broker.mu; retained in sessions until final audit completes
+	writeMu         sync.Mutex
+	inputMu         sync.Mutex
+	pendingReview   *pendingCommandReview
+	monitors        map[*sessionMonitor]struct{} // guarded by Broker.mu
+	sharePeers      map[*sharePeer]struct{}      // guarded by Broker.mu
+	shareHistory    []byte                       // bounded output tail, guarded by Broker.mu
+	shareNotices    bool                         // immutable after terminal attachment; negotiated v1 extension
+	cols, rows      int                          // guarded by Broker.mu
 }
 
 // Broker owns live SSH PTYs, short-lived single-use WebSocket tickets, and
@@ -232,24 +238,25 @@ func (b *Broker) Create(ctx context.Context, request CreateRequest) (CreatedSess
 		return CreatedSession{}, err
 	}
 	session := &activeSession{
-		id:            sessionID,
-		asset:         asset,
-		operatorID:    request.OperatorID,
-		operator:      request.Operator,
-		terminal:      terminal,
-		recorder:      sessionRecorder,
-		commands:      newCommandCapture(),
-		commandPolicy: request.CommandPolicy,
-		accessPolicy:  request.AccessPolicy,
-		accessContext: context.WithoutCancel(ctx),
-		startedAt:     startedAt,
-		lastInput:     startedAt,
-		watermark:     watermark,
-		ticketHash:    sha256.Sum256([]byte(ticket)),
-		ticketExpiry:  startedAt.Add(terminalTicketLifetime),
-		monitors:      make(map[*sessionMonitor]struct{}),
-		cols:          request.Cols,
-		rows:          request.Rows,
+		id:              sessionID,
+		asset:           asset,
+		operatorID:      request.OperatorID,
+		operator:        request.Operator,
+		terminal:        terminal,
+		recorder:        sessionRecorder,
+		commands:        newCommandCapture(),
+		commandPolicy:   request.CommandPolicy,
+		directoryPolicy: request.DirectoryCommandPolicy,
+		accessPolicy:    request.AccessPolicy,
+		accessContext:   context.WithoutCancel(ctx),
+		startedAt:       startedAt,
+		lastInput:       startedAt,
+		watermark:       watermark,
+		ticketHash:      sha256.Sum256([]byte(ticket)),
+		ticketExpiry:    startedAt.Add(terminalTicketLifetime),
+		monitors:        make(map[*sessionMonitor]struct{}),
+		cols:            request.Cols,
+		rows:            request.Rows,
 	}
 	if err := b.appendAudit(session, "started", ""); err != nil {
 		_ = terminal.Close()
@@ -661,25 +668,11 @@ func (b *Broker) readTerminal(ctx context.Context, conn *websocket.Conn, session
 				}
 				continue
 			}
-			forward, err := b.prepareTerminalInput(ctx, conn, session, data)
-			if err != nil {
-				session.inputMu.Unlock()
-				return err
-			}
-			if len(forward) == 0 {
-				session.inputMu.Unlock()
-				continue
-			}
-			if err := session.recorder.Record('i', forward); err != nil {
-				session.inputMu.Unlock()
-				return err
-			}
-			if err := writeAll(session.terminal, forward); err != nil {
-				session.inputMu.Unlock()
-				return err
-			}
-			b.touchSession(session)
+			err = b.writeTerminalInput(ctx, conn, session, data)
 			session.inputMu.Unlock()
+			if err != nil {
+				return err
+			}
 		case websocket.MessageText:
 			var control struct {
 				Type string `json:"type"`
@@ -722,14 +715,20 @@ func (b *Broker) prepareTerminalInput(ctx context.Context, conn *websocket.Conn,
 	if hasPendingReview {
 		return nil, nil
 	}
-	submissions := session.commands.ObserveInput(data)
+	submissions := session.commands.ObserveInput(data, session.inputProof.Valid())
 	blockedOffsets := make([]int, 0, len(submissions))
 	reviewOffset := -1
 	for _, submission := range submissions {
+		// A packet can contain cd followed by another command. Its later lines
+		// cannot reuse a snapshot taken before the first line ran.
+		if len(submissions) == 1 && submission.Supported && len(submission.PolicyCommand) <= 2048 {
+			submission.Directory = session.inputProof
+		}
 		submission.ActorID, submission.Actor = identity.ID, identity.Name
 		decision := decideInputPolicy(session, identity, submission)
 		submission.PolicyKey = decision.PolicyKey
 		if decision.Allowed {
+			session.inputChecks = append(session.inputChecks, inputCheck{identity: identity, submission: submission, policyKey: decision.PolicyKey})
 			if submission.Supported && submission.Command != "" {
 				submission.Outcome = "allowed"
 				if err := b.appendCommand(session.id, submission, session); err != nil {

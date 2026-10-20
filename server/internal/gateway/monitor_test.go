@@ -32,6 +32,7 @@ func monitorFixtureTerminal(t *testing.T, shareControl bool, terminal Terminal, 
 	request := CreateRequest{AssetID: "qa", OperatorID: "owner", Cols: 90, Rows: 30}
 	if len(options) > 0 {
 		request.AccessPolicy, request.CommandPolicy = options[0].AccessPolicy, options[0].CommandPolicy
+		request.DirectoryCommandPolicy = options[0].DirectoryCommandPolicy
 	}
 	s, e := b.Create(context.Background(), request)
 	require.NoError(t, e)

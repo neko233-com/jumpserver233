@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/terminalwire"
 	"io"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 // Shell is an interactive SSH PTY. Credentials are used only during the
 // server-side handshake and are never retained on the Shell value.
 type Shell struct {
+	framed      *directoryStream
 	client      *xssh.Client
 	session     *xssh.Session
 	input       io.WriteCloser
@@ -117,10 +119,16 @@ func OpenShellCommand(ctx context.Context, target Target, credentials Credential
 }
 
 func (s *Shell) Read(p []byte) (int, error) {
+	if s.framed != nil {
+		return s.framed.output.Read(p)
+	}
 	return s.output.Read(p)
 }
 
 func (s *Shell) Write(p []byte) (int, error) {
+	if s.framed != nil {
+		return s.framed.Write(p)
+	}
 	return s.input.Write(p)
 }
 
@@ -128,6 +136,9 @@ func (s *Shell) Write(p []byte) (int, error) {
 func (s *Shell) Resize(cols, rows int) error {
 	if cols < 2 || cols > 500 || rows < 2 || rows > 500 {
 		return fmt.Errorf("terminal dimensions must be between 2 and 500")
+	}
+	if s.framed != nil {
+		return s.framed.Resize(cols, rows)
 	}
 	return s.session.WindowChange(rows, cols)
 }
@@ -143,6 +154,11 @@ func (s *Shell) Wait() error {
 func (s *Shell) Close() error {
 	var closeErr error
 	s.closeOnce.Do(func() {
+		if s.framed != nil {
+			s.framed.Close()
+			<-s.framed.done
+			return
+		}
 		_ = s.input.Close()
 		if err := s.session.Close(); err != nil && !errors.Is(err, io.EOF) {
 			closeErr = err
@@ -154,4 +170,11 @@ func (s *Shell) Close() error {
 		_ = s.outputWrite.Close()
 	})
 	return closeErr
+}
+
+func (s *Shell) AcquireDirectory(ctx context.Context) (terminalwire.Lease, error) {
+	if s.framed == nil {
+		return nil, terminalwire.ErrUnverified
+	}
+	return s.framed.Acquire(ctx)
 }

@@ -186,11 +186,14 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 		approve = false
 		outcome, noticeType, input = "denied", "command_review_denied", []byte{0x03}
 	}
+	writer, finishDirectory := beginDirectoryInput(policyContext, session, []byte{'\r'}, pending.identity)
+	unlockDirectory := func() { _ = finishDirectory(); session.inputMu.Unlock() }
 	if approve {
 		candidate := pending.submission
+		candidate.Directory = session.inputProof
 		candidate.SubmittedAt = time.Now().UTC()
 		decision := decideInputPolicy(session, pending.identity, candidate)
-		if decision.PolicyKey != pending.submission.PolicyKey || !decision.Allowed && (!decision.RequireReview || decision.RuleName != pending.request.RuleName) {
+		if pending.submission.Directory.Valid() && candidate.Directory != pending.submission.Directory || decision.PolicyKey != pending.submission.PolicyKey || !decision.Allowed && (!decision.RequireReview || decision.RuleName != pending.request.RuleName) {
 			outcome, noticeType, input = "denied", "command_review_denied", []byte{0x03}
 		}
 	}
@@ -199,7 +202,7 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 	submission.Outcome = outcome
 	submission.ReviewedBy = reviewer
 	if err := b.appendCommand(session.id, submission, session); err != nil {
-		session.inputMu.Unlock()
+		unlockDirectory()
 		b.closeSession(session, "command_review_audit_failed")
 		return err
 	}
@@ -208,7 +211,7 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 		RuleName string `json:"rule_name"`
 	}{Type: noticeType, RuleName: pending.request.RuleName})
 	if err != nil {
-		session.inputMu.Unlock()
+		unlockDirectory()
 		b.closeSession(session, "command_review_notice_failed")
 		return fmt.Errorf("encode command review result: %w", err)
 	}
@@ -216,17 +219,17 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 	writeErr := session.writeWebSocket(ctx, conn, websocket.MessageText, notice)
 	cancel()
 	if writeErr != nil {
-		session.inputMu.Unlock()
+		unlockDirectory()
 		b.closeSession(session, "command_review_notice_failed")
 		return writeErr
 	}
 	if err := session.recorder.Record('i', input); err != nil {
-		session.inputMu.Unlock()
+		unlockDirectory()
 		b.closeSession(session, "command_review_recording_failed")
 		return err
 	}
-	if err := writeAll(session.terminal, input); err != nil {
-		session.inputMu.Unlock()
+	if err := writeAll(writer, input); err != nil {
+		unlockDirectory()
 		b.closeSession(session, "command_review_write_failed")
 		return err
 	}
@@ -236,7 +239,7 @@ func (b *Broker) resolveCommandReview(id, reviewer string, approve, automatic bo
 		session.pendingReview = nil
 	}
 	b.mu.Unlock()
-	session.inputMu.Unlock()
+	unlockDirectory()
 	if expired && !automatic {
 		return ErrCommandReviewExpired
 	}

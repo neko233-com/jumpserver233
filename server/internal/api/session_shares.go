@@ -14,6 +14,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
 	"github.com/neko233-com/jumpserver233/server/internal/core/sessionshares"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
+	"github.com/neko233-com/jumpserver233/server/internal/terminalwire"
 )
 
 func shareActor(r *http.Request) sessionshares.Actor {
@@ -240,7 +241,23 @@ func registerSessionShareRoutes(mux *http.ServeMux, b *gateway.Broker, adminToke
 				return gateway.CommandPolicyDecision{Allowed: v.Allowed, RequireReview: v.Action == commandfilters.ActionReview, RuleName: v.RuleName, PolicyKey: v.PolicyKey, DirectoryRequired: v.DirectoryRequired}
 			}
 		}
-		created, e := b.JoinShare(r.Context(), r.PathValue("shareID"), in.Code, shareActor(r), guard, policy)
+		directoryPolicy := func(info gateway.AssetInfo) gateway.DirectoryCommandPolicy {
+			if info.Protocol != "" && info.Protocol != "ssh" {
+				return nil
+			}
+			return func(command string, supported bool, at time.Time, proof terminalwire.Proof) gateway.CommandPolicyDecision {
+				principal, ok := current()
+				if !ok {
+					return gateway.CommandPolicyDecision{}
+				}
+				p := terminalDirectoryPolicy(d, principal, info.ID)
+				if p == nil {
+					return gateway.CommandPolicyDecision{Allowed: true}
+				}
+				return p(command, supported, at, proof)
+			}
+		}
+		created, e := b.JoinShare(r.Context(), r.PathValue("shareID"), in.Code, shareActor(r), guard, policy, directoryPolicy)
 		if e != nil {
 			shareError(w, e)
 			return

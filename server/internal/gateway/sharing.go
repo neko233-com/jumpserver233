@@ -33,30 +33,45 @@ func acceptsShareControl(values []string) bool {
 const maxShareHistory = 64 * 1024
 
 type inputIdentity struct {
-	MemberID string
-	ID, Name string
-	Policy   CommandPolicy
-	Guard    func(context.Context) error
+	MemberID        string
+	ID, Name        string
+	Policy          CommandPolicy
+	DirectoryPolicy DirectoryCommandPolicy
+	Guard           func(context.Context) error
 }
 
 func decideInputPolicy(s *activeSession, actor inputIdentity, submission commandSubmission) CommandPolicyDecision {
 	result := CommandPolicyDecision{Allowed: true}
 	decisions := []CommandPolicyDecision{}
-	for _, policy := range []CommandPolicy{s.commandPolicy, actor.Policy} {
-		if policy == nil {
+	for i, policy := range []CommandPolicy{s.commandPolicy, actor.Policy} {
+		directoryPolicy := s.directoryPolicy
+		if i == 1 {
+			directoryPolicy = actor.DirectoryPolicy
+		}
+		if policy == nil && directoryPolicy == nil {
 			continue
 		}
-		v := policy(submission.PolicyCommand, submission.Supported, submission.SubmittedAt)
+		var v CommandPolicyDecision
+		if directoryPolicy != nil {
+			v = directoryPolicy(submission.PolicyCommand, submission.Supported, submission.SubmittedAt, submission.Directory)
+		} else {
+			v = policy(submission.PolicyCommand, submission.Supported, submission.SubmittedAt)
+		}
 		decisions = append(decisions, v)
 		if !v.Allowed && !v.RequireReview {
 			return v
 		}
 		if v.RequireReview {
 			result = v
+		} else if !result.RequireReview {
+			result.PolicyKey = v.PolicyKey
 		}
 	}
-	if actor.Policy != nil {
-		raw, _ := json.Marshal(decisions)
+	if actor.Policy != nil || actor.DirectoryPolicy != nil || submission.Directory.Valid() {
+		raw, _ := json.Marshal(struct {
+			Decisions []CommandPolicyDecision
+			Directory any
+		}{decisions, submission.Directory})
 		digest := sha256.Sum256(raw)
 		result.PolicyKey = hex.EncodeToString(digest[:])
 	}
@@ -64,19 +79,20 @@ func decideInputPolicy(s *activeSession, actor inputIdentity, submission command
 }
 
 type sharePeer struct {
-	session  *activeSession
-	member   sessionshares.Member
-	guard    func(context.Context, AssetInfo) error
-	policy   CommandPolicy
-	hash     [32]byte
-	expires  time.Time
-	timer    *time.Timer
-	used     bool
-	output   chan []byte
-	history  []byte
-	done     chan struct{}
-	once     sync.Once
-	inflight atomic.Bool
+	session         *activeSession
+	member          sessionshares.Member
+	guard           func(context.Context, AssetInfo) error
+	policy          CommandPolicy
+	directoryPolicy DirectoryCommandPolicy
+	hash            [32]byte
+	expires         time.Time
+	timer           *time.Timer
+	used            bool
+	output          chan []byte
+	history         []byte
+	done            chan struct{}
+	once            sync.Once
+	inflight        atomic.Bool
 }
 type SharedSession struct {
 	CreatedSession
@@ -166,8 +182,8 @@ func (b *Broker) KickShareMember(id string, owner sessionshares.Actor) error {
 	}
 	return e
 }
-func (b *Broker) JoinShare(ctx context.Context, id, code string, actor sessionshares.Actor, guard func(context.Context, AssetInfo) error, policy func(AssetInfo) CommandPolicy) (SharedSession, error) {
-	if !b.securitySettings().Sharing || guard == nil {
+func (b *Broker) JoinShare(ctx context.Context, id, code string, actor sessionshares.Actor, guard func(context.Context, AssetInfo) error, policy func(AssetInfo) CommandPolicy, directoryPolicies ...func(AssetInfo) DirectoryCommandPolicy) (SharedSession, error) {
+	if !b.securitySettings().Sharing || guard == nil || len(directoryPolicies) > 1 {
 		return SharedSession{}, sessionshares.ErrDenied
 	}
 	m, e := b.shares.Join(id, code, actor)
@@ -194,6 +210,9 @@ func (b *Broker) JoinShare(ctx context.Context, id, code string, actor sessionsh
 	p := &sharePeer{session: s, member: m, guard: guard, hash: sha256.Sum256([]byte(ticket)), expires: time.Now().Add(terminalTicketLifetime), output: make(chan []byte, 32), done: make(chan struct{})}
 	if policy != nil {
 		p.policy = policy(s.asset)
+	}
+	if len(directoryPolicies) == 1 && directoryPolicies[0] != nil {
+		p.directoryPolicy = directoryPolicies[0](s.asset)
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -394,30 +413,19 @@ func (b *Broker) readShare(ctx context.Context, conn *websocket.Conn, p *sharePe
 			s.inputMu.Unlock()
 			return sessionshares.ErrDenied
 		}
-		identity := inputIdentity{MemberID: p.member.ID, ID: p.member.Actor.ID, Name: p.member.Actor.Name, Policy: p.policy, Guard: func(context.Context) error { return b.shareAccess(ctx, p) }}
-		forward, e := b.prepareTerminalInput(ctx, conn, s, data, identity)
-		if e == nil && len(forward) > 0 {
-			e = s.recorder.Record('i', forward)
-			if e == nil && b.shareAccess(ctx, p) == nil {
-				p.inflight.Store(true)
-				stop := context.AfterFunc(ctx, func() {
-					timer := time.NewTimer(100 * time.Millisecond)
-					defer timer.Stop()
-					<-timer.C
-					if p.inflight.Load() {
-						b.closeSession(s, "share_input_cancelled")
-					}
-				})
-				e = writeAll(s.terminal, forward)
-				p.inflight.Store(false)
-				stop()
-				if e == nil {
-					b.touchSession(s)
-				}
-			} else if e == nil {
-				e = sessionshares.ErrDenied
+		identity := inputIdentity{MemberID: p.member.ID, ID: p.member.Actor.ID, Name: p.member.Actor.Name, Policy: p.policy, DirectoryPolicy: p.directoryPolicy, Guard: func(context.Context) error { return b.shareAccess(ctx, p) }}
+		p.inflight.Store(true)
+		stop := context.AfterFunc(ctx, func() {
+			timer := time.NewTimer(100 * time.Millisecond)
+			defer timer.Stop()
+			<-timer.C
+			if p.inflight.Load() {
+				b.closeSession(s, "share_input_cancelled")
 			}
-		}
+		})
+		e := b.writeTerminalInput(ctx, conn, s, data, identity)
+		p.inflight.Store(false)
+		stop()
 		s.inputMu.Unlock()
 		if e != nil {
 			if !errors.Is(e, sessionshares.ErrDenied) {

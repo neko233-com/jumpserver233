@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"github.com/neko233-com/jumpserver233/server/internal/terminalwire"
 	"regexp"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ var (
 )
 
 type commandSubmission struct {
+	Directory      terminalwire.Proof
 	PolicyKey      string
 	ActorID, Actor string
 	Command        string
@@ -80,7 +82,7 @@ func (c *commandCapture) ObserveOutput(data []byte) {
 	}
 }
 
-func (c *commandCapture) ObserveInput(data []byte) []commandSubmission {
+func (c *commandCapture) ObserveInput(data []byte, kernelShellRead ...bool) []commandSubmission {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var submissions []commandSubmission
@@ -129,6 +131,11 @@ func (c *commandCapture) ObserveInput(data []byte) []commandSubmission {
 				c.skipLF = true
 			}
 			if c.sensitive {
+				// A password-looking prompt printed by the original shell cannot
+				// suppress policy checks. Keep the text secret and mark it unknown.
+				if len(kernelShellRead) > 0 && kernelShellRead[0] {
+					submissions = append(submissions, commandSubmission{Supported: false, Offset: index, SubmittedAt: time.Now().UTC()})
+				}
 				c.sensitive = false
 			} else if c.atPrompt || c.unsupported {
 				command := strings.TrimSpace(string(c.line))

@@ -1732,6 +1732,7 @@ const zhCN = {
     },
     commandRule: "规则：{{rule}}",
     commandReviewedBy: "复核人：{{user}}",
+    commandDirectory: "内核确认的提交目录：{{directory}}",
     commandUnknownInput: "无法识别的终端输入",
     commandLoading: "正在读取命令审计…",
     commandLoadError: "无法读取命令记录，请检查访问权限和服务状态。",

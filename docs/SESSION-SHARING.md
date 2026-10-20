@@ -2,6 +2,8 @@
 
 > 中文 | [English](./SESSION-SHARING.en.md)
 
+[交互 SSH 可信提交目录](./INTERACTIVE-DIRECTORIES.md)已编写原生私有帧、内核 cwd/输入队列证明、一次性租约、审批重测、共享控制者和加密审计，并与批量/模板/计划/Playbook 目录链路共同组成 E14。代码、Testify 与既有原生/中英浏览器入口已编写，未执行；全部 42 组实现就绪后统一验证。
+
 SSH、Telnet 和 Kubernetes 活动终端支持邀请指定平台用户只读观看或接管输入。Web 与 `jms share` 使用同一服务端授权、命令复核和审计链路；参与者不接触目标账号密码或私钥。
 
 2026-10-17，独立 Docker 实例与真实 Linux OpenSSH 的中文手机界面，验证码已清除：
