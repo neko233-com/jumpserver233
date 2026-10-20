@@ -19,6 +19,7 @@ jumpserver233 用 Go + React 复刻 JumpServer。竞品是 JumpServer 企业版�
 
 - 范围与路线：[docs/PLAN.md](./docs/PLAN.md) —— 范围争议以此为准
 - 功能基线：[docs/BASELINE.md](./docs/BASELINE.md) —— 上游 JumpServer 调研快照
+- 交付计数与剩余缺口：[docs/PROGRESS.md](./docs/PROGRESS.md)
 - 文档索引：[docs/README.md](./docs/README.md)
 
 每个 `.md` 都有中英两版并在顶部互链（`X.md` ↔ `X.en.md`），改一处必须同步另一处。
@@ -80,6 +81,8 @@ docs/     PLAN / BASELINE / 约定（中英双语）
 
 ## 6. 路线纪律
 
+- 分开统计 SSH 稳定版与完整企业版。每次交付更新中英 PROGRESS，并报告已闭环/总项数、比例、本次增量、剩余具名缺口、已验证源码与未验证改动。部分实现或未经验证不计为闭环；变更清单分母必须注明明确需求来源及前后数量。
+- 固定交付范围内的全部实现、用例和文档完成后，再统一验收。不得静默扩展范围或每个小功能都启动完整回归；失败后复验受影响项，共享路径影响或未解失败才扩大回归。
 - 一次只推进一个阶段；阶段落地后更新 docs/PLAN.md 的状态列。
 - 留在当前阶段范围内；企业版（X-Pack）功能等 Phase 7，除非用户另有指示。
 - 需求不清时问一个聚焦的问题，不要在影响范围的选择上擅自猜测。

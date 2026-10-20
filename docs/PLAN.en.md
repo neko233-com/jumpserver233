@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+[Fixed acceptance checklist and overall progress](./PROGRESS.en.md) separately counts stable SSH and the full baseline, recording closed/partial/undelivered items, batch delta and closing gates. Progress follows this checklist and named acceptance, rather than test or phase counts.
+
 Phase 7 adds [SSH account connectivity checks](./ACCOUNT-CHECKS.en.md): password/key authentication for default and named accounts, independent scheduling, results/failure notifications, explicit retries and no automatic replay after interruption. Full Enterprise parity remains in progress.
 
 Phase 7 adds [individual/bulk SSH rotation retries](./ROTATION-RETRIES.en.md): select unsuccessful items from terminal runs, exclude successes, combine aliases, bind current plan revision, claim each source once and retain Web/CLI/SDK, linked audit and takeover. Full Enterprise parity remains active.

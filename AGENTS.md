@@ -19,6 +19,7 @@ jumpserver233 reimplements JumpServer in Go + React. The competitor is JumpServe
 
 - Scope and roadmap: [docs/PLAN.md](./docs/PLAN.md) — authoritative for scope disputes
 - Feature baseline: [docs/BASELINE.md](./docs/BASELINE.md) — research snapshot of upstream JumpServer
+- Delivery counts and remaining gaps: [docs/PROGRESS.en.md](./docs/PROGRESS.en.md)
 - Docs index: [docs/README.md](./docs/README.md)
 
 Every `.md` ships a Chinese and an English version linked at the top (`X.md` ↔ `X.en.md`). Update both when you change either.
@@ -80,6 +81,8 @@ Put generated evidence in ignored `.cache/qa-reports/`; put reusable QA entrypoi
 
 ## 6. Roadmap discipline
 
+- Keep the SSH stable-release scope separate from full Enterprise parity. Every delivery must update PROGRESS in both languages and report closed/total items, percentage, batch delta, named remaining gaps, verified source and unverified changes. Partial or untested work receives no closed credit; changing the checklist denominator requires an explicit requirement source and before/after counts.
+- Finish all implementation, cases and docs for the frozen delivery scope before unified verification. Do not silently expand scope or run a complete regression for each small feature. After a failure, rerun affected checks; expand regression for shared-path impact or unresolved failures.
 - Work one phase at a time; update the status column in docs/PLAN.md when a phase lands.
 - Stay inside the current phase's scope; enterprise (X-Pack) features wait for Phase 7 unless the user says otherwise.
 - When the task is unclear, ask one focused question rather than guessing on scope-affecting choices.
