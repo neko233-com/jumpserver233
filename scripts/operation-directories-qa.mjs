@@ -107,7 +107,7 @@ export async function verifyOperationDirectoryBrowser({page, expect, url, api, a
   const tpl = await response.json();
   await panel.getByLabel("Plan name", {exact: true}).fill(name);
   await panel.getByRole("checkbox", {name: "Native operation directory host (keyqa)", exact: true}).check();
-  await panel.getByLabel("Command source", {exact: true}).selectOption(tpl.id);
+  await panel.getByRole("combobox", {name: "Command source", exact: true}).selectOption(tpl.id);
   const input = panel.getByLabel("Execution directory (optional)", {exact: true});
   await expect(input).toHaveValue(directory); await expect(input).toBeDisabled();
   const created = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/v1/ops/plans");
