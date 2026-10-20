@@ -44,6 +44,8 @@ Published scopes, one to five approval stages, amendment reset, temporary grants
 
 Multi-host SSH password/key rotation, weekly scheduling, privileged accounts, per-account results and recovery: [Credential rotation plans](./ROTATION-PLANS.en.md).
 
+[Fixed-password plans and idempotent saves](./FIXED-PASSWORDS.en.md): independent permissions, write-only input, deduplicated saves, snapshots and recovery.
+
 [Generated SSH password policy](./SSH-PASSWORD-POLICY.en.md): organization lengths/categories/exclusions, merged shared-account constraints, Web/CLI, replay receipts and encrypted persistence.
 
 Weak/reused SSH credentials, age/usage risks, human review and periodic scanning: [Account risks](./ACCOUNT-RISKS.en.md).

@@ -1,5 +1,12 @@
 export default {
   rotationPlans: {
+    passwordMode: "密码来源",
+    generatedMode: "每次生成随机密码",
+    fixedMode: "受保护的固定密码",
+    fixedPassword: "固定密码（只写）",
+    fixedHint: "密码在服务端加密保存且不返回，必须满足所有适用的密码规则，仅用于密码账号。",
+    keepFixed: "留空保留已保存密码，输入新值替换；切换为随机生成会移除已保存的固定密码。",
+    fixedScheduleHint: "定时运行会重复使用该固定值；需要每次产生新密码时选择随机生成。",
     passwordPolicy: "计划密码约束",
     customPasswordPolicy: "为此计划增加密码生成约束",
     passwordPolicyHint:
@@ -101,7 +108,7 @@ export default {
       denied: "权限不足",
     },
     errors: {
-      invalid: "请检查名称、目标账号、执行时间和版本。",
+      invalid: "请检查名称、目标账号、密码来源/规则、执行时间和版本。",
       denied: "当前角色或访问策略不允许此操作。",
       not_found: "计划、账号或有权管理的批次不可用。",
       conflict: "记录已变更，请刷新后重试。",

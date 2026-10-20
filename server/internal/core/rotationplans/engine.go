@@ -100,6 +100,11 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 		return Run{}, ErrNotFound
 	}
 	p.Plan = clonePlan(p.Plan)
+	s.mu.Unlock()
+	if e := runner.authorizeMode(actor, p.PasswordMode); e != nil {
+		return Run{}, e
+	}
+	s.mu.Lock()
 	for _, r := range s.data.Runs {
 		if r.Actor.ID == actor.ID && r.RequestID == requestID {
 			s.mu.Unlock()
@@ -153,6 +158,7 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 	}
 	out := Run{ID: id, PlanID: p.ID, PlanRevision: p.Revision, Name: p.Name, Actor: actor, RequestID: requestID, Scheduled: scheduled, State: "queued", CreatedAt: now, Items: []Item{}}
 	out.PasswordPolicy = p.PasswordPolicy
+	out.PasswordMode = p.PasswordMode
 	out.AccessOrigin = p.AccessOrigin
 	if !scheduled && len(origin) == 1 {
 		out.AccessOrigin = origin[0]
@@ -188,6 +194,11 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 					op.PasswordPolicy = out.PasswordPolicy
 					intents[itemID] = op
 				}
+				if v.CredentialType == "password" && p.PasswordMode == "fixed" {
+					op := intents[itemID]
+					op.FixedSecretID = p.FixedSecretID
+					intents[itemID] = op
+				}
 				if !groupDue[v.Group] {
 					item.State = "not_due"
 					item.FinishedAt = now
@@ -221,7 +232,7 @@ func (s *Service) submit(ctx context.Context, actor Actor, planID, requestID str
 		if len(d.Runs) >= MaxRuns || len(d.Audit) >= MaxAudit {
 			return ErrCapacity
 		}
-		d.Runs[id] = runRecord{Run: cloneRun(out), Intents: intents}
+		d.Runs[id] = runRecord{Run: cloneRun(out), Intents: intents, FixedPassword: p.FixedPassword, FixedSecretID: p.FixedSecretID}
 		current.LastRunID = id
 		current.ErrorCode = ""
 		if scheduled {
@@ -295,6 +306,9 @@ func (s *Service) Recover(id string, actor Actor, all bool, origin ...accesspoli
 		r, ok := d.Runs[id]
 		if !ok || r.Actor.ID != actor.ID && !all {
 			return ErrNotFound
+		}
+		if err := s.runner.authorizeMode(actor, r.PasswordMode); err != nil {
+			return err
 		}
 		if r.State != "recovery_required" || r.Recovery != nil {
 			return ErrConflict
@@ -512,6 +526,9 @@ func (s *Service) work(ctx context.Context, id string) {
 		if !ok {
 			continue
 		}
+		if intent.FixedSecretID != "" {
+			intent.FixedPassword = record.FixedPassword
+		}
 		// Every claimed operation first reconciles its Vault receipt. No remote
 		// mutation is replayed just because a plan result write or response failed.
 		if item.State != "queued" {
@@ -523,7 +540,7 @@ func (s *Service) work(ctx context.Context, id string) {
 			if out.State != "not_started" {
 				if out.State == "recovery_required" && record.Recovery != nil && runner.Recover != nil {
 					recoveryActor := record.Recovery.Actor
-					if e := runner.Authorize(recoveryActor); e == nil {
+					if e := runner.authorizeMode(recoveryActor, record.PasswordMode); e == nil {
 						step, cancel := context.WithTimeout(ctx, 90*time.Second)
 						recoveryIntent := intent
 						recoveryIntent.Origin = record.Recovery.Origin
@@ -531,7 +548,7 @@ func (s *Service) work(ctx context.Context, id string) {
 							if e := step.Err(); e != nil {
 								return e
 							}
-							return runner.Authorize(recoveryActor)
+							return runner.authorizeMode(recoveryActor, record.PasswordMode)
 						})
 						cancel()
 						if recovered.State == "denied" {
@@ -562,7 +579,7 @@ func (s *Service) work(ctx context.Context, id string) {
 			}
 			continue
 		}
-		if e := runner.Authorize(record.Actor); e != nil {
+		if e := runner.authorizeMode(record.Actor, record.PasswordMode); e != nil {
 			_ = s.updateItem(id, item.ID, Outcome{State: "denied", Code: "denied"})
 			continue
 		}
@@ -590,7 +607,7 @@ func (s *Service) work(ctx context.Context, id string) {
 			if e := step.Err(); e != nil {
 				return e
 			}
-			return runner.Authorize(record.Actor)
+			return runner.authorizeMode(record.Actor, record.PasswordMode)
 		})
 		cancel()
 		if out.State == "" {

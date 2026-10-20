@@ -30,6 +30,7 @@ type Plan = {
   interval_hours?: number;
   run_at?: string;
   only_due: boolean;
+  password_mode?: string;
   password_policy?: SSHPasswordRules;
   revision: number;
   target_count: number;
@@ -51,6 +52,7 @@ type Item = Ref & {
 type Run = {
   id: string;
   plan_id: string;
+  password_mode?: string;
   password_policy?: SSHPasswordRules;
   name: string;
   owner: Actor;
@@ -77,6 +79,9 @@ type Draft = {
   hours: number;
   onlyDue: boolean;
   passwordPolicy: SSHPasswordRules | null;
+  passwordMode: string;
+  fixedPassword: string;
+  fixedConfigured: boolean;
   accounts: Record<string, Ref>;
 };
 type Confirm = {
@@ -85,6 +90,10 @@ type Confirm = {
   name: string;
   revision?: number;
 };
+const newRequestID = () =>
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) =>
+    value.toString(16).padStart(2, "0"),
+  ).join("");
 const empty = <T,>(): Page<T> => ({ results: [], total: 0 });
 const active = (state: string) => ["queued", "running", "recovery_required"].includes(state);
 const codes = new Set([
@@ -144,7 +153,9 @@ export default function RotationPlansPage() {
   const manage = allows("accounts.rotation.manage"),
     all = allows("accounts.rotation.manage_all");
   const execute = allows("accounts.rotation.execute") && allows("assets.rotate");
-  const privileged = allows("accounts.rotation.privileged");
+  const privileged = allows("accounts.rotation.privileged"),
+    fixedAllowed = allows("accounts.rotation.fixed_password");
+  const saveRequests = useRef(new WeakMap<Draft, string>());
   const life = useRef<AbortController | null>(null),
     pending = useRef<{ plan: string; request: string } | null>(null);
   const [plans, setPlans] = useState<Page<Plan>>(empty),
@@ -171,7 +182,10 @@ export default function RotationPlansPage() {
     [notice, setNotice] = useState("");
   useEffect(() => {
     life.current = new AbortController();
-    return () => life.current?.abort();
+    return () => {
+      life.current?.abort();
+      saveRequests.current = new WeakMap();
+    };
   }, []);
   const request = useCallback(
     async (path: string, init?: RequestInit) => {
@@ -366,6 +380,9 @@ export default function RotationPlansPage() {
         hours: full?.interval_hours || 168,
         onlyDue: full?.only_due ?? true,
         passwordPolicy: full?.password_policy || null,
+        passwordMode: full?.password_mode || "generated",
+        fixedPassword: "",
+        fixedConfigured: full?.password_mode === "fixed",
         accounts: Object.fromEntries((full?.accounts || []).map((v) => [v.account_id, v])),
       });
       setSearch("");
@@ -390,7 +407,17 @@ export default function RotationPlansPage() {
     if (!draft) return;
     const current = draft;
     await action(async () => {
+      let requestID = saveRequests.current.get(current);
+      if (!requestID) {
+        requestID = newRequestID();
+        saveRequests.current.set(current, requestID);
+      }
       const body = {
+        request_id: requestID,
+        password_mode: current.passwordMode,
+        ...(current.passwordMode === "fixed" && current.fixedPassword
+          ? { fixed_password: current.fixedPassword }
+          : {}),
         name: current.name,
         revision: current.revision,
         kind: current.kind,
@@ -409,6 +436,7 @@ export default function RotationPlansPage() {
         body: JSON.stringify(body),
       }).then((response) => response.json());
       if (life.current?.signal.aborted) return;
+      saveRequests.current = new WeakMap();
       setDraft(null);
       setNotice("saved");
       setOffset(0);
@@ -430,7 +458,7 @@ export default function RotationPlansPage() {
     await action(async () => {
       if (next.mode === "run") {
         if (pending.current?.plan !== next.id)
-          pending.current = { plan: next.id, request: crypto.randomUUID() };
+          pending.current = { plan: next.id, request: newRequestID() };
         const data = await request(`plans/${encodeURIComponent(next.id)}/runs`, {
           method: "POST",
           body: JSON.stringify({ request_id: pending.current.request }),
@@ -470,6 +498,7 @@ export default function RotationPlansPage() {
     });
   }
   const closeEditor = () => {
+    saveRequests.current = new WeakMap();
     setDraft(null);
     setCollectorFor(null);
   };
@@ -563,6 +592,13 @@ export default function RotationPlansPage() {
                   <td>
                     <strong>{p.name}</strong>
                     <small>{t("rotationPlans.revision", { count: p.revision })}</small>
+                    <small>
+                      {t(
+                        p.password_mode === "fixed"
+                          ? "rotationPlans.fixedMode"
+                          : "rotationPlans.generatedMode",
+                      )}
+                    </small>
                     {p.error_code && (
                       <small>
                         {t(
@@ -585,18 +621,24 @@ export default function RotationPlansPage() {
                   <td>{date(p.next_run)}</td>
                   <td>
                     <div className="rotation-actions">
-                      {execute && (all || p.owner.id === userID) && (
-                        <button
-                          disabled={busy}
-                          type="button"
-                          onClick={() => setConfirm({ mode: "run", id: p.id, name: p.name })}
-                        >
-                          {t("rotationPlans.run")}
-                        </button>
-                      )}
+                      {execute &&
+                        (p.password_mode !== "fixed" || fixedAllowed) &&
+                        (all || p.owner.id === userID) && (
+                          <button
+                            disabled={busy}
+                            type="button"
+                            onClick={() => setConfirm({ mode: "run", id: p.id, name: p.name })}
+                          >
+                            {t("rotationPlans.run")}
+                          </button>
+                        )}
                       {manage && (all || p.owner.id === userID) && (
                         <>
-                          <button disabled={busy} type="button" onClick={() => void edit(p)}>
+                          <button
+                            disabled={busy || (p.password_mode === "fixed" && !fixedAllowed)}
+                            type="button"
+                            onClick={() => void edit(p)}
+                          >
                             {t("rotationPlans.edit")}
                           </button>
                           <button
@@ -766,6 +808,52 @@ export default function RotationPlansPage() {
                   </label>
                 </>
               )}
+              <fieldset className="rotation-password-policy">
+                <legend>{t("rotationPlans.passwordMode")}</legend>
+                <label>
+                  {t("rotationPlans.passwordMode")}
+                  <select
+                    aria-label={t("rotationPlans.passwordMode")}
+                    value={draft.passwordMode}
+                    onChange={(e) =>
+                      setDraft({ ...draft, passwordMode: e.target.value, fixedPassword: "" })
+                    }
+                  >
+                    <option value="generated">{t("rotationPlans.generatedMode")}</option>
+                    <option value="fixed" disabled={!fixedAllowed}>
+                      {t("rotationPlans.fixedMode")}
+                    </option>
+                  </select>
+                </label>
+                {draft.passwordMode === "fixed" && (
+                  <>
+                    <label>
+                      {t("rotationPlans.fixedPassword")}
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={16}
+                        maxLength={128}
+                        required={!draft.fixedConfigured}
+                        value={draft.fixedPassword}
+                        disabled={!fixedAllowed}
+                        onChange={(e) => setDraft({ ...draft, fixedPassword: e.target.value })}
+                      />
+                    </label>
+                    <p className="settings-help">
+                      {t(
+                        draft.fixedConfigured
+                          ? "rotationPlans.keepFixed"
+                          : "rotationPlans.fixedHint",
+                      )}
+                    </p>
+                    <p className="settings-help">{t("rotationPlans.fixedScheduleHint")}</p>
+                    {!draft.passwordPolicy && (
+                      <p className="settings-help">{t("sshPasswordPolicy.allowed")}</p>
+                    )}
+                  </>
+                )}
+              </fieldset>
               <fieldset className="rotation-password-policy">
                 <legend>{t("rotationPlans.passwordPolicy")}</legend>
                 <label className="rotation-check">
@@ -1001,6 +1089,13 @@ export default function RotationPlansPage() {
       {selectedRun && (
         <Modal title={t("rotationPlans.runDetails")} close={() => setSelectedRun(null)} busy={busy}>
           <h3>{selectedRun.name}</h3>
+          <p>
+            {t(
+              selectedRun.password_mode === "fixed"
+                ? "rotationPlans.fixedMode"
+                : "rotationPlans.generatedMode",
+            )}
+          </p>
           {selectedRun.password_policy ? (
             <details className="rotation-password-policy">
               <summary>{t("rotationPlans.policySnapshot")}</summary>

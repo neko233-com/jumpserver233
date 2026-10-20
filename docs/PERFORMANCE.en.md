@@ -2,6 +2,10 @@
 
 [中文](./PERFORMANCE.md) | [Documentation](./README.en.md)
 
+## Fixed-password plans (2026-10-20)
+
+Write-only fixed-password controls, save request IDs and bilingual guidance reuse existing pages and rule fields without another dependency. This feature receives 8 KB: total JS cap 1645200 to 1653200, retaining 500000-byte initial/individual limits. Artifact measurements and timings follow unified verification.
+
 ## Per-plan SSH password constraints (2026-10-20)
 
 Product source `8a5bf70`: initial JS **499674** bytes (gzip **161540**), total JS **1642703**, largest chunk **482515**. Added **2348** bytes relative to the organization-policy baseline, retaining the existing **1645200** total budget and **500000** entry/chunk limits. No budget increase or dependency was added. Organization and plan editors reuse the same rule fields. Clean Docker verification ran with QA entrypoint `ec046cd`, with unchanged product source: build **32.4** seconds, startup **12.03**, browser smoke **7.89**; resources were removed. Complete browser, native-package and race checks have separate records. Cache state and concurrent load affect timings.

@@ -5,7 +5,9 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -26,12 +28,16 @@ import (
 
 type planRecord struct {
 	Plan
-	Bindings map[string]string `json:"bindings"`
+	FixedPassword string            `json:"fixed_password,omitempty"`
+	FixedSecretID string            `json:"fixed_secret_id,omitempty"`
+	Bindings      map[string]string `json:"bindings"`
 }
 type runRecord struct {
 	Run
-	Intents  map[string]Intent `json:"intents"`
-	Recovery *recoveryRequest  `json:"recovery,omitempty"`
+	FixedPassword string            `json:"fixed_password,omitempty"`
+	FixedSecretID string            `json:"fixed_secret_id,omitempty"`
+	Intents       map[string]Intent `json:"intents"`
+	Recovery      *recoveryRequest  `json:"recovery,omitempty"`
 }
 type recoveryRequest struct {
 	Actor  Actor                 `json:"actor"`
@@ -39,10 +45,11 @@ type recoveryRequest struct {
 	Origin accesspolicies.Origin `json:"origin"`
 }
 type state struct {
-	Version int                   `json:"version"`
-	Plans   map[string]planRecord `json:"plans"`
-	Runs    map[string]runRecord  `json:"runs"`
-	Audit   []Audit               `json:"audit"`
+	SaveReceipts []saveReceipt         `json:"save_receipts,omitempty"`
+	Version      int                   `json:"version"`
+	Plans        map[string]planRecord `json:"plans"`
+	Runs         map[string]runRecord  `json:"runs"`
+	Audit        []Audit               `json:"audit"`
 }
 type envelope struct {
 	Version    int    `json:"version"`
@@ -50,6 +57,7 @@ type envelope struct {
 	Ciphertext []byte `json:"ciphertext"`
 }
 type Service struct {
+	receiptKey               []byte
 	mu                       sync.Mutex
 	tickMu                   sync.Mutex
 	path                     string
@@ -82,6 +90,9 @@ func Open(path string, key []byte, docs *storage.Documents) (*Service, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Service{path: path, docs: docs, aead: aead, now: time.Now, ctx: ctx, cancel: cancel, inspectAfter: map[string]time.Time{}, data: state{Version: 1, Plans: map[string]planRecord{}, Runs: map[string]runRecord{}, Audit: []Audit{}}}
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write([]byte("jms233/rotation-plan-save/v1"))
+	s.receiptKey = mac.Sum(nil)
 	var raw []byte
 	if docs != nil {
 		raw, e = docs.LoadOrImport("rotation-plans", path)
@@ -96,6 +107,10 @@ func Open(path string, key []byte, docs *storage.Documents) (*Service, error) {
 		return nil, e
 	}
 	if len(raw) == 0 {
+		if raw != nil {
+			cancel()
+			return nil, ErrInvalid
+		}
 		return s, nil
 	}
 	var box envelope
@@ -104,10 +119,12 @@ func Open(path string, key []byte, docs *storage.Documents) (*Service, error) {
 		return nil, ErrInvalid
 	}
 	plain, e := aead.Open(nil, box.Nonce, box.Ciphertext, []byte("jms233/rotation-plans/v1"))
-	if e != nil || len(plain) > maxStateBytes || strictJSON(plain, &s.data) != nil || validateState(s.data) != nil {
+	var loaded state
+	if e != nil || len(plain) > maxStateBytes || strictJSON(plain, &loaded) != nil || validateState(loaded) != nil {
 		cancel()
 		return nil, ErrInvalid
 	}
+	s.data = loaded
 	changed := false
 	for id, r := range s.data.Runs {
 		for i := range r.Items {
@@ -167,10 +184,26 @@ func validatePrepared(v Prepared) error {
 	return nil
 }
 func validateState(d state) error {
-	if d.Version != 1 || d.Plans == nil || d.Runs == nil || len(d.Plans) > MaxPlans || len(d.Runs) > MaxRuns || len(d.Audit) > MaxAudit {
+	if len(d.SaveReceipts) > MaxSaveReceipts {
+		return ErrInvalid
+	}
+	receipts := map[string]bool{}
+	for _, v := range d.SaveReceipts {
+		if !IDPattern.MatchString(v.RequestID) || !IDPattern.MatchString(v.ActorID) || !IDPattern.MatchString(v.PlanID) || !digest(v.Digest) || v.At.IsZero() || receipts[v.RequestID] {
+			return ErrInvalid
+		}
+		receipts[v.RequestID] = true
+	}
+	if d.Version != 1 || d.Plans == nil || d.Runs == nil || d.Audit == nil || len(d.Plans) > MaxPlans || len(d.Runs) > MaxRuns || len(d.Audit) > MaxAudit {
 		return ErrInvalid
 	}
 	for id, p := range d.Plans {
+		if p.PasswordMode == "fixed" && !p.PasswordPolicy.IsZero() && !p.PasswordPolicy.Matches(p.FixedPassword) {
+			return ErrInvalid
+		}
+		if !validFixedRecord(p.PasswordMode, p.FixedPassword, p.FixedSecretID, false) || p.SaveRequestID != "" && !IDPattern.MatchString(p.SaveRequestID) {
+			return ErrInvalid
+		}
 		if !validOrigin(p.AccessOrigin) {
 			return ErrInvalid
 		}
@@ -184,11 +217,17 @@ func validateState(d state) error {
 			}
 			hasPassword = hasPassword || p.Refs[i].CredentialType == "password"
 		}
-		if !p.PasswordPolicy.IsZero() && !hasPassword {
+		if (!p.PasswordPolicy.IsZero() || p.PasswordMode == "fixed") && !hasPassword {
 			return ErrInvalid
 		}
 	}
 	for id, r := range d.Runs {
+		if r.PasswordMode == "fixed" && !terminal(r.State) && !r.PasswordPolicy.IsZero() && !r.PasswordPolicy.Matches(r.FixedPassword) {
+			return ErrInvalid
+		}
+		if !validFixedRecord(r.PasswordMode, r.FixedPassword, r.FixedSecretID, terminal(r.State)) {
+			return ErrInvalid
+		}
 		if !r.PasswordPolicy.OptionalValid() {
 			return ErrInvalid
 		}
@@ -209,6 +248,13 @@ func validateState(d state) error {
 				leaders[v.ID] = true
 			}
 			if op, ok := r.Intents[v.ID]; ok {
+				expectedSecret := ""
+				if v.CredentialType == "password" {
+					expectedSecret = r.FixedSecretID
+				}
+				if op.FixedSecretID != expectedSecret || op.FixedPassword != "" {
+					return ErrInvalid
+				}
 				expectedPolicy := r.PasswordPolicy
 				if v.CredentialType != "password" {
 					expectedPolicy = credentialpolicy.Rules{}
@@ -235,6 +281,9 @@ func validateState(d state) error {
 		}
 	}
 	for _, v := range d.Audit {
+		if v.RequestID != "" && !IDPattern.MatchString(v.RequestID) {
+			return ErrInvalid
+		}
 		if !validOrigin(v.Origin) || !ValidActor(v.Actor) || v.At.IsZero() || !validText(v.Action, 64) || !IDPattern.MatchString(v.PlanID) {
 			return ErrInvalid
 		}
@@ -249,6 +298,7 @@ func clonePlan(p Plan) Plan {
 func cloneRun(r Run) Run { r.Items = slices.Clone(r.Items); return r }
 func cloneState(d state) state {
 	out := state{Version: d.Version, Plans: map[string]planRecord{}, Runs: map[string]runRecord{}, Audit: slices.Clone(d.Audit)}
+	out.SaveReceipts = slices.Clone(d.SaveReceipts)
 	for id, p := range d.Plans {
 		p.Plan = clonePlan(p.Plan)
 		binds := map[string]string{}
@@ -336,8 +386,15 @@ func (s *Service) mutate(fn func(*state) error) error {
 		}
 	}
 	next.Audit = slices.DeleteFunc(next.Audit, func(a Audit) bool { return a.At.Before(now.Add(-365 * 24 * time.Hour)) })
+	next.SaveReceipts = slices.DeleteFunc(next.SaveReceipts, func(v saveReceipt) bool { return v.At.Before(now.Add(-90 * 24 * time.Hour)) })
 	if e := fn(&next); e != nil {
 		return e
+	}
+	for id, r := range next.Runs {
+		if terminal(r.State) && r.FixedPassword != "" {
+			r.FixedPassword = ""
+			next.Runs[id] = r
+		}
 	}
 	if reflect.DeepEqual(next, s.data) {
 		return nil
@@ -358,8 +415,39 @@ func newID(prefix string) (string, error) {
 func (s *Service) SetRunner(r Runner)     { s.mu.Lock(); defer s.mu.Unlock(); s.runner = r }
 func (s *Service) runnerSnapshot() Runner { s.mu.Lock(); defer s.mu.Unlock(); return s.runner }
 func (s *Service) Save(ctx context.Context, actor Actor, id string, in PlanInput, all bool) (Plan, error) {
+	return s.SaveRequest(ctx, actor, id, SaveInput{PlanInput: in}, all, false)
+}
+func (s *Service) SaveRequest(ctx context.Context, actor Actor, id string, request SaveInput, all, allowFixed bool) (Plan, error) {
+	if e := ctx.Err(); e != nil {
+		return Plan{}, e
+	}
+	s.mu.Lock()
+	closed := s.closed
+	s.mu.Unlock()
+	if closed {
+		return Plan{}, ErrBusy
+	}
+	in := request.PlanInput
 	if !ValidActor(actor) || in.Validate() != nil {
 		return Plan{}, ErrInvalid
+	}
+	if request.RequestID != "" && !IDPattern.MatchString(request.RequestID) || request.FixedPassword != "" && !credentialpolicy.ValidFixedPassword(request.FixedPassword) || in.PasswordMode != "fixed" && request.FixedPassword != "" || in.PasswordMode == "fixed" && request.RequestID == "" {
+		return Plan{}, ErrInvalid
+	}
+	if in.PasswordMode == "fixed" && !allowFixed {
+		return Plan{}, ErrDenied
+	}
+	requestDigest, digestErr := s.saveDigest(actor.ID, id, request)
+	if digestErr != nil {
+		return Plan{}, digestErr
+	}
+	if request.RequestID != "" {
+		s.mu.Lock()
+		prior, found, err := savedPlan(s.data, actor.ID, request.RequestID, requestDigest, all, allowFixed)
+		s.mu.Unlock()
+		if found || err != nil {
+			return prior, err
+		}
 	}
 	r := s.runnerSnapshot()
 	if r.Prepare == nil || r.Authorize == nil {
@@ -383,16 +471,26 @@ func (s *Service) Save(ctx context.Context, actor Actor, id string, in PlanInput
 		refs[i] = v.Ref
 		hasPassword = hasPassword || v.CredentialType == "password"
 	}
-	if !in.PasswordPolicy.IsZero() && !hasPassword {
+	if (!in.PasswordPolicy.IsZero() || in.PasswordMode == "fixed") && !hasPassword {
 		return Plan{}, ErrInvalid
 	}
 	if in.Enabled {
-		if e = r.Authorize(actor); e != nil {
+		if e = r.authorizeMode(actor, in.PasswordMode); e != nil {
 			return Plan{}, e
 		}
 	}
 	var out Plan
 	e = s.mutate(func(d *state) error {
+		if request.RequestID != "" {
+			prior, found, err := savedPlan(*d, actor.ID, request.RequestID, requestDigest, all, allowFixed)
+			if found || err != nil {
+				out = prior
+				return err
+			}
+			if len(d.SaveReceipts) >= MaxSaveReceipts {
+				return ErrCapacity
+			}
+		}
 		if len(d.Audit) >= MaxAudit {
 			return ErrCapacity
 		}
@@ -420,6 +518,9 @@ func (s *Service) Save(ctx context.Context, actor Actor, id string, in PlanInput
 			if in.Revision != p.Revision {
 				return ErrConflict
 			}
+			if p.PasswordMode == "fixed" && !allowFixed {
+				return ErrDenied
+			}
 			if p.Revision >= 1<<53-1 {
 				return ErrCapacity
 			}
@@ -427,7 +528,7 @@ func (s *Service) Save(ctx context.Context, actor Actor, id string, in PlanInput
 			created = p.CreatedAt
 			revision = p.Revision + 1
 			if in.Enabled {
-				if e := r.Authorize(owner); e != nil {
+				if e := r.authorizeMode(owner, in.PasswordMode); e != nil {
 					return e
 				}
 			}
@@ -450,8 +551,32 @@ func (s *Service) Save(ctx context.Context, actor Actor, id string, in PlanInput
 		if prior, ok := d.Plans[id]; ok {
 			out.LastRunID = prior.LastRunID
 		}
-		d.Plans[id] = planRecord{Plan: clonePlan(out), Bindings: binds}
-		d.Audit = append(d.Audit, Audit{Origin: in.Origin, At: now, Actor: actor, Action: "saved", PlanID: id, Revision: revision})
+		fixed, secretID := "", ""
+		if in.PasswordMode == "fixed" {
+			fixed = request.FixedPassword
+			if fixed == "" {
+				prior, ok := d.Plans[id]
+				if !ok || prior.PasswordMode != "fixed" {
+					return ErrInvalid
+				}
+				fixed, secretID = prior.FixedPassword, prior.FixedSecretID
+			} else {
+				var err error
+				secretID, err = newID("rotation-secret-")
+				if err != nil {
+					return err
+				}
+			}
+			if !in.PasswordPolicy.IsZero() && !in.PasswordPolicy.Matches(fixed) {
+				return ErrInvalid
+			}
+		}
+		out.SaveRequestID = request.RequestID
+		d.Plans[id] = planRecord{Plan: clonePlan(out), Bindings: binds, FixedPassword: fixed, FixedSecretID: secretID}
+		d.Audit = append(d.Audit, Audit{RequestID: request.RequestID, Origin: in.Origin, At: now, Actor: actor, Action: "saved", PlanID: id, Revision: revision})
+		if request.RequestID != "" {
+			d.SaveReceipts = append(d.SaveReceipts, saveReceipt{RequestID: request.RequestID, ActorID: actor.ID, PlanID: id, Digest: requestDigest, At: now})
+		}
 		return nil
 	})
 	return out, e

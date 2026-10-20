@@ -1,6 +1,7 @@
 export default {
   rbac: {
     permissionsList: {
+      accounts_rotation_fixed_password: "Configure and execute fixed-password rotation plans",
       accounts_password_policy_view: "View SSH password generation policy",
       accounts_password_policy_manage: "Manage SSH password generation policy",
     },

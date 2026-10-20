@@ -495,7 +495,10 @@ func (c *PasswordCoordinator) rotate(ctx context.Context, s *Service, id, trigge
 		if e != nil {
 			return errors.Join(ErrSharedCredentialConflict, e)
 		}
-		next, e = credentialpolicy.Generate(merged)
+		next, e = selectRotationPassword(ctx, merged)
+		if errors.Is(e, credentialpolicy.ErrConflict) {
+			return errors.Join(ErrSharedCredentialConflict, e)
+		}
 	}
 	if e != nil {
 		return e

@@ -18,7 +18,7 @@
 
 控制台 →「账号改密」→「SSH 生成密码策略」。展开规则，设置最短/最长长度、大写、小写、数字、特殊字符的最少数量及可选排除字符。独立权限 `accounts.password_policy.view` 与 `accounts.password_policy.manage` 分别控制查看/修改，支持组织角色授权；拥有策略权限而无计划权限的用户仍可访问策略卡片。
 
-默认最短 43、最长 128，每类至少一个。长度范围为 16–128，类别下限之和不能超过最长长度。实际长度为最短长度与类别下限总和的较大值。使用 `crypto/rand` 抽样和随机洗牌；字符集为英文大小写、数字及 `!#%+,-.=?@[]^_{}~`。排除字符必须来自该集合、不能重复，且至少保留 16 种字符；不接收自定义正则、脚本或固定密码。
+默认最短 43、最长 128，每类至少一个。长度范围为 16–128，类别下限之和不能超过最长长度。实际长度为最短长度与类别下限总和的较大值。使用 `crypto/rand` 抽样和随机洗牌；字符集为英文大小写、数字及 `!#%+,-.=?@[]^_{}~`。排除字符必须来自该集合、不能重复，且至少保留 16 种字符；不接收自定义正则或脚本。固定值通过[指定计划](./FIXED-PASSWORDS.md)独立只写输入，并按同一组织/计划规则检查。
 
 策略在新生成密码时读取。已有待确定操作继续使用原加密日志中的同一密码，不因策略变化重生密码；[历史凭据恢复](./PASSWORD-ROTATION.md)、人工导入和平台登录密码不套用本生成策略。目标 OS/PAM 仍可有额外限制，远端验证成功后才提交新凭据。
 
@@ -47,4 +47,4 @@ Go 客户端使用 `SSHPasswordPolicy` / `SaveSSHPasswordPolicy`，继续使用�
 
 ## 范围与证据
 
-竞品仍为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，其[官方功能说明](https://www.jumpserver.org/blog/tutorial-20250610.html)包含生成密码的长度与字符类别策略。这里采用 Go 原生生成和共享约束合并；固定密码、其他协议改密及完整企业版对齐仍待完成。实际 Go/Testify、race、原生 SSH/备份和中英浏览器结果见[测试记录](./TESTING.md)。
+竞品仍为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，其[官方改密说明](https://docs.fit2cloud.com/jumpserver/v3/guide/admin/account/account_change_secret/)包含管理员指定和随机生成两种策略。这里采用 Go 原生生成和共享约束合并；其他协议改密及完整企业版对齐仍待完成。实际 Go/Testify、race、原生 SSH/备份和中英浏览器结果见[测试记录](./TESTING.md)。

@@ -20,6 +20,13 @@ func TestPlanPasswordPolicyOptionalRules(t *testing.T) {
 	assert.False(t, (Rules{MinLength: 56}).OptionalValid())
 }
 
+func TestFixedPasswordInputBoundsAndTransportAlphabet(t *testing.T) {
+	assert.True(t, ValidFixedPassword(strings.Repeat("Ab2!", 16)))
+	for _, value := range []string{"", "short", strings.Repeat("a", 129), strings.Repeat("a", 20) + "\n", strings.Repeat("a", 20) + "'", strings.Repeat("a", 20) + "中文"} {
+		assert.False(t, ValidFixedPassword(value))
+	}
+}
+
 func TestSSHPasswordPolicyRejectsIncompleteAuthenticatedState(t *testing.T) {
 	for _, missing := range []string{"policy", "audit", "receipts"} {
 		t.Run(missing, func(t *testing.T) {

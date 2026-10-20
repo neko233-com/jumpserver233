@@ -39,5 +39,14 @@ func (s *Service) generatePassword(ctx context.Context) (string, error) {
 			return "", err
 		}
 	}
+	return selectRotationPassword(ctx, rules)
+}
+func selectRotationPassword(ctx context.Context, rules credentialpolicy.Rules) (string, error) {
+	if plan := managedContext(ctx); plan != nil && plan.Intent.FixedSecretID != "" {
+		if !rules.Matches(plan.Intent.FixedPassword) {
+			return "", credentialpolicy.ErrConflict
+		}
+		return plan.Intent.FixedPassword, nil
+	}
 	return credentialpolicy.Generate(rules)
 }

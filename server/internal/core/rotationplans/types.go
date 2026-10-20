@@ -24,6 +24,7 @@ const MaxTargets = 500
 const MaxPlans = 256
 const MaxRuns = 512
 const MaxAudit = 10000
+const MaxSaveReceipts = 10000
 const maxStateBytes = 64 << 20
 
 var IDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
@@ -57,6 +58,8 @@ type Prepared struct {
 	RotatedAt time.Time
 }
 type Intent struct {
+	FixedPassword  string                 `json:"-"` // supplied only to the trusted executor, never persisted here
+	FixedSecretID  string                 `json:"fixed_secret_id,omitempty"`
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	Origin         accesspolicies.Origin  `json:"origin,omitempty"`
 	RequestID      string                 `json:"request_id"`
@@ -70,6 +73,7 @@ type Outcome struct {
 	At       time.Time `json:"at,omitzero"`
 }
 type PlanInput struct {
+	PasswordMode   string                 `json:"password_mode,omitempty"` // generated (default), fixed
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	Origin         accesspolicies.Origin  `json:"-"`
 	Name           string                 `json:"name"`
@@ -81,11 +85,19 @@ type PlanInput struct {
 	OnlyDue        bool                   `json:"only_due"`
 	Revision       int                    `json:"revision"`
 }
+
+// SaveInput is request-only. Public Plan/Run DTOs never embed this type.
+type SaveInput struct {
+	PlanInput
+	RequestID     string `json:"request_id,omitempty"`
+	FixedPassword string `json:"fixed_password,omitempty"`
+}
 type Plan struct {
-	TargetCount  int                   `json:"target_count"`
-	AccessOrigin accesspolicies.Origin `json:"access_origin,omitempty"`
-	ID           string                `json:"id"`
-	Actor        Actor                 `json:"owner"`
+	SaveRequestID string                `json:"save_request_id,omitempty"`
+	TargetCount   int                   `json:"target_count"`
+	AccessOrigin  accesspolicies.Origin `json:"access_origin,omitempty"`
+	ID            string                `json:"id"`
+	Actor         Actor                 `json:"owner"`
 	PlanInput
 	Refs      []Ref     `json:"accounts"`
 	NextRun   time.Time `json:"next_run,omitzero"`
@@ -106,6 +118,7 @@ type Item struct {
 	FinishedAt     time.Time `json:"finished_at,omitzero"`
 }
 type Run struct {
+	PasswordMode   string                 `json:"password_mode,omitempty"`
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	AccessOrigin   accesspolicies.Origin  `json:"access_origin,omitempty"`
 	ID             string                 `json:"id"`
@@ -122,13 +135,14 @@ type Run struct {
 	Items          []Item                 `json:"items"`
 }
 type Audit struct {
-	Origin   accesspolicies.Origin `json:"access_origin,omitempty"`
-	At       time.Time             `json:"at"`
-	Actor    Actor                 `json:"actor"`
-	Action   string                `json:"action"`
-	PlanID   string                `json:"plan_id"`
-	RunID    string                `json:"run_id,omitempty"`
-	Revision int                   `json:"revision,omitempty"`
+	RequestID string                `json:"request_id,omitempty"`
+	Origin    accesspolicies.Origin `json:"access_origin,omitempty"`
+	At        time.Time             `json:"at"`
+	Actor     Actor                 `json:"actor"`
+	Action    string                `json:"action"`
+	PlanID    string                `json:"plan_id"`
+	RunID     string                `json:"run_id,omitempty"`
+	Revision  int                   `json:"revision,omitempty"`
 }
 type RunSummary struct {
 	Run
@@ -138,12 +152,31 @@ type RunSummary struct {
 	Skipped   int `json:"skipped"`
 }
 type Runner struct {
-	Prepare   func(context.Context, Actor, []Selection) ([]Prepared, error)
-	Execute   func(context.Context, Intent, func() error) (Outcome, error)
-	Inspect   func(context.Context, Intent) (Outcome, error)
-	Authorize func(Actor) error
-	Recover   func(context.Context, Intent, Actor, func() error) (Outcome, error)
+	AuthorizeFixed func(Actor) error
+	Prepare        func(context.Context, Actor, []Selection) ([]Prepared, error)
+	Execute        func(context.Context, Intent, func() error) (Outcome, error)
+	Inspect        func(context.Context, Intent) (Outcome, error)
+	Authorize      func(Actor) error
+	Recover        func(context.Context, Intent, Actor, func() error) (Outcome, error)
 }
+
+func (r Runner) authorizeMode(a Actor, mode string) error {
+	if r.Authorize == nil {
+		return ErrBusy
+	}
+	if e := r.Authorize(a); e != nil {
+		return e
+	}
+	if mode == "fixed" {
+		if r.AuthorizeFixed == nil {
+			return ErrDenied
+		}
+		return r.AuthorizeFixed(a)
+	}
+	return nil
+}
+
+func validPasswordMode(mode string) bool { return mode == "" || mode == "generated" || mode == "fixed" }
 
 func ValidActor(a Actor) bool {
 	return IDPattern.MatchString(a.ID) && validText(a.Name, 128) && a.Name != ""
@@ -160,6 +193,9 @@ func validText(s string, n int) bool {
 	return true
 }
 func (in PlanInput) Validate() error {
+	if !validPasswordMode(in.PasswordMode) {
+		return ErrInvalid
+	}
 	if !in.PasswordPolicy.OptionalValid() {
 		return ErrInvalid
 	}

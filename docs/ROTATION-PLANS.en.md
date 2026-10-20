@@ -12,6 +12,8 @@ The failed row deliberately omits a privileged account for an ordinary target, v
 
 The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html). This capability follows its [account change-secret plans](https://docs.fit2cloud.com/jumpserver/v3/guide/admin/account/account_change_secret/) using native Go SSH operations and durable receipts. Full Enterprise scope remains in progress under [PLAN](./PLAN.en.md).
 
+See [fixed-password plans](./FIXED-PASSWORDS.en.md) for protected input and save request IDs. New Web/CLI saves send a request ID so exact retries preserve plan identity.
+
 ## Plan password constraints
 
 The plan editor can add length, character-class and excluded-character requirements. Omitted or empty rules inherit organization policies. Only password accounts use them; key-only plans reject password constraints. New passwords satisfy the intersection of these constraints and every participating organization policy at execution time. These requirements apply to this plan; use organization policy for requirements that must govern every manual/automatic rotation. Built-in seven-day account rotation and plans schedule independently; with only_due enabled, another completed rotation also resets credential age. Conflicts return `password_policy_conflict` for that item before changing its remote password; other accounts in a mixed batch continue.
@@ -32,7 +34,7 @@ Console → Credential rotation → Create plan:
 
 Passwords are generated strong values. SSH key accounts remain key accounts: the existing native engine generates Ed25519 keys, installs and verifies them, then revokes the old key. Privileged accounts apply only to password resets; key changes authenticate as the target account.
 
-Generated passwords use the organization's [SSH password policy](./SSH-PASSWORD-POLICY.en.md). Users with independent permissions can configure lengths, category minima and exclusions on this page; shared identities combine every participating policy. Plans can add generation constraints and capture immutable run snapshots. Fixed passwords remain pending.
+Generated passwords use the organization's [SSH password policy](./SSH-PASSWORD-POLICY.en.md). Users with independent permissions can configure lengths, category minima and exclusions on this page; shared identities combine every participating policy. Plans can add generation constraints and capture immutable run snapshots. Fixed passwords use independent write-only input and permissions.
 
 Duplicate managed records for one remote account share one operation and linked results. Password copies for that identity must agree; conflicting credentials reject rotation. Shared copies use the existing [password](./PASSWORD-ROTATION.en.md) and [key](./SSH-KEY-ROTATION.en.md) coordinators, without granting visibility across organizations.
 
@@ -112,4 +114,4 @@ Updates and deletion require the current revision. `--file` strictly rejects unk
 
 Go/Testify covers idempotent and concurrent submissions, aliases, target binding, cancellation, permission revocation, explicit recovery, result write failures, encryption, format 4/import compatibility, PostgreSQL organization isolation and takeover. The real OpenSSH browser case is `web/e2e/rotation-plans.spec.ts`; commands and results are in [TESTING](./TESTING.en.md).
 
-This slice supports Linux SSH passwords and existing key accounts. Fixed passwords, Windows/database/network device rotation, notifications/external credential distribution, risk-driven automatic remediation, production HA failover acceptance and full Enterprise parity remain open. No CHANGELOG or release tag was generated.
+This slice supports Linux SSH passwords and existing key accounts. Windows/database/network device rotation, notifications/external credential distribution, risk-driven automatic remediation, production HA failover acceptance and full Enterprise parity remain open. No CHANGELOG or release tag was generated.

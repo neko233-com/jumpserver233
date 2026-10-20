@@ -1,5 +1,15 @@
 export default {
   rotationPlans: {
+    passwordMode: "Password source",
+    generatedMode: "Random password per run",
+    fixedMode: "Protected fixed password",
+    fixedPassword: "Fixed password (write only)",
+    fixedHint:
+      "The password is encrypted on the server and never returned. It must satisfy every applicable password rule. Only password accounts use it.",
+    keepFixed:
+      "Leave blank to keep the protected password. Enter a value to replace it; switching to random generation removes the saved fixed password.",
+    fixedScheduleHint:
+      "Scheduled runs reuse this fixed value. Select random generation when each run needs a new password.",
     passwordPolicy: "Plan password constraints",
     customPasswordPolicy: "Add password generation constraints for this plan",
     passwordPolicyHint:
@@ -104,7 +114,7 @@ export default {
       denied: "Permission denied",
     },
     errors: {
-      invalid: "Check the name, targets, schedule and revision.",
+      invalid: "Check the name, targets, password source/rules, schedule and revision.",
       denied: "Your current role or access policy does not permit this operation.",
       not_found: "The plan, account or owned run is unavailable.",
       conflict: "The record changed. Refresh before trying again.",
@@ -132,7 +142,7 @@ export default {
       recover: "Recover the existing operation",
     },
     confirmHints: {
-      run: "This changes selected remote credentials immediately, including accounts that are not due. The server generates and verifies new credentials; results are recorded per account.",
+      run: "This changes selected remote credentials immediately, including accounts that are not due. The server applies the configured password/key strategy and verifies credentials; results are recorded per account.",
       delete: "Remove this plan and its schedule. Completed execution history remains available.",
       cancel:
         "Stop queued steps and cancel the current request. Completed remote changes remain in effect. Any uncertain result requires reconciliation.",

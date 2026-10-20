@@ -12,6 +12,8 @@
 
 竞品是 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)。本能力参考其[账号改密计划](https://docs.fit2cloud.com/jumpserver/v3/guide/admin/account/account_change_secret/)，采用 Go 原生 SSH 操作和持久化回执；完整企业版范围仍按 [PLAN](./PLAN.md) 推进。
 
+固定密码及请求 ID 协议见[固定密码计划](./FIXED-PASSWORDS.md)。新 Web/CLI 保存携带请求 ID，精确重试保持计划身份。
+
 ## 计划密码约束
 
 计划编辑器可选择增加长度、字符类别与排除字符约束。未设置或空规则继承组织策略。仅密码账号使用此规则；纯密钥计划拒绝密码约束。生成密码时与所有参与组织的当前策略取交集，不能降低任何一方要求。约束仅用于本计划；若要求所有手动/自动改密均遵守同一规则，应配置组织策略。账号七天自动轮换与计划独立调度，启用 only_due 时其他已完成的改密也会更新到期时间；冲突逐项返回 `password_policy_conflict`，不修改该账号的远端密码。混合计划的其他账号继续执行。
@@ -32,7 +34,7 @@ Web、`jms account rotation create/update --file` 和 Go SDK 共用可选 `passw
 
 密码为系统随机生成的强密码。SSH 密钥账号继续使用密钥凭据，由既有原生轮换器生成 Ed25519 密钥，先安装/验证，再撤销旧钥。指定特权账号仅用于密码重置，密钥变更认证目标账号自身。
 
-随机密码使用组织级 [SSH 生成密码策略](./SSH-PASSWORD-POLICY.md)。该页支持有独立权限的用户配置长度、字符类别下限和排除字符；共享账号合并所有组织约束。计划支持附加生成约束和不可变运行快照；固定密码尚未接入。
+随机密码使用组织级 [SSH 生成密码策略](./SSH-PASSWORD-POLICY.md)。该页支持有独立权限的用户配置长度、字符类别下限和排除字符；共享账号合并所有组织约束。计划支持附加生成约束和不可变运行快照；固定密码已接入独立只写输入与权限。
 
 同一远程账号的重复托管记录合并为一次操作，关联行显示共享结果。执行者需确保同一远端身份的密码副本一致；凭据冲突会拒绝轮换。共享副本同步沿用[密码](./PASSWORD-ROTATION.md)和[密钥](./SSH-KEY-ROTATION.md)协调器，各组织不因此获得彼此的查看权限。
 
@@ -112,4 +114,4 @@ SDK 位于 `server/internal/sessionclient/rotation_plans.go`，提供 `RotationT
 
 Go/Testify 覆盖请求去重、并发提交、别名合并、目标绑定、取消、权限撤销、显式恢复、结果写入故障、加密、格式 4 与导入回执兼容、PostgreSQL 组织隔离及接管；真实 OpenSSH 浏览器用例见 `web/e2e/rotation-plans.spec.ts`，运行方式与结果见 [TESTING](./TESTING.md)。
 
-本批支持 Linux SSH 密码和已有密钥账号。固定密码、Windows/数据库/网络设备自动改密、通知/外部密码分发、风险驱动自动闭环修复、生产 HA 切换验收和完整企业版对齐仍待完成。未生成 CHANGELOG 或发布标签。
+本批支持 Linux SSH 密码和已有密钥账号。Windows/数据库/网络设备自动改密、通知/外部密码分发、风险驱动自动闭环修复、生产 HA 切换验收和完整企业版对齐仍待完成。未生成 CHANGELOG 或发布标签。

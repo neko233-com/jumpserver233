@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+Added [fixed-password plans and idempotent saves](./FIXED-PASSWORDS.en.md): specified/random sources, independent permissions, write-only input, save receipts, immutable snapshots, organization constraints and recovery. Default seven-day rotation continues random generation; the full Enterprise objective remains active.
+
 
 Added [generated SSH password policy](./SSH-PASSWORD-POLICY.en.md): organization rules, shared seven-day/manual/planned generation, merged shared-account constraints, independent permissions, Web/CLI, encrypted receipts and backup retention. Per-plan additional constraints and immutable run snapshots are connected; full Enterprise parity remains in progress.
 

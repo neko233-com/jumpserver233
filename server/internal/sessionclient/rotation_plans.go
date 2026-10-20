@@ -27,6 +27,7 @@ type RotationRef struct {
 	CollectorUsername string `json:"collector_username,omitempty"`
 }
 type RotationPlanInput struct {
+	PasswordMode   string                 `json:"password_mode,omitempty"`
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	Name           string                 `json:"name"`
 	Targets        []RotationSelection    `json:"targets,omitempty"`
@@ -37,11 +38,19 @@ type RotationPlanInput struct {
 	OnlyDue        bool                   `json:"only_due"`
 	Revision       int                    `json:"revision"`
 }
+
+// Request-only: fixed_password is never part of RotationPlan or RotationRun.
+type RotationPlanSaveInput struct {
+	RotationPlanInput
+	RequestID     string `json:"request_id,omitempty"`
+	FixedPassword string `json:"fixed_password,omitempty"`
+}
 type RotationOrigin struct {
 	SourceIP string `json:"source_ip"`
 	Method   string `json:"method"`
 }
 type RotationPlan struct {
+	SaveRequestID string `json:"save_request_id,omitempty"`
 	RotationPlanInput
 	ID           string             `json:"id"`
 	Owner        AccountImportActor `json:"owner"`
@@ -66,6 +75,7 @@ type RotationItem struct {
 	FinishedAt     time.Time `json:"finished_at,omitzero"`
 }
 type RotationRun struct {
+	PasswordMode   string                 `json:"password_mode,omitempty"`
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	ID             string                 `json:"id"`
 	PlanID         string                 `json:"plan_id"`
@@ -118,6 +128,9 @@ func (c *Client) RotationPlan(ctx context.Context, id string) (RotationPlan, err
 	return out, e
 }
 func (c *Client) SaveRotationPlan(ctx context.Context, id string, in RotationPlanInput) (RotationPlan, error) {
+	return c.SaveRotationPlanRequest(ctx, id, RotationPlanSaveInput{RotationPlanInput: in})
+}
+func (c *Client) SaveRotationPlanRequest(ctx context.Context, id string, in RotationPlanSaveInput) (RotationPlan, error) {
 	var out RotationPlan
 	method, path := "POST", "/api/v1/accounts/rotation-plans"
 	if id != "" {

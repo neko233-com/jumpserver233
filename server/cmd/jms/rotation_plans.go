@@ -7,15 +7,22 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
+	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/sessionclient"
+	"golang.org/x/term"
 	"io"
 	"os"
+	"runtime"
 	"time"
 )
 
-const rotationPlanUsage = "usage: jms account rotation targets|plans|runs|audit [--offset 0 --limit 50] [--search TEXT --collector-for ACCOUNT --plan PLAN] | show-plan|show-run ID | create --file PLAN.json | update PLAN --file PLAN.json | delete PLAN --revision N | run PLAN [--request-id ID --wait --timeout-seconds 300] | cancel|recover RUN | export RUN --out NEW.csv"
+const rotationPlanUsage = "usage: jms account rotation targets|plans|runs|audit [--offset 0 --limit 50] [--search TEXT --collector-for ACCOUNT --plan PLAN] | show-plan|show-run ID | create --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | update PLAN --file PLAN.json [--request-id ID --fixed-password-file FILE|-] | delete PLAN --revision N | run PLAN [--request-id ID --wait --timeout-seconds 300] | cancel|recover RUN | export RUN --out NEW.csv"
 
 func executeRotationPlans(ctx context.Context, c *sessionclient.Client, args []string, output io.Writer) error {
+	return executeRotationPlansInput(ctx, c, args, nil, output)
+}
+func executeRotationPlansInput(ctx context.Context, c *sessionclient.Client, args []string, input io.Reader, output io.Writer) error {
 	if len(args) == 0 {
 		return errors.New(rotationPlanUsage)
 	}
@@ -61,6 +68,7 @@ func executeRotationPlans(ctx context.Context, c *sessionclient.Client, args []s
 			id = args[1]
 		}
 		file := f.String("file", "", "")
+		passwordFile, requestID := f.String("fixed-password-file", "", ""), f.String("request-id", "", "")
 		if f.Parse(args[start:]) != nil || f.NArg() != 0 || *file == "" {
 			return errors.New(rotationPlanUsage)
 		}
@@ -75,7 +83,49 @@ func executeRotationPlans(ctx context.Context, c *sessionclient.Client, args []s
 		if decoder.Decode(&in) != nil || decoder.Decode(new(any)) != io.EOF || len(in.Targets) < 1 || len(in.Targets) > 500 {
 			return errors.New("invalid rotation plan metadata")
 		}
-		v, e := c.SaveRotationPlan(ctx, id, in)
+		secret := ""
+		if *passwordFile != "" {
+			if in.PasswordMode != "fixed" {
+				return errors.New("fixed password input requires password_mode fixed")
+			}
+			reader := input
+			if *passwordFile != "-" {
+				file, err := os.Open(*passwordFile)
+				if err != nil {
+					return errors.New("could not open protected fixed password input")
+				}
+				info, err := file.Stat()
+				if err != nil || !info.Mode().IsRegular() || runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+					_ = file.Close()
+					return errors.New("fixed password file must be private and regular")
+				}
+				defer file.Close()
+				reader = file
+			}
+			if reader == nil {
+				return errors.New("fixed password stdin is unavailable")
+			}
+			if terminal, ok := reader.(*os.File); ok && term.IsTerminal(int(terminal.Fd())) {
+				fmt.Fprint(os.Stderr, "Fixed password (16-128 characters): ")
+				raw, err := term.ReadPassword(int(terminal.Fd()))
+				fmt.Fprintln(os.Stderr)
+				secret, e = string(raw), err
+				clear(raw)
+			} else {
+				secret, e = readManagedSecret(reader)
+			}
+			if e != nil || !credentialpolicy.ValidFixedPassword(secret) {
+				return errors.New("invalid fixed password input")
+			}
+		}
+		if *requestID == "" {
+			var raw [16]byte
+			if _, e := rand.Read(raw[:]); e != nil {
+				return e
+			}
+			*requestID = hex.EncodeToString(raw[:])
+		}
+		v, e := c.SaveRotationPlanRequest(ctx, id, sessionclient.RotationPlanSaveInput{RotationPlanInput: in, RequestID: *requestID, FixedPassword: secret})
 		return emit(v, e)
 	case "show-plan", "show-run", "cancel", "recover":
 		if len(args) != 2 || args[1] == "" {

@@ -44,6 +44,7 @@ func runManagedAccounts(args []string) error {
 
 func readManagedSecret(input io.Reader) (string, error) {
 	raw, e := io.ReadAll(io.LimitReader(input, 4097))
+	defer clear(raw)
 	if e != nil || len(raw) > 4096 || !utf8.Valid(raw) {
 		return "", errors.New("credential input must be valid UTF-8 and at most 4096 bytes")
 	}
@@ -59,7 +60,7 @@ func executeManagedAccount(ctx context.Context, c *sessionclient.Client, args []
 		return executeSSHPasswordPolicy(ctx, c, args[1:], output)
 	}
 	if len(args) > 0 && args[0] == "rotation" {
-		return executeRotationPlans(ctx, c, args[1:], output)
+		return executeRotationPlansInput(ctx, c, args[1:], input, output)
 	}
 	if len(args) > 0 && args[0] == "risks" {
 		return executeAccountRisks(ctx, c, args[1:], output)

@@ -37,6 +37,11 @@ func (r Rules) OptionalValid() bool { return r.IsZero() || r.Valid() }
 func Defaults() Rules {
 	return Rules{MinLength: 43, MaxLength: 128, MinUpper: 1, MinLower: 1, MinDigits: 1, MinSymbols: 1}
 }
+
+// Fixed candidates still have to satisfy the current merged rules at dispatch.
+func ValidFixedPassword(password string) bool {
+	return (Rules{MinLength: 16, MaxLength: 128}).Matches(password)
+}
 func pool(chars, exclude string) string {
 	return strings.Map(func(r rune) rune {
 		if strings.ContainsRune(exclude, r) {

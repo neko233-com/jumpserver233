@@ -12,6 +12,7 @@ import (
 )
 
 type plannedPasswordIntent struct {
+	FixedSecretID  string                 `json:"fixed_secret_id,omitempty"`
 	PasswordPolicy credentialpolicy.Rules `json:"password_policy,omitzero"`
 	RequestID      string                 `json:"request_id"`
 	Revision       uint64                 `json:"revision"`
@@ -40,7 +41,7 @@ func plannedPassword(ctx context.Context) *plannedPasswordIntent {
 	if v == nil {
 		return nil
 	}
-	return &plannedPasswordIntent{PasswordPolicy: v.Intent.PasswordPolicy, RequestID: v.Intent.RequestID, Revision: v.Intent.Target.Revision, Version: v.Intent.Target.Version, Actor: v.Intent.Actor}
+	return &plannedPasswordIntent{FixedSecretID: v.Intent.FixedSecretID, PasswordPolicy: v.Intent.PasswordPolicy, RequestID: v.Intent.RequestID, Revision: v.Intent.Target.Revision, Version: v.Intent.Target.Version, Actor: v.Intent.Actor}
 }
 func validRotationVersion(v string) bool {
 	if len(v) != 64 {
@@ -50,7 +51,7 @@ func validRotationVersion(v string) bool {
 	return e == nil
 }
 func validPlannedPassword(p *plannedPasswordIntent) bool {
-	return p != nil && p.PasswordPolicy.OptionalValid() && rotationplans.IDPattern.MatchString(p.RequestID) && p.Revision > 0 && p.Revision < 1<<53 && validRotationVersion(p.Version) && rotationplans.ValidActor(p.Actor)
+	return p != nil && (p.FixedSecretID == "" || rotationplans.IDPattern.MatchString(p.FixedSecretID)) && p.PasswordPolicy.OptionalValid() && rotationplans.IDPattern.MatchString(p.RequestID) && p.Revision > 0 && p.Revision < 1<<53 && validRotationVersion(p.Version) && rotationplans.ValidActor(p.Actor)
 }
 func hasPlannedRotationMetadata(r storedAsset) bool {
 	return r.PlannedPasswordReceipt != nil || r.PendingRotation != nil && r.PendingRotation.Planned != nil
@@ -194,6 +195,9 @@ func (s *Service) guardManagedRotation(ctx context.Context, id string) error {
 	return nil
 }
 func (s *Service) InspectManagedRotation(ctx context.Context, in rotationplans.Intent) (rotationplans.Outcome, error) {
+	if in.FixedSecretID != "" && (!rotationplans.IDPattern.MatchString(in.FixedSecretID) || in.Target.CredentialType != CredentialPassword) {
+		return rotationplans.Outcome{}, rotationplans.ErrInvalid
+	}
 	if !in.PasswordPolicy.OptionalValid() || !in.PasswordPolicy.IsZero() && in.Target.CredentialType != CredentialPassword {
 		return rotationplans.Outcome{}, rotationplans.ErrInvalid
 	}
@@ -214,7 +218,7 @@ func (s *Service) InspectManagedRotation(ctx context.Context, in rotationplans.I
 		return rotationplans.Outcome{State: "recovery_required", Code: "credential_pending"}, nil
 	}
 	if p := r.PlannedPasswordReceipt; p != nil && p.RequestID == in.RequestID {
-		if p.PasswordPolicy != in.PasswordPolicy || p.Revision != in.Target.Revision || p.Version != in.Target.Version || p.Actor.ID != in.Actor.ID {
+		if p.FixedSecretID != in.FixedSecretID || p.PasswordPolicy != in.PasswordPolicy || p.Revision != in.Target.Revision || p.Version != in.Target.Version || p.Actor.ID != in.Actor.ID {
 			return rotationplans.Outcome{}, rotationplans.ErrConflict
 		}
 		return rotationplans.Outcome{State: p.State, Revision: p.AfterRevision, At: p.At}, nil
@@ -238,6 +242,9 @@ func (s *Service) InspectManagedRotation(ctx context.Context, in rotationplans.I
 	return rotationplans.Outcome{State: "not_started"}, nil
 }
 func (s *Service) ExecuteManagedRotation(ctx context.Context, in rotationplans.Intent, guard func() error) (rotationplans.Outcome, error) {
+	if in.FixedSecretID != "" && (!rotationplans.IDPattern.MatchString(in.FixedSecretID) || !credentialpolicy.ValidFixedPassword(in.FixedPassword) || in.Target.CredentialType != CredentialPassword) || in.FixedSecretID == "" && in.FixedPassword != "" {
+		return rotationplans.Outcome{}, rotationplans.ErrInvalid
+	}
 	if !in.PasswordPolicy.OptionalValid() || !in.PasswordPolicy.IsZero() && in.Target.CredentialType != CredentialPassword {
 		return rotationplans.Outcome{}, rotationplans.ErrInvalid
 	}
@@ -317,6 +324,9 @@ func (s *Service) changeManagedPassword(ctx context.Context, a Asset, target ssh
 // RecoverManagedRotation resumes only the previously recorded operation. A
 // different pending operation is never borrowed by a plan's recovery request.
 func (s *Service) RecoverManagedRotation(ctx context.Context, in rotationplans.Intent, as rotationplans.Actor, guard func() error) (rotationplans.Outcome, error) {
+	if in.FixedSecretID != "" && (!rotationplans.IDPattern.MatchString(in.FixedSecretID) || in.Target.CredentialType != CredentialPassword) {
+		return rotationplans.Outcome{}, rotationplans.ErrInvalid
+	}
 	if !rotationplans.ValidActor(as) || guard == nil || !in.PasswordPolicy.OptionalValid() || !in.PasswordPolicy.IsZero() && in.Target.CredentialType != CredentialPassword {
 		return rotationplans.Outcome{}, rotationplans.ErrInvalid
 	}
@@ -339,10 +349,10 @@ func (s *Service) RecoverManagedRotation(ctx context.Context, in rotationplans.I
 		return rotationplans.Outcome{State: "recovery_required", Code: "source_changed"}, nil
 	}
 	shared := c.ops[passwordIdentity(r.Asset)]
-	ownedPassword := r.PendingRotation != nil && r.PendingRotation.Planned != nil && r.PendingRotation.Planned.RequestID == in.RequestID && r.PendingRotation.Planned.Actor.ID == in.Actor.ID && r.PendingRotation.Planned.PasswordPolicy == in.PasswordPolicy
+	ownedPassword := r.PendingRotation != nil && r.PendingRotation.Planned != nil && r.PendingRotation.Planned.RequestID == in.RequestID && r.PendingRotation.Planned.Actor.ID == in.Actor.ID && r.PendingRotation.Planned.PasswordPolicy == in.PasswordPolicy && r.PendingRotation.Planned.FixedSecretID == in.FixedSecretID
 	ownedKey := r.PendingKeyChange != nil && r.PendingKeyChange.RequestID == in.RequestID && r.PendingKeyChange.ExpectedRevision == in.Target.Revision
 	if shared != nil {
-		if shared.Planned == nil || shared.Planned.RequestID != in.RequestID || shared.Planned.PasswordPolicy != in.PasswordPolicy || shared.Source != (passwordParticipant{s.passwordScope, r.ID}) {
+		if shared.Planned == nil || shared.Planned.RequestID != in.RequestID || shared.Planned.PasswordPolicy != in.PasswordPolicy || shared.Planned.FixedSecretID != in.FixedSecretID || shared.Source != (passwordParticipant{s.passwordScope, r.ID}) {
 			c.mu.Unlock()
 			return rotationplans.Outcome{State: "recovery_required", Code: "different_operation"}, nil
 		}

@@ -62,6 +62,10 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 			rotationPlanError(w, rotationplans.ErrDenied)
 			return principal, rbac.Snapshot{}, false
 		}
+		if _, live := jobOwnerSnapshot(d, principal); !live {
+			rotationPlanError(w, rotationplans.ErrDenied)
+			return principal, rbac.Snapshot{}, false
+		}
 		u, p, e := current(principal.ID, permission)
 		if e != nil {
 			rotationPlanError(w, e)
@@ -105,6 +109,9 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 			if e != nil || !p.Allows("assets.rotate") {
 				return rotationplans.ErrDenied
 			}
+			if in.FixedSecretID != "" && !p.Allows("accounts.rotation.fixed_password") {
+				return rotationplans.ErrDenied
+			}
 			if in.Target.CollectorID != "" && !p.Allows("accounts.rotation.privileged") {
 				return rotationplans.ErrDenied
 			}
@@ -133,6 +140,10 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 	}
 	service.SetRunner(rotationplans.Runner{
 		Authorize: authorize,
+		AuthorizeFixed: func(a rotationplans.Actor) error {
+			_, _, e := current(a.ID, "accounts.rotation.fixed_password")
+			return e
+		},
 		Prepare: func(ctx context.Context, a rotationplans.Actor, selected []rotationplans.Selection) ([]rotationplans.Prepared, error) {
 			if _, _, e := current(a.ID, "accounts.rotation.view"); e != nil {
 				return nil, e
@@ -193,12 +204,18 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 		if !ok {
 			return
 		}
-		var in rotationplans.PlanInput
+		var in rotationplans.SaveInput
 		r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 		decoder := json.NewDecoder(r.Body)
 		decoder.DisallowUnknownFields()
 		if decoder.Decode(&in) != nil || decoder.Decode(new(any)) != io.EOF {
 			rotationPlanError(w, rotationplans.ErrInvalid)
+			return
+		}
+		release := lockAccess()
+		defer release()
+		u, p, ok = requestUser(w, r, "accounts.rotation.manage")
+		if !ok {
 			return
 		}
 		in.Origin = accesspolicies.Origin{SourceIP: accesspolicies.SourceIP(r.Context()), Method: "credential_rotation"}
@@ -214,7 +231,7 @@ func registerRotationPlanRoutes(mux *http.ServeMux, d Dependencies, mu *sync.RWM
 				}
 			}
 		}
-		out, e := service.Save(r.Context(), actor(u), r.PathValue("planID"), in, p.Allows("accounts.rotation.manage_all"))
+		out, e := service.SaveRequest(r.Context(), actor(u), r.PathValue("planID"), in, p.Allows("accounts.rotation.manage_all"), p.Allows("accounts.rotation.fixed_password"))
 		if e != nil {
 			rotationPlanError(w, e)
 			return

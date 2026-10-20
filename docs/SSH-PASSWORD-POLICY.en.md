@@ -18,7 +18,7 @@ Example public plan metadata:
 
 Console → Credential rotation plans → Generated SSH password policy. Expand rules and set minimum/maximum length, uppercase/lowercase/digit/symbol minima and optional exclusions. Independent `accounts.password_policy.view` / `accounts.password_policy.manage` permissions support organization roles. Users with policy permissions can access the card without plan permissions.
 
-Defaults: minimum 43, maximum 128, at least one character per category. Lengths must be 16–128; category minima must fit the maximum. Generated length is the greater of minimum length and summed category minima. Sampling/shuffling uses `crypto/rand`. Alphabet: ASCII letters, digits and `!#%+,-.=?@[]^_{}~`. Exclusions must be unique alphabet characters and leave at least 16 possibilities. Custom regex, scripts and fixed passwords are unsupported.
+Defaults: minimum 43, maximum 128, at least one character per category. Lengths must be 16–128; category minima must fit the maximum. Generated length is the greater of minimum length and summed category minima. Sampling/shuffling uses `crypto/rand`. Alphabet: ASCII letters, digits and `!#%+,-.=?@[]^_{}~`. Exclusions must be unique alphabet characters and leave at least 16 possibilities. Custom regex and scripts are unsupported. [Fixed-password plans](./FIXED-PASSWORDS.en.md) use separate write-only input and the same organization/plan rules.
 
 Rules are read when a new password is generated. Uncertain operations retain their existing encrypted candidate rather than regenerate after policy edits. [Historical credential recovery](./PASSWORD-ROTATION.en.md), imported credentials and platform login passwords are outside this generator policy. OS/PAM may enforce additional restrictions; new credentials commit only after remote verification.
 
@@ -47,4 +47,4 @@ Policy, audit and receipts are encrypted with the organization Vault key in `ssh
 
 ## Scope and evidence
 
-The competitor remains [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); its [official feature explanation](https://www.jumpserver.org/blog/tutorial-20250610.html) covers generated-password length/category policies. This implementation uses native Go generation and shared constraints. Fixed passwords, other protocol rotations and full Enterprise parity remain pending. Actual Go/Testify, race, native SSH/backup and bilingual browser results appear in [verification records](./TESTING.en.md).
+The competitor remains [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); its [official rotation guide](https://docs.fit2cloud.com/jumpserver/v3/guide/admin/account/account_change_secret/) documents specified and random strategies. This implementation uses native Go generation and shared constraints. Other protocol rotations and full Enterprise parity remain pending. Actual Go/Testify, race, native SSH/backup and bilingual browser results appear in [verification records](./TESTING.en.md).
