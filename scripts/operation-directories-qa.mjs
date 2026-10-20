@@ -125,8 +125,11 @@ export async function verifyOperationDirectoryBrowser({page, expect, url, api, a
   await expect(row).toBeVisible({timeout: 10000});
   await expect(row).toContainText(directory);
   await row.screenshot({path: resolve(output, "execution.en.png")});
-  await expect.poll(async () => (await api("GET", `/api/v1/ops/plans/${plan.id}`, undefined, admin)).last_run_id).not.toBe("");
-  const current = await api("GET", `/api/v1/ops/plans/${plan.id}`, undefined, admin);
+  const current = await until(
+    () => api("GET", `/api/v1/ops/plans/${plan.id}`, undefined, admin),
+    p => typeof p.last_run_id === "string" && p.last_run_id.length > 0,
+    "Browser directory plan was not dispatched",
+  );
   await expect.poll(async () => (await api("GET", `/api/v1/ops/runs/${current.last_run_id}`, undefined, admin)).state).toBe("succeeded");
   const browserRun = await api("GET", `/api/v1/ops/runs/${current.last_run_id}`, undefined, admin);
   const browserJob = await api("GET", `/api/v1/ops/jobs/${browserRun.items[0].job_id}`, undefined, admin);
