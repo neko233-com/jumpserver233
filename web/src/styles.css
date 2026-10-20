@@ -1445,7 +1445,7 @@ a {
   margin: 0 0 18px;
 }
 
-@media (min-width: 1001px) and (max-width: 1400px) {
+@media (min-width: 1001px) and (max-width: 1600px) {
   .layout-sidebar {
     width: 156px;
     flex-basis: 156px;
@@ -1481,32 +1481,37 @@ a {
 
   .asset-table th:nth-child(2),
   .asset-table td:nth-child(2) {
-    width: 64px;
+    width: 7%;
   }
 
   .asset-table th:nth-child(3),
   .asset-table td:nth-child(3) {
-    width: 120px;
+    width: 21%;
   }
 
   .asset-table th:nth-child(4),
   .asset-table td:nth-child(4) {
-    width: 110px;
+    width: 17%;
   }
 
   .asset-table th:nth-child(5),
   .asset-table td:nth-child(5) {
-    width: 400px;
+    width: 35%;
   }
 
   .asset-table th:nth-child(6),
   .asset-table td:nth-child(6) {
-    width: 90px;
+    display: none;
   }
 
   .asset-table th:nth-child(7),
   .asset-table td:nth-child(7) {
-    width: 150px;
+    width: 20%;
+  }
+
+  .asset-table td[colspan] {
+    display: table-cell;
+    width: auto;
   }
 
   .asset-name {
@@ -1520,7 +1525,7 @@ a {
   }
 
   .asset-metrics {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     min-width: 0;
   }
@@ -1541,8 +1546,11 @@ a {
     font-size: 11px;
   }
 
-  .rotation-status {
-    white-space: normal;
+  .rotation-status,
+  .asset-subline {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .asset-actions {

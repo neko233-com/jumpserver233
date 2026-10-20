@@ -1,7 +1,7 @@
 import { expect, request, test } from "@playwright/test";
 
-// Runs only inside the existing disposable suite. Navigation creates no product
-// records, extra containers, reports or screenshot histories of its own.
+// Reuses the suite's existing SSH fixture. One owned host is removed in finally;
+// no extra container, report history or persistent product data is created.
 test.use({ locale: "en-US", trace: "off" });
 
 test("console navigation stays searchable, bilingual and usable on narrow screens", async ({
@@ -14,6 +14,7 @@ test("console navigation stays searchable, bilingual and usable on narrow screen
     password: "synthetic-e2e-admin-password-2468",
   };
   const errors: string[] = [];
+  let layoutAsset = "";
   page.on("pageerror", (error) => errors.push(error.message));
   try {
     let response = await api.post("/api/v1/authentication/auth/", { data: credentials });
@@ -24,13 +25,49 @@ test("console navigation stays searchable, bilingual and usable on narrow screen
         response = await api.post("/api/v1/authentication/auth/", { data: credentials });
     }
     expect(response.ok()).toBe(true);
+    const fixture = await (await api.get("http://127.0.0.1:12223/health")).json();
+    const [host, port] = fixture.address.split(":");
+    const created = await api.post("/api/v1/assets", {
+      data: {
+        name: `Mini layout QA ${Date.now()}`,
+        host,
+        port: Number(port),
+        username: fixture.username,
+        password: "synthetic-qa-only-password",
+        host_key_fingerprint: fixture.fingerprint,
+      },
+    });
+    expect(created.status()).toBe(201);
+    layoutAsset = (await created.json()).id;
+    expect((await api.post(`/api/v1/assets/${layoutAsset}/probe`)).ok()).toBe(true);
     await page.context().addCookies((await api.storageState()).cookies);
-    for (const width of [1440, 900, 715, 375]) {
+    for (const width of [1600, 1440, 1280, 900, 715, 375]) {
       await page.setViewportSize({ width, height: 900 });
       for (const zh of [false, true]) {
         await page.goto("/console");
         if ((await page.locator("html").getAttribute("lang")) !== (zh ? "zh-CN" : "en")) {
           await page.getByRole("button", { name: zh ? "中文" : "EN", exact: true }).click();
+        }
+        if (width >= 1280) {
+          const row = page.getByRole("row").filter({ hasText: "Mini layout QA" });
+          await expect(row.locator(".asset-metrics")).toBeVisible();
+          const bounds = await row.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const actions = element.lastElementChild!.getBoundingClientRect();
+            const wrapper = element.closest(".asset-table-wrap")!.getBoundingClientRect();
+            return {
+              height: rect.height,
+              actionsRight: actions.right,
+              visibleRight: wrapper.right,
+            };
+          });
+          expect(bounds.height).toBeLessThanOrEqual(128);
+          expect(bounds.actionsRight).toBeLessThanOrEqual(bounds.visibleRight + 2);
+          if (width === 1280) {
+            await page.screenshot({
+              path: test.info().outputPath(zh ? "mini-console.zh.png" : "mini-console.en.png"),
+            });
+          }
         }
         const menu = page.getByRole("button", {
           name: zh ? "展开导航" : "Open navigation",
@@ -119,6 +156,8 @@ test("console navigation stays searchable, bilingual and usable on narrow screen
     await expect(page.locator("#console-main")).toBeFocused();
     expect(errors).toEqual([]);
   } finally {
+    if (layoutAsset)
+      expect([204, 404]).toContain((await api.delete(`/api/v1/assets/${layoutAsset}`)).status());
     await api.dispose();
   }
 });

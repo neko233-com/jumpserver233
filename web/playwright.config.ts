@@ -5,6 +5,7 @@ import { defineConfig } from "@playwright/test";
 const webDir = fileURLToPath(new URL(".", import.meta.url));
 const serverDir = resolve(webDir, "../server");
 const testDataDir = process.env.JMS_E2E_DATA_DIR;
+const navigationOnly = process.env.JMS_E2E_NAVIGATION_ONLY === "true";
 const frontend =
   process.env.JMS_E2E_PRODUCTION === "true"
     ? "pnpm exec vite preview --config e2e/preview.vite.config.ts"
@@ -16,12 +17,14 @@ if (!testDataDir)
 
 const config = defineConfig({
   testDir: "./e2e",
+  testMatch: navigationOnly ? "**/console-navigation.spec.ts" : undefined,
   // Archived Enterprise UI cases remain as source references. The shipped mini
   // graph has no routes for these pages, and needs no corresponding fixtures.
   testIgnore: [
     "**/{announcements,asset-discovery,assistant,branding,clickhouse,database,desktop-monitor,enterprise-login,identity-sources,kubernetes,mysql,native-notifications,nosql,organization-overview,pam,radius,rdp,replay-storage,session-security,sms-mfa,sqlserver,telnet}.spec.ts",
   ],
-  grepInvert: /signs in over real LDAPS|signs in through a real synthetic OIDC|completes CAS service-ticket|completes SAML signed-assertion/,
+  grepInvert:
+    /signs in over real LDAPS|signs in through a real synthetic OIDC|completes CAS service-ticket|completes SAML signed-assertion/,
   fullyParallel: false,
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
@@ -340,7 +343,23 @@ const config = defineConfig({
 
 // Keep only SSH, native-host, authentication and notification fixtures. In
 // particular no cloud, SQL, Kubernetes, RDP or external IdP service is started.
-const miniPorts = new Set(["12326", "12604", "8085", "15180", "12242", "12238", "18185", "15178", "12223", "8083", "5177"]);
+const miniPorts = new Set(
+  navigationOnly
+    ? ["12223", "8083", "5177"]
+    : [
+        "12326",
+        "12604",
+        "8085",
+        "15180",
+        "12242",
+        "12238",
+        "18185",
+        "15178",
+        "12223",
+        "8083",
+        "5177",
+      ],
+);
 if (Array.isArray(config.webServer)) {
   config.webServer = config.webServer.filter((server) => miniPorts.has(new URL(server.url!).port));
 }

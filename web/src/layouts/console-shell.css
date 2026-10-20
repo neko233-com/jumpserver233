@@ -337,3 +337,16 @@
   color: var(--muted);
   font-size: 12px;
 }
+
+@media (min-width: 1001px) and (max-width: 1600px) {
+  .layout-sidebar {
+    width: 176px;
+    flex-basis: 176px;
+  }
+}
+
+@media (min-width: 1001px) {
+  .asset-table-wrap {
+    max-height: min(72dvh, calc(100dvh - 185px));
+  }
+}

@@ -272,7 +272,7 @@ try {
   let recoveredLogin = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
   if (recoveredLogin.user.id !== loginBefore.user.id || (await api("GET", "/api/v1/ops/jobs/" + originalJob, undefined, recoveredLogin.access_token)).state !== "succeeded") throw new Error("Forward recovery lost identity or audit");
   await execSSH(recoveredLogin.access_token, "native-after-forward-recovery");
-  const recoveredOperator = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword }); await viewOnly(recoveredOperator.access_token);
+  let recoveredOperator = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword }); await viewOnly(recoveredOperator.access_token);
 	const workspace = "/home/keyqa/workspace";
 	await run("docker", ["exec", owner + "-ssh", "sh", "-ceu", "mkdir -p /home/keyqa/workspace /home/keyqa/protected; printf preserve > /home/keyqa/protected/sentinel; chown -R keyqa:keyqa /home/keyqa/workspace /home/keyqa/protected"]);
 	await api("PUT", "/api/v1/assets/" + asset.id, { name: asset.name, host: asset.host, port: asset.port, username: asset.username, host_key_fingerprint: fingerprint, ssh_workspace: workspace }, recoveredLogin.access_token);
@@ -319,7 +319,7 @@ try {
   const approvalPassword = "synthetic-scoped-file-operator-password";
   const approvalUser = await api("POST", "/api/v1/users", { username: "native.file.operator", password: approvalPassword, role: "operator" }, recoveredLogin.access_token, 201);
   await api("POST", "/api/v1/grants", { user_id: approvalUser.id, asset_id: asset.id, account: asset.username, actions: ["view", "connect", "sftp"] }, recoveredLogin.access_token, 201);
-  const approvalLogin = await api("POST", "/api/v1/authentication/auth/", { username: approvalUser.username, password: approvalPassword });
+  let approvalLogin = await api("POST", "/api/v1/authentication/auth/", { username: approvalUser.username, password: approvalPassword });
   const updateApprovalAsset = async remark => api("PUT", "/api/v1/assets/" + asset.id, { name: asset.name, host: asset.host, port: asset.port, username: asset.username, host_key_fingerprint: fingerprint, ssh_workspace: workspace, login_review_required: true, remark }, recoveredLogin.access_token);
   await updateApprovalAsset("connection-snapshot-1");
   const fileSession = `/api/v1/assets/${asset.id}/files/session`;
@@ -472,6 +472,8 @@ try {
   // after a process restart while separately proving that the old token dies.
   await api("GET", `/api/v1/ops/runs/${completedDirectoryRun.id}`, undefined, recoveredLogin.access_token, 401);
   recoveredLogin = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
+  recoveredOperator = await api("POST", "/api/v1/authentication/auth/", { username: operator.username, password: operatorPassword });
+  approvalLogin = await api("POST", "/api/v1/authentication/auth/", { username: approvalUser.username, password: approvalPassword });
   const restartedDirectoryRun = await api("GET", `/api/v1/ops/runs/${completedDirectoryRun.id}`, undefined, recoveredLogin.access_token);
   if (restartedDirectoryRun.state !== "succeeded" || restartedDirectoryRun.working_directory !== deployDirectory || JSON.stringify(restartedDirectoryRun.items.map(i => i.steps.map(s => s.job_id))) !== JSON.stringify(completedDirectoryRun.items.map(i => i.steps.map(s => s.job_id)))) throw Error("Restart lost directory snapshots or replayed completed steps");
   report.operationDirectories.restartPreservesSnapshotsWithoutReplay = true;
