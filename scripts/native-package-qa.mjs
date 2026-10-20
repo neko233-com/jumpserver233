@@ -21,7 +21,6 @@ import { verifySSHPasswordPolicy } from "./ssh-password-policy-qa.mjs";
 import { verifyOperationDirectories, verifyOperationDirectoryBrowser } from "./operation-directories-qa.mjs";
 import {verifyInteractiveDirectories} from "./interactive-directories-qa.mjs";
 import { verifySSHCertificates, verifySSHCertificateRestart, verifySSHCertificateBrowser } from "./ssh-certificates-qa.mjs";
-import { verifyReplayStorage, verifyReplayStorageRestart } from "./replay-storage-qa.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
 const options = process.argv.slice(2), historical = options.includes("--historical");
@@ -33,7 +32,7 @@ mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
 const sshImage = owner + "-ssh:qa";
-const report = { at: new Date().toISOString(), pid: process.pid, owner, temporaryDirectory: temporary, status: "running", packages: [], cleanup: {} };
+const report = { at: new Date().toISOString(), pid: process.pid, owner, temporaryDirectory: temporary, status: "running", scope: "mini-ssh", deferredNativeFeatures: ["external-replay-storage"], packages: [], cleanup: {} };
 const save = () => writeFileSync(resolve(output, "native-packages.json"), JSON.stringify(report, null, 2));
 const run = (command, args, options = {}) => execute(command, args, { cwd: root, windowsHide: true, maxBuffer: 2 * 1024 * 1024, ...options });
 const runInput = (command, args, input, options = {}) => { const pending = run(command, args, options); pending.child.stdin.on("error", () => {}); pending.child.stdin.end(input); return pending; };
@@ -452,11 +451,13 @@ try {
   const cwdCLI = JSON.parse((await run("docker", ["exec", owner, "sh", "-ceu", 'JMS_TOKEN="$JMS_ADMIN_TOKEN" JMS_SERVER_URL=http://127.0.0.1:8080 /tmp/controller/jms exec "$1" --directory "$2" --json -- pwd -P', "sh", asset.id, deployDirectory])).stdout);
   if (cwdCLI.state !== "succeeded" || cwdCLI.stdout.trim() !== deployDirectory) throw new Error("Native CLI did not select actual cwd");
   report.executionDirectories = { exactTreeAndRegex: true, deniedCommandsNeverCreatedFiles: true, pathBoundaryPreserved: true, symlinkAndOutsideRefused: true, loginReviewReplacementCreatesNewApproval: true, loginRetryIdempotent: true, commandReviewReplacementRefused: true, sameNamePolicyReplacementRefused: true, approvedCwdVerified: true, retryWithoutLiveSSH: true, changedDirectoryRetryConflict: true, nativeCLI: true };
+  report.phase = "operation_directories"; save();
   await verifyOperationDirectories({api, admin: recoveredLogin.access_token, run, runInput, owner, sshHost: owner + "-ssh", fingerprint, workspace, directory: deployDirectory, sibling: siblingDirectory, primary: asset, report});
+  report.phase = "interactive_directories"; save();
   await verifyInteractiveDirectories({api,admin:recoveredLogin.access_token,operator:directoryLogin.access_token,asset,workspace,url,run,sshHost:owner+"-ssh",report});
   const completedDirectoryRun = await api("GET", `/api/v1/ops/runs/${report.operationDirectories.playbookRunID}`, undefined, recoveredLogin.access_token);
+  report.phase = "ssh_certificates"; save();
   const certificateFixture=await verifySSHCertificates({api,admin:recoveredLogin.access_token,run,runInput,owner,sshHost:owner+"-ssh",fingerprint,url,report});
-  const replayStorageFixture=await verifyReplayStorage({api,admin:recoveredLogin.access_token,certificateFixture,run,runInput,owner,sshHost:owner+"-ssh",url,report});
   const nativeLabelInput = {name: "Native lifecycle", value: "encrypted-restart", request_id: randomUUID()};
   const nativeLabel = await api("POST", "/api/v1/labels/labels", nativeLabelInput, recoveredLogin.access_token, 201);
   const nativeLabelBindingInput = {label_ids: [nativeLabel.id], revision: 0, request_id: randomUUID()};
@@ -471,7 +472,7 @@ try {
   if (restartedDirectoryRun.state !== "succeeded" || restartedDirectoryRun.working_directory !== deployDirectory || JSON.stringify(restartedDirectoryRun.items.map(i => i.steps.map(s => s.job_id))) !== JSON.stringify(completedDirectoryRun.items.map(i => i.steps.map(s => s.job_id)))) throw Error("Restart lost directory snapshots or replayed completed steps");
   report.operationDirectories.restartPreservesSnapshotsWithoutReplay = true;
   await verifySSHCertificateRestart({api,admin:recoveredLogin.access_token,fixture:certificateFixture,report});
-  await verifyReplayStorageRestart({api,admin:recoveredLogin.access_token,fixture:replayStorageFixture,url,report});
+  report.phase = "maintenance_and_updates"; save();
   const nativeLabelAfter = await api("POST", "/api/v1/labels/labels", nativeLabelInput, recoveredLogin.access_token, 201);
   const nativeBindingAfter = await api("PUT", `/api/v1/labels/bindings/asset/${asset.id}`, nativeLabelBindingInput, recoveredLogin.access_token);
   const nativeReadingAfter = await api("POST", `/api/v1/announcements/${nativeNotice.id}/read`, {revision: nativeNotice.revision}, recoveredLogin.access_token);
@@ -625,8 +626,8 @@ try {
     await page.getByRole("button", { name: "EN", exact: true }).click();
     await verifyOperationDirectoryBrowser({page, expect, url, api, admin: recoveredLogin.access_token, directory: deployDirectory, output, report});
     await verifySSHCertificateBrowser({page,expect,url,api,admin:recoveredLogin.access_token,report});
-    // External storage is outside the shipped mini UI. Preserve its existing
-    // data/API restart regression above without testing a deferred page.
+    // External replay-storage cases remain in replay-storage-qa.mjs. The mini
+    // gate validates local recordings, encrypted backups and native updates.
     await page.goto(url + "/console/settings");
     await page.getByRole("tab", { name: "Security", exact: true }).click();
     const card = page.locator(".update-settings-card");
