@@ -18,13 +18,13 @@ const casCookiePath = "/api/v1/authentication/cas"
 
 func casCookie(r *http.Request, name string) string {
 	c, e := r.Cookie(name)
-	if e != nil || len(c.Value) > 128 {
+	if e != nil || len(c.Value) > 400 {
 		return ""
 	}
-	return c.Value
+	return externalReadFlowCookie(r, name, c.Value)
 }
 func setCASCookie(w http.ResponseWriter, r *http.Request, d Dependencies, name, value string, age int) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: casCookiePath, HttpOnly: true, Secure: secureSessionCookie(r) || d.CAS.SecureCookies(), SameSite: http.SameSiteLaxMode, MaxAge: age})
+	http.SetCookie(w, &http.Cookie{Name: name, Value: externalSetFlowCookie(r, name, value), Path: externalCookiePath(r, casCookiePath), HttpOnly: true, Secure: secureSessionCookie(r) || d.CAS.SecureCookies(), SameSite: http.SameSiteLaxMode, MaxAge: age})
 }
 func registerCASRoutes(mux *http.ServeMux, d Dependencies) {
 	protect := func(h http.HandlerFunc) http.Handler { return protectAdminAPI(h, d.AdminToken, d.Auth) }
@@ -74,7 +74,7 @@ func registerCASRoutes(mux *http.ServeMux, d Dependencies) {
 			writeCASError(w, caslogin.ErrInvalid)
 			return
 		}
-		u, e := d.Auth.EnsureExternalUser("cas", c.BaseURL, in.Subject, in.Username, true)
+		u, e := ensureExternalForRequest(r, d.Auth, "cas", c.BaseURL, in.Subject, in.Username, true)
 		if e != nil {
 			writeCASError(w, e)
 			return
@@ -130,7 +130,7 @@ func registerCASRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
-		user, e := d.Auth.EnsureExternalUser("cas", id.Issuer, id.Subject, "", id.Provision)
+		user, e := ensureExternalForRequest(r, d.Auth, "cas", id.Issuer, id.Subject, "", id.Provision)
 		if e != nil {
 			fail()
 			return
@@ -156,7 +156,7 @@ func registerCASRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		u, ok := d.Auth.UserByID(p.UserID)
-		if !ok || u.Source != "cas" {
+		if !ok || (u.Source != "cas" || u.SourceID != externalSourceID(r)) {
 			writeCASError(w, caslogin.ErrFlow)
 			return
 		}

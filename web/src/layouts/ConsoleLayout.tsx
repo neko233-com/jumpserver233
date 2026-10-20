@@ -61,6 +61,9 @@ export default function ConsoleLayout({ title }: { title: string }) {
     { to: "/console/access-policies", label: t("acl.title"), end: false },
     { to: "/console/login-reviews", label: t("platformReview.title"), end: false },
     { to: "/console/identity", label: t("oidc.settingsTitle"), end: false },
+    ...(systemAllows("security.manage")
+      ? [{ to: "/console/identity-sources", label: t("nav.identitySources"), end: false }]
+      : []),
     { to: "/console/directory", label: t("ldap.title"), end: false },
     { to: "/console/saml", label: t("saml.title"), end: false },
     { to: "/console/passkeys", label: t("passkey.title"), end: false },

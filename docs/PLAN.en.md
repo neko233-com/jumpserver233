@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+[Multiple identity sources and directory synchronization](./IDENTITY-SOURCES.en.md) authors named LDAP/OIDC/CAS/SAML, separate encryption/callbacks/credential revocation, complete LDAP collection, group/organization mappings, schedules/retry/abort, bilingual Web, CLI/SDK and cases. E04 is implementation-ready and unverified.
+
 [Fixed acceptance checklist and overall progress](./PROGRESS.en.md) separately counts stable SSH and the full baseline, recording closed/partial/undelivered items, batch delta and closing gates. Progress follows this checklist and named acceptance, rather than test or phase counts.
 
 The user's 2026-10-20 workflow instruction requires all checklist features, cases and bilingual docs before tests, builds, browser or Docker verification. SSH remains the development priority; prior SSH-only acceptance batches no longer apply. [Platform announcement](./ANNOUNCEMENTS.en.md) and [organization label](./LABELS.en.md) source, cases and bilingual docs are authored. E41 is implementation-ready, awaiting verification with no accepted credit.

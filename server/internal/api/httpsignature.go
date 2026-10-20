@@ -51,7 +51,11 @@ func authenticateHTTPSignature(r *http.Request, identities *coreauth.Service) (c
 		return coreauth.User{}, false
 	}
 
-	requestTarget := strings.ToLower(r.Method) + " " + r.URL.RequestURI()
+	uri := r.URL.RequestURI()
+	if original, ok := r.Context().Value(identityOriginalURIKey{}).(string); ok {
+		uri = original
+	}
+	requestTarget := strings.ToLower(r.Method) + " " + uri
 	lines := []string{"(request-target): " + requestTarget}
 	if len(headerNames) == 3 {
 		acceptValues := r.Header.Values("Accept")

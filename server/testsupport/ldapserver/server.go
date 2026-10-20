@@ -17,6 +17,7 @@ import (
 	"time"
 
 	ber "github.com/go-asn1-ber/asn1-ber"
+	ldap "github.com/go-ldap/ldap/v3"
 )
 
 const BaseDN = "dc=example,dc=test"
@@ -25,8 +26,11 @@ const BindPassword = "synthetic-directory-reader-password"
 const Username = "directory.user"
 const Password = "synthetic-directory-user-password"
 const UserDN = "uid=directory.user," + BaseDN
+const GroupBaseDN = "ou=groups," + BaseDN
+const GroupDN = "cn=operators," + GroupBaseDN
 
 type Options struct {
+	DirectorySync, MissingPaging, RepeatPaging, TruncatedSearch                                        bool
 	StallBinds                                                                                         bool
 	Addr                                                                                               string
 	StartTLS, RejectStartTLS, Duplicate, MissingIdentity, OutsideBase, Disabled, Referral, BadHostname bool
@@ -161,7 +165,7 @@ func (s *Server) entry(id int64) *ber.Packet {
 	}
 	op.AppendChild(str(dn))
 	attrs := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "")
-	values := map[string]string{"userAccountControl": "512", "entryUUID": "synthetic-stable-directory-id", "objectGUID": "\x01\x02synthetic-binary-guid"}
+	values := map[string]string{"uid": Username, "sAMAccountName": Username, "userAccountControl": "512", "entryUUID": "synthetic-stable-directory-id", "objectGUID": "\x01\x02synthetic-binary-guid"}
 	if s.Options.Disabled {
 		values["userAccountControl"] = "514"
 	}
@@ -252,7 +256,19 @@ func (s *Server) serve(raw net.Conn) {
 			if name == "" {
 				name = Username
 			}
-			if matchFilter(op.Children[6], name) {
+			paging := false
+			for _, child := range p.Children[2:] {
+				for _, control := range child.Children {
+					if len(control.Children) > 0 && control.Children[0].Data.String() == ldap.ControlTypePaging {
+						paging = true
+					}
+				}
+			}
+			if paging && s.Options.DirectorySync && op.Children[0].Data.String() == GroupBaseDN {
+				if !write(c, groupEntry(id)) {
+					return
+				}
+			} else if matchFilter(op.Children[6], name) || paging && s.Options.DirectorySync {
 				if !write(c, s.entry(id)) {
 					return
 				}
@@ -265,8 +281,24 @@ func (s *Server) serve(raw net.Conn) {
 				if !write(c, r) {
 					return
 				}
-			} else if !write(c, result(id, 5, 0)) {
-				return
+			} else {
+				code := int64(0)
+				if s.Options.TruncatedSearch {
+					code = 4
+				}
+				response := result(id, 5, code)
+				if paging && s.Options.DirectorySync && !s.Options.MissingPaging {
+					controls := ber.Encode(ber.ClassContext, ber.TypeConstructed, 0, nil, "")
+					control := ldap.NewControlPaging(500)
+					if s.Options.RepeatPaging {
+						control.SetCookie([]byte("repeated-cookie"))
+					}
+					controls.AppendChild(control.Encode())
+					response.AppendChild(controls)
+				}
+				if !write(c, response) {
+					return
+				}
 			}
 		case 2:
 			return
@@ -274,4 +306,23 @@ func (s *Server) serve(raw net.Conn) {
 			return
 		}
 	}
+}
+
+func groupEntry(id int64) *ber.Packet {
+	p := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "")
+	p.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, id, ""))
+	op := ber.Encode(ber.ClassApplication, ber.TypeConstructed, 4, nil, "")
+	op.AppendChild(str(GroupDN))
+	attrs := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "")
+	for key, value := range map[string]string{"cn": "operators", "member": UserDN} {
+		a := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "")
+		a.AppendChild(str(key))
+		set := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "")
+		set.AppendChild(str(value))
+		a.AppendChild(set)
+		attrs.AppendChild(a)
+	}
+	op.AppendChild(attrs)
+	p.AppendChild(op)
+	return p
 }

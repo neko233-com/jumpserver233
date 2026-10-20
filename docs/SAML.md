@@ -2,6 +2,8 @@
 
 > 中文 | [English](./SAML.en.md)
 
+新增[多身份源与目录同步](./IDENTITY-SOURCES.md)源码：具名身份源与默认入口独立；LDAP 完整同步和组/组织自动关系保留人工授权优先。本批尚未统一验证，以下默认入口的历史验收不能覆盖新增源码。
+
 接入单个可信 SAML 2.0 IdP，支持 SP 发起 HTTP-Redirect AuthnRequest、HTTP-POST 断言和本地 MFA。默认关闭，默认不自动建号。竞品基线仍为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，整体对齐目标未完成。
 
 ## 配置

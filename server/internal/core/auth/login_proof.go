@@ -51,11 +51,12 @@ func loginCredentialStamp(u storedUser) []byte {
 	// MFA consumption counters are intentionally excluded: another valid login
 	// must not invalidate a pending proof. Credential/configuration changes do.
 	raw, _ := json.Marshal(struct {
-		AuthGeneration                        int `json:"AuthGeneration,omitempty"`
+		AuthGeneration                        int    `json:"AuthGeneration,omitempty"`
+		SourceID                              string `json:"SourceID,omitempty"`
 		ID, Role, Source, Issuer, Identity    string
 		MFA                                   bool
 		PasswordHash, PasswordSalt, MFASecret []byte
-	}{u.AuthGeneration, u.ID, u.Role, u.Source, u.ExternalIssuer, u.ExternalIdentity, u.MFAEnabled, u.PasswordHash, u.PasswordSalt, u.MFASecretCiphertext})
+	}{u.AuthGeneration, u.SourceID, u.ID, u.Role, u.Source, u.ExternalIssuer, u.ExternalIdentity, u.MFAEnabled, u.PasswordHash, u.PasswordSalt, u.MFASecretCiphertext})
 	hash := sha256.Sum256(raw)
 	return hash[:]
 }

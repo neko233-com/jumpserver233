@@ -2,6 +2,8 @@
 
 > [中文](./CAS.md) | English
 
+New [multiple identity-source and directory synchronization](./IDENTITY-SOURCES.en.md) source keeps named sources separate from default endpoints. Complete LDAP synchronization and owned group/organization mapping preserve manual precedence. This batch is unverified; historical default-provider acceptance below does not cover new source.
+
 `/console/cas` configures one CAS 2.0/3.0 provider. Browsers redirect to CAS; the server validates a one-time service ticket against the exact service URL, enforces local MFA, and issues only an HttpOnly platform session. CAS and first-login provisioning are disabled by default; local administrators remain a recovery entry point.
 
 ## Configuration and identity

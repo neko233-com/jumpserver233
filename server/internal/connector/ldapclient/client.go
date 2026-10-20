@@ -83,6 +83,9 @@ func validUsername(value string) bool {
 // A connection has an absolute deadline, cancellation, and a read budget. No
 // referrals or aliases are followed, and binds never use an empty password.
 func connect(ctx context.Context, c Config, password string) (*ldap.Conn, func(), error) {
+	return connectWithBudget(ctx, c, password, 10*time.Second, 1<<20)
+}
+func connectWithBudget(ctx context.Context, c Config, password string, duration time.Duration, budget int) (*ldap.Conn, func(), error) {
 	if Validate(c) != nil || password == "" || len(password) > 4096 {
 		return nil, nil, ErrConfig
 	}
@@ -94,7 +97,7 @@ func connect(ctx context.Context, c Config, password string) (*ldap.Conn, func()
 			port = "636"
 		}
 	}
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(duration)
 	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
 		deadline = d
 	}
@@ -119,7 +122,7 @@ func connect(ctx context.Context, c Config, password string) (*ldap.Conn, func()
 		}
 		wire = t
 	}
-	l := ldap.NewConn(&budgetConn{Conn: wire, remaining: 1 << 20}, u.Scheme == "ldaps")
+	l := ldap.NewConn(&budgetConn{Conn: wire, remaining: budget}, u.Scheme == "ldaps")
 	l.Start()
 	l.SetTimeout(time.Until(deadline))
 	cleanup := func() { stop(); _ = l.Close(); _ = conn.Close() }

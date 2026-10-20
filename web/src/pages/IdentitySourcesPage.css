@@ -1,0 +1,104 @@
+.identity-sources-page {
+  display: grid;
+  gap: 1rem;
+  max-width: 80rem;
+  margin: auto;
+  padding: 1rem;
+  min-width: 0;
+}
+.identity-source-header,
+.identity-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.identity-source-header h1,
+.identity-source-grid h2 {
+  margin: 0.25rem 0;
+}
+.identity-source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+}
+.identity-source-grid article,
+.identity-source-form {
+  padding: 1rem;
+  border: 1px solid var(--border, #475569);
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.identity-sources-page label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.identity-sources-page input:not([type="checkbox"]),
+.identity-sources-page select,
+.identity-sources-page textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.identity-sources-page .identity-source-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.identity-source-form {
+  max-width: 45rem;
+}
+.identity-source-form > div,
+.identity-source-header > div:last-child {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.identity-source-table {
+  overflow: auto;
+  max-width: 100%;
+}
+.identity-source-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.identity-source-table td,
+.identity-source-table th {
+  text-align: start;
+  padding: 0.6rem;
+  border-bottom: 1px solid var(--border, #475569);
+}
+.identity-source-grid code {
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+.identity-source-mapping {
+  border: 1px solid var(--border, #475569);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.65rem;
+  border-radius: 0.5rem;
+}
+.identity-source-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+@media (max-width: 480px) {
+  .identity-sources-page {
+    padding: 0.6rem;
+  }
+  .identity-source-form,
+  .identity-source-grid article {
+    padding: 0.7rem;
+  }
+  .identity-source-header {
+    align-items: start;
+  }
+}

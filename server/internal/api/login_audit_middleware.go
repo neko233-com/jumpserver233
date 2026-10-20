@@ -19,7 +19,7 @@ type loginAuditAttempt struct {
 }
 
 func auditedLoginStep(r *http.Request) (method, stage string, ok bool) {
-	p := r.URL.Path
+	_, p := identityScopedPath(r.URL.Path)
 	switch p {
 	case "/api/v1/authentication/auth/", "/api/v1/authentication/bootstrap":
 		return "local", "primary", r.Method == "POST"

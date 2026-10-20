@@ -1348,6 +1348,7 @@ const zhCN = {
     name: "JumpServer233",
   },
   nav: {
+    identitySources: "身份源",
     assetDiscovery: "资产发现",
     branding: "品牌外观",
     announcements: "平台公告",
@@ -1373,6 +1374,7 @@ const zhCN = {
     signOut: "退出登录",
   },
   login: {
+    namedSource: "使用 {{name}} 登录",
     username: "用户名",
     password: "密码",
     otp: "身份验证器验证码",

@@ -23,6 +23,7 @@ import (
 	"github.com/beevik/etree"
 	"github.com/crewjam/saml"
 	xrv "github.com/mattermost/xml-roundtrip-validator"
+	"github.com/neko233-com/jumpserver233/server/internal/core/identityscope"
 	dsig "github.com/russellhaering/goxmldsig"
 )
 
@@ -170,12 +171,22 @@ func ParseMetadata(raw string, loopback bool) (*saml.EntityDescriptor, error) {
 	}
 	return &m, nil
 }
-func New(c Config, key IdentityKey) (*Client, error) {
+func New(c Config, key IdentityKey, prefixes ...string) (*Client, error) {
+	if len(prefixes) > 1 {
+		return nil, ErrConfig
+	}
+	prefix := ""
+	if len(prefixes) == 1 {
+		prefix = prefixes[0]
+	}
+	if !identityscope.ValidPrefix(prefix) {
+		return nil, ErrConfig
+	}
 	if !Endpoint(c.EntityID, c.AllowLoopbackHTTP) || !Endpoint(c.ACSURL, c.AllowLoopbackHTTP) {
 		return nil, ErrConfig
 	}
 	acs, _ := url.Parse(c.ACSURL)
-	if acs.Path != ACSPath {
+	if acs.Path != prefix+ACSPath {
 		return nil, ErrConfig
 	}
 	m, e := ParseMetadata(c.MetadataXML, c.AllowLoopbackHTTP)
@@ -200,7 +211,7 @@ func New(c Config, key IdentityKey) (*Client, error) {
 		return nil, ErrConfig
 	}
 	meta := *acs
-	meta.Path = MetadataPath
+	meta.Path = prefix + MetadataPath
 	force := true
 	sp := &saml.ServiceProvider{EntityID: c.EntityID, Key: k, Certificate: cert, MetadataURL: meta, AcsURL: *acs, IDPMetadata: m, AuthnNameIDFormat: saml.NameIDFormat(Persistent), ForceAuthn: &force, SignatureMethod: dsig.RSASHA256SignatureMethod}
 	sp.ValidateAudienceRestriction = func(a *saml.Assertion) error {

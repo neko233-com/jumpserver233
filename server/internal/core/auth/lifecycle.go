@@ -72,13 +72,13 @@ type userEnvelope struct {
 
 func userRevision(u User) int { return max(1, u.Revision) }
 func userUsable(u User, now time.Time) bool {
-	return !u.Disabled && u.ArchivedAt.IsZero() && (u.DateExpired.IsZero() || now.Before(u.DateExpired))
+	return !u.Disabled && !u.SourceSuspended && u.ArchivedAt.IsZero() && (u.DateExpired.IsZero() || now.Before(u.DateExpired))
 }
 func userState(u User, now time.Time) string {
 	switch {
 	case !u.ArchivedAt.IsZero():
 		return "archived"
-	case u.Disabled:
+	case u.Disabled || u.SourceSuspended:
 		return "disabled"
 	case !u.DateExpired.IsZero() && !now.Before(u.DateExpired):
 		return "expired"

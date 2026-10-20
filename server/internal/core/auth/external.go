@@ -9,6 +9,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/neko233-com/jumpserver233/server/internal/core/identityscope"
 )
 
 var ErrExternalIdentity = errors.New("password is managed by an external identity provider")
@@ -22,6 +24,15 @@ func (s *Service) SetExternalIssuerAllowed(check func(string) bool) {
 	s.SetExternalSourceAllowed("oidc", check)
 }
 func (s *Service) SetExternalSourceAllowed(source string, check func(string) bool) {
+	s.setExternalAllowed(source, check)
+}
+func (s *Service) SetNamedExternalSourceAllowed(source, id string, check func(string) bool) {
+	if !isExternalSource(source) || !identityscope.ValidID(id) {
+		return
+	}
+	s.setExternalAllowed(source+"\x00"+id, check)
+}
+func (s *Service) setExternalAllowed(source string, check func(string) bool) {
 	s.mu.Lock()
 	if s.externalAllowed == nil {
 		s.externalAllowed = make(map[string]func(string) bool)
@@ -33,8 +44,43 @@ func (s *Service) externalAllowedLocked(record storedUser) bool {
 	if !userUsable(record.User, s.now()) {
 		return false
 	}
-	check := s.externalAllowed[record.Source]
+	key := record.Source
+	if record.SourceID != "" {
+		key += "\x00" + record.SourceID
+	}
+	check := s.externalAllowed[key]
 	return record.Source == "" || (check != nil && check(record.ExternalIssuer))
+}
+
+// RevokeNamedExternalSource prevents suspended-source capabilities from reviving
+// when an administrator enables that source again. Call before publishing a
+// disabled/archived definition; an interrupted write is deliberately fail closed.
+func (s *Service) RevokeNamedExternalSource(source, id string) error {
+	if !isExternalSource(source) || !identityscope.ValidID(id) {
+		return ErrInvalidCredentials
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous := s.users
+	next := make(map[string]storedUser, len(previous))
+	changed := false
+	for name, r := range previous {
+		if r.Source == source && r.SourceID == id {
+			clearUserCapabilities(&r)
+			r.Revision++
+			changed = true
+		}
+		next[name] = r
+	}
+	if !changed {
+		return nil
+	}
+	s.users = next
+	if e := s.persistLocked(); e != nil {
+		s.users = previous
+		return e
+	}
+	return nil
 }
 
 // ActiveUserByID validates the current identity source for a long-lived session
@@ -70,15 +116,51 @@ func (s *Service) EnsureOIDCUser(issuer, subject, alias string, provision bool) 
 	return s.EnsureExternalUser("oidc", issuer, subject, alias, provision)
 }
 func (s *Service) EnsureExternalUser(source, issuer, subject, alias string, provision bool) (User, error) {
+	return s.ensureExternalUser(source, "", issuer, subject, alias, provision)
+}
+func (s *Service) EnsureNamedExternalUser(source, id, issuer, subject, alias string, provision bool) (User, error) {
+	if !identityscope.ValidID(id) {
+		return User{}, ErrInvalidCredentials
+	}
+	return s.ensureExternalUser(source, id, issuer, subject, alias, provision)
+}
+func (s *Service) EnsureNamedExternalLoginUser(source, id, issuer, subject, alias string, provision bool, guards ...func() bool) (User, error) {
+	if !identityscope.ValidID(id) {
+		return User{}, ErrInvalidCredentials
+	}
+	check := func() bool {
+		allowed := s.externalAllowed[source+"\x00"+id]
+		if allowed == nil || !allowed(issuer) {
+			return false
+		}
+		for _, guard := range guards {
+			if guard == nil || !guard() {
+				return false
+			}
+		}
+		return true
+	}
+	return s.ensureExternalUser(source, id, issuer, subject, alias, provision, check)
+}
+func (s *Service) ensureExternalUser(source, sourceID, issuer, subject, alias string, provision bool, requireActive ...func() bool) (User, error) {
 	if !isExternalSource(source) || issuer == "" || subject == "" || len(issuer) > 2048 || len(subject) > 1024 {
 		return User{}, ErrInvalidCredentials
 	}
-	digest := sha256.Sum256([]byte(issuer + "\x00" + subject))
+	identityInput := issuer + "\x00" + subject
+	if sourceID != "" {
+		identityInput = sourceID + "\x00" + identityInput
+	}
+	digest := sha256.Sum256([]byte(identityInput))
 	identity := hex.EncodeToString(digest[:])
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for _, check := range requireActive {
+		if check == nil || !check() {
+			return User{}, ErrInvalidCredentials
+		}
+	}
 	for _, r := range s.users {
-		if r.Source == source && r.ExternalIdentity == identity && r.ExternalIssuer == issuer {
+		if r.Source == source && r.SourceID == sourceID && r.ExternalIdentity == identity && r.ExternalIssuer == issuer {
 			return r.User, nil
 		}
 	}
@@ -109,7 +191,7 @@ func (s *Service) EnsureExternalUser(source, issuer, subject, alias string, prov
 			return User{}, err
 		}
 	}
-	user := User{Revision: 1, ID: "user-" + hex.EncodeToString(id[:]), Username: name, Role: RoleOperator, Source: source, CreatedAt: s.now().UTC()}
+	user := User{Revision: 1, ID: "user-" + hex.EncodeToString(id[:]), Username: name, Role: RoleOperator, Source: source, SourceID: sourceID, CreatedAt: s.now().UTC()}
 	s.users[name] = storedUser{User: user, ExternalIssuer: issuer, ExternalIdentity: identity, PasswordSalt: salt[:], PasswordHash: inertHash[:]}
 	if err := s.persistLocked(); err != nil {
 		delete(s.users, name)
@@ -124,10 +206,19 @@ func (s *Service) AuthenticateOIDCUser(id, otp string) (LoginSession, *MFASetupC
 	return s.AuthenticateExternalUser(id, "oidc", otp)
 }
 func (s *Service) AuthenticateExternalUser(id, source, otp string, generation ...int) (LoginSession, *MFASetupChallenge, error) {
+	return s.authenticateExternalUser(id, source, "", otp, generation...)
+}
+func (s *Service) AuthenticateNamedExternalUser(id, source, sourceID, otp string, generation ...int) (LoginSession, *MFASetupChallenge, error) {
+	if !identityscope.ValidID(sourceID) {
+		return LoginSession{}, nil, ErrInvalidCredentials
+	}
+	return s.authenticateExternalUser(id, source, sourceID, otp, generation...)
+}
+func (s *Service) authenticateExternalUser(id, source, sourceID, otp string, generation ...int) (LoginSession, *MFASetupChallenge, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	name, current, ok := s.storedUserByIDLocked(id)
-	if !ok || len(generation) > 1 || len(generation) == 1 && current.AuthGeneration != generation[0] || !isExternalSource(source) || current.Source != source || !s.externalAllowedLocked(current) {
+	if !ok || len(generation) > 1 || len(generation) == 1 && current.AuthGeneration != generation[0] || !isExternalSource(source) || current.Source != source || current.SourceID != sourceID || !s.externalAllowedLocked(current) {
 		return LoginSession{}, nil, ErrInvalidCredentials
 	}
 	return s.authenticateVerifiedPrimaryLocked(name, current, otp, "")

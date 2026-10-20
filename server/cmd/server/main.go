@@ -36,10 +36,12 @@ import (
 	corecommandfilters "github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
 	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/databasequery"
+	"github.com/neko233-com/jumpserver233/server/internal/core/directorysync"
 	corefiles "github.com/neko233-com/jumpserver233/server/internal/core/files"
 	coregrants "github.com/neko233-com/jumpserver233/server/internal/core/grants"
 	coregroups "github.com/neko233-com/jumpserver233/server/internal/core/groups"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
+	"github.com/neko233-com/jumpserver233/server/internal/core/identitysources"
 	corejobs "github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
@@ -433,6 +435,16 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, RADIUS: radiusService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
+	root.IdentitySources, err = identitysources.Open(filepath.Join(cfg.DataDir, "identity-sources.json"), vaultKey, documents, cfg.PublicURL, identityService)
+	if err != nil {
+		return err
+	}
+	defer root.IdentitySources.Close()
+	root.DirectorySync, err = directorysync.Open(filepath.Join(cfg.DataDir, "directory-sync.json"), vaultKey, documents, root.IdentitySources, identityService, groupStore, orgStore)
+	if err != nil {
+		return err
+	}
+	defer root.DirectorySync.Close()
 	root.Branding = brandStore
 	root.Announcements = announcementStore
 	root.Labels, err = labels.Open(filepath.Join(cfg.DataDir, "labels.json"), vaultKey, documents)
@@ -557,6 +569,10 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 
 	nodeCtx, cancelNode := context.WithCancel(ctx)
+	if err = root.DirectorySync.Start(nodeCtx); err != nil {
+		cancelNode()
+		return err
+	}
 	if err = root.ReplayArchive.Start(nodeCtx); err != nil {
 		cancelNode()
 		return err

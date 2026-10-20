@@ -127,6 +127,7 @@ export default {
         asset_cycles: "Inventory monitor cycles",
         credential_operations: "Credential operations",
         ssh_jobs: "Executing SSH jobs",
+        directory_sync: "Directory synchronization",
         replay_archive: "Encrypted replay uploads and readback",
         probes: "Host probes",
         plan_dispatch: "Plan dispatch cycles",

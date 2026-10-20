@@ -20,17 +20,17 @@ const ldapCookiePath = "/api/v1/authentication/ldap"
 
 func ldapCookie(r *http.Request) string {
 	c, e := r.Cookie(ldapPendingCookie)
-	if e != nil || len(c.Value) > 128 {
+	if e != nil || len(c.Value) > 400 {
 		return ""
 	}
-	return c.Value
+	return externalReadFlowCookie(r, ldapPendingCookie, c.Value)
 }
 func setLDAPCookie(w http.ResponseWriter, r *http.Request, value string) {
 	age := 300
 	if value == "" {
 		age = -1
 	}
-	http.SetCookie(w, &http.Cookie{Name: ldapPendingCookie, Value: value, Path: ldapCookiePath, HttpOnly: true, Secure: secureSessionCookie(r), SameSite: http.SameSiteLaxMode, MaxAge: age})
+	http.SetCookie(w, &http.Cookie{Name: ldapPendingCookie, Value: externalSetFlowCookie(r, ldapPendingCookie, value), Path: externalCookiePath(r, ldapCookiePath), HttpOnly: true, Secure: secureSessionCookie(r), SameSite: http.SameSiteLaxMode, MaxAge: age})
 }
 func registerLDAPRoutes(mux *http.ServeMux, d Dependencies) {
 	protect := func(h http.HandlerFunc) http.Handler { return protectAdminAPI(h, d.AdminToken, d.Auth) }
@@ -80,7 +80,7 @@ func registerLDAPRoutes(mux *http.ServeMux, d Dependencies) {
 			writeLDAPError(w, e)
 			return
 		}
-		user, e := d.Auth.EnsureExternalUser("ldap", id.Issuer, id.Subject, in.Username, true)
+		user, e := ensureExternalForRequest(r, d.Auth, "ldap", id.Issuer, id.Subject, in.Username, true)
 		if e != nil {
 			writeLDAPError(w, e)
 			return
@@ -132,7 +132,7 @@ func registerLDAPRoutes(mux *http.ServeMux, d Dependencies) {
 			writeLDAPError(w, e)
 			return
 		}
-		user, e := d.Auth.EnsureExternalUser("ldap", id.Issuer, id.Subject, "", id.Provision)
+		user, e := ensureExternalForRequest(r, d.Auth, "ldap", id.Issuer, id.Subject, "", id.Provision)
 		if e != nil {
 			writeLDAPError(w, e)
 			return

@@ -1,3 +1,8 @@
+import {
+  identitySourcePrefix,
+  validIdentitySource,
+  type NamedLoginSource,
+} from "../auth/identitySource";
 import { passwordRedirect } from "../auth/passwordRedirect";
 import { BrandFooter, BrandMark, useBranding } from "../branding/BrandingContext";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -80,12 +85,19 @@ export default function LoginPage() {
   const [samlEnabled, setSamlEnabled] = useState(false);
   const [casEnabled, setCasEnabled] = useState(false);
   const [directoryEnabled, setDirectoryEnabled] = useState(false);
+  const [namedSources, setNamedSources] = useState<NamedLoginSource[]>([]);
+  const querySource = new URLSearchParams(location.search).get("identity_source");
+  const namedSourceID = validIdentitySource(querySource) ? querySource : "";
   const [radiusEnabled, setRadiusEnabled] = useState(false);
   const [factorPending, setFactorPending] = useState(
     () => new URLSearchParams(location.search).get("factor") === "radius",
   );
   const [authSource, setAuthSource] = useState(() =>
-    new URLSearchParams(location.search).get("radius") === "challenge" ? "radius" : "local",
+    new URLSearchParams(location.search).get("radius") === "challenge"
+      ? "radius"
+      : validIdentitySource(new URLSearchParams(location.search).get("identity_source"))
+        ? new URLSearchParams(location.search).get("identity_source")!
+        : "local",
   );
   const [directoryPending, setDirectoryPending] = useState(false);
   const [ssoSource, setSsoSource] = useState<"oidc" | "cas" | "saml" | "passkey" | "radius" | null>(
@@ -104,6 +116,25 @@ export default function LoginPage() {
     },
   );
   const ssoPending = ssoSource !== null;
+  const namedDirectory = namedSources.find((v) => v.id === authSource && v.kind === "ldap");
+  const isDirectorySource = authSource === "ldap" || !!namedDirectory;
+  const directoryPrefix = identitySourcePrefix(namedDirectory?.id);
+  useEffect(() => {
+    const c = new AbortController();
+    void fetch("/api/v1/authentication/sources", { signal: c.signal })
+      .then(async (r) => {
+        if (!r.ok) return;
+        const rows = (await r.json()) as NamedLoginSource[];
+        if (!c.signal.aborted && Array.isArray(rows))
+          setNamedSources(
+            rows.filter(
+              (v) => validIdentitySource(v.id) && ["ldap", "oidc", "cas", "saml"].includes(v.kind),
+            ),
+          );
+      })
+      .catch(() => undefined);
+    return () => c.abort();
+  }, []);
   const ssoError = new URLSearchParams(window.location.search).has("sso_error");
   const samlError = new URLSearchParams(window.location.search).has("saml_error");
   const casError = new URLSearchParams(window.location.search).has("cas_error");
@@ -291,11 +322,15 @@ export default function LoginPage() {
       });
       if (!setupChallenge && bootstrapRequired && bootstrapToken.trim())
         headers.set("Authorization", `Bearer ${bootstrapToken.trim()}`);
-      const directory = authSource === "ldap" && !bootstrapRequired;
+      if (validIdentitySource(authSource) && !namedDirectory) {
+        setAuthError(true);
+        return;
+      }
+      const directory = isDirectorySource && !bootstrapRequired;
       const endpoint = directory
         ? directoryPending
-          ? "/api/v1/authentication/ldap/complete"
-          : "/api/v1/authentication/ldap/login"
+          ? directoryPrefix + "/api/v1/authentication/ldap/complete"
+          : directoryPrefix + "/api/v1/authentication/ldap/login"
         : setupChallenge
           ? "/api/v1/authentication/mfa/setup/confirm"
           : bootstrapRequired
@@ -431,12 +466,14 @@ export default function LoginPage() {
               onFactor={waitForFactor}
               onReview={waitForReview}
               source={ssoSource ?? "oidc"}
+              identitySourceID={namedSourceID}
               key={ssoSource}
               onComplete={() => {
                 setCookieSession();
                 finishNavigation();
               }}
               onCancel={() => {
+                setAuthSource("local");
                 setSsoSource(null);
                 navigate("/login", { replace: true });
               }}
@@ -458,36 +495,46 @@ export default function LoginPage() {
                   void submit(event);
                 }}
               >
-                {(directoryEnabled || radiusEnabled) && !bootstrapRequired && (
-                  <label>
-                    {t("ldap.source")}
-                    <select
-                      aria-label={t("ldap.source")}
-                      value={authSource}
-                      disabled={submitting || directoryPending}
-                      onChange={(e) => {
-                        setAuthSource(e.target.value);
-                        setPassword("");
-                        setOtp("");
-                        setOtpRequired(false);
-                        setSetupChallenge(null);
-                        setAuthError(false);
-                      }}
-                    >
-                      <option value="local">{t("ldap.local")}</option>
-                      {directoryEnabled && <option value="ldap">{t("ldap.sourceOption")}</option>}
-                      {radiusEnabled && <option value="radius">{t("radius.signIn")}</option>}
-                    </select>
-                  </label>
-                )}
+                {(directoryEnabled ||
+                  radiusEnabled ||
+                  namedSources.some((v) => v.kind === "ldap")) &&
+                  !bootstrapRequired && (
+                    <label>
+                      {t("ldap.source")}
+                      <select
+                        aria-label={t("ldap.source")}
+                        value={authSource}
+                        disabled={submitting || directoryPending}
+                        onChange={(e) => {
+                          setAuthSource(e.target.value);
+                          setPassword("");
+                          setOtp("");
+                          setOtpRequired(false);
+                          setSetupChallenge(null);
+                          setAuthError(false);
+                        }}
+                      >
+                        <option value="local">{t("ldap.local")}</option>
+                        {directoryEnabled && <option value="ldap">{t("ldap.sourceOption")}</option>}
+                        {namedSources
+                          .filter((v) => v.kind === "ldap")
+                          .map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.name}
+                            </option>
+                          ))}
+                        {radiusEnabled && <option value="radius">{t("radius.signIn")}</option>}
+                      </select>
+                    </label>
+                  )}
                 <label>
                   {t("login.username")}
                   <input
                     name="username"
                     autoComplete="username"
                     required
-                    minLength={authSource === "ldap" ? 1 : 3}
-                    maxLength={authSource === "ldap" ? 256 : 64}
+                    minLength={isDirectorySource ? 1 : 3}
+                    maxLength={isDirectorySource ? 256 : 64}
                     disabled={directoryPending}
                     value={username}
                     onChange={(event) => {
@@ -507,7 +554,7 @@ export default function LoginPage() {
                     required
                     disabled={directoryPending}
                     minLength={bootstrapRequired ? 12 : undefined}
-                    maxLength={authSource === "ldap" ? 4096 : 256}
+                    maxLength={isDirectorySource ? 4096 : 256}
                     value={password}
                     onChange={(event) => {
                       setPassword(event.target.value);
@@ -596,7 +643,9 @@ export default function LoginPage() {
                     className="oidc-cancel"
                     disabled={submitting}
                     onClick={() => {
-                      void fetch("/api/v1/authentication/ldap/pending", { method: "DELETE" });
+                      void fetch(directoryPrefix + "/api/v1/authentication/ldap/pending", {
+                        method: "DELETE",
+                      });
                       setDirectoryPending(false);
                       setSetupChallenge(null);
                       setOtpRequired(false);
@@ -638,6 +687,20 @@ export default function LoginPage() {
                   )}
                 </p>
               )}
+              {!bootstrapRequired &&
+                namedSources
+                  .filter((v) => v.kind !== "ldap")
+                  .map((v) => (
+                    <a
+                      className="oidc-sign-in"
+                      key={v.id}
+                      href={
+                        identitySourcePrefix(v.id) + "/api/v1/authentication/" + v.kind + "/start"
+                      }
+                    >
+                      {t("login.namedSource", { name: v.name })}
+                    </a>
+                  ))}
               {ssoEnabled && !bootstrapRequired && (
                 <a className="oidc-sign-in" href="/api/v1/authentication/oidc/start">
                   {t("oidc.signIn")}

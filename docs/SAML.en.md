@@ -2,6 +2,8 @@
 
 > English | [中文](./SAML.md)
 
+New [multiple identity-source and directory synchronization](./IDENTITY-SOURCES.en.md) source keeps named sources separate from default endpoints. Complete LDAP synchronization and owned group/organization mapping preserve manual precedence. This batch is unverified; historical default-provider acceptance below does not cover new source.
+
 Connect one trusted SAML 2.0 IdP using SP-initiated HTTP-Redirect AuthnRequests, HTTP-POST assertions, and local MFA. Disabled by default, with automatic provisioning off. The competitor baseline remains [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); overall parity is incomplete.
 
 ## Configuration

@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neko233-com/jumpserver233/server/internal/core/identityscope"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 	"golang.org/x/crypto/scrypt"
 )
@@ -69,6 +70,8 @@ type User struct {
 	MFAEnabled            bool      `json:"mfa_enabled"`
 	CreatedAt             time.Time `json:"created_at"`
 	Source                string    `json:"source,omitempty"`
+	SourceID              string    `json:"source_id,omitempty"`
+	SourceSuspended       bool      `json:"source_suspended,omitempty"`
 }
 
 // LoginSession contains a one-time-returned bearer token. The token itself is
@@ -275,6 +278,12 @@ func openService(path string, documents *storage.Documents, key []byte) (*Servic
 			user.Revision = 1
 		}
 		if (user.Source != "" && !isExternalSource(user.Source)) || (user.Source != "" && (user.ExternalIssuer == "" || len(user.ExternalIdentity) != 64 || user.Role != RoleOperator)) {
+			return nil, ErrUserStoreCorrupt
+		}
+		if user.SourceID != "" && (user.Source == "" || !identityscope.ValidID(user.SourceID)) {
+			return nil, ErrUserStoreCorrupt
+		}
+		if user.SourceSuspended && (user.Source != "ldap" || !identityscope.ValidID(user.SourceID)) {
 			return nil, ErrUserStoreCorrupt
 		}
 		username, valid := normalizeUsername(user.Username)

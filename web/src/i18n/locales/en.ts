@@ -1452,6 +1452,7 @@ const en = {
     name: "JumpServer233",
   },
   nav: {
+    identitySources: "Identity sources",
     assetDiscovery: "Asset discovery",
     branding: "Branding",
     announcements: "Announcements",
@@ -1477,6 +1478,7 @@ const en = {
     signOut: "Sign out",
   },
   login: {
+    namedSource: "Sign in with {{name}}",
     username: "Username",
     password: "Password",
     otp: "Authenticator code",

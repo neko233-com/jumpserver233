@@ -141,3 +141,12 @@ server/testsupport
 **/*_test.go
 web/e2e
 web/testsupport
+
+# Identity-provider runtime state and atomic writes
+**/identity-sources.json
+**/.identity-sources-*
+**/directory-sync.json
+**/.directory-sync-*
+/identity-sources/
+/server/identity-sources/
+/web/identity-sources/

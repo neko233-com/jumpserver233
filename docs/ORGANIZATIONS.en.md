@@ -2,6 +2,8 @@
 
 > English | [中文](./ORGANIZATIONS.md)
 
+New [multiple identity-source and directory synchronization](./IDENTITY-SOURCES.en.md) source keeps named sources separate from default endpoints. Complete LDAP synchronization and owned group/organization mapping preserve manual precedence. This batch is unverified; historical default-provider acceptance below does not cover new source.
+
 Each organization holds separate assets/encrypted credentials, nodes, user groups, grants, command filters, asset/channel policies, SSH/SFTP reviews, live terminals, recordings, file audits, jobs, templates and schedules. Platform users, login sessions, identity providers, Passkeys, MFA, platform sign-in policies/reviews and system roles are shared. The competitor is [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html); overall parity remains in progress.
 
 ## Default organization and request selection

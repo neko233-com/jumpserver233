@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Multiple identity sources and directory synchronization](./IDENTITY-SOURCES.en.md) authors named LDAP/OIDC/CAS/SAML, separate encryption/callbacks/credential revocation, complete LDAP collection, group/organization mappings, schedules/retry/abort, bilingual Web, CLI/SDK and cases. E04 is implementation-ready and unverified.
+
 [External replay storage](./REPLAY-STORAGE.en.md): authored object backends, lifecycle/drain integration, archives/retries, authorized replay, local removal, cache/backups, bilingual Web, CLI/SDK and cases. E35 is implementation-ready and unverified.
 
 [Delivery progress and fixed acceptance checklist](./PROGRESS.en.md): separate stable-SSH and full-baseline counts, batch delta, unverified changes, remaining gaps and the unified acceptance gate.

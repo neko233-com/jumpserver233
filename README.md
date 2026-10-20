@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[多身份源与目录同步](./docs/IDENTITY-SOURCES.md)已编写具名 LDAP/OIDC/CAS/SAML、独立加密/回调/凭据撤销、LDAP 完整采集、组/组织映射、计划/重试/中止、中英 Web、CLI/SDK 与用例；E04 实现待验，未启动验证。
+
 [软件更新检查](./docs/UPDATES.md)提供正式稳定版检查、可选自动检查、原生下载校验与 Web/CLI/SDK，配套 Linux/macOS/Windows 原生 Release 打包。受控安装、迁移和自动回滚继续完善。
 
 原生 [`jms backup`](./docs/BACKUP.md) 支持单机整站加密导出、校验和恢复，封装 Vault key，提供幂等回执、旧数据保留和中断恢复；创建/恢复前先停止服务，无需外置备份程序。

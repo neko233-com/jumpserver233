@@ -1,3 +1,4 @@
+import { useIdentitySource } from "../auth/identitySource";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -28,6 +29,7 @@ const empty: Config = {
 export default function OIDCSettingsPage() {
   const { t, i18n } = useTranslation();
   const { accessToken } = useAuth();
+  const { prefix } = useIdentitySource();
   const { allows, ready } = usePermissions();
   const canManage = allows("security.manage");
   const [config, setConfig] = useState<Config>(empty);
@@ -46,9 +48,9 @@ export default function OIDCSettingsPage() {
       const headers = new Headers(init?.headers);
       if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
       if (init?.body) headers.set("Content-Type", "application/json");
-      return fetch(path, { ...init, headers });
+      return fetch(prefix + path, { ...init, headers });
     },
-    [accessToken],
+    [accessToken, prefix],
   );
   const load = useCallback(
     async (signal?: AbortSignal) => {

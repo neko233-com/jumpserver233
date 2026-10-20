@@ -2,6 +2,8 @@
 
 > 中文 | [English](./OIDC.en.md)
 
+新增[多身份源与目录同步](./IDENTITY-SOURCES.md)源码：具名身份源与默认入口独立；LDAP 完整同步和组/组织自动关系保留人工授权优先。本批尚未统一验证，以下默认入口的历史验收不能覆盖新增源码。
+
 Passkey 注册、设备验证登录、本地 MFA、撤销与 HA 恢复见 [Passkey](./PASSKEY.md)。
 
 `/console/identity` 可配置 OpenID Connect Authorization Code 登录。登录页提供 SSO 入口，服务端交换并验证 ID Token，完成本地 MFA 后只签发 HttpOnly 平台会话；浏览器和 Agent CLI 均不会收到远端 SSH 密码。默认关闭 OIDC 和首次自动建号。

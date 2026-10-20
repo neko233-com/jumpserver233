@@ -24,18 +24,21 @@ var (
 )
 
 type Group struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
-	UserIDs     []string  `json:"user_ids"`
-	CreatedAt   time.Time `json:"created_at"`
+	ManagedUserIDs []string  `json:"managed_user_ids,omitempty"`
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description,omitempty"`
+	UserIDs        []string  `json:"user_ids"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type Store struct {
-	mu        sync.RWMutex
-	path      string
-	documents *storage.Documents
-	groups    map[string]Group
+	mu         sync.RWMutex
+	path       string
+	documents  *storage.Documents
+	groups     map[string]Group
+	managed    func(string) []string
+	managedHas func(string, string) bool
 }
 
 func OpenStore(path string) (*Store, error) {
@@ -81,7 +84,7 @@ func openStore(path string, documents *storage.Documents) (*Store, error) {
 		if store.nameExistsLocked(group.Name, "") {
 			return nil, fmt.Errorf("user group store contains a duplicate name")
 		}
-		if !validMembers(group.UserIDs) {
+		if !validMembers(group.UserIDs) || len(group.ManagedUserIDs) > 0 {
 			return nil, fmt.Errorf("user group store contains invalid membership")
 		}
 		store.groups[group.ID] = cloneGroup(group)
@@ -93,7 +96,7 @@ func (s *Store) List() []Group {
 	s.mu.RLock()
 	result := make([]Group, 0, len(s.groups))
 	for _, group := range s.groups {
-		result = append(result, cloneGroup(group))
+		result = append(result, s.publicGroupLocked(group))
 	}
 	s.mu.RUnlock()
 	sort.Slice(result, func(i, j int) bool {
@@ -107,12 +110,12 @@ func (s *Store) List() []Group {
 
 func (s *Store) Get(id string) (Group, error) {
 	s.mu.RLock()
+	defer s.mu.RUnlock()
 	group, exists := s.groups[id]
-	s.mu.RUnlock()
 	if !exists {
 		return Group{}, ErrNotFound
 	}
-	return cloneGroup(group), nil
+	return s.publicGroupLocked(group), nil
 }
 
 func (s *Store) Create(name, description string) (Group, error) {
@@ -143,7 +146,7 @@ func (s *Store) Create(name, description string) (Group, error) {
 		delete(s.groups, group.ID)
 		return Group{}, err
 	}
-	return cloneGroup(group), nil
+	return s.publicGroupLocked(group), nil
 }
 
 func (s *Store) AddMember(groupID, userID string) (Group, error) {
@@ -159,7 +162,7 @@ func (s *Store) AddMember(groupID, userID string) (Group, error) {
 	}
 	for _, existing := range group.UserIDs {
 		if existing == userID {
-			return cloneGroup(group), nil
+			return s.publicGroupLocked(group), nil
 		}
 	}
 	group.UserIDs = append(group.UserIDs, userID)
@@ -170,7 +173,7 @@ func (s *Store) AddMember(groupID, userID string) (Group, error) {
 		s.groups[groupID] = group
 		return Group{}, err
 	}
-	return cloneGroup(group), nil
+	return s.publicGroupLocked(group), nil
 }
 
 func (s *Store) RemoveMember(groupID, userID string) (Group, error) {
@@ -187,7 +190,7 @@ func (s *Store) RemoveMember(groupID, userID string) (Group, error) {
 		s.groups[groupID] = previous
 		return Group{}, err
 	}
-	return cloneGroup(group), nil
+	return s.publicGroupLocked(group), nil
 }
 
 func (s *Store) Delete(id string) error {
@@ -209,6 +212,24 @@ func (s *Store) GroupIDsForUser(userID string) []string {
 	s.mu.RLock()
 	var ids []string
 	for id, group := range s.groups {
+		if s.managedHas != nil {
+			if s.managedHas(id, userID) {
+				ids = append(ids, id)
+				continue
+			}
+		} else if s.managed != nil {
+			found := false
+			for _, member := range s.managed(id) {
+				if member == userID {
+					ids = append(ids, id)
+					found = true
+					break
+				}
+			}
+			if found {
+				continue
+			}
+		}
 		for _, memberID := range group.UserIDs {
 			if memberID == userID {
 				ids = append(ids, id)
@@ -309,5 +330,35 @@ func removeMember(userIDs []string, userID string) []string {
 
 func cloneGroup(group Group) Group {
 	group.UserIDs = append([]string(nil), group.UserIDs...)
+	group.ManagedUserIDs = append([]string(nil), group.ManagedUserIDs...)
 	return group
+}
+
+// The resolver must read an immutable snapshot and must not call this store.
+func (s *Store) SetManagedMemberships(resolve func(string) []string, contains ...func(string, string) bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.managed = resolve
+	s.managedHas = nil
+	if len(contains) == 1 {
+		s.managedHas = contains[0]
+	}
+}
+func (s *Store) publicGroupLocked(group Group) Group {
+	g := cloneGroup(group)
+	if s.managed != nil {
+		g.ManagedUserIDs = append([]string(nil), s.managed(g.ID)...)
+		members := map[string]bool{}
+		for _, u := range g.UserIDs {
+			members[u] = true
+		}
+		for _, u := range g.ManagedUserIDs {
+			if !members[u] {
+				g.UserIDs = append(g.UserIDs, u)
+				members[u] = true
+			}
+		}
+		sort.Strings(g.UserIDs)
+	}
+	return g
 }

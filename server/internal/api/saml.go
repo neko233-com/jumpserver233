@@ -19,13 +19,13 @@ const samlCookiePath = "/api/v1/authentication/saml"
 
 func samlCookie(r *http.Request, name string) string {
 	c, e := r.Cookie(name)
-	if e != nil || len(c.Value) > 128 {
+	if e != nil || len(c.Value) > 400 {
 		return ""
 	}
-	return c.Value
+	return externalReadFlowCookie(r, name, c.Value)
 }
 func setSAMLCookie(w http.ResponseWriter, r *http.Request, d Dependencies, name, value string, age int) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: samlCookiePath, HttpOnly: true, Secure: secureSessionCookie(r) || d.SAML.SecureCookies(), SameSite: http.SameSiteLaxMode, MaxAge: age})
+	http.SetCookie(w, &http.Cookie{Name: name, Value: externalSetFlowCookie(r, name, value), Path: externalCookiePath(r, samlCookiePath), HttpOnly: true, Secure: secureSessionCookie(r) || d.SAML.SecureCookies(), SameSite: http.SameSiteLaxMode, MaxAge: age})
 }
 func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 	protect := func(h http.HandlerFunc) http.Handler { return protectAdminAPI(h, d.AdminToken, d.Auth) }
@@ -68,7 +68,7 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 			writeSAMLError(w, samllogin.ErrInvalid)
 			return
 		}
-		u, e := d.Auth.EnsureExternalUser("saml", d.SAML.Namespace(), in.Subject, in.Username, true)
+		u, e := ensureExternalForRequest(r, d.Auth, "saml", d.SAML.Namespace(), in.Subject, in.Username, true)
 		if e != nil {
 			writeSAMLError(w, e)
 			return
@@ -163,7 +163,7 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
-		user, e := d.Auth.EnsureExternalUser("saml", id.Issuer, id.Subject, "", id.Provision)
+		user, e := ensureExternalForRequest(r, d.Auth, "saml", id.Issuer, id.Subject, "", id.Provision)
 		if e != nil {
 			fail()
 			return
@@ -189,7 +189,7 @@ func registerSAMLRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		u, ok := d.Auth.UserByID(p.UserID)
-		if !ok || u.Source != "saml" {
+		if !ok || (u.Source != "saml" || u.SourceID != externalSourceID(r)) {
 			writeSAMLError(w, samllogin.ErrFlow)
 			return
 		}

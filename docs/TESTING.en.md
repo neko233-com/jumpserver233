@@ -2,6 +2,8 @@
 
 > [中文](./TESTING.md) | English
 
+[Identity sources and directory synchronization](./IDENTITY-SOURCES.en.md) authors source/default isolation, MFA/one-time replay, original-URI signatures, disable/re-enable, derived-key isolation, actual TLS paging, nested/cyclic groups, batch provisioning, manual precedence, absence policy, schedules, drain/close, restart/abort, PostgreSQL reopen and CLI cases. `identity-sources.spec.ts` reuses the existing LDAP fixture for real login, mappings, receipt retries and bilingual 390px UI. Linux race includes the related packages and cases. Only authoring/formatting was performed; no tests, builds, browser or Docker runs.
+
 [External replay storage](./REPLAY-STORAGE.en.md) authors Testify signing/HTTPS, database transactions/isolation, SFTP, encrypted receipts, lost responses, concurrency, drain, restart, corruption refusal, encrypted terminal/desktop formats, local/partial removal, cache-handle teardown, API visibility/pagination, CLI redaction and backup recovery. `replay-storage.spec.ts` authors actual SSH/SFTP, settings/replay/removal/receipts and bilingual narrow-screen flows. Native packaging reuses existing OpenSSH/certificate fixtures, one restart and its report, checking real Web SSH output in remote playback. Linux race includes archives/objects/database/API/CLI/desktop teardown; the separate real SFTP case retains fixture requirements. Runtime and Web/CLI/SDK are wired in source. This batch only authors/formats files without tests, builds, browser or Docker execution, adding no acceptance or performance/size results.
 
 ## Full implementation gate and authored cases (2026-10-20)

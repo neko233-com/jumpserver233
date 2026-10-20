@@ -25,7 +25,7 @@ func completeExternalBrowserLogin(w http.ResponseWriter, r *http.Request, auth *
 		return
 	}
 	user, ok := auth.ActiveUserByID(p.UserID)
-	if !ok || user.AuthGeneration != p.AuthGeneration || (source != "passkey" && user.Source != source) {
+	if !ok || user.AuthGeneration != p.AuthGeneration || (source != "passkey" && (user.Source != source || user.SourceID != externalSourceID(r))) {
 		writeError(w, logintickets.ErrTicket)
 		return
 	}
@@ -53,7 +53,7 @@ func completeExternalBrowserLogin(w http.ResponseWriter, r *http.Request, auth *
 		if source == "passkey" {
 			session, setup, e = auth.AuthenticatePasskeyUser(p.UserID, p.CredentialID, otp, p.AuthGeneration)
 		} else {
-			session, setup, e = auth.AuthenticateExternalUser(p.UserID, source, otp, p.AuthGeneration)
+			session, setup, e = authenticateExternalForRequest(r, auth, p.UserID, source, otp, p.AuthGeneration)
 		}
 		if e == nil && setup != nil {
 			markLoginAudit(r, "challenge", "enrollment_required")
@@ -78,7 +78,7 @@ func completeExternalBrowserLogin(w http.ResponseWriter, r *http.Request, auth *
 		writeError(w, e)
 		return
 	}
-	if session.User.ID != p.UserID || session.User.AuthGeneration != p.AuthGeneration || session.User.Source != user.Source || !flow.Consume(ticket, p.Revision) {
+	if session.User.ID != p.UserID || session.User.AuthGeneration != p.AuthGeneration || session.User.Source != user.Source || session.User.SourceID != user.SourceID || !flow.Consume(ticket, p.Revision) {
 		_ = auth.RevokeToken(session.AccessToken)
 		writeError(w, logintickets.ErrTicket)
 		return

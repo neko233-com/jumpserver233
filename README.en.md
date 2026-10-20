@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Multiple identity sources and directory synchronization](./docs/IDENTITY-SOURCES.en.md) authors named LDAP/OIDC/CAS/SAML, separate encryption/callbacks/credential revocation, complete LDAP collection, group/organization mappings, schedules/retry/abort, bilingual Web, CLI/SDK and cases. E04 is implementation-ready and unverified.
+
 [Software update checks](./docs/UPDATES.en.md) provide published stable-release checks, optional automatic checks, verified native downloads and Web/CLI/SDK access, with Linux/macOS/Windows release packaging. Controlled installation, migration and automatic rollback remain in progress.
 
 Native [`jms backup`](./docs/BACKUP.en.md) provides encrypted standalone export, verification and restoration, wrapped Vault keys, idempotent receipts, retained old data and interruption recovery. Stop the service before create/restore; no external backup program is required.

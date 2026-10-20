@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/connector/casclient"
+	"github.com/neko233-com/jumpserver233/server/internal/core/identityscope"
 	"github.com/neko233-com/jumpserver233/server/internal/core/logintickets"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 )
@@ -69,19 +70,29 @@ type Identity struct {
 	Revision        int
 }
 type Service struct {
-	mu              sync.Mutex
-	path, publicURL string
-	aead            cipher.AEAD
-	documents       *storage.Documents
-	provider        casclient.Provider
-	data            persisted
-	flows           map[[32]byte]flow
-	Tickets         *logintickets.Store
-	slots           chan struct{}
-	now             func() time.Time
+	mu                           sync.Mutex
+	path, publicURL, routePrefix string
+	aead                         cipher.AEAD
+	documents                    *storage.Documents
+	provider                     casclient.Provider
+	data                         persisted
+	flows                        map[[32]byte]flow
+	Tickets                      *logintickets.Store
+	slots                        chan struct{}
+	now                          func() time.Time
 }
 
-func Open(path string, key []byte, documents *storage.Documents, publicURL string, provider casclient.Provider) (*Service, error) {
+func Open(path string, key []byte, documents *storage.Documents, publicURL string, provider casclient.Provider, prefixes ...string) (*Service, error) {
+	if len(prefixes) > 1 {
+		return nil, ErrInvalid
+	}
+	prefix := ""
+	if len(prefixes) == 1 {
+		prefix = prefixes[0]
+	}
+	if !identityscope.ValidPrefix(prefix) {
+		return nil, ErrInvalid
+	}
 	b, e := aes.NewCipher(key)
 	if e != nil {
 		return nil, e
@@ -94,6 +105,7 @@ func Open(path string, key []byte, documents *storage.Documents, publicURL strin
 		provider = casclient.Client{}
 	}
 	s := &Service{path: path, publicURL: publicURL, aead: a, documents: documents, provider: provider, flows: map[[32]byte]flow{}, Tickets: logintickets.New(), slots: make(chan struct{}, 4), now: time.Now, data: persisted{Config: Config{Config: casclient.Config{Protocol: "3"}}, Audit: []Audit{}}}
+	s.routePrefix = prefix
 	var raw []byte
 	if documents != nil {
 		raw, e = documents.LoadOrImport("cas-config", path)
@@ -137,7 +149,7 @@ func (s *Service) validate(c Config) error {
 		return ErrInvalid
 	}
 	u, _ := url.Parse(c.CallbackURL)
-	if u.Path != CallbackPath || u.RawPath != "" || u.RawQuery != "" {
+	if u.Path != s.routePrefix+CallbackPath || u.RawPath != "" || u.RawQuery != "" {
 		return ErrInvalid
 	}
 	if s.publicURL != "" {
@@ -293,6 +305,7 @@ func (s *Service) Consume(token string, revision int) bool {
 	return ok && s.data.Config.Enabled && s.data.Config.Revision == revision
 }
 func (s *Service) ReturnURL(suffix string) string {
+	suffix = identityscope.ReturnPath(s.routePrefix, suffix)
 	c := s.Snapshot()
 	if c.CallbackURL == "" {
 		return suffix

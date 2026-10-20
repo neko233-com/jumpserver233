@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/connector/samlclient"
+	"github.com/neko233-com/jumpserver233/server/internal/core/identityscope"
 	"github.com/neko233-com/jumpserver233/server/internal/core/logintickets"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 )
@@ -75,21 +76,31 @@ type Start struct {
 	Expires    time.Time
 }
 type Service struct {
-	mu              sync.Mutex
-	path, publicURL string
-	aead            cipher.AEAD
-	documents       *storage.Documents
-	data            persisted
-	client          *samlclient.Client
-	flows           map[[32]byte]flow
-	handoffs        map[[32]byte]handoff
-	replays         map[string]time.Time
-	Tickets         *logintickets.Store
-	slots           chan struct{}
-	now             func() time.Time
+	mu                           sync.Mutex
+	path, publicURL, routePrefix string
+	aead                         cipher.AEAD
+	documents                    *storage.Documents
+	data                         persisted
+	client                       *samlclient.Client
+	flows                        map[[32]byte]flow
+	handoffs                     map[[32]byte]handoff
+	replays                      map[string]time.Time
+	Tickets                      *logintickets.Store
+	slots                        chan struct{}
+	now                          func() time.Time
 }
 
-func Open(path string, key []byte, documents *storage.Documents, publicURL string) (*Service, error) {
+func Open(path string, key []byte, documents *storage.Documents, publicURL string, prefixes ...string) (*Service, error) {
+	if len(prefixes) > 1 {
+		return nil, ErrInvalid
+	}
+	prefix := ""
+	if len(prefixes) == 1 {
+		prefix = prefixes[0]
+	}
+	if !identityscope.ValidPrefix(prefix) {
+		return nil, ErrInvalid
+	}
 	b, e := aes.NewCipher(key)
 	if e != nil {
 		return nil, e
@@ -99,6 +110,7 @@ func Open(path string, key []byte, documents *storage.Documents, publicURL strin
 		return nil, e
 	}
 	s := &Service{path: path, publicURL: publicURL, aead: a, documents: documents, flows: map[[32]byte]flow{}, handoffs: map[[32]byte]handoff{}, replays: map[string]time.Time{}, Tickets: logintickets.New(), slots: make(chan struct{}, 4), now: time.Now, data: persisted{Audit: []Audit{}}}
+	s.routePrefix = prefix
 	var raw []byte
 	if documents != nil {
 		raw, e = documents.LoadOrImport("saml-config", path)
@@ -156,7 +168,7 @@ func (s *Service) build(c Config, key samlclient.IdentityKey) (*samlclient.Clien
 			return nil, ErrInvalid
 		}
 	}
-	cl, e := samlclient.New(c.Config, key)
+	cl, e := samlclient.New(c.Config, key, s.routePrefix)
 	if e != nil {
 		return nil, ErrInvalid
 	}
@@ -402,6 +414,7 @@ func (s *Service) Consume(token string, revision int) bool {
 	return s.Tickets.Consume(token) && s.data.Config.Enabled && s.data.Config.Revision == revision
 }
 func (s *Service) ReturnURL(suffix string) string {
+	suffix = identityscope.ReturnPath(s.routePrefix, suffix)
 	c := s.Snapshot()
 	if c.ACSURL == "" {
 		return suffix

@@ -19,10 +19,12 @@ import (
 	corecommandfilters "github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
 	"github.com/neko233-com/jumpserver233/server/internal/core/credentialpolicy"
 	"github.com/neko233-com/jumpserver233/server/internal/core/databasequery"
+	"github.com/neko233-com/jumpserver233/server/internal/core/directorysync"
 	corefiles "github.com/neko233-com/jumpserver233/server/internal/core/files"
 	coregrants "github.com/neko233-com/jumpserver233/server/internal/core/grants"
 	coregroups "github.com/neko233-com/jumpserver233/server/internal/core/groups"
 	"github.com/neko233-com/jumpserver233/server/internal/core/hostplugins"
+	"github.com/neko233-com/jumpserver233/server/internal/core/identitysources"
 	corejobs "github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
 	"github.com/neko233-com/jumpserver233/server/internal/core/ldaplogin"
@@ -51,6 +53,8 @@ import (
 )
 
 type Dependencies struct {
+	DirectorySync         *directorysync.Store
+	IdentitySources       *identitysources.Store
 	ReplayArchive         *replayarchive.Store
 	ReplayArchiveDatabase bool
 	SSHCertificates       *sshcertificates.Store
@@ -202,6 +206,9 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		d := dependencies[0]
 		d.Auth.SetExternalSourceAllowed("saml", d.SAML.IssuerAllowed)
 		registerSAMLRoutes(mux, d)
+	}
+	if len(dependencies) > 0 && !dependencies[0].Tenant && dependencies[0].IdentitySources != nil && dependencies[0].Auth != nil {
+		registerIdentitySourceRoutes(mux, dependencies[0])
 	}
 	if len(dependencies) > 0 && !dependencies[0].Tenant && dependencies[0].CAS != nil && dependencies[0].Auth != nil {
 		d := dependencies[0]

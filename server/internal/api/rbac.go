@@ -102,6 +102,8 @@ func adminAPIAllowed(r *http.Request, user coreauth.User) bool {
 		return allowed("groups.manage")
 	case strings.HasPrefix(path, "/api/v1/settings/security/"):
 		return allowed("security.manage")
+	case strings.HasPrefix(path, "/api/v1/identity-sources"):
+		return allowed("security.manage")
 	case strings.HasPrefix(path, "/api/v1/assets/nodes"):
 		return allowed("nodes.manage")
 	case strings.HasPrefix(path, "/api/v1/assets/") && strings.Contains(path, "/credential-backups"):

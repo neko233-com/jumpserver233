@@ -55,6 +55,7 @@ type MemberInput struct {
 }
 type Member struct {
 	MemberInput
+	SourceID  string    `json:"source_id,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 type Audit struct {
@@ -73,10 +74,13 @@ type state struct {
 	Audit         []Audit                      `json:"audit"`
 }
 type Store struct {
-	mu        sync.RWMutex
-	path      string
-	documents *storage.Documents
-	data      state
+	mu            sync.RWMutex
+	path          string
+	documents     *storage.Documents
+	data          state
+	managed       func(string) map[string]Member
+	managedRole   func(string, string) string
+	managedMember func(string, string) (Member, bool)
 }
 
 func ValidID(id string) bool {
@@ -130,7 +134,7 @@ func Open(path string, documents *storage.Documents) (*Store, error) {
 				return nil, ErrInvalid
 			}
 			for user, m := range members {
-				if user != m.UserID || !validMember(m.MemberInput) || m.Revision < 1 || m.UpdatedAt.IsZero() {
+				if user != m.UserID || !validMember(m.MemberInput) || m.Revision < 1 || m.UpdatedAt.IsZero() || m.SourceID != "" {
 					return nil, ErrInvalid
 				}
 			}
@@ -315,6 +319,15 @@ func (s *Store) Role(org, user string) string {
 	if m, ok := s.data.Members[org][user]; ok {
 		return m.Role
 	}
+	if s.managedRole != nil {
+		if role := s.managedRole(org, user); role != "" {
+			return role
+		}
+	} else if s.managed != nil {
+		if m, ok := s.managed(org)[user]; ok {
+			return m.Role
+		}
+	}
 	if org == DefaultID {
 		return "member"
 	}
@@ -330,6 +343,13 @@ func (s *Store) Member(org, user string) (Member, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	m, ok := s.data.Members[org][user]
+	if !ok {
+		if s.managedMember != nil {
+			m, ok = s.managedMember(org, user)
+		} else if s.managed != nil {
+			m, ok = s.managed(org)[user]
+		}
+	}
 	return m, ok
 }
 func (s *Store) Members(org string) []Member {
@@ -338,6 +358,13 @@ func (s *Store) Members(org string) []Member {
 	out := []Member{}
 	for _, m := range s.data.Members[org] {
 		out = append(out, m)
+	}
+	if s.managed != nil {
+		for user, m := range s.managed(org) {
+			if _, manual := s.data.Members[org][user]; !manual {
+				out = append(out, m)
+			}
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].UserID < out[j].UserID })
 	return out
@@ -371,6 +398,16 @@ func (s *Store) SaveMember(org string, in MemberInput, actor string) (Member, er
 		return old, out, nil
 	})
 	return out, e
+}
+
+// Manual membership, including role=none, always wins over automatic mapping.
+// The resolver must read an immutable snapshot and never call this store.
+func (s *Store) SetManagedMemberships(resolve func(string) map[string]Member, role func(string, string) string, member func(string, string) (Member, bool)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.managed = resolve
+	s.managedRole = role
+	s.managedMember = member
 }
 func (s *Store) Audit(org string, offset, limit int) ([]Audit, int) {
 	s.mu.RLock()

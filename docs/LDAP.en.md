@@ -2,6 +2,8 @@
 
 > [中文](./LDAP.md) | English
 
+New [multiple identity-source and directory synchronization](./IDENTITY-SOURCES.en.md) source keeps named sources separate from default endpoints. Complete LDAP synchronization and owned group/organization mapping preserve manual precedence. This batch is unverified; historical default-provider acceptance below does not cover new source.
+
 Directory sign-in authenticates separately from local accounts and OIDC. Administrators configure one directory at `/console/directory`; users select LDAP / Active Directory on the sign-in page. Standalone comes first; PostgreSQL single-active HA shares configuration, identity mappings, and completed login sessions. Directory sign-in and first-login provisioning are disabled by default.
 
 ## Configuration

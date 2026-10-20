@@ -140,6 +140,9 @@ func (c *Client) jobRequest(ctx context.Context, method, path string, input, out
 		if strings.HasPrefix(target.Path, "/api/v1/accounts/risks") || strings.HasPrefix(target.Path, "/api/v1/accounts/rotation-") || strings.HasPrefix(target.Path, "/api/v1/tickets/") {
 			limit = 8 << 20
 		}
+		if strings.HasPrefix(target.Path, "/api/v1/identity-sources/") {
+			limit = 32 << 20
+		}
 		return json.NewDecoder(io.LimitReader(resp.Body, limit)).Decode(output)
 	}
 	return nil

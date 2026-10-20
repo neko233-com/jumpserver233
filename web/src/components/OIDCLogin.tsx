@@ -1,3 +1,4 @@
+import { identitySourcePrefix } from "../auth/identitySource";
 import { passwordRedirect } from "../auth/passwordRedirect";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,14 +13,17 @@ export default function OIDCLogin({
   onReview,
   onFactor,
   source = "oidc",
+  identitySourceID = "",
 }: {
   onComplete: () => void;
   onCancel: () => void;
   onReview: (pending: LoginReviewPending) => void;
   onFactor?: () => void;
   source?: "oidc" | "cas" | "saml" | "passkey" | "radius";
+  identitySourceID?: string;
 }) {
   const { t, i18n } = useTranslation();
+  const prefix = identitySourcePrefix(identitySourceID);
   const [active, setActive] = useState(false);
   const [otpRequired, setOtpRequired] = useState(false);
   const [otp, setOTP] = useState("");
@@ -29,7 +33,7 @@ export default function OIDCLogin({
   const [policyDenied, setPolicyDenied] = useState(false);
   useEffect(() => {
     const c = new AbortController();
-    fetch(`/api/v1/authentication/${source}/pending`, { signal: c.signal })
+    fetch(`${prefix}/api/v1/authentication/${source}/pending`, { signal: c.signal })
       .then(async (r) => {
         if (!r.ok) throw new Error("pending login unavailable");
         const data = (await r.json()) as { active: boolean; mfa_required: boolean };
@@ -42,20 +46,20 @@ export default function OIDCLogin({
         if (!c.signal.aborted) setError(true);
       });
     return () => c.abort();
-  }, [source]);
+  }, [source, prefix]);
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(false);
     setPolicyDenied(false);
     try {
-      const r = await fetch(`/api/v1/authentication/${source}/complete`, {
+      const r = await fetch(`${prefix}/api/v1/authentication/${source}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-JMS-Browser-Session": "cookie" },
         body: JSON.stringify({ otp, ...(setup ? { setup_token: setup.token } : {}) }),
       });
       const data = (await r.json()) as {
- password_change_required?: boolean;
+        password_change_required?: boolean;
         radius_factor_required?: boolean;
         login_review_required?: boolean;
         review_id?: string;
@@ -67,7 +71,7 @@ export default function OIDCLogin({
         setup_token?: string;
         enrollment?: Setup["enrollment"];
       };
-      if (passwordRedirect(data))return;
+      if (passwordRedirect(data)) return;
       if (r.status === 202 && data.radius_factor_required && onFactor) {
         onFactor();
         return;
@@ -100,7 +104,7 @@ export default function OIDCLogin({
     }
   }
   async function cancel() {
-    await fetch(`/api/v1/authentication/${source}/pending`, { method: "DELETE" }).catch(
+    await fetch(`${prefix}/api/v1/authentication/${source}/pending`, { method: "DELETE" }).catch(
       () => undefined,
     );
     onCancel();

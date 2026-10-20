@@ -2,6 +2,8 @@
 
 > 中文 | [English](./ORGANIZATIONS.en.md)
 
+新增[多身份源与目录同步](./IDENTITY-SOURCES.md)源码：具名身份源与默认入口独立；LDAP 完整同步和组/组织自动关系保留人工授权优先。本批尚未统一验证，以下默认入口的历史验收不能覆盖新增源码。
+
 组织分别持有资产与加密凭据、节点、用户组、授权、命令过滤、资产/通道策略、SSH/SFTP 复核、在线终端、录像、文件审计、作业、模板和计划。平台用户、登录会话、身份源、Passkey、MFA、平台登录策略/复核和系统角色统一管理。竞品为 [JumpServer 企业版](https://www.jumpserver.org/enterprise.html)，完整对齐仍在推进。
 
 ## 默认组织与请求选择

@@ -26,7 +26,7 @@ func main() {
 			log.Fatal("synthetic directory requires literal loopback listeners")
 		}
 	}
-	s, e := ldapserver.Start(ldapserver.Options{Addr: addr})
+	s, e := ldapserver.Start(ldapserver.Options{Addr: addr, DirectorySync: true})
 	if e != nil {
 		log.Fatal("synthetic directory failed")
 	}

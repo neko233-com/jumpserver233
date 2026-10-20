@@ -16,8 +16,8 @@ const oidcFlowCookie = "jms_oidc_flow"
 const oidcPendingCookie = "jms_oidc_pending"
 
 func oidcCookieValue(r *http.Request, name string) string {
-	if cookie, err := r.Cookie(name); err == nil && len(cookie.Value) <= 128 {
-		return cookie.Value
+	if cookie, err := r.Cookie(name); err == nil && len(cookie.Value) <= 400 {
+		return externalReadFlowCookie(r, name, cookie.Value)
 	}
 	return ""
 }
@@ -26,7 +26,7 @@ func setOIDCCookie(w http.ResponseWriter, r *http.Request, d Dependencies, name,
 	if value == "" {
 		maxAge = -1
 	}
-	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: oidcCookiePath, HttpOnly: true, Secure: secureSessionCookie(r) || d.OIDC.SecureCookies(), SameSite: http.SameSiteLaxMode, MaxAge: maxAge, Expires: expires})
+	http.SetCookie(w, &http.Cookie{Name: name, Value: externalSetFlowCookie(r, name, value), Path: externalCookiePath(r, oidcCookiePath), HttpOnly: true, Secure: secureSessionCookie(r) || d.OIDC.SecureCookies(), SameSite: http.SameSiteLaxMode, MaxAge: maxAge, Expires: expires})
 }
 func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 	protect := func(h http.HandlerFunc) http.Handler { return protectAdminAPI(h, d.AdminToken, d.Auth) }
@@ -64,7 +64,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		config := d.OIDC.Snapshot()
-		user, err := d.Auth.EnsureOIDCUser(config.Issuer, in.Subject, in.Username, true)
+		user, err := ensureExternalForRequest(r, d.Auth, "oidc", config.Issuer, in.Subject, in.Username, true)
 		if err != nil {
 			writeOIDCError(w, err)
 			return
@@ -121,7 +121,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			fail()
 			return
 		}
-		user, err := d.Auth.EnsureOIDCUser(identity.Issuer, identity.Subject, "", identity.Provision)
+		user, err := ensureExternalForRequest(r, d.Auth, "oidc", identity.Issuer, identity.Subject, "", identity.Provision)
 		if err != nil {
 			fail()
 			return
@@ -147,7 +147,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		user, ok := d.Auth.ActiveUserByID(p.UserID)
-		if !ok || user.AuthGeneration != p.AuthGeneration || user.Source != "oidc" {
+		if !ok || user.AuthGeneration != p.AuthGeneration || (user.Source != "oidc" || user.SourceID != externalSourceID(r)) {
 			writeOIDCError(w, oidclogin.ErrFlow)
 			return
 		}
@@ -165,7 +165,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			return
 		}
 		u, active := d.Auth.ActiveUserByID(p.UserID)
-		if !active || u.AuthGeneration != p.AuthGeneration {
+		if !active || u.AuthGeneration != p.AuthGeneration || u.Source != "oidc" || u.SourceID != externalSourceID(r) {
 			writeOIDCError(w, oidclogin.ErrFlow)
 			return
 		}
@@ -196,7 +196,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			session, err = d.Auth.ConfirmMFASetupChallenge(input.SetupToken, input.OTP, p.UserID)
 		} else {
 			var setup *coreauth.MFASetupChallenge
-			session, setup, err = d.Auth.AuthenticateExternalUser(p.UserID, "oidc", input.OTP, p.AuthGeneration)
+			session, setup, err = authenticateExternalForRequest(r, d.Auth, p.UserID, "oidc", input.OTP, p.AuthGeneration)
 			if err == nil && setup != nil {
 				markLoginAudit(r, "challenge", "enrollment_required")
 				if d.OIDC.SetSetup(ticket, setup.Token) != nil {
@@ -219,7 +219,7 @@ func registerOIDCRoutes(mux *http.ServeMux, d Dependencies) {
 			writeOIDCError(w, err)
 			return
 		}
-		if session.User.ID != p.UserID || session.User.AuthGeneration != p.AuthGeneration || !d.OIDC.ConsumePending(ticket) {
+		if session.User.ID != p.UserID || session.User.AuthGeneration != p.AuthGeneration || session.User.Source != "oidc" || session.User.SourceID != externalSourceID(r) || !d.OIDC.ConsumePending(ticket) {
 			_ = d.Auth.RevokeToken(session.AccessToken)
 			writeOIDCError(w, oidclogin.ErrFlow)
 			return

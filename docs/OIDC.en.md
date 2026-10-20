@@ -2,6 +2,8 @@
 
 > [中文](./OIDC.md) | English
 
+New [multiple identity-source and directory synchronization](./IDENTITY-SOURCES.en.md) source keeps named sources separate from default endpoints. Complete LDAP synchronization and owned group/organization mapping preserve manual precedence. This batch is unverified; historical default-provider acceptance below does not cover new source.
+
 Passkey registration, device-verified sign-in, local MFA, revocation, and HA recovery: [Passkey](./PASSKEY.en.md).
 
 `/console/identity` configures OpenID Connect Authorization Code login. The sign-in page offers SSO; the server exchanges/verifies the ID token and issues only an HttpOnly platform session after local MFA. Browsers and the Agent CLI never receive SSH passwords. OIDC and first-login provisioning are disabled by default.

@@ -95,7 +95,7 @@ func NewOrganizationRouter(version string, d Dependencies, resources func(string
 			global.ServeHTTP(w, next)
 			return
 		}
-		isGlobal := strings.HasPrefix(path, "/api/v1/audits/logins") || strings.HasPrefix(path, "/api/v1/platform-notifications") || r.Method == "OPTIONS" || path == "/api/health" || strings.HasPrefix(path, "/api/v1/authentication/") || strings.HasPrefix(path, "/api/v1/settings/security/") || strings.HasPrefix(path, "/api/v1/login-reviews") || strings.HasPrefix(path, "/api/v1/organizations") || strings.HasPrefix(path, "/api/v1/users/") || path == "/api/v1/users" && r.Method != "GET" || strings.HasPrefix(path, "/api/v1/rbac/") && path != "/api/v1/rbac/me"
+		isGlobal := strings.HasPrefix(path, "/api/v1/identity-sources") || strings.HasPrefix(path, "/api/v1/audits/logins") || strings.HasPrefix(path, "/api/v1/platform-notifications") || r.Method == "OPTIONS" || path == "/api/health" || strings.HasPrefix(path, "/api/v1/authentication/") || strings.HasPrefix(path, "/api/v1/settings/security/") || strings.HasPrefix(path, "/api/v1/login-reviews") || strings.HasPrefix(path, "/api/v1/organizations") || strings.HasPrefix(path, "/api/v1/users/") || path == "/api/v1/users" && r.Method != "GET" || strings.HasPrefix(path, "/api/v1/rbac/") && path != "/api/v1/rbac/me"
 		if isGlobal {
 			global.ServeHTTP(w, r)
 			return

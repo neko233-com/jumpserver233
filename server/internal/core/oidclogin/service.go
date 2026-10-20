@@ -23,6 +23,7 @@ import (
 	"unicode"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/neko233-com/jumpserver233/server/internal/core/identityscope"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 	"golang.org/x/oauth2"
 )
@@ -102,21 +103,31 @@ type Start struct {
 	Expires    time.Time
 }
 type Service struct {
-	mu              sync.Mutex
-	discoverMu      sync.Mutex
-	path, publicURL string
-	documents       *storage.Documents
-	aead            cipher.AEAD
-	data            persisted
-	runtime         *runtime
-	flows           map[[32]byte]flow
-	pending         map[[32]byte]Pending
-	now             func() time.Time
+	mu                           sync.Mutex
+	discoverMu                   sync.Mutex
+	path, publicURL, routePrefix string
+	documents                    *storage.Documents
+	aead                         cipher.AEAD
+	data                         persisted
+	runtime                      *runtime
+	flows                        map[[32]byte]flow
+	pending                      map[[32]byte]Pending
+	now                          func() time.Time
 }
 
 const callbackPath = "/api/v1/authentication/oidc/callback"
 
-func Open(path string, key []byte, documents *storage.Documents, publicURL string) (*Service, error) {
+func Open(path string, key []byte, documents *storage.Documents, publicURL string, prefixes ...string) (*Service, error) {
+	if len(prefixes) > 1 {
+		return nil, ErrInvalid
+	}
+	prefix := ""
+	if len(prefixes) == 1 {
+		prefix = prefixes[0]
+	}
+	if !identityscope.ValidPrefix(prefix) {
+		return nil, ErrInvalid
+	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -126,6 +137,7 @@ func Open(path string, key []byte, documents *storage.Documents, publicURL strin
 		return nil, err
 	}
 	s := &Service{path: path, publicURL: publicURL, documents: documents, aead: aead, flows: map[[32]byte]flow{}, pending: map[[32]byte]Pending{}, now: time.Now, data: persisted{Config: Config{TokenAuthMethod: "client_secret_basic"}, Audit: []Audit{}}}
+	s.routePrefix = prefix
 	var raw []byte
 	if documents != nil {
 		raw, err = documents.LoadOrImport("oidc-config", path)
@@ -180,7 +192,7 @@ func (s *Service) validate(c Config, secret string) error {
 	}
 	issuer, _ := url.Parse(c.Issuer)
 	redirect, _ := url.Parse(c.RedirectURL)
-	if issuer.RawQuery != "" || redirect.Path != callbackPath || redirect.RawQuery != "" {
+	if issuer.RawQuery != "" || redirect.Path != s.routePrefix+callbackPath || redirect.RawQuery != "" {
 		return ErrInvalid
 	}
 	if s.publicURL != "" {
@@ -476,6 +488,7 @@ func (s *Service) ConsumePending(ticket string) bool {
 func (s *Service) ReturnURL(path string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	path = identityscope.ReturnPath(s.routePrefix, path)
 	if s.data.Config.RedirectURL == "" {
 		return path
 	}
