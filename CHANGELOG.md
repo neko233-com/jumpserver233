@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/neko233-com/jumpserver233/compare/v0.2.2...v0.3.0) (2026-10-21)
+
+
+### Features
+
+* add audited native SSH and SFTP entry ([d17be2a](https://github.com/neko233-com/jumpserver233/commit/d17be2afcbb4a2d7045a9ba1fd349dfec494dde6))
+
+
+### Bug Fixes
+
+* retain scoped Docker cleanup with Windows Git [skip ci] ([60dfcf9](https://github.com/neko233-com/jumpserver233/commit/60dfcf91f15a5e27ce1ee361546672faac36f605))
+
 ## [0.2.2](https://github.com/neko233-com/jumpserver233/compare/v0.2.1...v0.2.2) (2026-10-21)
 
 
