@@ -1913,6 +1913,7 @@ const en = {
     fileEmpty: "No file transfers yet",
     fileEmptyHint: "SFTP uploads, downloads, and file operations will appear here.",
     fileActions: {
+      rename: "Rename",
       upload: "Upload",
       download: "Download",
       mkdir: "Create folder",

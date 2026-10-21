@@ -13,6 +13,13 @@ import macos_single as ci
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_native_ssh_configuration_is_explicit_and_bounded(self):
+        self.assertIsNone(ci.native_ssh_port({}))
+        self.assertEqual(2222, ci.native_ssh_port({'JMS_SSH_ADDR': '0.0.0.0:2222'}))
+        self.assertEqual(2222, ci.native_ssh_port({'JMS_SSH_ADDR': '[::]:2222'}))
+        for value in ('host:2222', ':2222', '0.0.0.0:22', '127.0.0.1:65536'):
+            with self.assertRaises(RuntimeError):
+                ci.native_ssh_port({'JMS_SSH_ADDR': value})
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='jms233-macos-unit-')
         self.addCleanup(self.temp.cleanup)

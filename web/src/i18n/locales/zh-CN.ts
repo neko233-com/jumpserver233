@@ -1780,7 +1780,7 @@ const zhCN = {
     fileSuccess: "成功",
     fileEmpty: "暂无文件传输",
     fileEmptyHint: "SFTP 上传、下载和文件操作记录会显示在这里。",
-    fileActions: { upload: "上传", download: "下载", mkdir: "新建目录", delete: "删除" },
+    fileActions: { upload: "上传", download: "下载", mkdir: "新建目录", delete: "删除", rename: "重命名" },
     fileErrors: {
       invalid_path: "路径无效",
       unsafe_path: "已拦截符号链接",

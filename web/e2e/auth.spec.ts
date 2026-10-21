@@ -2318,3 +2318,25 @@ test("isolates organization inventory, roles, monitoring, Web SSH and CLI, then 
     await context.close();
   }
 });
+
+test("renders native SFTP rename audit in English and Chinese and cleans owned remote files", async ({ page }) => {
+  await signIn(page);
+  const source = `native-audit-${Date.now()}.txt`;
+  const destination = source + ".renamed";
+  const endpoint = `/api/v1/assets/${monitorAssetID}/files`;
+  try {
+    expect((await page.request.put(endpoint + "/content?path=" + source, { data: "native audit proof" })).status()).toBe(201);
+    expect((await page.request.post(endpoint + "/rename", { data: { source, destination, overwrite: false } })).status()).toBe(204);
+    await page.goto("/audit");
+    await page.getByRole("tab", { name: "File transfers", exact: true }).click();
+    const row = page.locator(".file-transfer-table tbody tr").filter({ hasText: source + " -> " + destination });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText("Rename");
+    await page.getByRole("button", { name: "中文", exact: true }).click();
+    await expect(row).toContainText("重命名");
+    await expect(page.locator("body")).not.toContainText("audit.fileActions.rename");
+  } finally {
+    await page.request.delete(endpoint + "/content?path=" + source);
+    await page.request.delete(endpoint + "/content?path=" + destination);
+  }
+});

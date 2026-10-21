@@ -188,6 +188,55 @@ func (s *Service) Upload(ctx context.Context, actor, assetID, relativePath strin
 	return uploaded, err
 }
 
+// Rename stays on one pinned account and checks both parent paths. Cross-asset
+// moves, symlink traversal and replacement of directories are never implicit.
+func (s *Service) Rename(ctx context.Context, actor, assetID, source, destination string, overwrite bool) error {
+	remote, err := s.open(ctx, assetID)
+	if err != nil {
+		s.record(actor, assetID, "rename", source+" -> "+destination, 0, err)
+		return err
+	}
+	defer remote.Close()
+	from, parent, err := resolve(remote.Root(), source)
+	if err == nil {
+		err = s.checkNoSymlink(ctx, remote, remote.Root(), parent, true)
+	}
+	var target, targetParent string
+	if err == nil {
+		target, targetParent, err = resolve(remote.Root(), destination)
+	}
+	if err == nil && (from == path.Clean(remote.Root()) || target == path.Clean(remote.Root())) {
+		err = ErrInvalidPath
+	}
+	if err == nil {
+		err = s.checkNoSymlink(ctx, remote, remote.Root(), targetParent, true)
+	}
+	if err == nil {
+		var st sshclient.FileInfo
+		st, err = remote.Lstat(ctx, from)
+		if err == nil && st.IsSymlink {
+			err = ErrUnsafePath
+		}
+		if err == nil {
+			prior, e := remote.Lstat(ctx, target)
+			if e == nil {
+				if !overwrite {
+					err = ErrConflict
+				} else if !st.IsRegular || !prior.IsRegular || prior.IsSymlink {
+					err = ErrNotFile
+				}
+			} else if !isNotExist(e) {
+				err = e
+			}
+		}
+	}
+	if err == nil {
+		err = remote.Rename(ctx, from, target, overwrite)
+	}
+	s.record(actor, assetID, "rename", source+" -> "+destination, 0, err)
+	return err
+}
+
 type Download struct {
 	Info         sshclient.FileInfo
 	Reader       io.ReadCloser
@@ -339,6 +388,12 @@ func (s *Service) record(actor, assetID, action, relativePath string, bytes int6
 	if err := s.audit.Append(entry); err != nil {
 		slog.Error("file transfer audit append failed", "asset_id", assetID, "action", action, "err", err)
 	}
+}
+
+// RecordAbortedUpload retains an authenticated staging attempt that never
+// reached Upload, including disconnects and revoked grants.
+func (s *Service) RecordAbortedUpload(actor, assetID, relativePath string, bytes int64) {
+	s.record(actor, assetID, "upload", relativePath, bytes, context.Canceled)
 }
 
 func classifyError(err error) string {

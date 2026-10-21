@@ -10,6 +10,7 @@ pipeline {
         booleanParam(name: 'DEPLOY', defaultValue: true, description: 'Deploy this project on the current macOS node, retaining data and keys')
         booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run Go, helper, static and content checks before packaging')
         string(name: 'JMS_PORT', defaultValue: '8180', description: 'Dedicated intranet HTTP port; refuse a foreign listener')
+        string(name: 'JMS_SSH_PORT', defaultValue: '2222', description: 'Embedded SSH/SFTP port; preserve platform identities, policy and audit')
     }
     stages {
         stage('Preflight') {

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"flag"
+	"github.com/neko233-com/jumpserver233/server/internal/nativeaccess"
 	"log/slog"
 	"net"
 	"net/http"
@@ -553,6 +554,20 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	if cfg.CheckData {
 		return runtimes.checkHistory(ctx)
 	}
+	var nativeServer *nativeaccess.Server
+	var nativeListener net.Listener
+	if cfg.SSHAddr != "" {
+		nativeServer, err = nativeaccess.New(handler, vaultKey, admission)
+		if err != nil {
+			return err
+		}
+		defer nativeServer.Close()
+		nativeListener, err = net.Listen("tcp", cfg.SSHAddr)
+		if err != nil {
+			return err
+		}
+		defer nativeListener.Close()
+	}
 	var activationReady atomic.Bool
 	if cfg.ActivationID != "" {
 		handler = gatedStartup(handler, cfg.ActivationAttempt, &activationReady)
@@ -564,7 +579,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 	defer listener.Close()
 	defer srv.Close()
-	serverDone := make(chan error, 1)
+	serverDone := make(chan error, 2)
 	trialCtx, cancelTrial := context.WithCancel(ctx)
 	defer cancelTrial()
 	serve := func() { go func() { serverDone <- srv.Serve(listener); cancelTrial() }() }
@@ -647,6 +662,16 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	if setReady != nil {
 		setReady(true)
 	}
+	if nativeServer != nil {
+		go func() {
+			e := nativeServer.Serve(nativeListener)
+			if errors.Is(e, net.ErrClosed) {
+				e = http.ErrServerClosed
+			}
+			serverDone <- e
+		}()
+		slog.Info("native SSH/SFTP listening", "addr", cfg.SSHAddr, "host_key", nativeServer.Fingerprint())
+	}
 	slog.Info("server listening", "addr", cfg.Addr, "version", cfg.Version, "cluster", cfg.ClusterMode)
 
 	var serverErr error
@@ -662,6 +687,9 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		setReady(false)
 	}
 	cancelNode()
+	if nativeServer != nil {
+		_ = nativeServer.Close()
+	}
 	smsMFAService.Close()
 	radiusService.Close()
 

@@ -2,6 +2,8 @@
 
 > [中文](./PROGRESS.md) | English
 
+New [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md): eight new acceptance gates are authored; unified verification has not run. Publish and upgrade once afterwards. The 12/12 below is the accepted v0.2.2 baseline, not acceptance of this new entry.
+
 [Current maintenance batch](./MAINTENANCE.en.md): v0.2.2 is published and deployed. BuildWorld #6 passed 6/6 stages, default login, real SSH, monitoring and restart persistence. The CI-discovered Playbook race is repaired in the running official artifact. One additional publication was explicitly authorized; that version was activated once.
 
 ## Current result — 2026-10-21

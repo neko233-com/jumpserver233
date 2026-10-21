@@ -25,6 +25,8 @@ type Config struct {
 	ActivationAttempt string
 	// Addr is the HTTP listen address, e.g. ":8080".
 	Addr string
+	// SSHAddr optionally enables the embedded native SSH/SFTP listener.
+	SSHAddr string
 	// Version is reported by the health endpoint.
 	Version string
 	// ShutdownTimeout bounds graceful shutdown.
@@ -61,6 +63,7 @@ func FromEnv() (*Config, error) {
 	}
 	cfg := &Config{
 		Addr:            getEnv("JMS_ADDR", "127.0.0.1:8080"),
+		SSHAddr:         strings.TrimSpace(os.Getenv("JMS_SSH_ADDR")),
 		Version:         getEnv("JMS_VERSION", buildinfo.Version),
 		ShutdownTimeout: 10 * time.Second,
 		DataDir:         getEnv("JMS_DATA_DIR", filepath.Join(userConfigDir, "JumpServer233")),
@@ -73,6 +76,17 @@ func FromEnv() (*Config, error) {
 	}
 	if cfg.Addr == "" {
 		return nil, fmt.Errorf("JMS_ADDR must not be empty")
+	}
+	if cfg.SSHAddr != "" {
+		host, port, e := net.SplitHostPort(cfg.SSHAddr)
+		n, pe := strconv.Atoi(port)
+		if e != nil || pe != nil || n < 1 || n > 65535 || host != "" && net.ParseIP(host) == nil || cfg.SSHAddr == cfg.Addr {
+			return nil, fmt.Errorf("JMS_SSH_ADDR requires an IP listen address and distinct port")
+		}
+		_, httpPort, _ := net.SplitHostPort(cfg.Addr)
+		if port == httpPort {
+			return nil, fmt.Errorf("SSH and HTTP require distinct ports")
+		}
 	}
 	cfg.DefaultAdminEnabled, err = parseBoolEnv("JMS_DEFAULT_ADMIN_ENABLED", true)
 	if err != nil {
@@ -109,6 +123,9 @@ func FromEnv() (*Config, error) {
 	}
 	if !isLoopbackAddress(cfg.Addr) && cfg.AdminToken == "" {
 		return nil, fmt.Errorf("JMS_ADMIN_TOKEN is required when JMS_ADDR is not loopback")
+	}
+	if cfg.SSHAddr != "" && !isLoopbackAddress(cfg.SSHAddr) && cfg.AdminToken == "" {
+		return nil, fmt.Errorf("JMS_ADMIN_TOKEN is required when JMS_SSH_ADDR is not loopback")
 	}
 	clusterMode, err := parseBoolEnv("JMS_CLUSTER_MODE", false)
 	if err != nil {

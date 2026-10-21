@@ -18,7 +18,7 @@ COPY --from=build /out/jms /usr/local/bin/jms
 COPY server/docker-entrypoint.sh /app/entrypoint.sh
 RUN chmod 755 /app/entrypoint.sh
 USER 10001:10001
-ENV JMS_ADDR=0.0.0.0:8080 JMS_DATA_DIR=/data JMS_VERSION=docker-qa HOME=/data
-EXPOSE 8080
+ENV JMS_ADDR=0.0.0.0:8080 JMS_SSH_ADDR=0.0.0.0:2222 JMS_DATA_DIR=/data JMS_VERSION=docker-qa HOME=/data
+EXPOSE 8080 2222
 HEALTHCHECK --interval=1s --timeout=2s --start-period=1s --retries=20 CMD wget -q -O /dev/null http://127.0.0.1:8080/api/health || exit 1
 ENTRYPOINT ["/app/entrypoint.sh"]

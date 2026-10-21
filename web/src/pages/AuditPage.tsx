@@ -35,7 +35,7 @@ type FileTransfer = {
   id: string;
   actor: string;
   asset_id: string;
-  action: "upload" | "download" | "mkdir" | "delete";
+  action: "upload" | "download" | "mkdir" | "delete" | "rename";
   path: string;
   bytes: number;
   success: boolean;

@@ -17,6 +17,7 @@ import (
 	coregrants "github.com/neko233-com/jumpserver233/server/internal/core/grants"
 	coregroups "github.com/neko233-com/jumpserver233/server/internal/core/groups"
 	corenodes "github.com/neko233-com/jumpserver233/server/internal/core/nodes"
+	"github.com/neko233-com/jumpserver233/server/internal/fileaccess"
 )
 
 func registerFileRoutes(mux *http.ServeMux, service *corefiles.Service, assets *coreassets.Service, identities *coreauth.Service, grants *coregrants.Store, adminToken string, groups *coregroups.Store, nodes *corenodes.Store, accessReviews *coreaccessreviews.Store, sftpSessions *corefiles.AccessSessionStore, accessMu *sync.RWMutex) {
@@ -78,10 +79,16 @@ func registerFileRoutes(mux *http.ServeMux, service *corefiles.Service, assets *
 				method = "delete"
 			case r.Method == "POST":
 				method = "mkdir"
+				if r.URL.Path == "/api/v1/assets/"+assetID+"/files/rename" {
+					method = "upload"
+				}
 			case r.URL.Path == "/api/v1/assets/"+assetID+"/files/content":
 				method = "download"
 			}
 			if method != "" && !enforceAssetPolicy(w, r, principal, asset, method) {
+				return
+			}
+			if r.URL.Path == "/api/v1/assets/"+assetID+"/files/rename" && !enforceAssetPolicy(w, r, principal, asset, "delete") {
 				return
 			}
 			if !hasPermission(r, "login_review.bypass") && asset.LoginReviewRequired {
@@ -96,11 +103,35 @@ func registerFileRoutes(mux *http.ServeMux, service *corefiles.Service, assets *
 				}
 				r = r.WithContext(coreassets.WithWorkspaceIdentity(r.Context(), identity))
 			}
+			// Only an in-process caller can install this callback. Native SFTP
+			// uses the exact same identity, source, grants, approval and binding
+			// checks, while reading through the existing remote file descriptor.
+			if operation, ok := fileaccess.FromContext(r.Context()); ok {
+				operation(r.Context(), service, binding)
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
 			handler(w, r)
 		}), adminToken, identities)
 	}
 
 	registerSFTPAccessSessionRoutes(mux, assets, identities, grants, adminToken, groups, nodes, accessReviews, sftpSessions, accessMu)
+	mux.Handle("POST /api/v1/assets/{assetID}/files/rename", protect(func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			Source      string `json:"source"`
+			Destination string `json:"destination"`
+			Overwrite   bool   `json:"overwrite"`
+		}
+		if err := decodeRequestJSON(w, r, &input); err != nil {
+			writeJSON(w, 400, map[string]string{"detail": "invalid rename payload"})
+			return
+		}
+		if err := service.Rename(r.Context(), principalActor(r), r.PathValue("assetID"), input.Source, input.Destination, input.Overwrite); err != nil {
+			writeFileError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
 
 	mux.Handle("GET /api/v1/assets/{assetID}/files", protect(func(w http.ResponseWriter, r *http.Request) {
 		items, err := service.List(r.Context(), r.PathValue("assetID"), r.URL.Query().Get("path"))

@@ -121,7 +121,7 @@ jobs:
           if [ "$JMS_CI_FULL_RACE" = "true" ]; then
             go test -race -count=1 -timeout 20m -p 1 ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
           else
-            go test -race -count=1 -timeout 20m -p 1 -run 'History|Directory|Workspace|Input|Backup|Upgrade|Preflight|Drain|Admission|AccessSession|ConnectionScope|ConnectionBinding|NativeStep|Operation|Playbook|ExecGuard|CloseSessionIdempotent|ActiveStandbyFailoverKeepsSharedAuthSession|RequestLogPath|AccessAndPanicLogs' ./internal/storage ./internal/core/executionhistory ./internal/core/jobs ./internal/core/operations ./internal/gateway ./internal/terminalwire ./internal/hostagent ./internal/connector/sshclient ./internal/maintenance ./internal/core/servicemaintenance ./cmd/server ./internal/api
+            go test -race -count=1 -timeout 20m -p 1 -run 'History|Directory|Workspace|Input|Backup|Upgrade|Preflight|Drain|Admission|AccessSession|ConnectionScope|ConnectionBinding|Native|Operation|Playbook|ExecGuard|CloseSessionIdempotent|ActiveStandbyFailoverKeepsSharedAuthSession|RequestLogPath|AccessAndPanicLogs' ./internal/storage ./internal/core/executionhistory ./internal/core/jobs ./internal/core/operations ./internal/gateway ./internal/terminalwire ./internal/hostagent ./internal/connector/sshclient ./internal/maintenance ./internal/core/servicemaintenance ./internal/nativeaccess ./cmd/server ./internal/api
             go test -race -count=1 -timeout 20m -p 1 ./internal/core/auth
           fi
       - name: Retain failed native desktop evidence

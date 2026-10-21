@@ -41,7 +41,8 @@ function freePort() {
 }
 const webPort = option("--web-port", command === "verify" ? await freePort() : "15173");
 const apiPort = option("--api-port", command === "verify" ? await freePort() : "18080");
-if (![webPort, apiPort].every(p => /^\d+$/.test(p) && Number(p) > 1024 && Number(p) < 65536) || webPort === apiPort) throw new Error("Use two distinct ports between 1025 and 65535");
+const sshPort = option("--ssh-port", command === "verify" ? await freePort() : "12222");
+if (![webPort, apiPort, sshPort].every(p => /^\d+$/.test(p) && Number(p) > 1024 && Number(p) < 65536) || new Set([webPort,apiPort,sshPort]).size!==3) throw new Error("Use three distinct ports between 1025 and 65535");
 const browser = args.includes("--browser");
 if (browser) args.splice(args.indexOf("--browser"), 1);
 if (peerURL && !browser) throw new Error("--peer-url requires --browser");
@@ -54,7 +55,7 @@ const output = resolve(cwd, ".cache/docker-qa", project);
 mkdirSync(output, { recursive: true });
 writeFileSync(resolve(output, "lifecycle.json"), JSON.stringify({ pid: process.pid, status: "running", at: new Date().toISOString() }));
 const log = createWriteStream(resolve(output, "verify.log"), { flags: "a" });
-const env = { ...process.env, JMS_QA_HOST: host, JMS_QA_WEB_PORT: webPort, JMS_QA_API_PORT: apiPort };
+const env = { ...process.env, JMS_QA_HOST: host, JMS_QA_WEB_PORT: webPort, JMS_QA_API_PORT: apiPort, JMS_QA_SSH_PORT:sshPort };
 const compose = ["compose", "-f", "compose.qa.yml", "-p", project];
 const execute = promisify(execFile);
 const existing = (await execute("docker", ["ps", "--all", "--quiet", "--filter", `label=com.docker.compose.project=${project}`])).stdout.trim().split(/\s+/).filter(Boolean);
@@ -222,6 +223,12 @@ const started = performance.now();
 let built = 0, ready = 0;
 let receipt = { project, webURL, apiURL, success: false, cleaned: false };
 let verificationPhase="initialization";
+async function nativeSmoke(expectFingerprint="") {
+  const pending=execute("go",["run","./testsupport/nativecheck"],{cwd:resolve(cwd,"server"),timeout:90000,maxBuffer:64*1024,windowsHide:true});
+  pending.child.stdin.on("error",()=>{});
+  pending.child.stdin.end(JSON.stringify({Address:`${host}:${sshPort}`,User:"root",Password:"root",ExpectFingerprint:expectFingerprint}));
+  return JSON.parse((await pending).stdout);
+}
 try {
   if (command === "down") { await docker(["down", ...(keepData ? [] : ["--volumes"]), "--remove-orphans"]); receipt.success = true; receipt.cleaned = !keepData; }
   else {
@@ -231,7 +238,9 @@ try {
     verificationPhase="startup";
     await docker(["up", "--detach", "--wait", "--wait-timeout", "90"]); ready = performance.now();
     verificationPhase="http_smoke";
+    receipt.nativeBeforeRestart=await nativeSmoke();
     await httpSmoke();
+    receipt.nativeAfterRestart=await nativeSmoke(receipt.nativeBeforeRestart.fingerprint);
     if (browser) { verificationPhase="browser_smoke"; await browserSmoke(); }
     receipt = { ...receipt, success: true, buildSeconds: +((built-started)/1000).toFixed(2), startupSeconds: +((ready-built)/1000).toFixed(2), smokeSeconds: +((performance.now()-ready)/1000).toFixed(2), browser, parallelBrowser: Boolean(peerURL), retained: command === "up" };
   }

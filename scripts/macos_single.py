@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import platform
+import ipaddress
+import socket
 import plistlib
 import re
 import secrets
@@ -168,12 +170,37 @@ def runtime_config(root):
         write_private(path, json.dumps({'JMS_ADMIN_TOKEN': secrets.token_urlsafe(48)}).encode())
     path.chmod(0o600)
     config = json.loads(path.read_text(encoding='utf-8'))
-    allowed = {'JMS_ADMIN_TOKEN', 'JMS_PUBLIC_URL', 'JMS_TRUSTED_PROXIES', 'JMS_MONITOR_INTERVAL', 'JMS_DEFAULT_ADMIN_ENABLED'}
+    allowed = {'JMS_ADMIN_TOKEN', 'JMS_PUBLIC_URL', 'JMS_TRUSTED_PROXIES', 'JMS_MONITOR_INTERVAL', 'JMS_DEFAULT_ADMIN_ENABLED', 'JMS_SSH_ADDR'}
     if not isinstance(config, dict) or set(config) - allowed or not all(isinstance(v, str) for v in config.values()):
         raise RuntimeError('Unsupported runtime configuration fields')
     if len(config.get('JMS_ADMIN_TOKEN', '')) < 32:
         raise RuntimeError('Runtime admin token must have at least 32 characters')
     return config
+
+
+def native_ssh_port(config):
+    address = config.get('JMS_SSH_ADDR', '')
+    if not address:
+        return None
+    host, separator, port_text = address.rpartition(':')
+    try:
+        ipaddress.ip_address(host.removeprefix('[').removesuffix(']'))
+        port = int(port_text)
+        if not separator or not 1024 <= port <= 65535:
+            raise ValueError()
+    except ValueError:
+        raise RuntimeError('JMS_SSH_ADDR requires a dedicated unprivileged IP listener') from None
+    return port
+
+
+def check_native_ssh(port):
+    if port is None:
+        return
+    with socket.create_connection(('127.0.0.1', port), timeout=5) as connection:
+        connection.settimeout(5)
+        banner = connection.recv(256)
+        if not banner.startswith(b'SSH-2.0-JumpServer233'):
+            raise RuntimeError('Native SSH listener identity differs')
 
 
 def command(*args, check=True):
@@ -256,6 +283,11 @@ def activate(staging, root, port, manifest, launch_dir=None):
     if previous and (previous.parent != releases or previous.is_symlink()):
         raise RuntimeError('Current release is outside this deployment')
     config = runtime_config(root)
+    ssh_port = native_ssh_port(config)
+    if ssh_port is not None:
+        if ssh_port == port:
+            raise RuntimeError('Native SSH requires a port distinct from HTTP')
+        assert_owned_listener(ssh_port, previous)
     domain = 'user/' + str(os.getuid())
     command('/bin/launchctl', 'print', domain)
     target = domain + '/' + LABEL
@@ -278,6 +310,7 @@ def activate(staging, root, port, manifest, launch_dir=None):
     if previous and old_plist and old.get('EnvironmentVariables') == env and (previous / 'manifest.json').read_bytes() == (staging / 'manifest.json').read_bytes():
         try:
             check_health(port, manifest['version'], timeout=2)
+            check_native_ssh(ssh_port)
             print('Same artifact is healthy; activation is an idempotent no-op', flush=True)
             return {'version': manifest['version'], 'port': port, 'idempotent': True}
         except RuntimeError:
@@ -314,6 +347,7 @@ def activate(staging, root, port, manifest, launch_dir=None):
         command('/usr/bin/plutil', '-lint', str(plist_path))
         command('/bin/launchctl', 'bootstrap', domain, str(plist_path))
         check_health(port, manifest['version'])
+        check_native_ssh(ssh_port)
     except Exception:
         failed_pids = listeners(port)
         command('/bin/launchctl', 'bootout', target, check=False)
@@ -375,6 +409,18 @@ def deploy():
     try:
         staging = ROOT / 'dist/release'
         manifest = validate_manifest(staging)
+        ssh_text = os.environ.get('JMS_SSH_PORT')
+        if ssh_text is not None:
+            candidate = {'JMS_SSH_ADDR': '0.0.0.0:' + ssh_text}
+            ssh_port = native_ssh_port(candidate)
+            if ssh_port == port:
+                raise RuntimeError('Native SSH and HTTP ports must differ')
+            config = runtime_config(root)
+            old_port = native_ssh_port(config)
+            if old_port is not None and old_port != ssh_port:
+                raise RuntimeError('Native SSH port migration requires an explicit service migration')
+            config.update(candidate)
+            write_private(root / 'runtime.json', json.dumps(config).encode())
         result = activate(staging, root, port, manifest)
         (ROOT / 'dist/deployment.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     finally:

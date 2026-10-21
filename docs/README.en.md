@@ -2,7 +2,7 @@
 
 > [中文](./README.md) | English
 
-[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Unified verification passed; v0.2.1 publication and intranet upgrade are the remaining gates.
+[Native SSH/SFTP batch](./NATIVE-SSH.en.md): embedded 2222, platform identity, search and selection, terminal relay and file transfer with shared authorization, approval and audit. Authored; unified verification and one official publication remain. Preserve the accepted v0.2.2 baseline.
 
 [Mini release acceptance](./MINI-ACCEPTANCE.en.md): 12/12 accepted, verified source, results, reports and limits. The Enterprise entries below retain historical design notes; their old 42-group gate is superseded.
 

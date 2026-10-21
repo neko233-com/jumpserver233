@@ -5,6 +5,7 @@ services:
       dockerfile: server/Dockerfile
     ports:
       - "${JMS_QA_HOST:-127.0.0.2}:${JMS_QA_API_PORT:-18080}:8080"
+      - "${JMS_QA_HOST:-127.0.0.2}:${JMS_QA_SSH_PORT:-12222}:2222"
     environment:
       JMS_PUBLIC_URL: "http://${JMS_QA_HOST:-127.0.0.2}:${JMS_QA_WEB_PORT:-15173}"
       JMS_DEFAULT_ADMIN_ENABLED: "true"
