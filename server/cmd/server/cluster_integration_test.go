@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -270,9 +271,6 @@ func TestActiveStandbyFailoverKeepsSharedAuthSession(t *testing.T) {
 	haKubernetes := prepareKubeFailover(t, first.Addr, login.AccessToken, haOrg.ID)
 	haTelnet := prepareTelnetFailover(t, first.Addr, login.AccessToken, haOrg.ID)
 	haRDP := prepareRDPFailover(t, first.Addr, login.AccessToken, haOrg.ID)
-	haKey := prepareKeyFailover(t, documents, dataDir, []byte("0123456789abcdef0123456789abcdef"), addKeyCleanup)
-	haSharedKey, haSharedPeer := prepareSharedKeyFailover(t, documents, dataDir, []byte("0123456789abcdef0123456789abcdef"), haOrg.ID, addKeyCleanup)
-
 	verifyKubeActiveBeforeFailover(t, haKubernetes)
 	verifyTelnetActiveBeforeFailover(t, haTelnet)
 	verifyRDPActiveBeforeFailover(t, haRDP)
@@ -280,6 +278,24 @@ func TestActiveStandbyFailoverKeepsSharedAuthSession(t *testing.T) {
 	require.NoError(t, json.Unmarshal(orgHTTP(t, first.Addr, "GET", "/api/v1/organizations/overview", login.AccessToken, "", nil, 200), &overviewBefore))
 	require.False(t, overviewBefore.Partial)
 	require.Equal(t, 2, overviewBefore.CollectedOrganizations)
+	// These fixtures deliberately seed durable state outside the running primary.
+	// Keep them immediately before shutdown and account for their known additions;
+	// the primary's in-memory HTTP snapshot cannot observe a second store's writes.
+	haKey := prepareKeyFailover(t, documents, dataDir, []byte("0123456789abcdef0123456789abcdef"), addKeyCleanup)
+	haSharedKey, haSharedPeer := prepareSharedKeyFailover(t, documents, dataDir, []byte("0123456789abcdef0123456789abcdef"), haOrg.ID, addKeyCleanup)
+	injectedSSHAssets := 0
+	for _, proof := range []*keyFailoverProof{haKey, haSharedKey} {
+		if proof != nil {
+			injectedSSHAssets++
+		}
+	}
+	if haSharedPeer != "" {
+		injectedSSHAssets++
+	}
+	expectedProtocols := maps.Clone(overviewBefore.Totals.Protocols)
+	if injectedSSHAssets > 0 {
+		expectedProtocols["ssh"] += injectedSSHAssets
+	}
 	cancel1()
 	select {
 	case err := <-done1:
@@ -294,8 +310,9 @@ func TestActiveStandbyFailoverKeepsSharedAuthSession(t *testing.T) {
 	var overviewAfter organizations.Overview
 	require.NoError(t, json.Unmarshal(orgHTTP(t, second.Addr, "GET", "/api/v1/organizations/overview", login.AccessToken, "", nil, 200), &overviewAfter))
 	require.False(t, overviewAfter.Partial)
-	require.Equal(t, overviewBefore.Totals.Assets, overviewAfter.Totals.Assets)
-	require.Equal(t, overviewBefore.Totals.Protocols, overviewAfter.Totals.Protocols)
+	require.Equal(t, overviewBefore.Totals.Assets+injectedSSHAssets, overviewAfter.Totals.Assets)
+	require.Equal(t, overviewBefore.Totals.SSHAssets+injectedSSHAssets, overviewAfter.Totals.SSHAssets)
+	require.Equal(t, expectedProtocols, overviewAfter.Totals.Protocols)
 	require.Equal(t, overviewBefore.Memberships, overviewAfter.Memberships)
 	require.Equal(t, overviewBefore.CollectedOrganizations, overviewAfter.CollectedOrganizations)
 	verifyDatabaseFailover(t, second.Addr, login.AccessToken, haOrg.ID, haDatabase)

@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      full_race:
+        type: boolean
+        default: false
+        description: Run the complete optional race suite
 
 permissions:
   contents: read
@@ -15,6 +21,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:17
@@ -36,9 +43,18 @@ jobs:
       - name: Record backend fixture kernel
         run: uname -r
       - uses: actions/setup-go@v5
+        id: go
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
+      - name: Restore race compiler cache
+        id: race-cache
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-${{ runner.arch }}-go-race-${{ steps.go.outputs.go-version }}-${{ hashFiles('server/go.sum') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-go-race-${{ steps.go.outputs.go-version }}-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -46,7 +62,7 @@ jobs:
         with:
           version: 12.9.1
       - name: Test owned fixture lifecycle helpers
-        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs scripts/historical-source.test.mjs
+        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs scripts/historical-source.test.mjs scripts/ci-cache.test.mjs
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -100,7 +116,19 @@ jobs:
         working-directory: server
         env:
           JMS_TEST_RDP_CAPTURE: ${{ runner.temp }}/native-rdp.png
-        run: go test -race -timeout 20m -p 1 ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
+        run: go test -count=1 -timeout 20m -p 1 ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
+      - name: Backend concurrent-state race regression
+        id: race
+        working-directory: server
+        env:
+          JMS_CI_FULL_RACE: ${{ github.event_name == 'workflow_dispatch' && inputs.full_race }}
+        run: |
+          if [ "$JMS_CI_FULL_RACE" = "true" ]; then
+            go test -race -count=1 -timeout 20m -p 1 ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
+          else
+            go test -race -count=1 -timeout 20m -p 1 -run 'History|Directory|Workspace|Input|Backup|Upgrade|Preflight|Drain|Admission|AccessSession|ConnectionScope|ConnectionBinding|NativeStep|Operation|Playbook|ExecGuard|CloseSessionIdempotent|ActiveStandbyFailoverKeepsSharedAuthSession|RequestLogPath|AccessAndPanicLogs' ./internal/storage ./internal/core/executionhistory ./internal/core/jobs ./internal/core/operations ./internal/gateway ./internal/terminalwire ./internal/hostagent ./internal/connector/sshclient ./internal/maintenance ./internal/core/servicemaintenance ./cmd/server ./internal/api
+            go test -race -count=1 -timeout 20m -p 1 ./internal/core/auth
+          fi
       - name: Retain failed native desktop evidence
         if: failure()
         uses: actions/upload-artifact@v4
@@ -114,6 +142,13 @@ jobs:
       - name: Backend build
         working-directory: server
         run: go build ./...
+      - name: Save race compiler cache
+        if: ${{ always() && !cancelled() && (steps.race.outcome == 'success' || steps.race.outcome == 'failure') && steps.race-cache.outputs.cache-primary-key && steps.race-cache.outputs.cache-hit != 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.race-cache.outputs.cache-primary-key }}
       - name: Clean disposable backend OpenSSH fixture
         if: always()
         run: node server/testsupport/openssh/ci-env.mjs --cleanup
@@ -131,6 +166,7 @@ jobs:
     # MongoDB's allocator rejects newer runner kernels (SERVER-121912).
     # Keep the real 8.0 fixture on the supported 6.8 runner kernel family.
     runs-on: ubuntu-22.04
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - name: Record frontend fixture kernel
@@ -170,6 +206,7 @@ jobs:
 
   docker-qa:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -4,9 +4,17 @@
 
 ## 2026-10-21 verified mini batch
 
-Go/Testify **2037 passed / 133 skipped**; Linux race **195 / 4**; production browser **55/55**, plus bilingual six-width console regression; Docker browser and the complete native package/update suite passed. Source identity, receipt paths, cleanup and limits: [mini acceptance](./MINI-ACCEPTANCE.en.md).
+Go/Testify **2134 passed / 51 skipped**; Linux race **195 / 4**; production browser **55/55**, plus bilingual six-width console regression; Docker browser and the complete native package/update suite passed. Source identity, receipt paths, cleanup and limits: [mini acceptance](./MINI-ACCEPTANCE.en.md).
 
 ## Current verification scope: mini SSH (2026-10-21)
+
+CI race and six-platform packaging use separate Go compiler-cache keys containing OS, architecture, Go version and `go.sum`. Setup-go retains dependency caching; the additional caches contain only `~/.cache/go-build`. Cache failures leave the original test/build/publication checks active. Official [restore](https://github.com/actions/cache/blob/v4/restore/README.md) / [save](https://github.com/actions/cache/blob/v4/save/README.md) interfaces are covered by `node --test scripts/ci-cache.test.mjs`: key separation, save conditions, compiler-only paths and complete test commands. The first miss still compiles; evaluate acceleration from actual future hits.
+
+Default CI runs functional tests for the entire Go module and drivers, then race checks for history/jobs/directories/gateway/native-agent/backup-upgrade state, takeover and log redaction, plus the complete authentication package under race. Fixture tests use `-count=1`; compiler caching does not reuse test results. Manually dispatch `ci` with `full_race=true` for the additional whole-module race run. Full functional coverage remains mandatory.
+
+`node scripts/ha-regression-qa.mjs --batch mini-ha-regression` runs all service-entrypoint, authentication and API package tests against isolated PostgreSQL/SSH, checking actual takeover, shared security epochs, log-path redaction and repeated cleanup. Add `--full` for the entire Go module and drivers. Reports exclude connection passwords and session tokens.
+
+Backend, production browser, Docker QA and native publication have 60/40/20/45-minute job limits respectively; Go keeps its 20-minute per-package timeout.
 
 Use S01–S12 from [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) as the gate without waiting for the historical 42 Enterprise groups. The production browser suite covers shipped mini pages and retains SSH, native-host, authentication and notification fixtures. It starts no SQL, RDP, Kubernetes, cloud or Enterprise identity service. Source and historical cases for the 17 removed pages remain, but provide no current acceptance credit. Run the complete backend Go/Testify suite and vet for compatible APIs and security regression. Keep named results for native packages, data-preserving updates, directory security and cleanup.
 

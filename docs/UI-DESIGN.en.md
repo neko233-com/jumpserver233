@@ -23,6 +23,8 @@ The native `oil_ui_*` tools belong to DeepSeek Harness. Codex uses its available
 
 ## Verification boundary
 
-Production browser **55/55** passed. The repaired console passed **1600/1440/1280/900/715/375px × English/Chinese**, including real fixture metrics, actions inside the table, row height ≤128px, search/clear/Escape/focus, current-page state and mobile navigation. Exactly two screenshots were retained for this focused batch; the Chinese desktop capture was visually inspected. The in-app browser independently confirmed bilingual inventory and real SSH-fixture CPU/memory/network/disk data.
+Production browser **55/55** passed. The repaired console passed **1600/1440/1280/900/715/375px × English/Chinese**, including real fixture metrics, actions inside the table, desktop row height ≤128px, search/clear/Escape/focus, current-page state and mobile navigation. Exactly two screenshots were retained for this focused batch; the Chinese desktop capture was visually inspected. The in-app browser independently confirmed bilingual inventory and real SSH-fixture CPU/memory/network/disk data.
 
 At 1001–1600px the sidebar is 176px; monitoring uses four compact rows and actions remain visible. The native browser also verifies the accessible directory input and bilingual desktop/mobile operation form. This is functional/rendered acceptance without an invented visual score. Source and reports: [mini acceptance](./MINI-ACCEPTANCE.en.md).
+
+Linux Chromium showed inconsistent native anchor focus. Explicitly focus main content and close mobile navigation, with repeated keyboard activation coverage. The focused rerun passed in 15.0s.
