@@ -43,7 +43,7 @@ func WithRecover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
-				slog.Error("panic recovered", "err", rec, "path", r.URL.Path)
+				slog.Error("panic recovered", "err", rec, "path", requestLogPath(r))
 				writeJSON(w, http.StatusInternalServerError, map[string]string{"detail": "internal server error"})
 			}
 		}()
@@ -59,11 +59,23 @@ func WithAccessLog(next http.Handler) http.Handler {
 		next.ServeHTTP(rec, r)
 		slog.Info("request",
 			"method", r.Method,
-			"path", r.URL.Path,
+			"path", requestLogPath(r),
 			"status", rec.status,
 			"dur", time.Since(start),
 		)
 	})
+}
+
+// WebSocket URLs may carry one-use session capabilities in path segments.
+// Preserve the registered route for diagnostics without logging their values.
+func requestLogPath(r *http.Request) string {
+	if strings.HasPrefix(r.URL.Path, "/ws/") {
+		if r.Pattern != "" {
+			return r.Pattern
+		}
+		return "/ws/[redacted]"
+	}
+	return r.URL.Path
 }
 
 // WithCORS allows the local Vite development origins without exposing the API

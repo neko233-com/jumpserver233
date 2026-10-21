@@ -20,7 +20,7 @@ test-content:
 test-fixtures:
 	python3 -B -m unittest discover -s scripts -p macos_single_test.py
 	node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs
-	node --test scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs scripts/historical-source.test.mjs
+	node --test scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs scripts/historical-source.test.mjs scripts/ci-cache.test.mjs
 
 test-server: prepare-agents
 	cd server && go test -timeout 20m ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission

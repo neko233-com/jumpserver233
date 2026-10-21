@@ -342,5 +342,5 @@ func TestPasswordSharedChallengeAndSecurityEpochSurviveFailover(t *testing.T) {
 	require.NoError(t, e)
 	var envelope map[string]any
 	require.NoError(t, json.Unmarshal(raw, &envelope))
-	assert.Equal(t, float64(3), envelope["version"])
+	assert.Equal(t, float64(4), envelope["version"])
 }

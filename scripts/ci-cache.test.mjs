@@ -34,9 +34,16 @@ for(const [profile,text] of [["race",ci],["native",release]]){
  });
 }
 test("cache failures cannot suppress backend or browser verification",()=>{
- assert.match(step(ci,"Backend tests (including PostgreSQL HA integration)"),/go test -race -timeout 20m -p 1 \.\/\.\.\./);
- for(const name of ["Backend tests (including PostgreSQL HA integration)","Backend static analysis","Backend build","Production browser end-to-end tests (includes build)","Verify clean production images and isolated ports"])
+ assert.match(step(ci,"Backend tests (including PostgreSQL HA integration)"),/go test -count=1 -timeout 20m -p 1 \.\/\.\.\./);
+ for(const name of ["Backend tests (including PostgreSQL HA integration)","Backend concurrent-state race regression","Backend static analysis","Backend build","Production browser end-to-end tests (includes build)","Verify clean production images and isolated ports"])
   assert.doesNotMatch(step(ci,name),/continue-on-error|if:/);
+});
+test("full functional coverage remains mandatory and both race modes execute fresh fixtures",()=>{
+ const race=step(ci,"Backend concurrent-state race regression");
+ assert(ci.includes("full_race:\n        type: boolean\n        default: false"));
+ assert(race.includes("github.event_name == 'workflow_dispatch' && inputs.full_race"));
+ assert.match(race,/go test -race -count=1 -timeout 20m -p 1 \.\/\.\.\./);
+ for(const required of ["./internal/core/executionhistory","./internal/core/jobs","./internal/core/operations","./internal/gateway","./internal/hostagent","./internal/maintenance","./cmd/server","./internal/api","./internal/core/auth","ActiveStandbyFailoverKeepsSharedAuthSession","RequestLogPath","AccessAndPanicLogs"])assert(race.includes(required));
 });
 test("native cache does not replace six-platform archive verification or publication checks",()=>{
  const build=step(release,"Build and verify six native archives");

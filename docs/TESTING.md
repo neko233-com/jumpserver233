@@ -10,6 +10,10 @@ Go/Testify **2037 通过 / 133 跳过**；Linux race **195 / 4**；生产浏览�
 
 CI 的 race 与六平台打包各自保存 Go 编译缓存，key 包含系统、架构、Go 版本及 `go.sum`。普通依赖缓存继续由 setup-go 管理；独立缓存仅保存 `~/.cache/go-build`。缓存恢复/保存失败按优化失败处理，测试、构建与发布仍执行原有检查。实现使用官方 [restore](https://github.com/actions/cache/blob/v4/restore/README.md) / [save](https://github.com/actions/cache/blob/v4/save/README.md) 接口，`node --test scripts/ci-cache.test.mjs` 验证隔离 key、保存条件、缓存范围和完整测试命令。首轮仍需编译，加速效果以实际命中记录为准。
 
+默认 CI 先执行整个 Go 模块及驱动包的功能测试，再执行历史/作业/目录/网关/原生 Agent/备份升级等状态路径的 race、接管与日志脱敏回归，以及完整认证包 race。所有夹具测试使用 `-count=1`，编译缓存与测试结果分开。需要额外全量 race 时手动运行 `ci`，设置 `full_race=true`；功能测试没有因此移出默认门槛。
+
+`node scripts/ha-regression-qa.mjs --batch mini-ha-regression` 使用独立 PostgreSQL/SSH，完整运行服务入口、认证及 API 三个包，校验真实接管、共享安全 epoch、日志路径脱敏和重复清理；加 `--full` 执行整个 Go 模块和驱动包。报告不包含连接口令或会话令牌。
+
 后端、生产浏览器、Docker QA 和正式打包的任务上限分别为 60/40/20/45 分钟；Go 单包仍使用 20 分钟超时。
 
 以 [PRODUCT-SCOPE](./PRODUCT-SCOPE.md) 的 S01–S12 为门槛，不等待历史 42 组企业扩展。默认生产浏览器套件覆盖当前 mini 页面，保留 SSH、原生主机、认证和通知夹具；不启动 SQL、RDP、Kubernetes、云或企业身份服务。退出产品路由的 17 个页面及相关历史浏览器用例保留源码，但不计当前验收。后端仍执行完整 Go/Testify 与 vet，兼容接口和安全回归继续检查。原生包、升级保数、目录安全与清理另外保留具名结果。
