@@ -2,7 +2,7 @@
 
 > [中文](./PLAN.md) | English
 
-The user explicitly authorized the next [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md). Implementation and cases are authored together; unified verification and one release remain. Prior v0.2.2 acceptance grants no credit for this addition.
+The [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md) is complete: unified verification followed the full implementation, with 8/8 new gates accepted. v0.3.0 was released and upgraded once. BuildWorld #7 (1014) passed all six stages, including root/root, search, relay, file round trips, monitoring and restart retention. The existing mini checklist remains independently counted at 12/12.
 
 [Current maintenance batch](./MAINTENANCE.en.md): v0.2.2 is published and deployed on the intranet, including the Playbook race fix. CI regression checks passed. All six stages of BuildWorld build #6 (997) succeeded; root/root login, real SSH, host monitoring and original-data retention after restart are accepted.
 

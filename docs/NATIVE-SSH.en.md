@@ -4,18 +4,28 @@
 
 ## Scope and status
 
-The user explicitly added ordinary SSH client access. Keep Web on 8180 and embed SSH/SFTP on 2222 in the Go process, without system sshd or an external proxy. Implementation, cases and deployment changes are authored together. Unified verification and the single official release have not run. The accepted v0.2.2 remains a historical baseline, not acceptance of this batch.
+Web remains on 8180, with SSH/SFTP embedded on 2222 in the Go process and no system sshd or external proxy. Unified verification followed the complete implementation. Official v0.3.0 was released and upgraded once on the intranet. [BuildWorld #7 (1014)](http://192.168.110.42:8080/builds/1014) passed 6/6 stages in 4m43s. New acceptance: **8/8**; existing mini checklist: **12/12**.
 
 | Acceptance item | Current state |
 |---|---|
-| root/root platform login, TOTP and denial policies | Authored; unified verification pending |
-| Case insensitive title, desc and IP search, multiple terms and pagination | Authored; unified verification pending |
-| Native PTY, resizing, returning to the menu and reconnecting | Authored; unified verification pending |
-| Shared command blocking, approval, one-use consumption, directory proof, replay and actor audit | Authored; unified verification pending |
-| Authorized account directories, atomic upload, direct download, rename and deletion | Authored; unified verification pending |
-| Revocation, changed connection bindings, traversal and symlink denial | Authored; unified verification pending |
-| Data retention, stable host fingerprints and maintenance draining | Authored; unified verification pending |
-| Docker, native and intranet acceptance, single publication and idempotent cleanup | Authored; unified verification pending |
+| root/root platform login, TOTP and denial policies | Integration passed; live Web/SSH login passed before and after restart |
+| Case insensitive title, desc and IP search, multiple terms and pagination | Automated checks and live searches across all three fields passed |
+| Native PTY, resizing, returning to the menu and reconnecting | Integration and real Linux relay/menu return passed |
+| Shared command blocking, approval, one-use consumption, directory proof, replay and actor audit | Real OpenSSH integration, race and existing policy regressions passed |
+| Authorized account directories, atomic upload, direct download, rename and deletion | Live 55,296-byte round trip matched SHA-256; repeat and cleanup passed |
+| Revocation, changed connection bindings, traversal and symlink denial | Integration and real OpenSSH fixtures passed |
+| Data retention, stable host fingerprints and maintenance draining | Real macOS upgrade, graceful restart and reconnect passed |
+| Docker, native and intranet acceptance, single publication and idempotent cleanup | Docker, six archives, native Mac 34/34, one release and cleanup passed |
+
+## Evidence and boundaries
+
+The running artifact uses release commit `0f4582783e2cae2e48c7a2b841fc0a4634099d30`; deployment configuration is `d0c30aa856a76a0ff539b31535f18bbb7a955ae8`. The official arm64 archive is 28,064,206 bytes, SHA-256 `b437731e9f4971d9b2f38354d1f0db656f8a3166479216f86e862283f8b844a1`. Both ends verified it before installation, without rebuilding or patching the artifact on the node.
+
+Backend, race, external integrations and Docker passed in [full CI](https://github.com/neko233-com/jumpserver233/actions/runs/39629822885). The new browser case initially used a monitor-only fixture; replacing it with the existing pinned OpenSSH fixture passed [repair CI](https://github.com/neko233-com/jumpserver233/actions/runs/39632479703). The production browser baseline passed 69 cases; the repaired case passed 1/1 separately. The historical failing run remains recorded as failed. The full Windows Go baseline had 2078 passed, one failure and 134 skips. After repairing the normal listener-close result, 42 affected cases passed repeatedly and the complete backend CI passed. Vet, builds, bilingual content, 53 cleanup-tool tests, six platform archives and isolated Docker browser checks passed.
+
+Live default Web/SSH login, real Web SSH, native search/SSH/SFTP, Linux CPU/memory/disk/network metrics and restart retention passed. Existing assets, all previous audit IDs, stored credentials and the Vault key survived; the SSH host fingerprint stayed unchanged. The acceptance helper now normalizes real-shell CSI/CRLF output with six matching cases; this changes QA tooling only. Sanitized reports and essential screenshots remain, while owned test data and temporary artifacts are removed. Business audit records remain as required evidence.
+
+TOTP, revocation, approvals, replay rejection and directory denial are supported by automation and real OpenSSH fixtures; production accounts and policies were not modified for acceptance. All six archives were built; actual execution evidence covers Windows, Linux fixtures and macOS arm64, without claiming device acceptance on every platform.
 
 ## Usage
 

@@ -8,13 +8,13 @@ An independent mini SSH bastion for small and medium businesses: **standalone, f
 
 ## Core capabilities
 
-- **SSH operations:** host/multiple-account inventory, groups/search, Web SSH, platform-identity CLI/Agent CLI, SFTP and pinned host keys. Operators need not obtain target passwords.
+- **SSH operations:** host/multiple-account inventory, groups/search, Web SSH, native SSH/SFTP on 2222, platform-identity CLI/Agent CLI and pinned host keys. Operators need not obtain target passwords.
 - **Security:** user/role/asset grants, live revocation, recordings and command/file audit, sensitive-argument redaction, command denial/review and controlled directory rules.
 - **Host status:** CPU, memory, disk, network, availability, necessary history and alerts.
 - **Account maintenance:** seven-day SSH password/key rotation, connection checks, per-item retry/recovery; native agents and remote tools installed when needed.
 - **Updates/recovery:** update checks, controlled install/rollback, encrypted installation export/import and idempotent recovery, preserving assets, credentials, authority and audit.
 
-The working tree is still being finalized; this capability list does not imply full acceptance of this version. Historical SSH acceptance is **9/12 (75%)**. Remaining work covers directory acceptance, supported update-version boundaries and final bilingual UX/performance/size/unified verification. See [progress](./docs/PROGRESS.en.md).
+Current stable **v0.3.0**: mini checklist **12/12**, new [native SSH/SFTP](./docs/NATIVE-SSH.en.md) **8/8** accepted. A single intranet upgrade, real SSH, file round trips, monitoring and restart retention passed. See [progress](./docs/PROGRESS.en.md) for evidence and supported boundaries.
 
 ## Standalone deployment
 

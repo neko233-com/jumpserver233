@@ -2,11 +2,11 @@
 
 > [中文](./PROGRESS.md) | English
 
-New [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md): eight new acceptance gates are authored; unified verification has not run. Publish and upgrade once afterwards. The 12/12 below is the accepted v0.2.2 baseline, not acceptance of this new entry.
+New [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md): **ready 8/8, accepted 8/8 (100%), zero remaining items**. v0.3.0 was released and upgraded once. BuildWorld #7 (1014) passed 6/6 stages: root/root, search/selection, SSH relay, upload/download, monitoring and restart retention. The existing mini checklist remains **12/12**; the new entry is counted separately.
 
 [Current maintenance batch](./MAINTENANCE.en.md): v0.2.2 is published and deployed. BuildWorld #6 passed 6/6 stages, default login, real SSH, monitoring and restart persistence. The CI-discovered Playbook race is repaired in the running official artifact. One additional publication was explicitly authorized; that version was activated once.
 
-## Current result — 2026-10-21
+## Current result — 2026-10-22
 
 The accepted objective is an independent mini SSH bastion for small and medium businesses: standalone deployment, few dependencies, easy operation, security and maintenance. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) defines the scope; JumpServer Enterprise is a reference. Cloud parity and the archived 42-group research checklist do not create release requirements.
 

@@ -60,3 +60,11 @@ The shared organization entry remains [HTTP port 8180](http://192.168.110.42:818
 ## Final v0.2.2 deployment
 
 The user explicitly authorized one additional v0.2.2 publication for the verified runtime race repair. [Build 997, #6](http://192.168.110.42:8080/builds/997) passed 6/6 stages and 26 native Mac cases in 92.04 seconds, with one activation. Default login, new real SSH, monitoring and restart retention passed. One original asset, all three previous audit IDs, the new fourth audit, stored credentials and the Vault key survived. Official source commit: `a73132e99f2a420f60ae88d7b43f69b57e767212`; deployment commit: `5967091b977da7cb84d114f600aa39a26d98eda8`. The running server now includes the CI-verified repair. Current access remains [HTTP 8180](http://192.168.110.42:8180/). Cleanup and exact evidence are in [maintenance acceptance](./MAINTENANCE.en.md).
+
+## Current v0.3.0 native SSH/SFTP deployment — 2026-10-22
+
+[Build 1014, #7](http://192.168.110.42:8080/builds/1014) upgraded v0.2.2 to v0.3.0 once, passing 6/6 stages and 34/34 native Mac cases in 4m43s. Deployment configuration is pinned to `d0c30aa856a76a0ff539b31535f18bbb7a955ae8`; the official running artifact is pinned to `0f4582783e2cae2e48c7a2b841fc0a4634099d30`. Web stays on 8180; embedded SSH/SFTP adds 2222 without another process or external runtime dependency.
+
+Edge root/root, real Web SSH and host monitoring passed. A native client completed title/desc/IP search, selection, Linux SSH, return to menu, and a 55,296-byte upload/rename/download hash check followed by deletion. One graceful restart retained the original asset, all four pre-upgrade audit IDs and all nine pre-restart audit IDs, credentials and the Vault key. Stored credentials reconnected with online Linux metrics. Post-restart Web/native login, the unchanged host fingerprint and a repeated complete file round trip passed. Only one activation occurred, with no republication.
+
+See [native entry](./NATIVE-SSH.en.md) for precise acceptance and CI boundaries. Compact receipts are ignored under `.cache/qa-reports/native-ssh-batch/`. Owned files, Docker QA resources, temporary executables and transfer archives are removed; production data/audit, necessary rollback material and the current verified artifact cache remain.
