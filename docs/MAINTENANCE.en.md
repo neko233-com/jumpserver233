@@ -38,6 +38,8 @@ The release CI failed before backend assertions: K3s startup exited with code 13
 
 Each external group also starts its controlled OpenSSH gateway so gateway cases cannot skip for a missing prerequisite. Normal pushes/PRs retain every gate. Only an explicit manual `external_only` scheduling regression reuses full-suite evidence for identical application trees; its separate concurrency group preserves the running full regression.
 
+Only generated `CHANGELOG.md` and `.release-please-manifest.json` changes skip duplicate runtime suites. Source, tests, scripts and CI configuration still use every default gate. Publication separately verifies six-platform artifacts; deployment then verifies actual identity and business behavior.
+
 ## v0.2.1 intranet upgrade, 2026-10-21
 
 [BuildWorld build 995, #5](http://192.168.110.42:8080/builds/995) passed 6/6 stages in 96.79 seconds, including 26/26 native macOS deployment cases. The official darwin/arm64 archive identifies source `c56eeeef0f3eb7768b9633232813337a41921b7a`; pinned SHA-256 is `f0feb667fc3198994089c78b5eb78a70b29ed3b1968304f5528490db55113223`. The deployment repository commit is `9613c922ed9cc2f44da2b49c0f8e7a84779869ba`.

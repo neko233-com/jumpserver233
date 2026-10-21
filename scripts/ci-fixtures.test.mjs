@@ -22,6 +22,11 @@ test('fixture dispatch uses fixed scripts, private loopback ports and known engi
   assert.deepEqual(fixtureCommand('mongodb').env, {JMS_QA_NOSQL_ENGINE:'mongodb'});
   assert.throws(() => fixtureCommand('../foreign'));
 });
+test('only generated release metadata skips duplicate runtime suites', () => {
+  const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const exclusions = [...ci.matchAll(/paths-ignore: \[(.*?)\]/g)].map(m => m[1]);
+  assert.deepEqual(exclusions, Array(2).fill("'CHANGELOG.md', '.release-please-manifest.json'"));
+});
 test('all shards are mandatory, bounded, and clean only owned fixture records', () => {
   const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
   assert.match(ci, /external-integrations:[\s\S]*?fail-fast: false/);
