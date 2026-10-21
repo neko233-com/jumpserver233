@@ -2,7 +2,7 @@
 
 > [中文](./PROGRESS.md) | English
 
-[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Implementation authored; unified verification and new deployment pending.
+[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Unified verification passed; v0.2.1 publication and intranet upgrade are the remaining gates.
 
 ## Current result — 2026-10-21
 
