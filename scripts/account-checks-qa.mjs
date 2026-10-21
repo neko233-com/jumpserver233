@@ -46,7 +46,8 @@ export async function verifyAccountChecks({page,context,expect,api,admin,run,run
  report.accountChecksStep="manual_browser";
  const submit=async()=>{
   await page.getByRole("row").filter({hasText:name}).getByRole("button",{name:"Check current credentials",exact:true}).click();
-  const confirmation=page.getByRole("dialog",{name:"Check stored SSH credentials",exact:true});
+  const confirmation=page.getByRole("dialog",{name:"Check stored credentials",exact:true});
+  await expect(confirmation).toBeVisible();
   const requests=[],responses=[];
   const sent=r=>{if(r.request().method()==="POST")responses.push({path:new URL(r.url()).pathname,status:r.status()})};
   const started=r=>{if(r.method()==="POST")requests.push(new URL(r.url()).pathname)};
