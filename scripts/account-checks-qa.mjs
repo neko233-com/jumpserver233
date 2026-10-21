@@ -55,8 +55,8 @@ export async function verifyAccountChecks({page,context,expect,api,admin,run,run
    const [response]=await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname===base+`plans/${plan.id}/checks`&&r.request().method()==="POST"),confirmation.getByRole("button",{name:"Check current credentials",exact:true}).click()]);
    if(response.status()!==202)throw Error("Check-only browser could not submit authentication");return {run:await response.json(),input:response.request().postDataJSON()};
   }catch(e){
-   report.accountCheckBrowserFailure={requests:requests.slice(-5),responses:responses.slice(-5),alerts:await confirmation.getByRole("alert").allTextContents()};
-   await confirmation.screenshot({path:resolve(output,"account-check-failure.png")});throw e;
+   report.accountCheckBrowserFailure={requests:requests.slice(-5),responses:responses.slice(-5),url:new URL(page.url()).pathname,alerts:await page.getByRole("alert").allTextContents(),buttons:await page.getByRole("button").allTextContents()};
+   await page.screenshot({path:resolve(output,"account-check-failure.png")}).catch(()=>{});throw e;
   }finally{page.off("response",sent);page.off("request",started)}
  };
  const positive=await submit(),success=await finished(api,token,positive.run.id);if(success.state!=="succeeded"||success.operation!=="check"||success.items.some(a=>a.after_revision||a.linked_to))throw Error("Manual check changed credential state");

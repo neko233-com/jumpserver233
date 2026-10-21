@@ -18,6 +18,7 @@ import { verifyScheduledInstallation } from "./scheduled-install-qa.mjs";
 import { verifyAutomaticInstallation } from "./automatic-install-qa.mjs";
 import { historicalBaseline, prepareHistoricalPackage, verifyHistoricalManifests } from "./historical-source.mjs";
 import { verifySSHPasswordPolicy } from "./ssh-password-policy-qa.mjs";
+import { verifyAccountChecks } from "./account-checks-qa.mjs";
 import { verifyOperationDirectories, verifyOperationDirectoryBrowser } from "./operation-directories-qa.mjs";
 import {verifyInteractiveDirectories} from "./interactive-directories-qa.mjs";
 import { verifySSHCertificates, verifySSHCertificateRestart, verifySSHCertificateBrowser } from "./ssh-certificates-qa.mjs";
@@ -25,6 +26,8 @@ import { verifySSHCertificates, verifySSHCertificateRestart, verifySSHCertificat
 const root = fileURLToPath(new URL("..", import.meta.url)), execute = promisify(execFile);
 const options = process.argv.slice(2), historical = options.includes("--historical");
 if (historical) options.splice(options.indexOf("--historical"), 1);
+const accountChecksOnly = options.includes("--account-checks-only");
+if (accountChecksOnly) options.splice(options.indexOf("--account-checks-only"), 1);
 const batch = options.length===0 ? (historical ? "historical-upgrade" : "execution-directories") : options.length===2 && options[0]==="--batch" && /^[a-z][a-z0-9-]{0,63}$/.test(options[1]) ? options[1] : null;
 if (!batch) throw new Error("Use [--batch lowercase-name] [--historical]");
 const cache = resolve(root, ".cache"), output = resolve(cache, "qa-reports/"+batch);
@@ -32,7 +35,7 @@ mkdirSync(output, { recursive: true });
 const temporary = mkdtempSync(resolve(cache, "native-package-qa-")), packages = resolve(temporary, "packages");
 const owner = "jms233-native-package-" + randomUUID();
 const sshImage = owner + "-ssh:qa";
-const report = { at: new Date().toISOString(), pid: process.pid, owner, temporaryDirectory: temporary, status: "running", scope: "mini-ssh", deferredNativeFeatures: ["external-replay-storage"], packages: [], cleanup: {} };
+const report = { at: new Date().toISOString(), pid: process.pid, owner, temporaryDirectory: temporary, status: "running", scope: accountChecksOnly ? "mini-account-checks-regression" : "mini-ssh", deferredNativeFeatures: ["external-replay-storage"], packages: [], cleanup: {} };
 const save = () => writeFileSync(resolve(output, "native-packages.json"), JSON.stringify(report, null, 2));
 const run = (command, args, options = {}) => execute(command, args, { cwd: root, windowsHide: true, maxBuffer: 2 * 1024 * 1024, ...options });
 const runInput = (command, args, input, options = {}) => { const pending = run(command, args, options); pending.child.stdin.on("error", () => {}); pending.child.stdin.end(input); return pending; };
@@ -192,6 +195,24 @@ try {
   const vaultBefore = (await run("docker", ["exec", owner, "sha256sum", "/tmp/data/vault.key"])).stdout.split(/\s+/)[0];
   const api = async (method, path, body, bearer, status = 200) => { const response = await fetch(url + path, { method, headers: { "Content-Type": "application/json", ...(bearer ? { Authorization: "Bearer " + bearer } : {}) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(10000) }); if (response.status !== status) { const body=await response.json().catch(()=>({})); const code=typeof body.error_code==="string" && /^[a-z_]{1,80}$/.test(body.error_code) ? body.error_code : "unspecified"; throw new Error("Native installation API status " + response.status + " differs from " + status + " at " + method + " " + path + " (" + code + ")"); } return status === 204 ? null : response.json(); };
   const loginBefore = await api("POST", "/api/v1/authentication/auth/", { username: "root", password: "root" });
+  if (accountChecksOnly) {
+    report.phase = "account_checks"; save();
+    const {chromium, expect} = createRequire(resolve(root,"web/package.json"))("@playwright/test");
+    const browser = await chromium.launch({headless:true});
+    try {
+      const context = await browser.newContext({locale:"en-US",viewport:{width:1280,height:900}}), page = await context.newPage();
+      context.setDefaultTimeout(10000);
+      page.on("pageerror",e => {report.browserErrors = [...(report.browserErrors || []),fixtureDiagnostic(e.message)].slice(-5)});
+      await page.goto(url+"/login");
+      await page.getByRole("textbox",{name:"Username",exact:true}).fill("root");
+      await page.getByRole("textbox",{name:"Password",exact:true}).fill("root");
+      await Promise.all([page.waitForURL(url+"/console"),page.getByRole("button",{name:"Sign in",exact:true}).click()]);
+      await page.goto(url+"/console/rotation-plans");
+      report.accountChecks = await verifyAccountChecks({page,context,expect,api,admin:loginBefore.access_token,run,runInput,owner,sshHost:owner+"-ssh",fingerprint,output,report});
+      if(report.browserErrors?.length) throw Error("Focused account-check browser errors");
+    } finally {await browser.close()}
+    report.status = "passed";
+  } else {
   const asset = await api("POST", "/api/v1/assets", { name: "Native upgrade SSH", host: owner + "-ssh", port: 22, username: "keyqa", password: "synthetic-keyhost-password-233", host_key_fingerprint: fingerprint }, loginBefore.access_token, 201);
   const operatorPassword = "synthetic-native-operator-password";
   const operator = await api("POST", "/api/v1/users", { username: "native.operator", password: operatorPassword, role: "operator" }, loginBefore.access_token, 201);
@@ -669,6 +690,7 @@ try {
   }
   report.sourceUnchanged = true;
   report.replacementRefused = true; report.status = "passed";
+  }
 } catch (e) {
   report.status = "failed"; report.error = "Native QA failed; no release or deployment was created"; process.exitCode = 1;
   report.diagnostic = fixtureDiagnostic(String(e.stderr || e.message));
