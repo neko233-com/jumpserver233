@@ -672,6 +672,7 @@ try {
 } catch (e) {
   report.status = "failed"; report.error = "Native QA failed; no release or deployment was created"; process.exitCode = 1;
   report.diagnostic = fixtureDiagnostic(String(e.stderr || e.message));
+  report.diagnosticFrames = String(e.stack || "").split("\n").slice(1).filter(line => /scripts[\\/][\w-]+\.mjs:\d+:\d+/.test(line)).map(line => line.match(/scripts[\\/]([\w-]+\.mjs:\d+:\d+)/)?.[1]).filter(Boolean).slice(0, 6);
 } finally {
   for (let round = 0; round < 2; round++) {
     try { await cleanup(); report.cleanup[round ? "idempotent" : "removed"] = true; }

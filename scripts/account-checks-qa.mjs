@@ -44,7 +44,21 @@ export async function verifyAccountChecks({page,context,expect,api,admin,run,run
  await page.goto(new URL("/console/rotation-plans",page.url()).href);
  await expect(page.getByRole("row").filter({hasText:name}).getByRole("button",{name:"Check current credentials",exact:true})).toBeVisible();await expect(page.getByRole("row").filter({hasText:name}).getByRole("button",{name:"Rotate now",exact:true})).toHaveCount(0);
  report.accountChecksStep="manual_browser";
- const submit=async()=>{await page.getByRole("row").filter({hasText:name}).getByRole("button",{name:"Check current credentials",exact:true}).click();const confirmation=page.getByRole("dialog",{name:"Check stored SSH credentials",exact:true});const [response]=await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname===base+`plans/${plan.id}/checks`&&r.request().method()==="POST"),confirmation.getByRole("button",{name:"Check current credentials",exact:true}).click()]);if(response.status()!==202)throw Error("Check-only browser could not submit authentication");return {run:await response.json(),input:response.request().postDataJSON()}};
+ const submit=async()=>{
+  await page.getByRole("row").filter({hasText:name}).getByRole("button",{name:"Check current credentials",exact:true}).click();
+  const confirmation=page.getByRole("dialog",{name:"Check stored SSH credentials",exact:true});
+  const requests=[],responses=[];
+  const sent=r=>{if(r.request().method()==="POST")responses.push({path:new URL(r.url()).pathname,status:r.status()})};
+  const started=r=>{if(r.method()==="POST")requests.push(new URL(r.url()).pathname)};
+  page.on("response",sent);page.on("request",started);
+  try{
+   const [response]=await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname===base+`plans/${plan.id}/checks`&&r.request().method()==="POST"),confirmation.getByRole("button",{name:"Check current credentials",exact:true}).click()]);
+   if(response.status()!==202)throw Error("Check-only browser could not submit authentication");return {run:await response.json(),input:response.request().postDataJSON()};
+  }catch(e){
+   report.accountCheckBrowserFailure={requests:requests.slice(-5),responses:responses.slice(-5),alerts:await confirmation.getByRole("alert").allTextContents()};
+   await confirmation.screenshot({path:resolve(output,"account-check-failure.png")});throw e;
+  }finally{page.off("response",sent);page.off("request",started)}
+ };
  const positive=await submit(),success=await finished(api,token,positive.run.id);if(success.state!=="succeeded"||success.operation!=="check"||success.items.some(a=>a.after_revision||a.linked_to))throw Error("Manual check changed credential state");
  const detail=page.getByRole("dialog",{name:"Connectivity results",exact:true});await expect(detail.getByRole("status")).toHaveText("Succeeded",{timeout:45000});
  const replay=await context.request.post(new URL(base+`plans/${plan.id}/checks`,page.url()).href,{data:positive.input});if(replay.status()!==202||(await replay.json()).id!==success.id)throw Error("Browser account check replay was not idempotent");
