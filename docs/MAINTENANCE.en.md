@@ -4,7 +4,7 @@
 
 ## Batch scope
 
-Keep the 12-item [mini SSH scope](./PRODUCT-SCOPE.en.md) and address issues found in actual deployment. Implementation and cases were authored together and unified verification passed on source `09bb9b5fdcaf7231bb7af2aff3868f11261757d4`. Publication and the new intranet upgrade remain separate gates. The mini checklist remains 12/12; maintenance adds no scope credit.
+Keep the 12-item [mini SSH scope](./PRODUCT-SCOPE.en.md) and address issues found in actual deployment. Implementation and cases were authored together and unified verification passed on source `09bb9b5fdcaf7231bb7af2aff3868f11261757d4`. The official v0.2.1 release and its single intranet upgrade have now passed their separate acceptance gates. The mini checklist retains 12 items; the later race finding reopens S12 and maintenance adds no scope credit.
 
 - Native single-port intranet IP HTTP: Origin scheme, Host and port must match the request or explicit `JMS_PUBLIC_URL`. Implicit trust accepts only loopback/private IPs without DNS resolution. Foreign hosts, different ports, `null` Origins and originless cross-site browser requests are denied. HTTPS configuration and existing development origins remain compatible.
 - Login distinguishes origin refusal, rate limiting, service failure, network failure and invalid credentials in Chinese and English. Confirm the HttpOnly cookie session before entering the console, avoiding navigation loops when no session was established. Never display raw backend errors or secrets.
@@ -19,7 +19,7 @@ After passing, release-please generates the patch version and changelog; publish
 
 ## Existing intranet baseline
 
-On 2026-10-21, v0.2.0 was deployed through BuildWorld project 49. Build 991 performed acceptance with `DEPLOY=false`: 6/6 stages, 20 native macOS cases, real SSH, monitoring and graceful-restart persistence passed. The program was published once. See [BuildWorld](./BUILDWORLD.en.md). This is the preceding baseline; update the current batch results after unified verification.
+On 2026-10-21, v0.2.0 was deployed through BuildWorld project 49. Build 991 performed acceptance with `DEPLOY=false`: 6/6 stages, 20 native macOS cases, real SSH, monitoring and graceful-restart persistence passed. The program was published once. See [BuildWorld](./BUILDWORLD.en.md). This remains the preceding baseline; the current upgrade is recorded below.
 
 ## Unified result, 2026-10-21
 
@@ -35,3 +35,19 @@ Reports remain in ignored `.cache/qa-reports/maintenance-v021/`, `maintenance-v0
 ## CI fixture isolation
 
 The release CI failed before backend assertions: K3s startup exited with code 137 while ten external services started concurrently on one hosted runner. External integrations now use three mandatory runner groups: relational databases, data services and access protocols. Each group starts fixtures sequentially, runs its connector/API cases and always cleans owned resources. Core Go/PostgreSQL/SSH/systemd, race, vet, build, browser and Docker checks remain mandatory. This changes CI scheduling only; v0.2.1 artifacts are unchanged.
+
+Each external group also starts its controlled OpenSSH gateway so gateway cases cannot skip for a missing prerequisite. Normal pushes/PRs retain every gate. Only an explicit manual `external_only` scheduling regression reuses full-suite evidence for identical application trees; its separate concurrency group preserves the running full regression.
+
+## v0.2.1 intranet upgrade, 2026-10-21
+
+[BuildWorld build 995, #5](http://192.168.110.42:8080/builds/995) passed 6/6 stages in 96.79 seconds, including 26/26 native macOS deployment cases. The official darwin/arm64 archive identifies source `c56eeeef0f3eb7768b9633232813337a41921b7a`; pinned SHA-256 is `f0feb667fc3198994089c78b5eb78a70b29ed3b1968304f5528490db55113223`. The deployment repository commit is `9613c922ed9cc2f44da2b49c0f8e7a84779869ba`.
+
+The program was activated once. Edge confirmed the existing default administrator login, a newly completed real Web SSH session returning Linux and UID 0, and CPU/memory/disk/network metrics. One graceful restart then preserved the original asset, both original session audits, the newly completed session audit and the unchanged Vault key. Stored SSH credentials reconnected; the default administrator signed in again afterwards. No password reset was performed. Access: [intranet service](http://192.168.110.42:8180/).
+
+Compact receipts and the sanitized screenshot are in ignored `.cache/qa-reports/maintenance-v021/acceptance.json`. Disposable local/Mac programs, transfer archives, the preceding archive cache and owned test resources were cleaned. Keep the verified current archive cache, current/preceding production directories and required stopped-writer snapshots for maintenance and recovery.
+
+## Post-release race finding and artifact boundary
+
+The full CI run found a runtime race in native Playbook snapshot reads: JSON decoding reused the controller's `LoopValues` backing array while the scheduler read it. Commit `f9b042a17142c2aef402f5f4976a1bf33cc7f12f` decodes into fresh storage and adds ownership, nested-value isolation, nil/empty and concurrent-reader cases. The new ownership case fails deterministically against the original v0.2.1 source; repaired operations/API Playbook cases passed three repetitions locally. [Linux repair CI 39578766877](https://github.com/neko233-com/jumpserver233/actions/runs/39578766877) passed three complete operations/API repetitions, the full existing concurrent-state race selection plus auth, vet and build. [External gateway CI 39577385755](https://github.com/neko233-com/jumpserver233/actions/runs/39577385755) passed all three groups. The preceding full run already passed all functional tests, production browser and Docker; its race failure is retained as the discovery evidence. Only the runtime clone changed after that baseline, with targeted regression above; the web tree is unchanged.
+
+This runtime repair is **not in the immutable published v0.2.1 artifact**. The accepted single intranet upgrade, default login, SSH, monitoring and original-data retention remain valid for v0.2.1. No second deployment or replacement release artifact was made. Final stable-release closure requires a version decision for the repaired server; keep that delivery gate open.

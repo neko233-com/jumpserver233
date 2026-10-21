@@ -2,26 +2,30 @@
 
 > [中文](./PROGRESS.md) | English
 
-[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Unified verification passed; v0.2.1 publication and intranet upgrade are the remaining gates.
+[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Official v0.2.1 publication and its single intranet upgrade passed. BuildWorld #5 completed 6/6 stages; default login, real SSH, monitoring and restart persistence passed. Subsequent CI found a native Playbook runtime race, repaired in source but absent from the published artifact; stable-release closure remains open.
 
 ## Current result — 2026-10-21
 
 The accepted objective is an independent mini SSH bastion for small and medium businesses: standalone deployment, few dependencies, easy operation, security and maintenance. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) defines the scope; JumpServer Enterprise is a reference. Cloud parity and the archived 42-group research checklist do not create release requirements.
 
-**Implementation ready: 12/12. Accepted: 12/12 (100%), +3 from the 9/12 historical SSH baseline. No remaining item within the stated mini acceptance boundaries.** Scope correction itself earned zero credit; S10–S12 close through the verification below. This is checklist coverage, not a guarantee about arbitrary shells, every deployment or competitor parity.
+**Implementation ready: 12/12. Accepted: 11/12 (92%). S12 remains open because the published v0.2.1 artifact does not contain the subsequent runtime race repair.** The former 12/12 functional baseline is retained below; a subsequent CI race finding reopens S12 without changing scope. This is checklist coverage, not a guarantee about arbitrary shells, every deployment or competitor parity.
 
 | Scope | Accepted | Remaining | Coverage |
 |---|---:|---:|---:|
-| Current mini SSH checklist | 12/12 | 0 | **100%** |
+| Current mini SSH checklist | 11/12 | S12 stable artifact closure | **92%** |
 | Historical Enterprise research | 16/42 | Outside current objective | **38%, archived** |
 
 The unpublished cloud-provider, Ansible runtime and PDF/email warehouse expansion was withdrawn. Seventeen Enterprise pages leave the default frontend graph; asset labels and useful local controls remain. Existing compatibility APIs and data are retained. Local files plus embedded encrypted SQLite history require no database service.
 
-## Verified evidence
+## Initial mini verification baseline
 
 See the [mini acceptance report](./MINI-ACCEPTANCE.en.md) for source identities, commands, reports and limits. Go/Testify: **2134 passed, 51 skipped**; Linux race: **195 passed, 4 skipped**; production browser: **55/55**; repaired console: **six widths × two languages**; Docker browser: **passed**; final native installation/upgrade suite: **passed**, source unchanged, six archives, real Windows CLI/Linux SSH/SFTP, directory enforcement, data recovery and update paths. Owned resources were removed twice. Skipped external integrations are not claimed as accepted.
 
 Frontend total JavaScript is **1,641,659 bytes**, about **11% below** the initial batch build (1,841,868); initial JavaScript is 495,091 bytes (gzip 159,911). Budgets are unchanged. Vet/build/content pass; lint has no errors and retains five existing warnings in legacy modules. The subsequent v0.2.0 macOS intranet baseline passed; see [BuildWorld](./BUILDWORLD.en.md). Release notes remain generated only by release-please.
+
+## Current maintenance acceptance
+
+Maintenance adds no checklist item. Go/Testify: 2061 passed, 133 skipped; complete production browser: 69/69; native Mac deployment: 26/26; six-platform archives and isolated Docker browser passed. Official v0.2.1 was upgraded once; default sign-in, real SSH, host monitoring and original data retention passed. See [maintenance acceptance](./MAINTENANCE.en.md).
 
 ## Fixed mini checklist
 
@@ -37,8 +41,8 @@ Frontend total JavaScript is **1,641,659 bytes**, about **11% below** the initia
 | S08 | Seven-day SSH password/key rotation and checks | Closed | Per-item results/retries, recovery history, periodic authentication, authorization and idempotency. |
 | S09 | Standalone offline full-site export/import | Closed | Encryption/integrity, idempotent restore, no overwrite on invalid input and restart retention; cross-version upgrades are S11. |
 | S10 | Directory rules across controlled execution paths | Closed | Real SSH jobs, templates, batches, once/interval/cron plans, every native Playbook step, interactive kernel cwd, review/replay refusal and encrypted audit; unknown cwd fails closed. Arbitrary internal shell semantics and filesystem ACL enforcement are excluded. |
-| S11 | Update checks, data preservation and version boundaries | Closed | The first stable release establishes the support line. Known format migration, future-format refusal, backup/import, trial rollback, post-acceptance write preservation, forward recovery, scheduled and automatic installation pass. No earlier official release exists; synthetic version drills are not historical official-release evidence. |
-| S12 | Final mini verification and delivery | Closed | Unified backend/race/production-browser/Docker/native acceptance, bilingual UI/docs, compact inventory, bundle budgets, project-local UI skill, Jenkinsfile_mac_single, scoped cleanup and committed delivery. Native macOS/ARM execution and intranet deployment are excluded. |
+| S11 | Update checks, data preservation and version boundaries | Closed | The first stable release establishes the support line. Known format migration, future-format refusal, backup/import, trial rollback, post-acceptance write preservation, forward recovery, scheduled and automatic installation pass. The actual official v0.2.0 → v0.2.1 macOS upgrade retained existing asset/audit/key identities. Synthetic version drills do not establish compatibility with arbitrary releases. |
+| S12 | Final mini verification and delivery | Open after CI race finding | Unified backend/race/production-browser/Docker/native acceptance, bilingual UI/docs, compact inventory, bundle budgets, project-local UI skill, Jenkinsfile_mac_single, scoped cleanup and committed delivery. Native macOS/ARM and the actual v0.2.0 → v0.2.1 intranet upgrade passed in BuildWorld #5; see maintenance acceptance. |
 
 ## Historical Enterprise research: 42 groups, outside the current objective
 
