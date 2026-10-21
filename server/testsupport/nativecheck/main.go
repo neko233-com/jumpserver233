@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,15 @@ import (
 )
 
 type options struct{ Address, User, Password, AssetID, Title, Desc, IP, ExpectFingerprint string }
+
+var terminalCSI = regexp.MustCompile("\x1b\\[[0-?]*[ -/]*[@-~]")
+
+func nativeCommandCompleted(s string) bool {
+	s = terminalCSI.ReplaceAllString(s, "")
+	s = strings.ReplaceAll(s, "\r", "")
+	return strings.Contains(s, "__JMS_NATIVE_ACCEPTED__\nLinux\n")
+}
+
 type output struct {
 	mu   sync.Mutex
 	data bytes.Buffer
@@ -117,9 +127,7 @@ func run(in options) (map[string]any, error) {
 		}
 		offset = len(out.text())
 		_, _ = io.WriteString(input, "printf '__JMS_NATIVE_ACCEPTED__\\n'; uname -s; id -u\r")
-		if e = wait(out, offset, func(s string) bool {
-			return strings.Contains(s, "\n__JMS_NATIVE_ACCEPTED__") && strings.Contains(s, "Linux")
-		}); e != nil {
+		if e = wait(out, offset, nativeCommandCompleted); e != nil {
 			return nil, e
 		}
 		report["realLinuxSSH"] = true
