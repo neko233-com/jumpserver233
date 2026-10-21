@@ -8,7 +8,9 @@
 
 - Full backend and main production-browser source: `a87184611e832f3007f0df587201391d6f9a5185`. The final backend tree remains `69cec02b69ea4406caaac23c0a20cf48ba4c3263`, identical to that tested source.
 - Compact-console regression: `d97c729cfadf0f31a68d6c7a090e8312ca12db4e`; the directory input subsequently gained its accessible name.
-- Complete native installation/update and bilingual browser run: `79fbd258d67fb37844710229dddd99c5ea0a7c79`, clean at start, unchanged SHA/worktree at completion. Later acceptance documentation is not represented as runtime-tested source.
+- Complete native installation/update and bilingual browser run: `79fbd258d67fb37844710229dddd99c5ea0a7c79`, clean at start, unchanged SHA/worktree at completion. The later UI focus correction is evidenced separately; documentation commits are not represented as runtime-tested source.
+
+Follow-up: explicitly focus main content in Linux Chromium, including repeated skip-link activation. `ConsoleLayout.tsx` blob is `056be8bd4de075fce65551dc53e6478c83d3820a`. `browser-1792550556523/summary.json` passes bilingual six-width and repeated activation checks in 15.0s; the backend tree is unchanged. The release candidate also receives remote production-browser verification.
 
 ## Unified results
 
@@ -37,6 +39,6 @@ All six macOS/ARM-inclusive archives pass cross-build/archive/digest checks; act
 
 ## Performance and cleanup
 
-Total JavaScript falls from 1,841,868 to **1,641,574 bytes (about -11%)**. Initial JavaScript is 495,091 bytes (gzip 159,909), largest chunk 478,952; budgets are unchanged. Vite took 176ms and the complete type-check/budget/build command about 1.3s on the current cached machine, not a general hardware guarantee.
+Total JavaScript falls from 1,841,868 to **1,641,659 bytes (about -11%)**. Initial JavaScript is 495,091 bytes (gzip 159,911), largest chunk 478,952; budgets are unchanged. Vite took 176ms and the complete type-check/budget/build command about 1.3s on the current cached machine, not a general hardware guarantee.
 
 Native, race, browser and Docker runs use owner identities and isolated temporary data. Owned containers/volumes/networks, temporary archives and attributable caches are removed with repeated cleanup checks. Retain compact receipts and at most two screenshots per successful batch through the existing retention entrypoint; failed/interrupted receipts remain. Other projects are untouched. Git/Docker ignore rules exclude runtime data, test output and editor leftovers.

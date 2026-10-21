@@ -19,7 +19,7 @@
 
 源码身份、命令、报告和限制见 [mini 验收报告](./MINI-ACCEPTANCE.md)。Go/Testify：**2037 通过、133 跳过**；Linux race：**195 通过、4 跳过**；生产浏览器：**55/55**；控制台修复：**六种宽度 × 中英双语**；隔离 Docker 浏览器：**通过**；最终原生安装/升级入口：**通过**，源码未变，覆盖六平台制品、真实 Windows CLI/Linux SSH/SFTP、目录限制、保数恢复与更新路径。自有资源重复清理通过。跳过的外部集成不声明验收。
 
-前端总 JavaScript **1,641,574 bytes**，比本批初始构建 1,841,868 bytes 减少约 **11%**；首屏 495,091 bytes（gzip 159,909），原预算不变。vet/build/内容检查通过；lint 无错误，保留历史模块 5 条既有警告。没有部署内网；changelog 继续只由 release-please 随发布生成。
+前端总 JavaScript **1,641,659 bytes**，比本批初始构建 1,841,868 bytes 减少约 **11%**；首屏 495,091 bytes（gzip 159,911），原预算不变。vet/build/内容检查通过；lint 无错误，保留历史模块 5 条既有警告。没有部署内网；changelog 继续只由 release-please 随发布生成。
 
 ## mini 固定清单
 

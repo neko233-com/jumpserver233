@@ -177,7 +177,15 @@ export default function ConsoleLayout({ title }: { title: string }) {
 
   return (
     <div className="layout">
-      <a className="console-skip-link" href="#console-main">
+      <a
+        className="console-skip-link"
+        href="#console-main"
+        onClick={(event) => {
+          event.preventDefault();
+          closeNavigation();
+          document.getElementById("console-main")?.focus();
+        }}
+      >
         {t("nav.skipToContent")}
       </a>
       <header className="layout-header">

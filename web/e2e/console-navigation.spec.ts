@@ -154,6 +154,9 @@ test("console navigation stays searchable, bilingual and usable on narrow screen
     await expect(skip).toBeVisible();
     await skip.press("Enter");
     await expect(page.locator("#console-main")).toBeFocused();
+    await skip.focus();
+    await skip.press("Enter");
+    await expect(page.locator("#console-main")).toBeFocused();
     expect(errors).toEqual([]);
   } finally {
     if (layoutAsset)
