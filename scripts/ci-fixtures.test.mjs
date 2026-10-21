@@ -31,4 +31,10 @@ test('all shards are mandatory, bounded, and clean only owned fixture records', 
   assert.match(shard, /timeout-minutes: 30/);
   assert.match(shard, /if: always\(\)[\s\S]*?mysql\/ci-env\.mjs --cleanup/);
   assert.match(shard, /go test -count=1/);
+  assert.match(shard, /Start external integration OpenSSH gateway[\s\S]*?openssh\/ci-env\.mjs/);
+  assert.match(shard, /Clean external integration OpenSSH gateway\n\s+if: always\(\)/);
+  assert.match(ci, /external_only:\n\s+type: boolean\n\s+default: false/);
+  // Normal pushes/PRs always keep every gate. A scheduling-only follow-up can
+  // run alongside the unchanged full suite instead of cancelling it.
+  assert.equal((ci.match(/if: \$\{\{ !\(github.event_name == 'workflow_dispatch' && inputs.external_only\) \}\}/g)||[]).length, 3);
 });

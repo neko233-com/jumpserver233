@@ -10,18 +10,23 @@ on:
         type: boolean
         default: false
         description: Run the complete optional race suite
+      external_only:
+        type: boolean
+        default: false
+        description: Rerun only changed external fixture scheduling; reuse unchanged full-suite evidence
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.external_only && 'external' || 'full' }}
   cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.external_only) }}
     services:
       postgres:
         image: postgres:17
@@ -164,6 +169,16 @@ jobs:
       - name: Build embedded native recovery agents
         working-directory: server
         run: go generate ./internal/agentbundle
+      - name: Test external fixture dispatch
+        run: node --test scripts/ci-fixtures.test.mjs server/testsupport/ci-health.test.mjs
+      - name: Start external integration OpenSSH gateway
+        env:
+          JMS_QA_KEYHOST_SSH_PORT: "12245"
+          JMS_QA_KEYHOST_HTTP_PORT: "12246"
+          JMS_QA_KEYHOST_PROTECTION: "true"
+        run: |
+          node server/testsupport/openssh/run.mjs > "$RUNNER_TEMP/keyhost.log" 2>&1 &
+          node server/testsupport/openssh/ci-env.mjs
       - name: Start memory-isolated external fixtures
         env:
           JMS_CI_FIXTURE_GROUP: ${{ matrix.group }}
@@ -184,12 +199,16 @@ jobs:
       - name: Clean disposable external fixtures
         if: always()
         run: node server/testsupport/mysql/ci-env.mjs --cleanup
+      - name: Clean external integration OpenSSH gateway
+        if: always()
+        run: node server/testsupport/openssh/ci-env.mjs --cleanup
 
   frontend:
     # MongoDB's allocator rejects newer runner kernels (SERVER-121912).
     # Keep the real 8.0 fixture on the supported 6.8 runner kernel family.
     runs-on: ubuntu-22.04
     timeout-minutes: 40
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.external_only) }}
     steps:
       - uses: actions/checkout@v4
       - name: Record frontend fixture kernel
@@ -230,6 +249,7 @@ jobs:
   docker-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.external_only) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
