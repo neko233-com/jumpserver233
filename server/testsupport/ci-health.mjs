@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 export function fixtureDiagnostic(text) {
   return String(text).replace(/\x1b\[[0-9;]*m/g, "").split(/\r?\n/).slice(-20)
-    .map(line => /password|secret|token|authorization|bearer\s|credential/i.test(line) ? "[sensitive startup diagnostic omitted]" : line)
+    .map(line => /password|secret|token|authorization|bearer\s|credential|cookie|jms_sessionid|\botp\b/i.test(line) ? "[sensitive startup diagnostic omitted]" : line)
     .join("\n").slice(-2400);
 }
 

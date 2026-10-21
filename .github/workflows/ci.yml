@@ -20,19 +20,23 @@ on:
         type: boolean
         default: false
         description: Verify a backend-only repair against prior full-suite evidence
+      frontend_only:
+        type: boolean
+        default: false
+        description: Repair native SFTP browser audit against the unchanged full-suite baseline
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.backend_only && 'backend' || github.event_name == 'workflow_dispatch' && inputs.external_only && 'external' || 'full' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.frontend_only && 'frontend' || github.event_name == 'workflow_dispatch' && inputs.backend_only && 'backend' || github.event_name == 'workflow_dispatch' && inputs.external_only && 'external' || 'full' }}
   cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.external_only && !inputs.backend_only) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && (inputs.frontend_only || inputs.external_only && !inputs.backend_only)) }}
     services:
       postgres:
         image: postgres:17
@@ -160,7 +164,7 @@ jobs:
   external-integrations:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.backend_only) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && (inputs.backend_only || inputs.frontend_only)) }}
     strategy:
       fail-fast: false
       matrix:
@@ -250,6 +254,8 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Production browser end-to-end tests (includes build)
         working-directory: web
+        env:
+          JMS_E2E_NATIVE_AUDIT_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.frontend_only && 'true' || 'false' }}
         run: pnpm test:e2e:production
       - name: Retain compact browser reports
         if: always()
@@ -263,7 +269,7 @@ jobs:
   docker-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: ${{ !(github.event_name == 'workflow_dispatch' && (inputs.external_only || inputs.backend_only)) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && (inputs.external_only || inputs.backend_only || inputs.frontend_only)) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

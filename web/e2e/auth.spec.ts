@@ -2323,7 +2323,12 @@ test("renders native SFTP rename audit in English and Chinese and cleans owned r
   await signIn(page);
   const source = `native-audit-${Date.now()}.txt`;
   const destination = source + ".renamed";
-  const endpoint = `/api/v1/assets/${monitorAssetID}/files`;
+  const fixture = await (await page.request.get("http://127.0.0.1:12242/health")).json() as {address:string;fingerprint:string};
+  const [host, portText] = fixture.address.split(":");
+  const created = await page.request.post("/api/v1/assets", {data:{name:"Native SFTP audit QA", host,port:Number(portText),username:"keyqa",password:"synthetic-keyhost-password-233",host_key_fingerprint:fixture.fingerprint}});
+  expect(created.status()).toBe(201);
+  const assetID = ((await created.json()) as {id:string}).id;
+  const endpoint = `/api/v1/assets/${assetID}/files`;
   try {
     expect((await page.request.put(endpoint + "/content?path=" + source, { data: "native audit proof" })).status()).toBe(201);
     expect((await page.request.post(endpoint + "/rename", { data: { source, destination, overwrite: false } })).status()).toBe(204);
@@ -2336,7 +2341,7 @@ test("renders native SFTP rename audit in English and Chinese and cleans owned r
     await expect(row).toContainText("重命名");
     await expect(page.locator("body")).not.toContainText("audit.fileActions.rename");
   } finally {
-    await page.request.delete(endpoint + "/content?path=" + source);
-    await page.request.delete(endpoint + "/content?path=" + destination);
+    await Promise.allSettled([page.request.delete(endpoint + "/content?path=" + source),page.request.delete(endpoint + "/content?path=" + destination)]);
+    await page.request.delete(`/api/v1/assets/${assetID}`);
   }
 });

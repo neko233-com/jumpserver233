@@ -26,6 +26,9 @@ const config = defineConfig({
   grepInvert:
     /signs in over real LDAPS|signs in through a real synthetic OIDC|completes CAS service-ticket|completes SAML signed-assertion/,
   fullyParallel: false,
+  // Explicit repair profile only; default pushes and production suites remain
+  // complete. Reuse the recorded full baseline when repairing this UI case.
+  grep: process.env.JMS_E2E_NATIVE_AUDIT_ONLY === "true" ? /renders native SFTP rename audit/ : undefined,
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
