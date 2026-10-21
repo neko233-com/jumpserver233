@@ -2,7 +2,7 @@
 
 > [中文](./EXECUTION-HISTORY.md) | English
 
-This batch moves terminal ordinary SSH jobs, Playbook child jobs and operation runs out of bounded dispatch state. Standalone uses embedded SQLite without an extra service; clusters reuse PostgreSQL. Source and cases are authored; unified verification has not run.
+This batch moves terminal ordinary SSH jobs, Playbook child jobs and operation runs out of bounded dispatch state. Standalone uses embedded SQLite without an extra service; clusters reuse PostgreSQL. Go/Testify, Linux race and production browser verification passed; see [mini acceptance](./MINI-ACCEPTANCE.en.md).
 
 ## Retention and access
 
@@ -26,8 +26,8 @@ Jobs write v7 and read v1–v7; Operations write v6 and read v1–v6. Older bina
 
 Backups must include hot state, history and the key. Archive the complete data directory after stopping the service. Copying a running SQLite main file alone does not produce a consistent snapshot; use a backup entrypoint with consistency support. PostgreSQL backups must include `jms233_history_meta` and `jms233_history_records`; JSON document export alone cannot recover historical evidence.
 
-## Cases awaiting the unified run
+## Verified cases
 
-Standalone `--check-data` authenticates every archived summary/body before listeners/workers, including disabled/archived organizations. Memory is bounded by one row. Missing history is not created; orphan WAL/SHM, corruption and unknown formats reject activation. Offline backups retain database/WAL/SHM. Cases simulate process exit with uncheckpointed commits, recovery and original-request lookup; they are authored and unrun.
+Standalone `--check-data` authenticates every archived summary/body before listeners/workers, including disabled/archived organizations. Memory is bounded by one row. Missing history is not created; orphan WAL/SHM, corruption and unknown formats reject activation. Offline backups retain database/WAL/SHM. Passing cases simulate process exit with uncheckpointed commits, recovery, original-request lookup and repeated imports that preserve later records.
 
-Authored Testify cases cover retention beyond 1,000 records, owner isolation, deep pagination, output/source recovery, durable request replay, changed-input conflicts, transaction rollback, failed hot saves, duplicate crash copies, index/ciphertext tampering, wrong keys, restart, cancellation/dispatch boundaries and PostgreSQL organization takeover. Authored cases do not establish acceptance.
+Authored Testify cases cover retention beyond 1,000 records, owner isolation, deep pagination, output/source recovery, durable request replay, changed-input conflicts, transaction rollback, failed hot saves, duplicate crash copies, index/ciphertext tampering, wrong keys, restart, cancellation/dispatch boundaries and PostgreSQL organization takeover. The full Go run and focused Linux race passed; optional PostgreSQL fixture skips are not a claim of production cluster acceptance.

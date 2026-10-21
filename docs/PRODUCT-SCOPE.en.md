@@ -23,6 +23,6 @@ Standalone is the default acceptance environment. Existing PostgreSQL standby su
 
 The primary checklist is [PROGRESS S01–S12](./PROGRESS.en.md), **12 items**. The former primary goal had 42 groups; the user's explicit product correction changes it to 12. Keep E01–E42 as historical research, exclude them from current remaining work, and give no completion credit for changing scope.
 
-The historical SSH acceptance baseline is **9/12 (75%)**. S10 awaits validation, S11 needs its supported-update line finalized, and S12 needs final unified acceptance. Scope correction adds no acceptance evidence. The current working tree is unverified; historical results do not validate this version.
+The historical SSH baseline was **9/12 (75%)**. Unified verification and delivery close **12/12 (100%), +3**; changing scope itself earns zero credit. See the [mini acceptance report](./MINI-ACCEPTANCE.en.md) for source identity, results, skips and deployment limits.
 
 Author the necessary mini stable-release batch, then run unified Go/Testify, relevant race checks, production builds, bilingual browser and isolated Docker verification. Include idempotence, restart, revocation, upgrade/recovery, performance and size. Retain compact reports/essential screenshots and clean owned resources idempotently. Do not wait for 42 Enterprise groups or repeatedly run the whole suite after tiny changes. No intranet deployment now; publish once after the stable-release gate is met.

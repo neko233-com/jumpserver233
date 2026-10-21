@@ -8,6 +8,12 @@ An independent mini SSH bastion for small and medium businesses: standalone depl
 
 The feature notes, phases and old counts below retain development history. The user's correction supersedes the former full-Enterprise objective and 42-group verification gate. Unverified source remains unverified; changing scope adds no acceptance credit.
 
+## Mini release acceptance
+
+S01–S12: **12/12 accepted** after unified verification. Source and limits: [mini acceptance](./MINI-ACCEPTANCE.en.md).
+
+## Historical implementation notes
+
 [Windows/database account PAM](./ACCOUNT-PAM.en.md): Windows local SAM and PostgreSQL/MySQL/MariaDB/SQL Server collection/enrollment, pinned native reset/check, shared plans/recovery, encryption/permissions/idempotence, bilingual Web, CLI/SDK and cases are authored. E18 awaits verification after all 42 groups are implementation ready; no deployment dependency is added.
 
 [AI assistant and conversation audit](./AI-ASSISTANT.en.md): organization provider settings/write-only keys, platform authority, native HTTPS, receipts/revisions, revocation, encrypted history/archive, bilingual Web, CLI/SDK and cases are authored. E34 awaits unified verification after all 42 groups are ready.

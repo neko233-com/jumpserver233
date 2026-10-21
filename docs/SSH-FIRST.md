@@ -2,6 +2,8 @@
 
 > 中文 | [English](./SSH-FIRST.en.md)
 
+当前结果：**S01–S12 12/12 已验收**。[mini 验收报告](./MINI-ACCEPTANCE.md)提供当前源码、结果及限制，覆盖下列历史待验描述。首个稳定版建立正式支持线，此前没有正式 Release；受控交互内核 cwd 已验证，任意 shell 内部语义仍不包含在承诺内。
+
 2026-10-21 用户修正为独立 mini SSH 跳板机：[产品定位](./PRODUCT-SCOPE.md)为当前权威范围，主验收清单 S01–S12。先完成 mini 必要实现再统一验证；原 42 组企业清单不再阻塞收尾。
 
 交付够用、稳定、少依赖且易维护的 SSH 跳板机。[JumpServer 企业版](https://www.jumpserver.org/enterprise.html)仅作为参考；不默认追求其功能覆盖率。其他协议、云同步、复杂企业集成及多活只在有明确需求时考虑，不列作当前剩余目标。

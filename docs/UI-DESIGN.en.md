@@ -23,8 +23,6 @@ The native `oil_ui_*` tools belong to DeepSeek Harness. Codex uses its available
 
 ## Verification boundary
 
-Source, styles and `web/e2e/console-navigation.spec.ts` are authored. Under the user's full-batch gate, no tests, lint, build, browser or Docker verification has run. Actual visuals are unverified; there is no visual score or independent review, and source inspection receives no acceptance credit.
+Production browser **55/55** passed. The repaired console passed **1600/1440/1280/900/715/375px × English/Chinese**, including real fixture metrics, actions inside the table, row height ≤128px, search/clear/Escape/focus, current-page state and mobile navigation. Exactly two screenshots were retained for this focused batch; the Chinese desktop capture was visually inspected. The in-app browser independently confirmed bilingual inventory and real SSH-fixture CPU/memory/network/disk data.
 
-The unified production-browser suite will cover English and Chinese at 1440/900/715/375px; search, empty state and clearing; Escape; current pages; mobile collapse and focus; sign-out visibility; and horizontal overflow. Real UI checks must also cover brand themes, assets and monitoring, native jobs, 200% zoom and reduced motion. The new case creates no assets, temporary containers or separate screenshot history. Reports and essential screenshots follow existing retention and idempotent cleanup rules.
-
-Skill installation and UI source refinement add no acceptance credit. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) and [PROGRESS](./PROGRESS.en.md) separate the mini objective from historical Enterprise research. Unified verification has not run.
+At 1001–1600px the sidebar is 176px; monitoring uses four compact rows and actions remain visible. The native browser also verifies the accessible directory input and bilingual desktop/mobile operation form. This is functional/rendered acceptance without an invented visual score. Source and reports: [mini acceptance](./MINI-ACCEPTANCE.en.md).

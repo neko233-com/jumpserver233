@@ -2,6 +2,10 @@
 
 > [中文](./TESTING.md) | English
 
+## 2026-10-21 verified mini batch
+
+Go/Testify **2037 passed / 133 skipped**; Linux race **195 / 4**; production browser **55/55**, plus bilingual six-width console regression; Docker browser and the complete native package/update suite passed. Source identity, receipt paths, cleanup and limits: [mini acceptance](./MINI-ACCEPTANCE.en.md).
+
 ## Current verification scope: mini SSH (2026-10-21)
 
 Use S01–S12 from [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) as the gate without waiting for the historical 42 Enterprise groups. The production browser suite covers shipped mini pages and retains SSH, native-host, authentication and notification fixtures. It starts no SQL, RDP, Kubernetes, cloud or Enterprise identity service. Source and historical cases for the 17 removed pages remain, but provide no current acceptance credit. Run the complete backend Go/Testify suite and vet for compatible APIs and security regression. Keep named results for native packages, data-preserving updates, directory security and cleanup.

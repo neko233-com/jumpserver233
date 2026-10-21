@@ -2,43 +2,28 @@
 
 > [中文](./PROGRESS.md) | English
 
-## Current assessment (2026-10-21: mini SSH scope correction)
+## Current result — 2026-10-21
 
-The current objective is a standalone mini SSH bastion for small and medium businesses: few dependencies, easy use/maintenance, security and efficiency. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) is authoritative. The user's explicit correction replaces the former primary 42-group Enterprise goal with the existing S01–S12 checklist, 12 items. Changing scope adds no completed work.
+The accepted objective is an independent mini SSH bastion for small and medium businesses: standalone deployment, few dependencies, easy operation, security and maintenance. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) defines the scope; JumpServer Enterprise is a reference. Cloud parity and the archived 42-group research checklist do not create release requirements.
 
-The newly authored Azure/Google/OpenStack expansion and interfaces have been withdrawn. This batch's unpublished PDF/email reports, scheduling and permanent statistics warehouse were also withdrawn, restoring existing statistics/CSV. Retain SSH job/operation history, request deduplication and directory security; add offline per-row integrity and WAL-backup cases. Current source remains unverified; old results do not validate it.
+**Implementation ready: 12/12. Accepted: 12/12 (100%), +3 from the 9/12 historical SSH baseline. No remaining item within the stated mini acceptance boundaries.** Scope correction itself earned zero credit; S10–S12 close through the verification below. This is checklist coverage, not a guarantee about arbitrary shells, every deployment or competitor parity.
 
-Finish the necessary mini release batch, then perform unified verification, repairs and cleanup. Do not wait for the former 15 Enterprise groups. Remaining priorities are S10 directory enforcement acceptance, S11 the supported update/data-preservation boundary, and S12 bilingual UX, performance/size, browser/Docker, idempotent cleanup and final delivery.
+| Scope | Accepted | Remaining | Coverage |
+|---|---:|---:|---:|
+| Current mini SSH checklist | 12/12 | 0 | **100%** |
+| Historical Enterprise research | 16/42 | Outside current objective | **38%, archived** |
 
-| Scope | Closed | Implementation awaiting verification | Partial | Undelivered | Accepted coverage |
-|---|---:|---:|---:|---:|---:|
-| Current mini SSH release (historical acceptance baseline) | 9/12 | 1 | 2 | 0 | **75%** |
-| Historical Enterprise research (outside current objective) | 16/42 | 11 | 12 | 3 | **38%, archived** |
+The unpublished cloud-provider, Ansible runtime and PDF/email warehouse expansion was withdrawn. Seventeen Enterprise pages leave the default frontend graph; asset labels and useful local controls remain. Existing compatibility APIs and data are retained. Local files plus embedded encrypted SQLite history require no database service.
 
-The previous 27/42 (64%) readiness and 16/42 (38%) acceptance belong to the superseded full-Enterprise objective. The mini checklist retains its existing 12 items: nine historically accepted, S10 authored/unverified, S11/S12 partial. This scope correction accepts zero new items. Current changes require unified verification; report named gaps without inventing remaining hours.
+## Verified evidence
 
-Percentages count accepted groups, not code volume, effort or production-readiness probability. Record explicit user requirements and before/after denominators for scope changes. The historical tables overlap and cannot be added.
+See the [mini acceptance report](./MINI-ACCEPTANCE.en.md) for source identities, commands, reports and limits. Go/Testify: **2037 passed, 133 skipped**; Linux race: **195 passed, 4 skipped**; production browser: **55/55**; repaired console: **six widths × two languages**; Docker browser: **passed**; final native installation/upgrade suite: **passed**, source unchanged, six archives, real Windows CLI/Linux SSH/SFTP, directory enforcement, data recovery and update paths. Owned resources were removed twice. Skipped external integrations are not claimed as accepted.
 
-[JumpServer Enterprise](https://www.jumpserver.org/enterprise.html) remains a reference. The user's 2026-10-21 correction and [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) define current requirements. BASELINE and E01–E42 are historical comparison material and must not automatically create new work.
+Frontend total JavaScript is **1,641,574 bytes**, about **11% below** the initial batch build (1,841,868); initial JavaScript is 495,091 bytes (gzip 159,909). Budgets are unchanged. Vet/build/content pass; lint has no errors and retains five existing warnings in legacy modules. No intranet deployment was performed. Release notes remain generated only by release-please.
 
-## Status and evidence
+## Fixed mini checklist
 
-Unified verification is in progress, without final acceptance credit: the complete Go/Testify run passed 2037 tests with 133 skips; vet, lint, bilingual content and frontend builds passed. Seventeen Enterprise pages leave the default graph while asset labels remain; total JavaScript is 1,641,477 bytes within the unchanged budget. Linux race passed 194 tests with 4 skips and repeated resource cleanup; retention recovery remains. The first browser run exposed null empty history, stale navigation locators and an obsolete proxy; fixes require reruns. Native packages/upgrades and final Docker browser acceptance remain. These interim results add no closed S01–S12 items.
-
-- **Closed**: committed implementation and relevant acceptance evidence within the boundary stated in the row; this does not cover every extension in the competitor's equivalent module.
-- **Implementation awaiting verification**: code, cases and bilingual docs are authored and await the full-scope unified run; contributes no closed credit.
-- **Partial**: implementation exists, but gaps, unverified changes or acceptance remain; contributes zero closed items.
-- **Undelivered**: no complete accepted delivery; this does not infer absence of all source from a keyword search.
-
-The last accepted and pushed functional baseline is `4b96cb3ebc8b92cc813c05abd70db3d0619b0e40`. Its preceding verification recorded **1744 Go passes, 114 skips**, **350 Linux race passes** and **87/87 production-browser passes**. The full browser suite used `04bf60a`; the mobile result correction at `8188747` received native-lifecycle and bilingual narrow-screen acceptance without repeating all 87 cases. The final baseline commit updated acceptance docs. See [verification](./TESTING.en.md) and the locally ignored `.cache/qa-reports/account-checks/summary.json`; test counts do not determine feature completion.
-
-Unverified source includes directory propagation, Go/API/CLI cases, real SSH/bilingual browser entrypoints, the [upgrade compatibility matrix](./UPGRADE-COMPATIBILITY.en.md), [platform announcements](./ANNOUNCEMENTS.en.md), [organization labels](./LABELS.en.md), [SSH user certificates](./SSH-CERTIFICATES.en.md) , [external replay storage](./REPLAY-STORAGE.en.md), [identity sources/directory sync](./IDENTITY-SOURCES.en.md), [enterprise QR sign-in](./ENTERPRISE-LOGIN.en.md) , [native notifications](./NATIVE-NOTIFICATIONS.en.md) , [sign-in SMS MFA](./SMS-MFA.en.md) and [global organization overview](./GLOBAL-ORGANIZATIONS.en.md). Checkpoint `87505d6` contains directory/upgrade work, `04e822d` notices, `d47def7` labels, `c017306` certificates and `5d41080` archive foundations. E35 application checkpoint `3f40ebe` and E04 checkpoint `adf0871` and E05 checkpoint `d1437b8` and E22 checkpoint `1641667` and E06 checkpoint `6a698be` precede this E08 global-organization overview batch. None is an accepted stable release. This batch only authors/formats source without tests, builds, browser or Docker runs. Previous passes do not cover new source. E08 checkpoint `ee1e914` precedes the current E14 native interactive submission-directory source and authored cases; no new acceptance is implied. E14 checkpoint `515b7f1` precedes the current [AI assistant](./AI-ASSISTANT.en.md), lifecycle/backup and browser source; all remain unverified.
-
-## Stable SSH: 12 fixed items
-
-After E34 source checkpoint `9fbc94d`, this batch authors [Windows/database account PAM](./ACCOUNT-PAM.en.md) and native/application/API/CLI/SDK/browser cases without acceptance. No generation, tests, builds, lint/vet, browser or Docker run occurred. Prior passes do not cover this source; no new performance or bundle-size measurement exists.
-
-| ID | Acceptance item | Status | Boundary / remaining work |
+| ID | Acceptance item | Status | Verified boundary |
 |---|---|---|---|
 | S01 | Standalone, few dependencies, same port and native artifacts | Closed | Local encrypted persistence; no external database, Redis or permanent Node runtime. |
 | S02 | Web SSH and platform-identity CLI | Closed | Real SSH/gateways, host-key verification and platform identities without returning target credentials. |
@@ -49,9 +34,9 @@ After E34 source checkpoint `9fbc94d`, this batch authors [Windows/database acco
 | S07 | Remote tools and native-agent lifecycle | Closed | Detection/install, supervised recovery, upgrade/rollback and audit. |
 | S08 | Seven-day SSH password/key rotation and checks | Closed | Per-item results/retries, recovery history, periodic authentication, authorization and idempotency. |
 | S09 | Standalone offline full-site export/import | Closed | Encryption/integrity, idempotent restore, no overwrite on invalid input and restart retention; cross-version upgrades are S11. |
-| S10 | Directory rules across controlled execution paths | Implementation awaiting verification | Single jobs were accepted. Batch/template/schedule/Playbook and native interactive submission cwd, sharing/review/audit and cases are authored; unknown cwd denies conservatively, arbitrary internal shell semantics are excluded. Unified verification has not run. |
-| S11 | Update checks, data-preserving upgrades and supported-version boundaries | Partial | Install/rollback and a historical-source drill exist; freeze the minimum supported version, historical artifact/format migration and rejection of older versions. |
-| S12 | Final mini-release verification and delivery | Partial | Complete the necessary mini implementation, cases and bilingual docs, then verify, clean, report, commit and push once. Include core UX, performance, size and simple deployment; do not wait for historical Enterprise extensions. |
+| S10 | Directory rules across controlled execution paths | Closed | Real SSH jobs, templates, batches, once/interval/cron plans, every native Playbook step, interactive kernel cwd, review/replay refusal and encrypted audit; unknown cwd fails closed. Arbitrary internal shell semantics and filesystem ACL enforcement are excluded. |
+| S11 | Update checks, data preservation and version boundaries | Closed | The first stable release establishes the support line. Known format migration, future-format refusal, backup/import, trial rollback, post-acceptance write preservation, forward recovery, scheduled and automatic installation pass. No earlier official release exists; synthetic version drills are not historical official-release evidence. |
+| S12 | Final mini verification and delivery | Closed | Unified backend/race/production-browser/Docker/native acceptance, bilingual UI/docs, compact inventory, bundle budgets, project-local UI skill, Jenkinsfile_mac_single, scoped cleanup and committed delivery. Native macOS/ARM execution and intranet deployment are excluded. |
 
 ## Historical Enterprise research: 42 groups, outside the current objective
 
@@ -101,11 +86,3 @@ Each row names a capability group and its accepted boundary or remaining extensi
 | E40 | [Complete REST and component compatibility](./BASELINE.en.md) | Partial | Four auth methods, organization headers and session/replay contracts remain; full API and upstream component registration parity lack a complete acceptance map. |
 | E41 | [Labels](./LABELS.en.md) and [platform announcements](./ANNOUNCEMENTS.en.md) | Implementation awaiting verification | Catalog, asset/node inheritance, filtering after authorization, independent permissions, audit and organization isolation; platform notice management/publication/readings. Encryption, bilingual Web, CLI/SDK and cases are authored and await unified verification. |
 | E42 | [Branding and Chinese/English presentation/UI/docs](./BRANDING.en.md) | Closed | Brand configuration, bilingual strings, automatic locale selection, paired docs and release-only changelog generation. |
-
-## Closing order and verification gate
-
-1. **Author the necessary mini SSH release, cases and bilingual docs first.** Finish S10/S11 and core UX/maintenance. Stop cloud and other competitor expansions. If no historical formal Release exists, state support boundaries without fabricating migration evidence.
-2. **Run unified verification only after every implementation is ready.** Until then, run no tests, builds, browser or Docker verification. Author idempotency, revision conflict, approval replay, restart, recovery and cross-module cases in advance, then run existing entrypoints together. Repair failures and rerun affected checks; expand regression for shared-path impact or unresolved failures.
-3. **Clean and deliver.** Keep summaries and essential screenshots, clean owned resources safely and idempotently, then commit and push accepted scope. Intranet deployment remains cancelled. Publish once after the mini gate is met; generate changelog only with a release.
-
-Every delivery must update this document and tell the user the **current scope, closed/total and percentage, batch delta, named remaining gaps, verified source and unverified changes**. New requirements must identify which scope changes. Do not keep starting more features and full regressions without this information, and do not equate passing tests with complete functionality.

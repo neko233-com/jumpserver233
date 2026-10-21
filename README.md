@@ -53,3 +53,5 @@ pnpm dev
 采用 Conventional Commits；`CHANGELOG.md` **只在正式 release 时**由 release-please 生成。当前不部署内网，稳定版门槛满足后再发布一次。
 
 目录：`server/` Go 后端，`web/` React 前端，`docs/` 双语文档，`scripts/` 构建与 QA 工具。
+
+mini 固定清单：[12/12 验收及边界](./docs/MINI-ACCEPTANCE.md)。默认 macOS 单机流水线：[Jenkinsfile_mac_single](./Jenkinsfile_mac_single)，[部署说明](./docs/BUILDWORLD.md)。

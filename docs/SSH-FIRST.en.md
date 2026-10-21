@@ -2,6 +2,8 @@
 
 > [中文](./SSH-FIRST.md) | English
 
+Current result: **S01–S12 12/12 accepted**. [Mini acceptance](./MINI-ACCEPTANCE.en.md) supersedes the historical pending wording below with current source/results and explicit limits. The first stable release establishes support; no earlier official release exists. Controlled interactive kernel cwd is verified; arbitrary internal shell semantics remain excluded.
+
 The user's 2026-10-21 correction sets the objective to an independent mini SSH bastion. [Product scope](./PRODUCT-SCOPE.en.md) is authoritative, with S01–S12 as the primary checklist. Author the mini release batch before unified verification; the former 42 Enterprise groups no longer block delivery.
 
 Deliver a practical, stable SSH bastion with few dependencies and easy maintenance. [JumpServer Enterprise](https://www.jumpserver.org/enterprise.html) is a reference, with no default feature-parity target. Other protocols, cloud sync, complex integrations and multi-active operation require a concrete use case and are outside current remaining work.

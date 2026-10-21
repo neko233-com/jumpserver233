@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+[Mini release acceptance](./MINI-ACCEPTANCE.en.md): 12/12 accepted, verified source, results, reports and limits. The Enterprise entries below retain historical design notes; their old 42-group gate is superseded.
+
 [Current product scope](./PRODUCT-SCOPE.en.md): a standalone mini SSH bastion for small and medium businesses, with few dependencies, usability, security and efficiency. Finish S01–S12. Enterprise entries below describe existing work/historical research rather than automatic requirements; the user's correction supersedes the former 42-group gate.
 
 [Project UI skill and design direction](./UI-DESIGN.en.md): project-local oil-ui, pinned provenance, compact operational navigation and bilingual/narrow-screen cases; awaiting unified verification.

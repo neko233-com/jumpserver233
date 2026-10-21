@@ -53,3 +53,5 @@ Chinese/English follows the browser language with a manual switch; docs remain b
 Use Conventional Commits. release-please generates `CHANGELOG.md` **only for a formal release**. No intranet deployment now; publish once after the stable-release gate is met.
 
 Layout: `server/` Go backend, `web/` React frontend, `docs/` bilingual guides, `scripts/` build and QA tools.
+
+Verified mini checklist: [12/12 acceptance and limits](./docs/MINI-ACCEPTANCE.en.md). Default macOS single-node pipeline: [Jenkinsfile_mac_single](./Jenkinsfile_mac_single), [deployment guide](./docs/BUILDWORLD.en.md).
