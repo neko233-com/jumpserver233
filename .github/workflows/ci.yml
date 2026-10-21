@@ -62,7 +62,7 @@ jobs:
         with:
           version: 12.9.1
       - name: Test owned fixture lifecycle helpers
-        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs scripts/historical-source.test.mjs scripts/ci-cache.test.mjs
+        run: node --test server/testsupport/docker-qa.test.mjs server/testsupport/ci-health.test.mjs scripts/docker-qa.test.mjs scripts/qa-lifecycle.test.mjs scripts/qa-retention.test.mjs scripts/publish-release.test.mjs scripts/native-browser-logs.test.mjs scripts/historical-source.test.mjs scripts/ci-cache.test.mjs scripts/ci-fixtures.test.mjs
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -85,29 +85,6 @@ jobs:
         run: |
           node server/testsupport/postgres/run.mjs > "$RUNNER_TEMP/postgres-query.log" 2>&1 &
           node server/testsupport/postgres/ci-env.mjs
-      - name: Start disposable SQL and NoSQL TLS fixtures
-        run: |
-          JMS_QA_SQL_ENGINE=mysql node server/testsupport/mysql/run.mjs > "$RUNNER_TEMP/mysql-query.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/mysql.pid"
-          JMS_QA_SQL_ENGINE=mariadb node server/testsupport/mysql/run.mjs > "$RUNNER_TEMP/mariadb-query.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/mariadb.pid"
-          node server/testsupport/sqlserver/run.mjs > "$RUNNER_TEMP/sqlserver-query.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/sqlserver.pid"
-          node server/testsupport/clickhouse/run.mjs > "$RUNNER_TEMP/clickhouse-query.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/clickhouse.pid"
-          JMS_QA_NOSQL_ENGINE=redis node server/testsupport/nosql/run.mjs > "$RUNNER_TEMP/redis-query.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/redis.pid"
-          JMS_QA_NOSQL_ENGINE=mongodb node server/testsupport/nosql/run.mjs > "$RUNNER_TEMP/mongodb-query.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/mongodb.pid"
-          node server/testsupport/kubernetes/run.mjs > "$RUNNER_TEMP/kubernetes-query.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/kubernetes.pid"
-          node server/testsupport/rdp/run.mjs > "$RUNNER_TEMP/rdp.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/rdp.pid"
-          node server/testsupport/telnet/run.mjs > "$RUNNER_TEMP/telnet.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/telnet.pid"
-          node server/testsupport/radius/run.mjs > "$RUNNER_TEMP/radius.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/radius.pid"
-          node server/testsupport/mysql/ci-env.mjs
       - name: Start isolated Debian systemd VM
         run: |
           node server/testsupport/systemdvm/run.mjs > "$RUNNER_TEMP/systemd-vm.log" 2>&1 &
@@ -161,6 +138,52 @@ jobs:
       - name: Clean isolated systemd VM
         if: always()
         run: node server/testsupport/systemdvm/ci-env.mjs --cleanup
+
+  external-integrations:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: relational
+            packages: ./internal/connector/mysqlclient ./internal/connector/sqlserverclient
+          - group: data
+            packages: ./internal/connector/clickhouseclient ./internal/connector/redisclient ./internal/connector/mongodbclient
+          - group: access
+            packages: ./internal/connector/kubeclient ./internal/connector/telnetclient ./internal/connector/rdpclient ./internal/connector/radiusclient ./internal/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build embedded native recovery agents
+        working-directory: server
+        run: go generate ./internal/agentbundle
+      - name: Start memory-isolated external fixtures
+        env:
+          JMS_CI_FIXTURE_GROUP: ${{ matrix.group }}
+        run: node scripts/ci-fixtures.mjs "$JMS_CI_FIXTURE_GROUP"
+      - name: External connector and API integrations
+        working-directory: server
+        env:
+          JMS_CI_PACKAGES: ${{ matrix.packages }}
+          JMS_TEST_RDP_CAPTURE: ${{ runner.temp }}/native-rdp.png
+        run: go test -count=1 -timeout 20m -p 1 $JMS_CI_PACKAGES
+      - name: Retain failed native desktop evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-rdp-failure-${{ matrix.group }}
+          path: ${{ runner.temp }}/native-rdp.png
+          if-no-files-found: ignore
+      - name: Clean disposable external fixtures
+        if: always()
+        run: node server/testsupport/mysql/ci-env.mjs --cleanup
 
   frontend:
     # MongoDB's allocator rejects newer runner kernels (SERVER-121912).

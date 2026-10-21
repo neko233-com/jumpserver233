@@ -31,3 +31,7 @@ On 2026-10-21, v0.2.0 was deployed through BuildWorld project 49. Build 991 perf
 - Initial JavaScript: 496024 bytes, gzip 160149; total JavaScript: 1642958. Existing budgets passed; no new runtime dependency.
 
 Reports remain in ignored `.cache/qa-reports/maintenance-v021/`, `maintenance-v021-native/` and the associated browser/Docker batches. Product code was unchanged during verification. Release-only metadata and evidence documentation may advance HEAD without changing the verified server/web trees.
+
+## CI fixture isolation
+
+The release CI failed before backend assertions: K3s startup exited with code 137 while ten external services started concurrently on one hosted runner. External integrations now use three mandatory runner groups: relational databases, data services and access protocols. Each group starts fixtures sequentially, runs its connector/API cases and always cleans owned resources. Core Go/PostgreSQL/SSH/systemd, race, vet, build, browser and Docker checks remain mandatory. This changes CI scheduling only; v0.2.1 artifacts are unchanged.

@@ -31,3 +31,7 @@
 - 首屏 JavaScript 496024 bytes、gzip 160149；总 JavaScript 1642958 bytes，既有预算通过，未新增运行依赖。
 
 报告保存在忽略目录 `.cache/qa-reports/maintenance-v021/`、`maintenance-v021-native/` 及对应浏览器/Docker 批次。验证期间产品代码未改变；后续仅发布元数据和证据文档推进 HEAD，不改变已验证 server/web 树。
+
+## CI 夹具隔离
+
+发布 CI 在后端断言之前失败：十个外部服务在同一托管节点并发启动时，K3s 启动以 137 退出。外部集成现分为关系数据库、数据服务和访问协议三个必跑节点分组。每组顺序启动夹具，执行对应连接器/API 用例，并始终清理自有资源。核心 Go/PostgreSQL/SSH/systemd、race、vet、构建、浏览器和 Docker 检查保持必跑。仅调整 CI 调度，v0.2.1 制品不变。
