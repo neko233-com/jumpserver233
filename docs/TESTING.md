@@ -8,6 +8,10 @@ Go/Testify **2037 通过 / 133 跳过**；Linux race **195 / 4**；生产浏览�
 
 ## 当前验证范围：mini SSH（2026-10-21）
 
+CI 的 race 与六平台打包各自保存 Go 编译缓存，key 包含系统、架构、Go 版本及 `go.sum`。普通依赖缓存继续由 setup-go 管理；独立缓存仅保存 `~/.cache/go-build`。缓存恢复/保存失败按优化失败处理，测试、构建与发布仍执行原有检查。实现使用官方 [restore](https://github.com/actions/cache/blob/v4/restore/README.md) / [save](https://github.com/actions/cache/blob/v4/save/README.md) 接口，`node --test scripts/ci-cache.test.mjs` 验证隔离 key、保存条件、缓存范围和完整测试命令。首轮仍需编译，加速效果以实际命中记录为准。
+
+后端、生产浏览器、Docker QA 和正式打包的任务上限分别为 60/40/20/45 分钟；Go 单包仍使用 20 分钟超时。
+
 以 [PRODUCT-SCOPE](./PRODUCT-SCOPE.md) 的 S01–S12 为门槛，不等待历史 42 组企业扩展。默认生产浏览器套件覆盖当前 mini 页面，保留 SSH、原生主机、认证和通知夹具；不启动 SQL、RDP、Kubernetes、云或企业身份服务。退出产品路由的 17 个页面及相关历史浏览器用例保留源码，但不计当前验收。后端仍执行完整 Go/Testify 与 vet，兼容接口和安全回归继续检查。原生包、升级保数、目录安全与清理另外保留具名结果。
 
 以下章节是此前企业范围的编写记录；其中“等待 42 组”及旧计数已被当前产品范围替代，不能作为继续扩展或等待验收的依据。

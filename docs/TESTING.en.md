@@ -8,6 +8,10 @@ Go/Testify **2037 passed / 133 skipped**; Linux race **195 / 4**; production bro
 
 ## Current verification scope: mini SSH (2026-10-21)
 
+CI race and six-platform packaging use separate Go compiler-cache keys containing OS, architecture, Go version and `go.sum`. Setup-go retains dependency caching; the additional caches contain only `~/.cache/go-build`. Cache failures leave the original test/build/publication checks active. Official [restore](https://github.com/actions/cache/blob/v4/restore/README.md) / [save](https://github.com/actions/cache/blob/v4/save/README.md) interfaces are covered by `node --test scripts/ci-cache.test.mjs`: key separation, save conditions, compiler-only paths and complete test commands. The first miss still compiles; evaluate acceleration from actual future hits.
+
+Backend, production browser, Docker QA and native publication have 60/40/20/45-minute job limits respectively; Go keeps its 20-minute per-package timeout.
+
 Use S01–S12 from [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) as the gate without waiting for the historical 42 Enterprise groups. The production browser suite covers shipped mini pages and retains SSH, native-host, authentication and notification fixtures. It starts no SQL, RDP, Kubernetes, cloud or Enterprise identity service. Source and historical cases for the 17 removed pages remain, but provide no current acceptance credit. Run the complete backend Go/Testify suite and vet for compatible APIs and security regression. Keep named results for native packages, data-preserving updates, directory security and cleanup.
 
 Sections below record earlier Enterprise authoring. Their “wait for 42 groups” statements and old counts are superseded by the current scope and cannot justify further expansion or delayed acceptance.
