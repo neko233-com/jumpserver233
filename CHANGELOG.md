@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/neko233-com/jumpserver233/compare/v0.2.0...v0.2.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* complete standalone IP login and deployment maintenance ([09bb9b5](https://github.com/neko233-com/jumpserver233/commit/09bb9b5fdcaf7231bb7af2aff3868f11261757d4))
+
 ## [0.2.0](https://github.com/neko233-com/jumpserver233/compare/v0.1.0...v0.2.0) (2026-10-21)
 
 
