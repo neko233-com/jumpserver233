@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/neko233-com/jumpserver233/compare/v0.2.1...v0.2.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* detach Playbook loop snapshots for concurrent readers [skip ci] ([f9b042a](https://github.com/neko233-com/jumpserver233/commit/f9b042a17142c2aef402f5f4976a1bf33cc7f12f))
+
 ## [0.2.1](https://github.com/neko233-com/jumpserver233/compare/v0.2.0...v0.2.1) (2026-10-21)
 
 
