@@ -2,6 +2,8 @@
 
 [English](./DOCKER-QA.en.md) | [文档索引](./README.md)
 
+Windows Buildx 无法通过 `--local` 读取 Git remote 时，清理入口使用本机 Git 读取并校验无凭据 HTTPS remote，再使用等价的精确 `repository=` 过滤器。无法确认归属时保留诊断；不会改为无过滤清理。
+
 Buildx 元数据只读查询遇到 RPC Unavailable/EOF 时最多尝试 3 次；权限和确定性失败不重试，清理失败保持非零退出及明确阶段回执。GitHub Docker QA 使用独立 `docker-container` builder 并自动回收，避免依赖 runner 默认 Docker driver 的 BuildKit 组合。成功清理后删除原始日志，失败诊断最多保留 16,000 字符；只清理本仓库可证明归属的资源。
 
 生产 API 和网页都在 Docker 中从源码构建，运行时使用独立网络、命名数据卷和本机端口。构建不读取宿主 Go、Node、`node_modules` 或已有原生组件。镜像仅保留运行程序和网页产物；API、Nginx 以普通账号运行，根文件系统只读。

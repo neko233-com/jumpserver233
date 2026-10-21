@@ -95,6 +95,7 @@ async function readBuildxMetadata(execute, args, options) {
     try { return await execute("docker", args, options); }
     catch (error) {
       const diagnostic = String(error.stderr || error.message);
+      if (args.includes("--local") && /could not get remote URL for local filter/.test(diagnostic)) throw Object.assign(new Error("Buildx local repository discovery failed"), { code: "BUILDX_LOCAL_GIT" });
       if (/unknown (?:command|flag)/i.test(diagnostic)) throw Object.assign(new Error("Buildx metadata command unsupported"), { code: "BUILDX_UNSUPPORTED" });
       if (attempt < 2 && /(?:rpc error: code = Unavailable|error reading from server: EOF|connection reset by peer)/i.test(diagnostic)) {
         await delay(200 * (attempt + 1));
@@ -106,10 +107,21 @@ async function readBuildxMetadata(execute, args, options) {
 }
 export async function removeLocalBuildHistory(execute, root) {
   const removed = [], seen = new Set();
+  let repositoryFilter = null;
   for (let attempt = 0; attempt < 100; attempt++) {
     let output;
-    try { output = await readBuildxMetadata(execute, ["buildx", "history", "ls", "--local", "--format", "json"], { cwd: root, maxBuffer: 8 * 1024 * 1024 }); }
-    catch (error) { if (error.code === "BUILDX_UNSUPPORTED") return removed; throw error; }
+    try { output = await readBuildxMetadata(execute, ["buildx", "history", "ls", ...(repositoryFilter ? ["--filter", "repository="+repositoryFilter] : ["--local"]), "--format", "json"], { cwd: root, maxBuffer: 8 * 1024 * 1024 }); }
+    catch (error) {
+      if (error.code === "BUILDX_UNSUPPORTED") return removed;
+      if (error.code !== "BUILDX_LOCAL_GIT" || repositoryFilter) throw error;
+      // Buildx --local resolves a Git remote internally. Some Windows Git
+      // installations fail there although the host Git can read it. Use the
+      // exact equivalent repository filter, never an unfiltered history list.
+      const remote = (await execute("git", ["remote", "get-url", "origin"], {cwd:root})).stdout.trim();
+      let parsed; try { parsed = new URL(remote); } catch { throw new Error("Cannot identify owned build repository"); }
+      if (parsed.protocol!=="https:" || parsed.username || parsed.password || parsed.search || parsed.hash || !parsed.hostname || !parsed.pathname || /[\r\n]/.test(remote)) throw new Error("Cannot identify owned build repository");
+      repositoryFilter=remote; continue;
+    }
     const records = output.stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)).filter(r => ["Completed", "Error", "Canceled"].includes(r.status) && /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(r.ref || ""));
     if (!records.length) return removed;
     if (records.some(r => seen.has(r.ref))) throw new Error("Build history cleanup did not progress");

@@ -2,6 +2,8 @@
 
 [中文](./DOCKER-QA.md) | [Documentation](./README.en.md)
 
+If Windows Buildx cannot resolve the Git remote for `--local`, cleanup reads and validates the credential-free HTTPS remote with host Git and uses the equivalent exact `repository=` filter. Uncertain ownership retains diagnostics; cleanup never falls back to an unfiltered list.
+
 Buildx metadata reads retry RPC Unavailable/EOF at most three times. Permission and deterministic failures are not retried; cleanup failures retain a nonzero exit and a phase-specific receipt. GitHub Docker QA uses an isolated, automatically removed `docker-container` builder instead of relying on the runner's default Docker driver/BuildKit combination. Successful cleanup removes raw logs; failure diagnostics retain at most 16,000 characters. Cleanup remains restricted to demonstrably owned repository resources.
 
 Docker builds the production API and web application from source, with separate networks, named data volumes and localhost ports. Builds do not read host Go, Node, `node_modules` or generated native helpers. Runtime images contain only executables and web output. The API and Nginx run as ordinary users with read-only root filesystems.

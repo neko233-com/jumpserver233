@@ -106,3 +106,27 @@ test("ownership metadata accepts missing labels and strips unrelated private lab
   assert.deepEqual(records, [{ Config: {} }, { Config: { Labels: {} } }, { Config: { Labels: { "com.jumpserver233.qa.owner": "owned" } } }]);
   await assert.rejects(inspectQAContainers(async () => ({ stdout: "sensitive malformed data" }), ["a"]), error => error.message === "Docker ownership metadata malformed");
 });
+
+test("Windows Buildx local Git failure uses the equivalent exact repository filter", async () => {
+  const calls = []; let deleted = false;
+  const execute = async (command, args) => {
+    calls.push([command, args]);
+    if (command === "git") return { stdout: "https://github.com/neko233-com/jumpserver233.git\n" };
+    if (args.includes("--local")) throw Object.assign(new Error("local Git"), { stderr: "could not get remote URL for local filter: no remote URL found for either origin or upstream" });
+    if (args[2] === "rm") { deleted = true; return {stdout:""}; }
+    assert(args.includes("repository=https://github.com/neko233-com/jumpserver233.git"));
+    return {stdout:deleted ? "" : JSON.stringify({ref:"desktop/node/owned-ref", status:"Completed", name:"owned"})};
+  };
+  const removed = await removeLocalBuildHistory(execute, process.cwd());
+  assert.equal(removed.length, 1);
+  assert(calls.filter(([c,a])=>c==="docker"&&a[2]==="ls").every(([,a])=>a.includes("--local")||a.includes("--filter")));
+});
+
+test("Buildx fallback rejects a credential-bearing remote before any removal", async () => {
+  const execute = async (command, args) => {
+    if (command === "git") return {stdout:"https://user:secret@example.test/repo.git"};
+    assert.notEqual(args[2], "rm");
+    throw Object.assign(new Error("local Git"), {stderr:"could not get remote URL for local filter"});
+  };
+  await assert.rejects(removeLocalBuildHistory(execute, process.cwd()), /Cannot identify owned/);
+});
