@@ -14,19 +14,23 @@ on:
         type: boolean
         default: false
         description: Rerun only changed external fixture scheduling; reuse unchanged full-suite evidence
+      backend_only:
+        type: boolean
+        default: false
+        description: Verify a backend-only repair against prior full-suite evidence
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.external_only && 'external' || 'full' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.backend_only && 'backend' || github.event_name == 'workflow_dispatch' && inputs.external_only && 'external' || 'full' }}
   cancel-in-progress: true
 
 jobs:
   verify:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.external_only) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.external_only && !inputs.backend_only) }}
     services:
       postgres:
         image: postgres:17
@@ -91,6 +95,7 @@ jobs:
           node server/testsupport/postgres/run.mjs > "$RUNNER_TEMP/postgres-query.log" 2>&1 &
           node server/testsupport/postgres/ci-env.mjs
       - name: Start isolated Debian systemd VM
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.backend_only) }}
         run: |
           node server/testsupport/systemdvm/run.mjs > "$RUNNER_TEMP/systemd-vm.log" 2>&1 &
           node server/testsupport/systemdvm/ci-env.mjs
@@ -98,7 +103,13 @@ jobs:
         working-directory: server
         env:
           JMS_TEST_RDP_CAPTURE: ${{ runner.temp }}/native-rdp.png
-        run: go test -count=1 -timeout 20m -p 1 ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
+          JMS_CI_BACKEND_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.backend_only }}
+        run: |
+          if [ "$JMS_CI_BACKEND_ONLY" = "true" ]; then
+            go test -count=3 -timeout 20m -p 1 ./internal/core/operations ./internal/api
+          else
+            go test -count=1 -timeout 20m -p 1 ./... github.com/microsoft/go-mssqldb github.com/adfnekc/grdp/protocol/sec github.com/adfnekc/grdp/emission
+          fi
       - name: Backend concurrent-state race regression
         id: race
         working-directory: server
@@ -147,6 +158,7 @@ jobs:
   external-integrations:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.backend_only) }}
     strategy:
       fail-fast: false
       matrix:
@@ -208,7 +220,7 @@ jobs:
     # Keep the real 8.0 fixture on the supported 6.8 runner kernel family.
     runs-on: ubuntu-22.04
     timeout-minutes: 40
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.external_only) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && (inputs.external_only || inputs.backend_only)) }}
     steps:
       - uses: actions/checkout@v4
       - name: Record frontend fixture kernel
@@ -249,7 +261,7 @@ jobs:
   docker-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.external_only) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && (inputs.external_only || inputs.backend_only)) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

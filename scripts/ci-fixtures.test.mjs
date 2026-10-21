@@ -36,5 +36,8 @@ test('all shards are mandatory, bounded, and clean only owned fixture records', 
   assert.match(ci, /external_only:\n\s+type: boolean\n\s+default: false/);
   // Normal pushes/PRs always keep every gate. A scheduling-only follow-up can
   // run alongside the unchanged full suite instead of cancelling it.
-  assert.equal((ci.match(/if: \$\{\{ !\(github.event_name == 'workflow_dispatch' && inputs.external_only\) \}\}/g)||[]).length, 3);
+  assert.match(ci, /backend_only:\n\s+type: boolean\n\s+default: false/);
+  assert.match(ci, /inputs.external_only && !inputs.backend_only/);
+  assert.equal((ci.match(/inputs.external_only \|\| inputs.backend_only/g)||[]).length, 2);
+  assert.match(ci, /go test -count=3 -timeout 20m -p 1 \.\/internal\/core\/operations \.\/internal\/api/);
 });

@@ -60,7 +60,11 @@ func cloneWorkflowRun(r Run) Run {
 		r.Items[i].Steps = slices.Clone(r.Items[i].Steps)
 		if r.Items[i].LoopValues != nil {
 			raw, _ := json.Marshal(r.Items[i].LoopValues)
-			_ = json.Unmarshal(raw, &r.Items[i].LoopValues)
+			// Decode into fresh storage: a copied slice still shares its backing
+			// array with the controller's snapshot, even while the store is locked.
+			var values []any
+			_ = json.Unmarshal(raw, &values)
+			r.Items[i].LoopValues = values
 		}
 		for j := range r.Items[i].Steps {
 			step := &r.Items[i].Steps[j]
