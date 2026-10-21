@@ -23,7 +23,7 @@ test('fixture dispatch uses fixed scripts, private loopback ports and known engi
   assert.throws(() => fixtureCommand('../foreign'));
 });
 test('all shards are mandatory, bounded, and clean only owned fixture records', () => {
-  const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
   assert.match(ci, /external-integrations:[\s\S]*?fail-fast: false/);
   for (const group of Object.keys(fixtureGroups)) assert(ci.includes(`group: ${group}`));
   const shard = ci.slice(ci.indexOf('  external-integrations:'), ci.indexOf('  frontend:'));
