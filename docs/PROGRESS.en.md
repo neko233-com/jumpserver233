@@ -17,7 +17,7 @@ The unpublished cloud-provider, Ansible runtime and PDF/email warehouse expansio
 
 ## Verified evidence
 
-See the [mini acceptance report](./MINI-ACCEPTANCE.en.md) for source identities, commands, reports and limits. Go/Testify: **2037 passed, 133 skipped**; Linux race: **195 passed, 4 skipped**; production browser: **55/55**; repaired console: **six widths × two languages**; Docker browser: **passed**; final native installation/upgrade suite: **passed**, source unchanged, six archives, real Windows CLI/Linux SSH/SFTP, directory enforcement, data recovery and update paths. Owned resources were removed twice. Skipped external integrations are not claimed as accepted.
+See the [mini acceptance report](./MINI-ACCEPTANCE.en.md) for source identities, commands, reports and limits. Go/Testify: **2134 passed, 51 skipped**; Linux race: **195 passed, 4 skipped**; production browser: **55/55**; repaired console: **six widths × two languages**; Docker browser: **passed**; final native installation/upgrade suite: **passed**, source unchanged, six archives, real Windows CLI/Linux SSH/SFTP, directory enforcement, data recovery and update paths. Owned resources were removed twice. Skipped external integrations are not claimed as accepted.
 
 Frontend total JavaScript is **1,641,659 bytes**, about **11% below** the initial batch build (1,841,868); initial JavaScript is 495,091 bytes (gzip 159,911). Budgets are unchanged. Vet/build/content pass; lint has no errors and retains five existing warnings in legacy modules. No intranet deployment was performed. Release notes remain generated only by release-please.
 

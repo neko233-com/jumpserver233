@@ -4,7 +4,7 @@
 
 ## 2026-10-21 verified mini batch
 
-Go/Testify **2037 passed / 133 skipped**; Linux race **195 / 4**; production browser **55/55**, plus bilingual six-width console regression; Docker browser and the complete native package/update suite passed. Source identity, receipt paths, cleanup and limits: [mini acceptance](./MINI-ACCEPTANCE.en.md).
+Go/Testify **2134 passed / 51 skipped**; Linux race **195 / 4**; production browser **55/55**, plus bilingual six-width console regression; Docker browser and the complete native package/update suite passed. Source identity, receipt paths, cleanup and limits: [mini acceptance](./MINI-ACCEPTANCE.en.md).
 
 ## Current verification scope: mini SSH (2026-10-21)
 
