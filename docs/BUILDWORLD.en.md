@@ -51,8 +51,12 @@ Official v0.2.0 was activated once. A stalled download and nested-manifest adapt
 
 v0.2.0 uses the already installed nginx with a dedicated LaunchAgent to enforce exact Origin/Host checks and a loopback backend; unrelated nginx configuration is untouched. The [maintenance patch](./MAINTENANCE.en.md) adds native IP HTTP and forwards the original Origin for both checks. The v0.2.1 batch completed unified verification and upgrade acceptance below. Temporary transfer archives, SSH configuration and preflight programs were removed; compact reports and two screenshots remain outside Git. One verified production artifact cache supports fast subsequent builds.
 
-## Current v0.2.1 acceptance, 2026-10-21
+## Preceding v0.2.1 acceptance, 2026-10-21
 
 [Build 995, #5](http://192.168.110.42:8080/builds/995) performed the only activation from official v0.2.0 to v0.2.1: 6/6 stages, 26/26 native macOS cases, 96.79 seconds. Pinned archive and executed native CLI match release commit `c56eeeef0f3eb7768b9633232813337a41921b7a`. Edge sign-in, newly completed real SSH and host monitoring passed. A subsequent graceful restart retained the existing asset, original/new session audits, credentials and unchanged Vault key. The default administrator signed in again. No additional deployment or release was performed.
 
 The shared organization entry remains [HTTP port 8180](http://192.168.110.42:8180/), with loopback backend 18180. See [maintenance acceptance](./MAINTENANCE.en.md) for verification and cleanup evidence. This replaces the previous exclusion of actual macOS/ARM intranet acceptance for this node.
+
+## Final v0.2.2 deployment
+
+The user explicitly authorized one additional v0.2.2 publication for the verified runtime race repair. [Build 997, #6](http://192.168.110.42:8080/builds/997) passed 6/6 stages and 26 native Mac cases in 92.04 seconds, with one activation. Default login, new real SSH, monitoring and restart retention passed. One original asset, all three previous audit IDs, the new fourth audit, stored credentials and the Vault key survived. Official source commit: `a73132e99f2a420f60ae88d7b43f69b57e767212`; deployment commit: `5967091b977da7cb84d114f600aa39a26d98eda8`. The running server now includes the CI-verified repair. Current access remains [HTTP 8180](http://192.168.110.42:8180/). Cleanup and exact evidence are in [maintenance acceptance](./MAINTENANCE.en.md).

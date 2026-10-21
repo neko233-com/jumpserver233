@@ -2,7 +2,7 @@
 
 > 中文 | [English](./PLAN.en.md)
 
-[当前维护补丁](./MAINTENANCE.md)：原生 IP HTTP、准确登录错误、Cookie 验证、清单完整性和升级保数。统一验证已通过；剩余 v0.2.1 正式发布与内网升级。
+[当前维护补丁](./MAINTENANCE.md)：v0.2.2 已发布并完成内网升级，包含 Playbook 竞态修复。CI 补验通过；BuildWorld 构建 #6（997）六个阶段全部成功，root/root 登录、真实 SSH、主机监控及重启后原数据保留均已验收。
 
 ## 当前产品范围（2026-10-21）
 

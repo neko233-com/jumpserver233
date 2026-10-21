@@ -2,7 +2,7 @@
 
 > [中文](./PLAN.md) | English
 
-[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Unified verification passed; v0.2.1 publication and intranet upgrade are the remaining gates.
+[Current maintenance batch](./MAINTENANCE.en.md): v0.2.2 is published and deployed on the intranet, including the Playbook race fix. CI regression checks passed. All six stages of BuildWorld build #6 (997) succeeded; root/root login, real SSH, host monitoring and original-data retention after restart are accepted.
 
 ## Current product scope (2026-10-21)
 

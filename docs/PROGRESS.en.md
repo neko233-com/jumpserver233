@@ -2,17 +2,17 @@
 
 > [中文](./PROGRESS.md) | English
 
-[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Official v0.2.1 publication and its single intranet upgrade passed. BuildWorld #5 completed 6/6 stages; default login, real SSH, monitoring and restart persistence passed. Subsequent CI found a native Playbook runtime race, repaired in source but absent from the published artifact; stable-release closure remains open.
+[Current maintenance batch](./MAINTENANCE.en.md): v0.2.2 is published and deployed. BuildWorld #6 passed 6/6 stages, default login, real SSH, monitoring and restart persistence. The CI-discovered Playbook race is repaired in the running official artifact. One additional publication was explicitly authorized; that version was activated once.
 
 ## Current result — 2026-10-21
 
 The accepted objective is an independent mini SSH bastion for small and medium businesses: standalone deployment, few dependencies, easy operation, security and maintenance. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) defines the scope; JumpServer Enterprise is a reference. Cloud parity and the archived 42-group research checklist do not create release requirements.
 
-**Implementation ready: 12/12. Accepted: 11/12 (92%). S12 remains open because the published v0.2.1 artifact does not contain the subsequent runtime race repair.** The former 12/12 functional baseline is retained below; a subsequent CI race finding reopens S12 without changing scope. This is checklist coverage, not a guarantee about arbitrary shells, every deployment or competitor parity.
+**Implementation ready: 12/12. Accepted: 12/12 (100%). No remaining item within the fixed mini acceptance boundary.** The post-release race finding reopened S12; verified v0.2.2 publication and live acceptance close it without changing scope. This is checklist coverage, not a guarantee about arbitrary shells, every deployment or competitor parity.
 
 | Scope | Accepted | Remaining | Coverage |
 |---|---:|---:|---:|
-| Current mini SSH checklist | 11/12 | S12 stable artifact closure | **92%** |
+| Current mini SSH checklist | 12/12 | 0 | **100%** |
 | Historical Enterprise research | 16/42 | Outside current objective | **38%, archived** |
 
 The unpublished cloud-provider, Ansible runtime and PDF/email warehouse expansion was withdrawn. Seventeen Enterprise pages leave the default frontend graph; asset labels and useful local controls remain. Existing compatibility APIs and data are retained. Local files plus embedded encrypted SQLite history require no database service.
@@ -25,7 +25,7 @@ Frontend total JavaScript is **1,641,659 bytes**, about **11% below** the initia
 
 ## Current maintenance acceptance
 
-Maintenance adds no checklist item. Go/Testify: 2061 passed, 133 skipped; complete production browser: 69/69; native Mac deployment: 26/26; six-platform archives and isolated Docker browser passed. Official v0.2.1 was upgraded once; default sign-in, real SSH, host monitoring and original data retention passed. See [maintenance acceptance](./MAINTENANCE.en.md).
+Maintenance adds no checklist item. Go/Testify: 2061 passed, 133 skipped; complete production browser: 69/69; native Mac deployment: 26/26; six-platform archives and isolated Docker browser passed. Official v0.2.2 was upgraded once after explicit authorization; default sign-in, real SSH, host monitoring and original data retention passed. The published runtime includes the CI-verified Playbook repair. See [maintenance acceptance](./MAINTENANCE.en.md).
 
 ## Fixed mini checklist
 
@@ -42,7 +42,7 @@ Maintenance adds no checklist item. Go/Testify: 2061 passed, 133 skipped; comple
 | S09 | Standalone offline full-site export/import | Closed | Encryption/integrity, idempotent restore, no overwrite on invalid input and restart retention; cross-version upgrades are S11. |
 | S10 | Directory rules across controlled execution paths | Closed | Real SSH jobs, templates, batches, once/interval/cron plans, every native Playbook step, interactive kernel cwd, review/replay refusal and encrypted audit; unknown cwd fails closed. Arbitrary internal shell semantics and filesystem ACL enforcement are excluded. |
 | S11 | Update checks, data preservation and version boundaries | Closed | The first stable release establishes the support line. Known format migration, future-format refusal, backup/import, trial rollback, post-acceptance write preservation, forward recovery, scheduled and automatic installation pass. The actual official v0.2.0 → v0.2.1 macOS upgrade retained existing asset/audit/key identities. Synthetic version drills do not establish compatibility with arbitrary releases. |
-| S12 | Final mini verification and delivery | Open after CI race finding | Unified backend/race/production-browser/Docker/native acceptance, bilingual UI/docs, compact inventory, bundle budgets, project-local UI skill, Jenkinsfile_mac_single, scoped cleanup and committed delivery. Native macOS/ARM and the actual v0.2.0 → v0.2.1 intranet upgrade passed in BuildWorld #5; see maintenance acceptance. |
+| S12 | Final mini verification and delivery | Closed | Unified backend/race/production-browser/Docker/native acceptance, bilingual UI/docs, compact inventory, bundle budgets, project-local UI skill, Jenkinsfile_mac_single, scoped cleanup and committed delivery. Native macOS/ARM, v0.2.0 → v0.2.1 and the authorized v0.2.1 → v0.2.2 repair upgrade passed. The running artifact matches repaired CI source; see maintenance acceptance. |
 
 ## Historical Enterprise research: 42 groups, outside the current objective
 
