@@ -124,8 +124,10 @@ def validate_manifest(staging):
     if staging.is_symlink():
         raise RuntimeError('Staging must be a real directory')
     manifest = json.loads((staging / 'manifest.json').read_text(encoding='utf-8'))
-    if not isinstance(manifest, dict) or manifest.get('schemaVersion') != 1 or manifest.get('platform') != 'darwin' or not isinstance(manifest.get('version'), str) or not re.fullmatch(r'[a-f0-9]{40,64}', manifest['version']):
+    if not isinstance(manifest, dict) or manifest.get('schemaVersion') != 1 or manifest.get('platform') != 'darwin' or not isinstance(manifest.get('version'), str) or not re.fullmatch(r'[a-f0-9]{40,64}|v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', manifest['version']):
         raise RuntimeError('Unsupported deployment manifest')
+    if manifest['version'].startswith('v') and not re.fullmatch(r'[a-f0-9]{40}', manifest.get('commit', '')):
+        raise RuntimeError('Stable deployment requires the exact source commit')
     if manifest.get('arch') != platform.machine():
         raise RuntimeError('Artifact architecture does not match this node')
     hashes = manifest.get('sha256', {})
@@ -135,7 +137,7 @@ def validate_manifest(staging):
     for entry in staging.rglob('*'):
         if entry.is_symlink():
             raise RuntimeError('Artifact symlinks are forbidden')
-        if entry.is_file() and entry.name != 'manifest.json':
+        if entry.is_file() and entry != staging / 'manifest.json':
             actual.add(entry.relative_to(staging).as_posix())
     if actual != set(hashes):
         raise RuntimeError('Artifact file set differs from manifest')

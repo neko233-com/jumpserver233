@@ -2,6 +2,8 @@
 
 > 中文 | [English](./README.en.md)
 
+[当前维护补丁](./MAINTENANCE.md)：原生 IP HTTP、准确登录错误、Cookie 验证、清单完整性和升级保数。实现已编写，统一验证和新版本部署待完成。
+
 [mini 稳定版验收](./MINI-ACCEPTANCE.md)：12/12 已验收，列明源码、实际结果、报告和限制。下列企业条目保留历史设计记录，其中旧 42 组门禁已失效。
 
 [当前产品范围](./PRODUCT-SCOPE.md)：中小公司单机 mini SSH 跳板机，少依赖、易用、安全高效。以 S01–S12 收尾；下列企业扩展条目是已有能力/历史研究，不再自动构成待办，旧 42 组门禁已被用户修正覆盖。
@@ -14,11 +16,11 @@
 
 [AI 助手与对话审计](./AI-ASSISTANT.md)：组织模型配置/只写密钥、平台权限、原生 HTTPS、对话回执/修订、撤权取消、加密历史及归档、中英 Web、CLI/SDK 和用例已编写。E34 实现待验，仍须全部 42 组就绪后统一验证。
 
-[交互 SSH 可信提交目录](./INTERACTIVE-DIRECTORIES.md)已编写原生私有帧、内核 cwd/输入队列证明、一次性租约、审批重测、共享控制者和加密审计，并与批量/模板/计划/Playbook 目录链路共同组成 E14。代码、Testify 与既有原生/中英浏览器入口已编写，未执行；全部 42 组实现就绪后统一验证。
+[交互 SSH 可信提交目录](./INTERACTIVE-DIRECTORIES.md)已编写原生私有帧、内核 cwd/输入队列证明、一次性租约、审批重测、共享控制者和加密审计，并与批量/模板/计划/Playbook 目录链路共同组成 E14。代码、Testify 与既有原生/中英浏览器入口已编写，未执行；该历史企业版扩展被明确要求后单独验证。
 
 [全局组织汇总](./GLOBAL-ORGANIZATIONS.md)已编写独立全局只读权限、跨组织库存/缓存监控/活动计数、中英 Web、CLI/SDK、撤权/并发/重开及既有主备接管用例。E08 实现待验；仍等待全部 42 组编写完成后统一验证。
 
-[登录短信 MFA](./SMS-MFA.md)已编写原生平台通道、首次/个人绑定、强制策略、一次性能力、限流/加密、TOTP/RADIUS/复核贯通、中英 Web、CLI/SDK 和用例。E06 实现待验；未运行测试、构建、浏览器或 Docker，仍等待全部 42 组实现就绪。
+[登录短信 MFA](./SMS-MFA.md)已编写原生平台通道、首次/个人绑定、强制策略、一次性能力、限流/加密、TOTP/RADIUS/复核贯通、中英 Web、CLI/SDK 和用例。E06 实现待验；未运行测试、构建、浏览器或 Docker，历史 42 组门禁已由当前 mini 发布清单取代。
 
 [原生云短信与企业机器人](./NATIVE-NOTIFICATIONS.md)已编写三类云短信、CMPP 2.0、四类群机器人、配置幂等/秘密隔离、中英 Web、CLI/SDK、协议/权限/重开及浏览器用例，E22 实现待验。复用既有 TLS/CONNECT 夹具与临时组织，仅保留必要截图并重复清理；未执行验证。E06 见独立短信 MFA 文档。
 
@@ -58,11 +60,11 @@
 
 [BuildWorld 内网 macOS 单机部署](./BUILDWORLD.md)：默认 `Jenkinsfile_mac_single`、同端口静态网页、launchd、健康检查和回滚。
 
-平台本地密码策略、历史与有效期、受限改密、独立授权的密码/TOTP 恢复接入 Web/CLI/SDK，支持 v3 用户文档接管；见[密码安全](./PASSWORD-SECURITY.md)。企业版整体对齐保持进行中。
+平台本地密码策略、历史与有效期、受限改密、独立授权的密码/TOTP 恢复接入 Web/CLI/SDK，支持 v3 用户文档接管；见[密码安全](./PASSWORD-SECURITY.md)。企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
 
-平台身份编辑、到期、归档恢复、撤销凭证、原子批量变更和元数据审计接入 Web/CLI/SDK，见[用户生命周期](./USERS.md)。企业版整体对齐保持进行中。
+平台身份编辑、到期、归档恢复、撤销凭证、原子批量变更和元数据审计接入 Web/CLI/SDK，见[用户生命周期](./USERS.md)。企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
 
-原生 PAP RADIUS 主登录、双向 TLS、多轮挑战和统一附加因子接入 Web/CLI/SDK，保留本地 MFA 与平台登录审批；见 [RADIUS 认证](./RADIUS.md)。完整企业版对齐保持进行中。
+原生 PAP RADIUS 主登录、双向 TLS、多轮挑战和统一附加因子接入 Web/CLI/SDK，保留本地 MFA 与平台登录审批；见 [RADIUS 认证](./RADIUS.md)。企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
 
 Go 原生 Playbook 支持工作空间版本、组织发布、源码快照、顺序 SSH 模块、条件/循环/重试、持久化恢复和 Web/CLI/SDK；见[原生 Playbook](./PLAYBOOKS.md)。完整 Ansible 和企业版整体仍在进行。
 
@@ -128,9 +130,9 @@ MySQL 与 MariaDB 原生访问、TLS、参数查询、自动提交及复核审�
 
 PostgreSQL 原生数据库访问、参数查询、SQL 复核和审计已接入。 [PostgreSQL](./POSTGRESQL.md).
 
-组织通过 `X-JMS-ORG`、浏览器切换和 Agent CLI 选择隔离资源、角色与运维审计，支持单机存储和 PostgreSQL 单活 HA。详见 [组织隔离](./ORGANIZATIONS.md)；完整企业版目标仍在进行。
+组织通过 `X-JMS-ORG`、浏览器切换和 Agent CLI 选择隔离资源、角色与运维审计，支持单机存储和 PostgreSQL 单活 HA。详见 [组织隔离](./ORGANIZATIONS.md)；企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
 
-平台登录审批与站内通知已接入：认证后等待、原来源一次性兑换、加密持久化及 PostgreSQL 单活 HA。详见 [平台登录复核](./PLATFORM-LOGIN-REVIEWS.md)；完整企业版目标仍在进行。
+平台登录审批与站内通知已接入：认证后等待、原来源一次性兑换、加密持久化及 PostgreSQL 单活 HA。详见 [平台登录复核](./PLATFORM-LOGIN-REVIEWS.md)；企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
 
 来源、每周时段及执行通道限制支持单机和单活 HA，详见 [访问策略](./ACCESS-POLICIES.md)；完整企业版对齐仍在推进。
 

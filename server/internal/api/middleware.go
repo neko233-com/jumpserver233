@@ -11,6 +11,7 @@ import (
 	"time"
 
 	coreauth "github.com/neko233-com/jumpserver233/server/internal/core/auth"
+	"github.com/neko233-com/jumpserver233/server/internal/originpolicy"
 )
 
 type principalContextKey struct{}
@@ -130,7 +131,7 @@ func protectWithIdentity(next http.Handler, adminToken string, identities *corea
 			return
 		}
 		if !allowedRequestOrigin(r) {
-			writeJSON(w, http.StatusForbidden, map[string]string{"detail": "origin is not allowed"})
+			rejectRequestOrigin(w)
 			return
 		}
 		if r.URL.Path != "/api/v1/authentication/expire-session/" && !enforceLoginPolicy(w, r, principal) {
@@ -217,11 +218,21 @@ func withPublicOrigin(next http.Handler, origin string) http.Handler {
 }
 func allowedRequestOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
-	if origin == "" || isAllowedOrigin(origin) {
+	if origin == "" {
+		return r.Header.Get("Sec-Fetch-Site") != "cross-site"
+	}
+	if isAllowedOrigin(origin) {
 		return true
 	}
 	public, _ := r.Context().Value(publicOriginKey{}).(string)
-	return public != "" && origin == public
+	if public != "" {
+		return origin == public
+	}
+	return originpolicy.SameLocal(origin, r.Host, r.TLS != nil)
+}
+
+func rejectRequestOrigin(w http.ResponseWriter) {
+	writeJSON(w, http.StatusForbidden, map[string]string{"detail": "origin is not allowed", "code": "origin_not_allowed"})
 }
 func secureSessionCookie(r *http.Request) bool {
 	public, _ := r.Context().Value(publicOriginKey{}).(string)

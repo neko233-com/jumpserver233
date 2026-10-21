@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Implementation authored; unified verification and new deployment pending.
+
 ## Current product scope (2026-10-21)
 
 An independent mini SSH bastion for small and medium businesses: standalone deployment, few dependencies, usability, security, efficiency and maintainability. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) is authoritative. The completion gate is [PROGRESS](./PROGRESS.en.md) S01–S12, rather than 42 Enterprise groups. Cloud sync, extra protocols, app markets and complex enterprise features are not default work.
@@ -14,15 +16,15 @@ S01–S12: **12/12 accepted** after unified verification. Source and limits: [mi
 
 ## Historical implementation notes
 
-[Windows/database account PAM](./ACCOUNT-PAM.en.md): Windows local SAM and PostgreSQL/MySQL/MariaDB/SQL Server collection/enrollment, pinned native reset/check, shared plans/recovery, encryption/permissions/idempotence, bilingual Web, CLI/SDK and cases are authored. E18 awaits verification after all 42 groups are implementation ready; no deployment dependency is added.
+[Windows/database account PAM](./ACCOUNT-PAM.en.md): Windows local SAM and PostgreSQL/MySQL/MariaDB/SQL Server collection/enrollment, pinned native reset/check, shared plans/recovery, encryption/permissions/idempotence, bilingual Web, CLI/SDK and cases are authored. E18 awaits verification only if this historical Enterprise extension is explicitly requested; no deployment dependency is added.
 
-[AI assistant and conversation audit](./AI-ASSISTANT.en.md): organization provider settings/write-only keys, platform authority, native HTTPS, receipts/revisions, revocation, encrypted history/archive, bilingual Web, CLI/SDK and cases are authored. E34 awaits unified verification after all 42 groups are ready.
+[AI assistant and conversation audit](./AI-ASSISTANT.en.md): organization provider settings/write-only keys, platform authority, native HTTPS, receipts/revisions, revocation, encrypted history/archive, bilingual Web, CLI/SDK and cases are authored. E34 awaits unified verification only if this historical Enterprise extension is explicitly requested.
 
-[Trusted interactive SSH submission directories](./INTERACTIVE-DIRECTORIES.en.md) authors native private framing, kernel cwd/input-queue proof, one-use leases, approval remeasurement, shared controllers and encrypted audit. Together with batch/template/schedule/Playbook propagation this forms E14. Code, Testify and existing native/bilingual browser entrypoints are authored and unrun; unified verification waits for all 42 groups.
+[Trusted interactive SSH submission directories](./INTERACTIVE-DIRECTORIES.en.md) authors native private framing, kernel cwd/input-queue proof, one-use leases, approval remeasurement, shared controllers and encrypted audit. Together with batch/template/schedule/Playbook propagation this forms E14. Code, Testify and existing native/bilingual browser entrypoints are authored and unrun; the historical 42-group gate is superseded by the mini release checklist.
 
-[Global organization overview](./GLOBAL-ORGANIZATIONS.en.md) authors independent global read authority, cross-organization inventory/cached health/activity counts, bilingual Web, CLI/SDK and revocation/concurrency/reopen/existing-standby cases. E08 awaits verification after all 42 implementation groups are ready.
+[Global organization overview](./GLOBAL-ORGANIZATIONS.en.md) authors independent global read authority, cross-organization inventory/cached health/activity counts, bilingual Web, CLI/SDK and revocation/concurrency/reopen/existing-standby cases. E08 awaits verification only if this historical Enterprise extension is explicitly requested.
 
-[Sign-in SMS MFA](./SMS-MFA.en.md) authors native platform transport, initial/personal binding, enforcement, one-time capabilities, limits/encryption, TOTP/RADIUS/review, bilingual Web, CLI/SDK and cases. E06 awaits verification; no tests, builds, browser or Docker runs before all 42 groups are implementation-ready.
+[Sign-in SMS MFA](./SMS-MFA.en.md) authors native platform transport, initial/personal binding, enforcement, one-time capabilities, limits/encryption, TOTP/RADIUS/review, bilingual Web, CLI/SDK and cases. E06 awaits verification; the historical 42-group gate is superseded by the mini release checklist.
 
 [Native cloud SMS and enterprise bots](./NATIVE-NOTIFICATIONS.en.md) authors three cloud SMS providers, CMPP 2.0, four bots, settings receipts/secret isolation, bilingual Web, CLI/SDK, protocol/permission/reopen and browser cases. E22 awaits verification. Cases reuse the TLS/CONNECT fixture and a temporary organization, with essential screenshots and repeated cleanup. No validation has run; E06 has separate SMS MFA documentation.
 
@@ -38,7 +40,7 @@ E36 [SSH user certificates](./SSH-CERTIFICATES.en.md) author built-in CA/OpenBao
 
 E35 [external replay storage](./REPLAY-STORAGE.en.md) authors S3/OSS/COS/OBS/SFTP/PostgreSQL objects, encrypted archives/retries, lifecycle/drain integration, authorized replay, controlled local removal, cache/backups, bilingual Web, CLI/SDK and cases. It is implementation-ready awaiting verification. Actual SSH/SFTP, Web SSH output, one restart, receipts and bilingual narrow-screen cases join existing unified entrypoints without executing early.
 
-Phase 7 adds [SSH account connectivity checks](./ACCOUNT-CHECKS.en.md): password/key authentication for default and named accounts, independent scheduling, results/failure notifications, explicit retries and no automatic replay after interruption. Full Enterprise parity remains in progress.
+Phase 7 adds [SSH account connectivity checks](./ACCOUNT-CHECKS.en.md): password/key authentication for default and named accounts, independent scheduling, results/failure notifications, explicit retries and no automatic replay after interruption. Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
 Phase 7 adds [individual/bulk SSH rotation retries](./ROTATION-RETRIES.en.md): select unsuccessful items from terminal runs, exclude successes, combine aliases, bind current plan revision, claim each source once and retain Web/CLI/SDK, linked audit and takeover. Full Enterprise parity remains active.
 
@@ -61,17 +63,17 @@ This batch's [cloud SSH IP migration](./ASSET-DISCOVERY.en.md) passed unified ve
 
 Phase 7 delivers [LAN asset discovery and sync](./ASSET-DISCOVERY.en.md): sources/policies, bounded scans, pinned SSH gateways, one-use import, metadata sync, missing-host handling, native scheduling, organization permissions and bilingual Web/CLI/SDK. See [verification stages](./TESTING.en.md). AWS international/China, Alibaba Cloud ECS and Tencent Cloud CVM inventory adapters passed signed-fixture, Go/race, isolated Docker and complete production-browser verification. Real cloud-account acceptance, other clouds, multi-node mapping and other Enterprise features follow actual need. Intranet deployment was cancelled; publish once after stable SSH acceptance.
 
-Phase 7 adds [branding](./BRANDING.en.md): bilingual site/sign-in titles, five themes, four image slots, registration footers, global permission/audit, CLI/SDK and PostgreSQL single-active takeover. See [unified verification](./TESTING.en.md). Overall Enterprise parity remains in progress.
+Phase 7 adds [branding](./BRANDING.en.md): bilingual site/sign-in titles, five themes, four image slots, registration footers, global permission/audit, CLI/SDK and PostgreSQL single-active takeover. See [unified verification](./TESTING.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
-Phase 3/5 adds [SSH monitoring history](./MONITOR-HISTORY.en.md): encrypted hourly segments, seven-day minute records, missing/offline distinctions, current binding and asset-view authorization, native Web charts and CLI/SDK, with PostgreSQL single-active takeover reads. Overall Enterprise parity remains in progress.
+Phase 3/5 adds [SSH monitoring history](./MONITOR-HISTORY.en.md): encrypted hourly segments, seven-day minute records, missing/offline distinctions, current binding and asset-view authorization, native Web charts and CLI/SDK, with PostgreSQL single-active takeover reads. Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
 Added the BuildWorld intranet `builtin` macOS deployment entry and default `Jenkinsfile_mac_single`, with persistent data, same-port frontend, idempotent activation and recovery. See [deployment](./BUILDWORLD.en.md) for acceptance boundaries. Enterprise parity and production HA continue through the phased roadmap.
 
-Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./PASSWORD-SECURITY.en.md). Overall Enterprise parity remains in progress.
+Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./PASSWORD-SECURITY.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
-Platform identity editing, expiry, archive/restore, credential revocation, atomic batches and metadata audit are available in Web/CLI/SDK. See [User lifecycle](./USERS.en.md). Overall Enterprise parity remains in progress.
+Platform identity editing, expiry, archive/restore, credential revocation, atomic batches and metadata audit are available in Web/CLI/SDK. See [User lifecycle](./USERS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
-Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./RADIUS.en.md). Overall Enterprise parity remains in progress.
+Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./RADIUS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
 Go native Playbooks provide revisioned workspaces, organization publication, source snapshots, sequential SSH modules, conditions/loops/retries, durable recovery and Web/CLI/SDK. See [Native Playbooks](./PLAYBOOKS.en.md). Full Ansible and Enterprise parity remain in progress.
 
@@ -93,7 +95,7 @@ Phase 7 adds [SSH account risks](./ACCOUNT-RISKS.en.md): seven local checks, hum
 
 Native creation, disabling, restoration, retained home deletion and explicit recovery for regular Linux users are covered in [Remote account lifecycle](./REMOTE-ACCOUNTS.en.md).
 
-Phase 7 adds managed SSH accounts: independent encrypted credentials, account grants/enablement/rotation, discovery association, named gateways, Web SSH/SFTP/workbench and platform CLI, with standalone and PostgreSQL active/standby takeover. CSV/XLSX bulk credential import now supports multi-host create/update, preview, atomic commits and idempotent receipts; see [Account import](./ACCOUNT-IMPORT.en.md). Other protocol account management remains open. See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Overall Enterprise parity remains in progress.
+Phase 7 adds managed SSH accounts: independent encrypted credentials, account grants/enablement/rotation, discovery association, named gateways, Web SSH/SFTP/workbench and platform CLI, with standalone and PostgreSQL active/standby takeover. CSV/XLSX bulk credential import now supports multi-host create/update, preview, atomic commits and idempotent receipts; see [Account import](./ACCOUNT-IMPORT.en.md). Other protocol account management remains open. See [Managed SSH accounts](./MANAGED-ACCOUNTS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
 Local Linux discovery supports native Go collection, pinned gateways, both approvals, ongoing authorization, complete-page publication, encrypted present/missing findings, human review and Web/CLI. Interval plans add per-run approval isolation, pause cancellation, credential revision refresh and independent run archives, with standalone and PostgreSQL active/standby takeover. See [Scheduled account discovery](./SCHEDULED-ACCOUNT-DISCOVERY.en.md). Other platforms and retention policies remain open.
 
@@ -125,17 +127,17 @@ Managed copies of an identical SSH private key coordinate vault promotion and ol
 
 Managed copies of the same SSH password account support coordinated remote rotation, encrypted decision recovery and vault synchronization across organizations, including disabled/archived ones. See [password rotation](./PASSWORD-ROTATION.en.md).
 
-Organizations isolate resources, roles and operational audit through `X-JMS-ORG`, browser switching and Agent CLI selection. Standalone storage and PostgreSQL single-active HA are supported. See [Organizations](./ORGANIZATIONS.en.md). Full Enterprise parity remains in progress.
+Organizations isolate resources, roles and operational audit through `X-JMS-ORG`, browser switching and Agent CLI selection. Standalone storage and PostgreSQL single-active HA are supported. See [Organizations](./ORGANIZATIONS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
-Platform sign-in approval and console notifications use verified identities, original-source one-use completion, encrypted persistence and PostgreSQL single-active HA. See [Platform sign-in reviews](./PLATFORM-LOGIN-REVIEWS.en.md). Full Enterprise parity remains in progress.
+Platform sign-in approval and console notifications use verified identities, original-source one-use completion, encrypted persistence and PostgreSQL single-active HA. See [Platform sign-in reviews](./PLATFORM-LOGIN-REVIEWS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
-Source, weekly-hour and execution-channel restrictions support standalone and single-active HA. See [Access policies](./ACCESS-POLICIES.en.md). Full Enterprise parity remains in progress.
+Source, weekly-hour and execution-channel restrictions support standalone and single-active HA. See [Access policies](./ACCESS-POLICIES.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
 SSH key installation, verified rotation, opt-in seven-day scheduling and persistent staged recovery are described in [SSH key rotation](./SSH-KEY-ROTATION.en.md).
 
 Targets and gateways support imported SSH private keys with write-only input, vault encryption, public fingerprints and verified history restore. Password rotation remains password-specific. See [SSH private keys](./SSHKEYS.en.md).
 
-SSH gateway routing supports up to three pinned hops across monitoring, Web SSH, CLI, SFTP, jobs and password rotation. Configuration and encrypted credentials support standalone and PostgreSQL single-active HA; see [SSH gateways](./GATEWAYS.en.md). Full Enterprise parity remains in progress.
+SSH gateway routing supports up to three pinned hops across monitoring, Web SSH, CLI, SFTP, jobs and password rotation. Configuration and encrypted credentials support standalone and PostgreSQL single-active HA; see [SSH gateways](./GATEWAYS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
 Passkey registration, device-verified sign-in, local MFA, revocation, and HA recovery: [Passkey](./PASSKEY.en.md).
 

@@ -670,7 +670,7 @@ func writePermanentTokenError(w http.ResponseWriter, err error) {
 
 func allowOrigin(w http.ResponseWriter, r *http.Request) bool {
 	if !allowedRequestOrigin(r) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"detail": "origin is not allowed"})
+		rejectRequestOrigin(w)
 		return false
 	}
 	return true

@@ -2,21 +2,25 @@
 
 > [中文](./AUTH.md) | English
 
-Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./PASSWORD-SECURITY.en.md). Overall Enterprise parity remains in progress.
+## Standalone intranet access
 
-Platform identity editing, expiry, archive/restore, credential revocation, atomic batches and metadata audit are available in Web/CLI/SDK. See [User lifecycle](./USERS.en.md). Overall Enterprise parity remains in progress.
+A same-origin loopback/private-IP HTTP entry works with the native Go listener. No nginx is required. Optional `JMS_PUBLIC_URL` pins an HTTPS or private-IP/loopback HTTP origin. Scheme, Host and port must match; foreign Origins and DNS rebinding names are rejected. Login distinguishes origin, network, service, rate-limit and credential failures, and confirms the cookie session before navigation. See [maintenance](./MAINTENANCE.en.md).
 
-Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./RADIUS.en.md). Overall Enterprise parity remains in progress.
+Local password policy, history/expiry, restricted password changes and independently authorized password/TOTP recovery support Web/CLI/SDK and v3 user-document takeover. See [Password security](./PASSWORD-SECURITY.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
+
+Platform identity editing, expiry, archive/restore, credential revocation, atomic batches and metadata audit are available in Web/CLI/SDK. See [User lifecycle](./USERS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
+
+Native PAP RADIUS primary sign-in, mutual TLS, multiple challenges and a shared additional factor support Web/CLI/SDK, preserving local MFA and platform approvals. See [RADIUS authentication](./RADIUS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
 Authentication steps, audit commit before session delivery, global permissions and independent security notifications: [Platform sign-in audit](./LOGIN-AUDIT.en.md).
 
 On first startup with an empty user store, the server creates default administrator **`root / root`**. Sign-in uses normal local authentication and the password is stored as a scrypt hash. Restarts never reset the password or add this account to an existing user store. Change it in Profile. Set `JMS_DEFAULT_ADMIN_ENABLED=false` to initialize a custom administrator; ordinary account creation and password changes still require 12–256 bytes.
 
-Organizations isolate resources, roles and operational audit through `X-JMS-ORG`, browser switching and Agent CLI selection. Standalone storage and PostgreSQL single-active HA are supported. See [Organizations](./ORGANIZATIONS.en.md). Full Enterprise parity remains in progress.
+Organizations isolate resources, roles and operational audit through `X-JMS-ORG`, browser switching and Agent CLI selection. Standalone storage and PostgreSQL single-active HA are supported. See [Organizations](./ORGANIZATIONS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
-Platform sign-in approval and console notifications use verified identities, original-source one-use completion, encrypted persistence and PostgreSQL single-active HA. See [Platform sign-in reviews](./PLATFORM-LOGIN-REVIEWS.en.md). Full Enterprise parity remains in progress.
+Platform sign-in approval and console notifications use verified identities, original-source one-use completion, encrypted persistence and PostgreSQL single-active HA. See [Platform sign-in reviews](./PLATFORM-LOGIN-REVIEWS.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
-Source, weekly-hour and execution-channel restrictions support standalone and single-active HA. See [Access policies](./ACCESS-POLICIES.en.md). Full Enterprise parity remains in progress.
+Source, weekly-hour and execution-channel restrictions support standalone and single-active HA. See [Access policies](./ACCESS-POLICIES.en.md). Enterprise extensions are historical scope; see [current product scope](./PRODUCT-SCOPE.en.md).
 
 Passkey registration, device-verified sign-in, local MFA, revocation, and HA recovery: [Passkey](./PASSKEY.en.md).
 

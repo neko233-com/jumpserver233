@@ -2,19 +2,23 @@
 
 > 中文 | [English](./AUTH.en.md)
 
-平台本地密码策略、历史与有效期、受限改密、独立授权的密码/TOTP 恢复接入 Web/CLI/SDK，支持 v3 用户文档接管；见[密码安全](./PASSWORD-SECURITY.md)。企业版整体对齐保持进行中。
+## 单机内网入口
 
-平台身份编辑、到期、归档恢复、撤销凭证、原子批量变更和元数据审计接入 Web/CLI/SDK，见[用户生命周期](./USERS.md)。企业版整体对齐保持进行中。
+原生 Go 监听器支持同源 loopback/内网 IP HTTP，无需 nginx。可选 `JMS_PUBLIC_URL` 固定 HTTPS 或内网 IP/loopback HTTP 入口。协议、Host 和端口必须匹配，拒绝外域 Origin 和 DNS 重绑定域名。登录区分来源、网络、服务、限流和凭据错误，并在跳转前确认 Cookie 会话，见[维护补丁](./MAINTENANCE.md)。
 
-原生 PAP RADIUS 主登录、双向 TLS、多轮挑战和统一附加因子接入 Web/CLI/SDK，保留本地 MFA 与平台登录审批；见 [RADIUS 认证](./RADIUS.md)。完整企业版对齐保持进行中。
+平台本地密码策略、历史与有效期、受限改密、独立授权的密码/TOTP 恢复接入 Web/CLI/SDK，支持 v3 用户文档接管；见[密码安全](./PASSWORD-SECURITY.md)。企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
+
+平台身份编辑、到期、归档恢复、撤销凭证、原子批量变更和元数据审计接入 Web/CLI/SDK，见[用户生命周期](./USERS.md)。企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
+
+原生 PAP RADIUS 主登录、双向 TLS、多轮挑战和统一附加因子接入 Web/CLI/SDK，保留本地 MFA 与平台登录审批；见 [RADIUS 认证](./RADIUS.md)。企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
 
 认证步骤、会话签发前审计提交、全局权限与独立安全通知见[平台登录审计](./LOGIN-AUDIT.md)。
 
 首次启动、用户库为空时，自动创建默认管理员 **`root / root`**。登录使用普通本地认证流程，密码以 scrypt 哈希保存。重复启动不重置密码，也不会向已有用户库补入该账号；可在个人设置修改密码。设置 `JMS_DEFAULT_ADMIN_ENABLED=false` 可使用自定义管理员初始化，正常新建账号和改密仍要求 12–256 字节。
 
-组织通过 `X-JMS-ORG`、浏览器切换和 Agent CLI 选择隔离资源、角色与运维审计，支持单机存储和 PostgreSQL 单活 HA。详见 [组织隔离](./ORGANIZATIONS.md)；完整企业版目标仍在进行。
+组织通过 `X-JMS-ORG`、浏览器切换和 Agent CLI 选择隔离资源、角色与运维审计，支持单机存储和 PostgreSQL 单活 HA。详见 [组织隔离](./ORGANIZATIONS.md)；企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
 
-平台登录审批与站内通知已接入：认证后等待、原来源一次性兑换、加密持久化及 PostgreSQL 单活 HA。详见 [平台登录复核](./PLATFORM-LOGIN-REVIEWS.md)；完整企业版目标仍在进行。
+平台登录审批与站内通知已接入：认证后等待、原来源一次性兑换、加密持久化及 PostgreSQL 单活 HA。详见 [平台登录复核](./PLATFORM-LOGIN-REVIEWS.md)；企业版扩展属于历史范围，见[当前产品范围](./PRODUCT-SCOPE.md)。
 
 来源、每周时段及执行通道限制支持单机和单活 HA，详见 [访问策略](./ACCESS-POLICIES.md)；完整企业版对齐仍在推进。
 

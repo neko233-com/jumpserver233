@@ -2,7 +2,7 @@
 
 > English | [中文](./BUILDWORLD.md)
 
-The default pipeline is [Jenkinsfile_mac_single](../Jenkinsfile_mac_single) at the repository root. BuildWorld project [49 · 内网服务器/jumpserver233](http://192.168.110.42:8080/projects/49) reads it from GitHub `main` and builds/deploys on the current `builtin` macOS node. Startup builds, external HTTP triggers and distributed Workers are disabled.
+The source-build template is [Jenkinsfile_mac_single](../Jenkinsfile_mac_single) at the repository root. The live BuildWorld project [49 · 内网服务器/JumpServer233](http://192.168.110.42:8080/projects/49) uses the private `poke-game/deploy_devops_server` repository and entry `deploy_JumpServer233/JenkinsFile_JumpServer233`, identical to that repository's `Jenkinsfile_mac_single`. It verifies pinned official native artifacts rather than rebuilding source on the node. Startup builds, external HTTP triggers and distributed Workers are disabled. The defaults below describe the source-build template; the live entry uses public port 8180 and loopback backend 18180.
 
 ## Defaults
 
@@ -17,7 +17,7 @@ The default pipeline is [Jenkinsfile_mac_single](../Jenkinsfile_mac_single) at t
 | Runtime configuration | `runtime.json`, locally generated service token; directory mode 0700, configuration/LaunchAgent plist mode 0600 |
 | Versions | `releases/<commit>-<manifest-hash>/`, atomic `current` symlink |
 
-HTTP serves the specified intranet. Public access requires a controlled HTTPS reverse proxy and local `runtime.json` settings for `JMS_PUBLIC_URL` and any required `JMS_TRUSTED_PROXIES`; existing HTTPS origin validation remains enforced. Initial administrator provisioning follows [authentication](./AUTH.en.md). Subsequent deployments preserve identities and password policies. Service tokens and Vault keys never enter Git, build parameters, artifacts or logs.
+Native HTTP supports same-origin loopback/private-IP access, including IPv6 ULA, without a reverse proxy. An explicit `JMS_PUBLIC_URL` pins the canonical HTTPS or loopback/private-IP HTTP origin; HTTP DNS names and public IPs are rejected. Public access uses HTTPS. Configure `JMS_TRUSTED_PROXIES` only for a controlled proxy that overwrites forwarding headers. Initial administrator provisioning follows [authentication](./AUTH.en.md); upgrades preserve existing passwords. Service tokens and Vault keys never enter Git, build parameters, artifacts or logs.
 
 ## Build and deployment
 
@@ -39,8 +39,14 @@ Static file access is confined with Go `os.Root`. Hidden paths, missing-asset SP
 
 Independent check: `python3 -B -m unittest discover -s scripts -p macos_single_test.py`. Go static-serving tests in `server/internal/webui` use testify. The workspace `dist/deployment.json` receipt contains no credentials. This is an intranet single-node deployment; see [HA](./CLUSTER-HA.en.md) for clusters.
 
-## Verification boundary, 2026-10-18
+## Historical verification boundary, 2026-10-18
 
 Project 49's group, GitHub `main` and `Jenkinsfile_mac_single` were saved and read back in the browser. Windows Go static-serving/config/server tests, vet, frontend production build and bilingual checks passed. The deployment state machine passed 10/10 in a network-disabled, read-only-mounted temporary Linux container with launchd test doubles; the container was removed automatically. Windows passed 8 cases and skipped 2 because symlink privileges were unavailable.
 
-The real macOS SCM validation previously failed twice connecting to `github.com:443` after approximately 19 seconds, before build or deployment. The user subsequently stopped intranet publishing: the saved project and default pipeline remain, with no further deployment attempts or waiting for a proxy/mirror. Project creation, Linux state-machine tests and local Docker success do not establish a running macOS deployment.
+The real macOS SCM validation at that time failed before deployment connecting to `github.com:443`. That historical result is superseded by the actual deployment below.
+
+## Live v0.2.0 baseline, 2026-10-21
+
+Official v0.2.0 was activated once. A stalled download and nested-manifest adapter failure happened before activation; build 989 then deployed successfully but its browser-acceptance wait expired. [Build 991](http://192.168.110.42:8080/builds/991) passed 6/6 stages in 3.59 seconds with `DEPLOY=false`, including 20 native macOS tests, exact archive/CLI identity, real SSH, Linux monitoring and unchanged asset/audit/Vault identities across graceful restart. Stored SSH credentials reconnected afterwards. The organization shared entry points to the intranet service.
+
+v0.2.0 uses the already installed nginx with a dedicated LaunchAgent to enforce exact Origin/Host checks and a loopback backend; unrelated nginx configuration is untouched. The [maintenance patch](./MAINTENANCE.en.md) adds native IP HTTP and forwards the original Origin for both checks. This batch still requires its own unified verification and upgrade acceptance. Temporary transfer archives, SSH configuration and preflight programs were removed; compact reports and two screenshots remain outside Git. One verified production artifact cache supports fast subsequent builds.

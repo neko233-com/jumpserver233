@@ -13,19 +13,19 @@ pipeline {
     }
     stages {
         stage('Preflight') {
-            steps { sh 'python3 scripts/macos_single.py preflight' }
+            steps { sh 'sh scripts/run-macos-single.sh preflight' }
         }
         stage('Verify') {
-            steps { sh 'python3 scripts/macos_single.py verify' }
+            steps { sh 'sh scripts/run-macos-single.sh verify' }
         }
         stage('Build and package') {
             steps {
-                sh 'python3 scripts/macos_single.py package'
+                sh 'sh scripts/run-macos-single.sh package'
                 archiveArtifacts artifacts: 'dist/*.tar.gz,dist/*.sha256,dist/release/manifest.json', fingerprint: true
             }
         }
         stage('Deploy and health check') {
-            steps { sh 'python3 scripts/macos_single.py deploy' }
+            steps { sh 'sh scripts/run-macos-single.sh deploy' }
         }
     }
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/neko233-com/jumpserver233/server/internal/buildinfo"
+	"github.com/neko233-com/jumpserver233/server/internal/originpolicy"
 )
 
 // Config holds process-level settings loaded from the environment.
@@ -88,8 +89,8 @@ func FromEnv() (*Config, error) {
 	}
 	if value := strings.TrimRight(strings.TrimSpace(getEnv("JMS_PUBLIC_URL", "")), "/"); value != "" {
 		u, err := url.Parse(value)
-		if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" || (u.Scheme != "https" && (u.Scheme != "http" || u.Hostname() != "localhost" && (net.ParseIP(u.Hostname()) == nil || !net.ParseIP(u.Hostname()).IsLoopback()))) {
-			return nil, fmt.Errorf("JMS_PUBLIC_URL must be an HTTPS origin or an HTTP loopback origin")
+		if err != nil || !originpolicy.ValidPublic(value) {
+			return nil, fmt.Errorf("JMS_PUBLIC_URL must be an HTTPS origin or an HTTP loopback/private-IP origin")
 		}
 		cfg.PublicURL = u.String()
 	}

@@ -1526,6 +1526,14 @@ const en = {
     bootstrapToken: "Setup admin token (if configured on the server)",
     bootstrap: "Create administrator and sign in",
     authError: "Sign-in failed. Check the username and password.",
+    originError:
+      "This address is not allowed by the server. Use the entry address configured by your administrator.",
+    rateLimitError: "Too many sign-in attempts. Wait a moment and try again.",
+    serviceError:
+      "The sign-in service is temporarily unavailable. Try again later or contact your administrator.",
+    connectionError: "Could not connect to the sign-in service. Check your network and try again.",
+    sessionError:
+      "The sign-in session was not established. Allow this site's cookies and check the entry configuration before retrying.",
     otpError: "The code is invalid or already used. Check your current authenticator code.",
     otpOrRecoveryCodeError:
       "The authenticator code is invalid, or the recovery code was already used.",

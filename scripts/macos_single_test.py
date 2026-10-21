@@ -59,6 +59,25 @@ class DeploymentTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             ci.validate_manifest(self.staging)
 
+    def test_stable_manifest_requires_commit_and_verifies_nested_vite_manifest(self):
+        nested = self.staging / 'web/.vite/manifest.json'
+        nested.parent.mkdir()
+        nested.write_text('{"index.html":{}}')
+        manifest = json.loads((self.staging / 'manifest.json').read_text())
+        manifest['version'] = 'v0.2.1'
+        manifest['commit'] = 'a' * 40
+        manifest['sha256']['web/.vite/manifest.json'] = ci.digest(nested)
+        (self.staging / 'manifest.json').write_text(json.dumps(manifest))
+        ci.validate_manifest(self.staging)
+        nested.write_text('tampered')
+        with self.assertRaisesRegex(RuntimeError, 'integrity'):
+            ci.validate_manifest(self.staging)
+        nested.write_text('{"index.html":{}}')
+        manifest['commit'] = 'invalid'
+        (self.staging / 'manifest.json').write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(RuntimeError, 'source commit'):
+            ci.validate_manifest(self.staging)
+
     def test_private_runtime_key_is_stable_across_retries(self):
         first = ci.runtime_config(self.root)
         self.assertEqual(first, ci.runtime_config(self.root))

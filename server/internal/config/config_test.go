@@ -141,15 +141,15 @@ func clearConfigEnv(t *testing.T) {
 	}
 }
 
-func TestPublicURLIsExplicitHTTPSOrLoopbackOrigin(t *testing.T) {
+func TestPublicURLIsExplicitHTTPSOrLocalIPOrigin(t *testing.T) {
 	clearConfigEnv(t)
-	for _, value := range []string{"https://console.example.invalid", "http://localhost:15178", "http://127.0.0.1:5177", "http://[::1]:5177"} {
+	for _, value := range []string{"https://console.example.invalid", "http://localhost:15178", "http://127.0.0.1:5177", "http://[::1]:5177", "http://10.12.0.5:8180", "http://[fd00::5]:8180"} {
 		t.Setenv("JMS_PUBLIC_URL", value)
 		c, err := FromEnv()
 		require.NoError(t, err)
 		require.Equal(t, value, c.PublicURL)
 	}
-	for _, value := range []string{"http://console.example.invalid", "https://user:secret@console.example.invalid", "https://console.example.invalid/path", "https://console.example.invalid?bad=1"} {
+	for _, value := range []string{"http://console.example.invalid", "https://user:secret@console.example.invalid", "https://console.example.invalid/path", "https://console.example.invalid?bad=1", "http://8.8.8.8", "http://0.0.0.0:8180", "http://10.12.0.5:65536", "https://console.example.invalid?"} {
 		t.Setenv("JMS_PUBLIC_URL", value)
 		_, err := FromEnv()
 		require.Error(t, err)

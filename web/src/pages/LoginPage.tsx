@@ -78,6 +78,7 @@ export default function LoginPage() {
     enrollment: MFAEnrollment;
   } | null>(null);
   const [authError, setAuthError] = useState(false);
+  const [failureKey, setFailureKey] = useState<string | null>(null);
   const [policyDenied, setPolicyDenied] = useState(false);
   const [loginReview, setLoginReview] = useState<LoginReviewPending | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -331,6 +332,7 @@ export default function LoginPage() {
     event.preventDefault();
     setSubmitting(true);
     setAuthError(false);
+    setFailureKey(null);
     setPolicyDenied(false);
     try {
       const headers = new Headers({
@@ -364,7 +366,10 @@ export default function LoginPage() {
               : { username, password, ...(otpRequired ? { otp } : {}) },
         ),
       });
-      const result = (await response.json()) as LoginResult;
+      const payload: unknown = await response.json().catch(() => null);
+      const result = (
+        payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {}
+      ) as LoginResult & { detail?: string };
       if (loginChallengeRedirect(result)) return;
       if (response.status === 202 && result.radius_factor_required) {
         waitForFactor();
@@ -411,14 +416,35 @@ export default function LoginPage() {
         setOtp("");
         return;
       }
-      if (!response.ok) throw new Error("authentication failed");
-      if (!result.browser_session) throw new Error("browser session cookie missing");
+      if (!response.ok) {
+        setFailureKey(
+          result.code === "origin_not_allowed" || result.detail === "origin is not allowed"
+            ? "login.originError"
+            : response.status === 429
+              ? "login.rateLimitError"
+              : response.status >= 500
+                ? "login.serviceError"
+                : null,
+        );
+        setAuthError(true);
+        return;
+      }
+      const session = result.browser_session
+        ? await fetch("/api/v1/authentication/session/", { credentials: "same-origin" })
+        : null;
+      if (!session?.ok) {
+        setFailureKey("login.sessionError");
+        setAuthError(true);
+        setPassword("");
+        return;
+      }
       setSetupChallenge(null);
       setPassword("");
       setDirectoryPending(false);
       setCookieSession();
       finishNavigation();
     } catch {
+      setFailureKey("login.connectionError");
       setAuthError(true);
     } finally {
       setSubmitting(false);
@@ -641,15 +667,16 @@ export default function LoginPage() {
                 {authError && (
                   <p className="login-error" role="alert">
                     {t(
-                      policyDenied
-                        ? "acl.loginDenied"
-                        : setupChallenge
-                          ? "login.mfaSetupError"
-                          : bootstrapRequired
-                            ? "login.bootstrapError"
-                            : otpRequired
-                              ? "login.otpOrRecoveryCodeError"
-                              : "login.authError",
+                      failureKey ??
+                        (policyDenied
+                          ? "acl.loginDenied"
+                          : setupChallenge
+                            ? "login.mfaSetupError"
+                            : bootstrapRequired
+                              ? "login.bootstrapError"
+                              : otpRequired
+                                ? "login.otpOrRecoveryCodeError"
+                                : "login.authError"),
                     )}
                   </p>
                 )}

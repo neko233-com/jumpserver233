@@ -2,7 +2,7 @@
 
 > 中文 | [English](./BUILDWORLD.en.md)
 
-默认流水线是仓库根的 [Jenkinsfile_mac_single](../Jenkinsfile_mac_single)。BuildWorld 项目 [49 · 内网服务器/jumpserver233](http://192.168.110.42:8080/projects/49) 从 GitHub `main` 读取该文件，在当前 `builtin` macOS 节点构建并部署。未配置启动自动构建、外部 HTTP 触发或分布式 Worker。
+源码构建模板是仓库根的 [Jenkinsfile_mac_single](../Jenkinsfile_mac_single)。实际 BuildWorld 项目 [49 · 内网服务器/JumpServer233](http://192.168.110.42:8080/projects/49) 使用私有 `poke-game/deploy_devops_server` 仓库及 `deploy_JumpServer233/JenkinsFile_JumpServer233`，与该部署仓库根的 `Jenkinsfile_mac_single` 一致；校验固定正式原生制品，不在节点重编译。未配置启动自动构建、外部 HTTP 触发或分布式 Worker。下表为源码模板默认值；实际入口为 8180，loopback 后端为 18180。
 
 ## 默认配置
 
@@ -17,7 +17,7 @@
 | 运行配置 | `runtime.json`，本机生成服务令牌；目录 0700，文件/LaunchAgent plist 0600 |
 | 版本 | `releases/<commit>-<manifest-hash>/`，`current` 原子符号链接 |
 
-HTTP 入口用于指定内网。公网使用受控 HTTPS 反向代理，再在本机 `runtime.json` 设置 `JMS_PUBLIC_URL` 和必要的 `JMS_TRUSTED_PROXIES`；未放宽现有 HTTPS origin 校验。首次管理员初始化遵循[认证](./AUTH.md)，后续部署保留已有身份与密码策略。服务令牌和 Vault key 不进入 Git、构建参数、制品或日志。
+原生 HTTP 支持同源 loopback/内网 IP（含 IPv6 ULA），无需反向代理。可选 `JMS_PUBLIC_URL` 固定 HTTPS 或 loopback/内网 IP HTTP；HTTP 域名与公网 IP 拒绝。公网使用 HTTPS。仅对覆盖转发头的受控代理设置 `JMS_TRUSTED_PROXIES`。默认管理员见[认证](./AUTH.md)，升级保留已有密码。服务令牌和 Vault key 不进入 Git、构建参数、制品或日志。
 
 ## 构建与部署
 
@@ -39,8 +39,14 @@ HTTP 入口用于指定内网。公网使用受控 HTTPS 反向代理，再在�
 
 独立检查入口：`python3 -B -m unittest discover -s scripts -p macos_single_test.py`；Go 静态服务测试在 `server/internal/webui`，使用 testify。部署回执为工作区 `dist/deployment.json`，不包含凭据。本方案是单机内网部署；集群部署仍见[高可用](./CLUSTER-HA.md)。
 
-## 2026-10-18 验证边界
+## 历史验证边界，2026-10-18
 
 项目 49 的分组、GitHub `main` 和 `Jenkinsfile_mac_single` 已在浏览器保存并读回。Windows Go 静态服务/config/server 测试、vet、前端生产构建和双语检查通过。部署状态机在无网络、只读挂载的临时 Linux 容器中 10/10 通过（launchd 命令由测试替身提供），容器自动删除；Windows 上对应 8 项通过、2 项因符号链接权限跳过。
 
-真实 macOS SCM 校验此前两次在连接 `github.com:443` 约 19 秒后失败，未进入构建或部署。随后用户要求停止内网发布：目前仅保留项目配置和默认流水线，不再尝试部署，也不等待代理或镜像。项目创建、Linux 状态机测试及本地 Docker 成功均不代表 macOS 服务上线。
+当时真实 macOS SCM 在连接 `github.com:443` 时失败，未部署。该历史结果已由下述实际内网运行记录取代。
+
+## 实际 v0.2.0 内网基线，2026-10-21
+
+正式程序只激活一次。下载停滞和嵌套清单适配失败都发生在激活前；构建 989 部署成功，但等待浏览器验收超时。[构建 991](http://192.168.110.42:8080/builds/991) 以 `DEPLOY=false` 补验，3.59 秒完成 6/6 阶段、20 项原生 macOS 用例、归档/CLI 身份、真实 SSH、Linux 监控及有序重启后的资产/审计/Vault key 保留；保存的凭据再次连接成功。组织公共入口已指向服务。
+
+v0.2.0 复用已安装 nginx 的专属 LaunchAgent，严格校验 Origin/Host，后端只监听 loopback，未修改其它 nginx 配置。[维护补丁](./MAINTENANCE.md) 增加原生 IP HTTP，并转发原始 Origin 供两层检查；本批须单独完成统一验证和升级验收。临时传输归档、SSH 配置、预检程序已清理，精简报告和两张截图保留在 Git 外；只保留一份已验证正式制品缓存以加速后续构建。

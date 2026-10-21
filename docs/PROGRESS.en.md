@@ -2,6 +2,8 @@
 
 > [中文](./PROGRESS.md) | English
 
+[Current maintenance batch](./MAINTENANCE.en.md): native IP HTTP, accurate login failures, cookie verification, manifest integrity and upgrade persistence. Implementation authored; unified verification and new deployment pending.
+
 ## Current result — 2026-10-21
 
 The accepted objective is an independent mini SSH bastion for small and medium businesses: standalone deployment, few dependencies, easy operation, security and maintenance. [PRODUCT-SCOPE](./PRODUCT-SCOPE.en.md) defines the scope; JumpServer Enterprise is a reference. Cloud parity and the archived 42-group research checklist do not create release requirements.
@@ -19,7 +21,7 @@ The unpublished cloud-provider, Ansible runtime and PDF/email warehouse expansio
 
 See the [mini acceptance report](./MINI-ACCEPTANCE.en.md) for source identities, commands, reports and limits. Go/Testify: **2134 passed, 51 skipped**; Linux race: **195 passed, 4 skipped**; production browser: **55/55**; repaired console: **six widths × two languages**; Docker browser: **passed**; final native installation/upgrade suite: **passed**, source unchanged, six archives, real Windows CLI/Linux SSH/SFTP, directory enforcement, data recovery and update paths. Owned resources were removed twice. Skipped external integrations are not claimed as accepted.
 
-Frontend total JavaScript is **1,641,659 bytes**, about **11% below** the initial batch build (1,841,868); initial JavaScript is 495,091 bytes (gzip 159,911). Budgets are unchanged. Vet/build/content pass; lint has no errors and retains five existing warnings in legacy modules. No intranet deployment was performed. Release notes remain generated only by release-please.
+Frontend total JavaScript is **1,641,659 bytes**, about **11% below** the initial batch build (1,841,868); initial JavaScript is 495,091 bytes (gzip 159,911). Budgets are unchanged. Vet/build/content pass; lint has no errors and retains five existing warnings in legacy modules. The subsequent v0.2.0 macOS intranet baseline passed; see [BuildWorld](./BUILDWORLD.en.md). Release notes remain generated only by release-please.
 
 ## Fixed mini checklist
 
