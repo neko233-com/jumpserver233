@@ -2,7 +2,7 @@
 
 > [中文](./PLAN.md) | English
 
-Current maintenance: [XTerminal/native menu](./NATIVE-SSH.en.md) v0.3.1 was upgraded once, with SSH/SFTP, monitoring, full CI and retention accepted. Following the user's menu-legibility rejection, all six selectable-table workbench gates are implemented and locally accepted (6/6): full Go, Linux race, real OpenSSH/SFTP/monitoring, Docker and visual review passed. The new UI is unreleased; actual client use still awaits an upgrade. The fixed mini checklist remains 12/12.
+Current maintenance: [native SSH table workbench](./NATIVE-SSH.en.md) v0.3.2 is published and upgraded once, with all six UI gates implemented and accepted (6/6). Full CI, production browser 70/70, BuildWorld #9 (1041), and default login, real SSH/SFTP, monitoring and retention before/after restart passed. The fixed mini checklist remains 12/12. UI evidence uses actual Go frames and protocols, without native XTerminal UI automation.
 
 The [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md) is complete: unified verification followed the full implementation, with 8/8 new gates accepted. v0.3.0 was released and upgraded once. BuildWorld #7 (1014) passed all six stages, including root/root, search, relay, file round trips, monitoring and restart retention. The existing mini checklist remains independently counted at 12/12.
 

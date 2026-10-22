@@ -31,7 +31,7 @@ A native Go state model handles arrows/Tab, Enter, immediate UTF-8 search, pagin
 
 All six local gates passed unified verification: full backend, two Linux race runs, three real OpenSSH relay/monitor/SFTP runs, Docker browser and restart regression. The 112 bilingual dimension cases check bounds; wide, narrow and English rendering were inspected. Independent visual review confirms clear headers, selection and alignment. Its refinement emphasizes only Enter while keeping other hints readable. Earlier English help wrapping prevents the shared label limit from hiding the last shortcut.
 
-`TestNativeWorkbenchExportVisualCases` exports actual Go ANSI frames. `scripts/native-workbench-preview.mjs` displays them using the existing xterm renderer. This preview is not actual XTerminal button acceptance. Reports and at most two screenshots stay ignored under `.cache/qa-reports/`. The new UI is unreleased.
+`TestNativeWorkbenchExportVisualCases` exports actual Go ANSI frames. `scripts/native-workbench-preview.mjs` displays them using the existing xterm renderer. This preview is not actual XTerminal button acceptance. Reports and at most two screenshots stay ignored under `.cache/qa-reports/`. v0.3.2 upgraded the new UI once; BuildWorld #9 (1041), real SSH/SFTP, monitoring and restart retention passed, alongside 70/70 full production browser cases.
 
 ### Existing Web console baseline
 

@@ -31,7 +31,7 @@
 
 本批六项本地门槛已统一验证通过：完整后端、Linux race 两轮、真实 OpenSSH 中转/监控/SFTP 三轮、Docker 浏览器和重启回归通过。112 个中英尺寸用例检查边界，实际查看宽窄及英文画面。独立视觉复核确认表头、选择和对齐清晰；按建议仅强调 Enter，其余提示保留可读辅助色。英文帮助改为提前换行，保证尾部快捷键不被共有标签长度上限截断。
 
-视觉证据通过 `TestNativeWorkbenchExportVisualCases` 输出真实 Go ANSI 帧，再用 `scripts/native-workbench-preview.mjs` 和现有 xterm 渲染器查看；不把此预览称为实际 XTerminal 按钮验收。报告和最多两张截图放入忽略的 `.cache/qa-reports/`。新界面尚未发布。
+视觉证据通过 `TestNativeWorkbenchExportVisualCases` 输出真实 Go ANSI 帧，再用 `scripts/native-workbench-preview.mjs` 和现有 xterm 渲染器查看；不把此预览称为实际 XTerminal 按钮验收。报告和最多两张截图放入忽略的 `.cache/qa-reports/`。新界面已随 v0.3.2 单次升级；BuildWorld #9（1041）、真实 SSH/SFTP、监控与重启保数通过，完整生产浏览器 70/70 通过。
 
 ### 既有 Web 控制台基线
 

@@ -4,11 +4,17 @@
 
 ## XTerminal compatibility and terminal UI maintenance
 
+**v0.3.2 is published and upgraded once; the table workbench passed 6/6 gates.** [BuildWorld #9 (1041)](http://192.168.110.42:8080/builds/1041) passed six stages and 34/34 native Mac cases in 2m51s. [Full CI](https://github.com/neko233-com/jumpserver233/actions/runs/39746482439) passed six jobs and 70/70 production browser cases. Default login, real Web/native SSH, search across all three fields, return to menu, a 55,296-byte SFTP round trip and removal passed. Three CPU/memory/disk/network samples passed both before and after the graceful restart; the host fingerprint remained stable. The original asset, 14 pre-upgrade audit IDs, 16 pre-restart audit IDs, Vault key and stored credentials survived.
+
+Running source: `6e717232c607a6b2661ae4a189cd3272e5469a1d`; deployment pin: `222cc8f79599551801bd01c0f84fdff70a21e1d9`. The official Mac ARM archive is 28,138,076 bytes, SHA-256 `cbed946bf190743058594d9fb2536e77fce9b6d83deddf731c03099aae8d77b6`. Compact receipts and the successful-build capture are ignored under `.cache/qa-reports/native-workbench-live-20261022/`; implementation and visual evidence are in neighboring `native-workbench-20261022/`. Browser acceptance used the authorized in-app browser; XTerminal was not driven through native application UI automation.
+
+### Previous v0.3.1
+
 v0.3.1 is published and upgraded once: [BuildWorld #8 (1022)](http://192.168.110.42:8080/builds/1022) passed six stages and 34/34 native Mac cases. [Full CI](https://github.com/neko233-com/jumpserver233/actions/runs/39735942366) passed six jobs and 70/70 production browser cases. Local Linux race, isolated Docker and three samples from the actual XTerminal scripts passed. Live root/root, Web/native SSH, a 55,296-byte file round trip and repeated post-restart acceptance passed. The original asset, all 11 pre-upgrade audit IDs and 13 pre-restart audit IDs, credentials, Vault key and host fingerprint survived.
 
 The running source is `d4a2fb7eec694ba453285bb12c0151bb9baee874`; deployment is pinned to `8108be93a8f58cda8191fe1098233dd9c16ec99f`. The official Mac ARM archive is 28,104,267 bytes, SHA-256 `6f4ed63129ee76e9251b1d5affe0ba43f8a77face176d9c2425fbcb5867d8734`. The target's existing `.xterminal` differs from the local copy. Acceptance preserved that installation and collected three samples before and after restart without replacing files. The user's screenshot confirms file browsing and monitoring, but rejects menu contrast and interaction and requests a selectable table.
 
-### New table workbench: implementation and local acceptance 6/6, unreleased
+### v0.3.2 table workbench: implementation and intranet acceptance 6/6
 
 Six gates cover table contrast, keyboard selection/live search, asynchronous feedback/cancellation, responsive dimensions, bilingual/paste behavior, and shared authorization/audit regression. A native Go state model and incremental row rendering add no dependencies. Use arrows/Tab to select, Enter to connect, Home/End/PgUp/PgDn to navigate, `/` to search title/desc/IP, and Esc to leave search or clear. `r` refreshes, `m` probes the selected row, `i` shows pinned connection details, `l` changes language, and `q` exits. Number entry and the `TERM=dumb` line interface remain available.
 
@@ -23,7 +29,7 @@ Search filters the authorized inventory locally without API requests per key. Co
 | Languages and safe paste | Language changes, fragmented UTF-8/keys, pasted newlines without connection, and visibility of every shortcut passed |
 | Authority, command policy, audit, files and monitoring | File-only access cannot open SSH; review/denial/one-time consumption/revocation regressions passed; real Linux relay, monitoring probe and SFTP passed three runs |
 
-The full backend passed 100 packages, with 2,240 passed and 124 skipped test events including subtests. External database, unrelated protocol and platform skips do not count toward these gates. Go vet/build, frontend lint/build, bilingual checks, and isolated Docker browser/native-entry/restart idempotence passed. English help initially exceeded the shared label limit; earlier wrapping and regression assertions repair it. Narrow-pane expectations and a test password were also corrected. Ignored reports live in `.cache/qa-reports/native-workbench-20261022/`. Captures render actual Go frames; they do not establish acceptance of a newly deployed XTerminal interface.
+The full backend passed 100 packages, with 2,240 passed and 124 skipped test events including subtests. External database, unrelated protocol and platform skips do not count toward these gates. Go vet/build, frontend lint/build, bilingual checks, and isolated Docker browser/native-entry/restart idempotence passed. English help initially exceeded the shared label limit; earlier wrapping and regression assertions repair it. Narrow-pane expectations and a test password were also corrected. Ignored reports live in `.cache/qa-reports/native-workbench-20261022/`. Captures render actual Go frames; they do not substitute for native XTerminal GUI operation.
 
 The native menu adapts to terminal dimensions and defaults to Chinese. Use `l` in the table, or `en`/`zh` in plain input. Stable IDs and repeated instructions move behind `i`. Selected details show cached CPU/memory/disk/network metrics; sufficiently wide tables also include CPU/memory columns. `m` refreshes the selected host through existing monitor authorization without periodically scanning all assets. `TERM=dumb` retains plain input.
 

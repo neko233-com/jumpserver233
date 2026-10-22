@@ -69,10 +69,18 @@ Edge root/root, real Web SSH and host monitoring passed. A native client complet
 
 See [native entry](./NATIVE-SSH.en.md) for precise acceptance and CI boundaries. Compact receipts are ignored under `.cache/qa-reports/native-ssh-batch/`. Owned files, Docker QA resources, temporary executables and transfer archives are removed; production data/audit, necessary rollback material and the current verified artifact cache remain.
 
-## Current v0.3.1 client compatibility repair deployment
+## Previous v0.3.1 client compatibility repair deployment
 
 [Build 1022, #8](http://192.168.110.42:8080/builds/1022) activated v0.3.1 once in 6m14s, passing 6/6 stages and 34/34 native Mac cases. Duration includes browser, native-client and monitor acceptance. Official source: `d4a2fb7eec694ba453285bb12c0151bb9baee874`; deployment pin: `8108be93a8f58cda8191fe1098233dd9c16ec99f`. Web 8180 and SSH/SFTP 2222 stay unchanged. All six full CI jobs and 70/70 production browser cases passed.
 
 The original asset and all 11 pre-upgrade session audits survived. One graceful restart retained all 13 pre-restart audits, the Vault key and stored credentials, then reconnected for Linux metrics. Before/after checks passed root/root, real Web/native SSH, title/desc/IP search, a 55,296-byte file hash/deletion round trip, and monitoring. Each client-compatibility check recycled 20 invalid channels, ran six parallel auxiliary commands and sampled the existing XTerminal monitor three times without replacing it. The user's screenshot confirms monitoring but requests a clearer, keyboard-selectable table. That subsequent UI maintenance has separate acceptance and does not overwrite published artifacts.
 
 Compact receipts and the release screenshot remain ignored under `.cache/qa-reports/native-client-live-20261022/`. Temporary local programs, script copies, downloaded archives and old node artifact cache were removed. Production data/audit, the existing monitor installation, formal rollback material and the current verified package remain.
+
+## Current v0.3.2 table workbench deployment
+
+[Build 1041, #9](http://192.168.110.42:8080/builds/1041) started at 2026-10-22 16:53:24 and finished at 16:56:15, passing 6/6 stages and 34/34 native Mac cases in 2m51s with one activation. Official source: `6e717232c607a6b2661ae4a189cd3272e5469a1d`; deployment pin: `222cc8f79599551801bd01c0f84fdff70a21e1d9`. Full CI passed six jobs and 70/70 production browser cases. The official Mac ARM archive is 28,138,076 bytes, SHA-256 `cbed946bf190743058594d9fb2536e77fce9b6d83deddf731c03099aae8d77b6`, matching the node cache and executed native CLI.
+
+The original asset and all 14 pre-upgrade audit IDs survived. One graceful restart retained all 16 pre-restart audit IDs, the Vault key and credentials, then reconnected for Linux metrics. Default login, real native SSH, title/desc/IP search, menu return, 55,296-byte file round trips/removal, and three monitoring samples passed before and after restart. Browser reauthentication and real Web SSH passed. The host fingerprint stayed unchanged. There was no second activation or replacement of earlier release artifacts.
+
+Browser acceptance used the authorized in-app browser; failures in both Edge connections required no application changes. Compact receipts and the successful-build capture are ignored under `.cache/qa-reports/native-workbench-live-20261022/`. Owned test files, downloads, temporary clients, Docker resources and obsolete node artifact cache are cleaned. The current official package, runtime data, audit and necessary rollback material remain; repeated cleanup is safe.
