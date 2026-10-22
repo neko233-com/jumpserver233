@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/neko233-com/jumpserver233/compare/v0.3.1...v0.3.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* add readable keyboard-driven native SSH workbench ([a542b69](https://github.com/neko233-com/jumpserver233/commit/a542b698574cc1e4fe5ad89401b1e85b182a077c))
+
 ## [0.3.1](https://github.com/neko233-com/jumpserver233/compare/v0.3.0...v0.3.1) (2026-10-22)
 
 
