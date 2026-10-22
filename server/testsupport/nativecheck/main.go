@@ -104,7 +104,7 @@ func run(in options) (map[string]any, error) {
 				continue
 			}
 			offset := len(out.text())
-			_, _ = io.WriteString(input, "/"+query+"\r")
+			_, _ = io.WriteString(input, "/"+query+"\x1b")
 			if e = wait(out, offset, func(s string) bool {
 				return strings.Contains(s, in.Title) && (strings.Contains(s, "搜索或编号") || strings.Contains(s, "Search or number"))
 			}); e != nil {
@@ -116,7 +116,7 @@ func run(in options) (map[string]any, error) {
 			return nil, errors.New("a unique asset title is required")
 		}
 		offset := len(out.text())
-		_, _ = io.WriteString(input, "/"+in.Title+"\r")
+		_, _ = io.WriteString(input, "/"+in.Title+"\x1b")
 		if e = wait(out, offset, func(s string) bool {
 			return strings.Contains(s, in.Title) && (strings.Contains(s, "搜索或编号") || strings.Contains(s, "Search or number"))
 		}); e != nil {

@@ -77,6 +77,10 @@ func menuSize(width, height int) int {
 	return max(1, min(12, (height-10)/lines))
 }
 func (s *terminalState) menuPage(rows []assetChoice, query string, page, width, height int, monitor bool) string {
+	if !s.plain {
+		m := &hostWorkbench{rows: rows, query: query, selected: page * workbenchSize(width, height)}
+		return strings.Join(s.workbenchFrame(m, width, height, 0), "\r\n") + "\r\n"
+	}
 	width = max(24, min(width, 140))
 	size := menuSize(width, height)
 	start := page * size
@@ -130,6 +134,9 @@ func (s *terminalState) menuPage(rows []assetChoice, query string, page, width, 
 	return b.String()
 }
 func (s *terminalState) menu(ctx context.Context, c *apiClient, ch ssh.Channel, input *channelInput) error {
+	if !s.plain {
+		return s.workbench(ctx, c, ch, input)
+	}
 	t := term.NewTerminal(input, s.prompt())
 	query := ""
 	page := 0

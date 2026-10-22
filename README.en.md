@@ -14,7 +14,7 @@ An independent mini SSH bastion for small and medium businesses: **standalone, f
 - **Account maintenance:** seven-day SSH password/key rotation, connection checks, per-item retry/recovery; native agents and remote tools installed when needed.
 - **Updates/recovery:** update checks, controlled install/rollback, encrypted installation export/import and idempotent recovery, preserving assets, credentials, authority and audit.
 
-Current stable **v0.3.0**: mini checklist **12/12**, new [native SSH/SFTP](./docs/NATIVE-SSH.en.md) **8/8** accepted. A single intranet upgrade, real SSH, file round trips, monitoring and restart retention passed. See [progress](./docs/PROGRESS.en.md) for evidence and supported boundaries.
+Current stable **v0.3.1**: mini checklist **12/12**. Native SSH/SFTP and XTerminal monitoring repairs were upgraded once on the intranet; real SSH, file round trips and restart retention passed. The [new table workbench](./docs/NATIVE-SSH.en.md) follows the user's visual feedback and is not released yet. See [progress](./docs/PROGRESS.en.md) for evidence and supported boundaries.
 
 ## Standalone deployment
 

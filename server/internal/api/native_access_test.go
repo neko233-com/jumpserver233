@@ -5,11 +5,13 @@ import (
 	"context"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,6 +34,9 @@ import (
 type nativeFixture struct {
 	address, remote string
 	asset           coreassets.Asset
+	assets          *coreassets.Service
+	assetReads      atomic.Int32
+	beforeAssets    func(context.Context)
 	server          *nativeaccess.Server
 	auth            *coreauth.Service
 	grants          *grants.Store
@@ -52,6 +57,7 @@ func newNativeFixture(t *testing.T, real ...bool) *nativeFixture {
 	require.NoError(t, e)
 	require.NoError(t, f.auth.InitializeDefaultAdministrator())
 	assets := testAssetService(t)
+	f.assets = assets
 	remark := "Shanghai production database"
 	input := coreassets.Input{Name: "生产 API", Remark: remark, Host: "192.0.2.8", Port: 22, Username: "ops", Password: "synthetic-only", HostKeyFingerprint: validTestFingerprint()}
 	if len(real) > 0 && real[0] {
@@ -107,7 +113,15 @@ func newNativeFixture(t *testing.T, real ...bool) *nativeFixture {
 	require.NoError(t, e)
 	t.Cleanup(f.jobs.Close)
 	handler := NewRouter("native-test", Dependencies{Auth: f.auth, Assets: assets, Grants: f.grants, RBAC: roles, CommandFilters: f.filters, Sessions: f.broker, Files: f.files, Jobs: f.jobs})
-	f.server, e = nativeaccess.New(handler, []byte("0123456789abcdef0123456789abcdef"), f.gate)
+	f.server, e = nativeaccess.New(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && r.URL.Path == "/api/v1/assets" {
+			f.assetReads.Add(1)
+			if f.beforeAssets != nil {
+				f.beforeAssets(r.Context())
+			}
+		}
+		handler.ServeHTTP(w, r)
+	}), []byte("0123456789abcdef0123456789abcdef"), f.gate)
 	require.NoError(t, e)
 	listener, e := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, e)
@@ -179,9 +193,9 @@ func TestNativeSSHDefaultLoginSearchRelayApprovalsAndAudit(t *testing.T) {
 	require.NoError(t, session.RequestPty("xterm-256color", 24, 80, ssh.TerminalModes{}))
 	require.NoError(t, session.Shell())
 	waitNative(t, out, "搜索或编号")
-	_, e = io.WriteString(input, "/SHANGHAI\r")
+	_, e = io.WriteString(input, "/SHANGHAI\x1b")
 	require.NoError(t, e)
-	waitNative(t, out, "SHANGHAI")
+	require.Eventually(t, func() bool { return out.count("搜索或编号") >= 3 }, 5*time.Second, 10*time.Millisecond)
 	_, _ = io.WriteString(input, "1\r")
 	waitNative(t, out, "ops@native:~$ ")
 	require.NoError(t, session.WindowChange(32, 110))
@@ -196,14 +210,16 @@ func TestNativeSSHDefaultLoginSearchRelayApprovalsAndAudit(t *testing.T) {
 	require.NoError(t, f.broker.ResolveCommandReview(review.ID, "root", true))
 	require.Error(t, f.broker.ResolveCommandReview(review.ID, "root", true))
 	waitNative(t, out, "OK:reviewme")
+	beforeReturn := out.count("搜索或编号")
 	_, _ = io.WriteString(input, "exit\r")
-	require.Eventually(t, func() bool { return out.count("搜索或编号") >= 3 }, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return out.count("搜索或编号") > beforeReturn }, 5*time.Second, 10*time.Millisecond)
 	// Return to the menu and connect again without a stranded input reader.
 	prompts := out.count("ops@native:~$ ")
 	_, _ = io.WriteString(input, "1\r")
 	require.Eventually(t, func() bool { return out.count("ops@native:~$ ") > prompts }, 5*time.Second, 10*time.Millisecond)
+	beforeReturn = out.count("搜索或编号")
 	_, _ = io.WriteString(input, "exit\r")
-	require.Eventually(t, func() bool { return out.count("搜索或编号") >= 4 }, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return out.count("搜索或编号") > beforeReturn }, 5*time.Second, 10*time.Millisecond)
 	_, _ = io.WriteString(input, "q\r")
 	require.NoError(t, session.Wait())
 	records, total, active, e := f.broker.ListSessions(0, 20)

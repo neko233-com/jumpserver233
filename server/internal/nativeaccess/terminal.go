@@ -20,6 +20,7 @@ type terminalState struct {
 	mu             sync.Mutex
 	cols, rows     int
 	socket         *websocket.Conn
+	redraw         chan struct{}
 	english, plain bool
 }
 
@@ -27,6 +28,10 @@ func (s *terminalState) resize(ctx context.Context, cols, rows int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cols, s.rows = cols, rows
+	select {
+	case s.redraw <- struct{}{}:
+	default:
+	}
 	if s.socket != nil {
 		raw, _ := json.Marshal(map[string]any{"type": "resize", "cols": cols, "rows": rows})
 		_ = s.socket.Write(ctx, websocket.MessageText, raw)

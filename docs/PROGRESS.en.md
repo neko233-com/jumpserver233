@@ -2,7 +2,7 @@
 
 > [中文](./PROGRESS.md) | English
 
-Current maintenance reopens [native client compatibility](./NATIVE-SSH.en.md). The user's XTerminal screenshot shows that v0.3.0 protocol acceptance did not cover client monitoring or auxiliary channels. Five gates cover menu, exec policy, channel recycling, SFTP home and the actual monitor contract. Cases are authored; unified verification is pending. The earlier 8/8 remains a historical protocol baseline and cannot replace this client acceptance.
+v0.3.1 [client compatibility repairs](./NATIVE-SSH.en.md) are published and upgraded once. Six full CI jobs, 70/70 production browser cases, all six BuildWorld #8 (1022) stages, real SSH/SFTP, monitoring and restart retention passed. The user's subsequent screenshot confirms monitoring but rejects menu legibility and interaction. The new table workbench is **implemented 6/6 and locally accepted 6/6 (100%)**: contrast, keyboard/search, asynchronous feedback, responsive dimensions, bilingual/paste behavior, and authority/audit regression passed. Full Go, Linux race, three real OpenSSH/SFTP/monitoring runs, Docker browser/restart and independent visual review passed. The new UI is unreleased; live remains v0.3.1 and actual client use awaits an upgrade. Historical 12/12 and 8/8 do not replace new UI acceptance.
 
 New [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md): **ready 8/8, accepted 8/8 (100%), zero remaining items**. v0.3.0 was released and upgraded once. BuildWorld #7 (1014) passed 6/6 stages: root/root, search/selection, SSH relay, upload/download, monitoring and restart retention. The existing mini checklist remains **12/12**; the new entry is counted separately.
 

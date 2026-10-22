@@ -242,7 +242,7 @@ func exitStatus(ch ssh.Channel, code uint32) {
 func (s *Server) serveChannel(parent context.Context, c *apiClient, ch ssh.Channel, requests <-chan *ssh.Request) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	state := &terminalState{cols: 80, rows: 24}
+	state := &terminalState{cols: 80, rows: 24, plain: true}
 	started := false
 	startup := time.NewTimer(10 * time.Second)
 	defer startup.Stop()
