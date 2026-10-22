@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/neko233-com/jumpserver233/compare/v0.3.0...v0.3.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* support native client monitoring and refine SSH host menu ([0b21037](https://github.com/neko233-com/jumpserver233/commit/0b2103738dadefe91fe8c6e5924e3abd480ed83f))
+
 ## [0.3.0](https://github.com/neko233-com/jumpserver233/compare/v0.2.2...v0.3.0) (2026-10-21)
 
 
