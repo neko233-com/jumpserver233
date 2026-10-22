@@ -19,16 +19,29 @@ import (
 )
 
 type nativeFS struct {
-	ctx      context.Context
-	client   *apiClient
-	server   *Server
-	mu       sync.Mutex
-	sessions map[string]string
+	ctx            context.Context
+	client         *apiClient
+	server         *Server
+	mu             sync.Mutex
+	sessions       map[string]string
+	targetID, root string
 }
 
 func (s *Server) serveSFTP(ctx context.Context, c *apiClient, ch ssh.Channel) error {
 	fs := &nativeFS{ctx: ctx, client: c, server: s, sessions: map[string]string{}}
 	defer fs.close()
+	if id, release, e := c.holdTarget(ctx); e == nil {
+		defer release()
+		fs.targetID = id
+		var rootErr error
+		e = fs.access("GET", "/api/v1/assets/"+url.PathEscape(id)+"/files", id, func(ctx context.Context, service *files.Service, _ string) { fs.root, rootErr = service.Root(ctx, id) })
+		if e != nil {
+			return e
+		}
+		if rootErr != nil {
+			return rootErr
+		}
+	}
 	r := sftp.NewRequestServer(ch, sftp.Handlers{FileGet: fs, FilePut: fs, FileList: fs, FileCmd: fs}, sftp.WithStartDirectory("/"))
 	defer r.Close()
 	e := r.Serve()
@@ -36,6 +49,22 @@ func (s *Server) serveSFTP(ctx context.Context, c *apiClient, ch ssh.Channel) er
 		return nil
 	}
 	return e
+}
+
+func (fs *nativeFS) resolve(value string) (string, string, error) {
+	id, relative, e := virtualPath(value)
+	if e != nil || fs.targetID == "" {
+		return id, relative, e
+	}
+	// Keep the stable /account-id path usable for existing CLI clients.
+	if id == fs.targetID {
+		return id, relative, nil
+	}
+	clean := path.Clean("/" + value)
+	if fs.root != "" && (clean == fs.root || strings.HasPrefix(clean, strings.TrimRight(fs.root, "/")+"/")) {
+		clean = strings.TrimPrefix(clean, fs.root)
+	}
+	return fs.targetID, strings.TrimPrefix(clean, "/"), nil
 }
 func (fs *nativeFS) close() {
 	fs.mu.Lock()
@@ -117,7 +146,7 @@ func fileEndpoint(id, relative string) string {
 	return "/api/v1/assets/" + url.PathEscape(id) + "/files/content?path=" + url.QueryEscape(relative)
 }
 func (fs *nativeFS) Fileread(r *sftp.Request) (io.ReaderAt, error) {
-	id, relative, e := virtualPath(r.Filepath)
+	id, relative, e := fs.resolve(r.Filepath)
 	if e != nil || id == "" || relative == "" {
 		return nil, os.ErrPermission
 	}
@@ -186,7 +215,7 @@ func (d *nativeDownload) Close() error {
 }
 
 func (fs *nativeFS) Filewrite(r *sftp.Request) (io.WriterAt, error) {
-	id, relative, e := virtualPath(r.Filepath)
+	id, relative, e := fs.resolve(r.Filepath)
 	if e != nil || id == "" || relative == "" {
 		return nil, os.ErrPermission
 	}
@@ -423,7 +452,7 @@ func (fs *nativeFS) listing(id, relative string) ([]os.FileInfo, error) {
 	return out, nil
 }
 func (fs *nativeFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
-	id, relative, e := virtualPath(r.Filepath)
+	id, relative, e := fs.resolve(r.Filepath)
 	if e != nil {
 		return nil, e
 	}
@@ -459,7 +488,7 @@ func (fs *nativeFS) Filelist(r *sftp.Request) (sftp.ListerAt, error) {
 }
 func (fs *nativeFS) Lstat(r *sftp.Request) (sftp.ListerAt, error) { return fs.Filelist(r) }
 func (fs *nativeFS) RealPath(value string) (string, error) {
-	id, relative, e := virtualPath(value)
+	id, relative, e := fs.resolve(value)
 	if e != nil {
 		return "", e
 	}
@@ -468,17 +497,20 @@ func (fs *nativeFS) RealPath(value string) (string, error) {
 			return "", e
 		}
 	}
+	if fs.targetID != "" {
+		return path.Join(fs.root, relative), nil
+	}
 	return path.Join("/", id, relative), nil
 }
 func (fs *nativeFS) Filecmd(r *sftp.Request) error {
-	id, relative, e := virtualPath(r.Filepath)
+	id, relative, e := fs.resolve(r.Filepath)
 	if e != nil || id == "" || relative == "" {
 		return os.ErrPermission
 	}
 	var actionErr error
 	switch r.Method {
 	case "Rename", "PosixRename":
-		targetID, target, e := virtualPath(r.Target)
+		targetID, target, e := fs.resolve(r.Target)
 		if e != nil || targetID != id || target == "" {
 			return os.ErrPermission
 		}

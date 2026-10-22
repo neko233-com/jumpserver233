@@ -92,7 +92,9 @@ func run(in options) (map[string]any, error) {
 	if e = session.Shell(); e != nil {
 		return nil, e
 	}
-	if e = wait(out, 0, func(s string) bool { return strings.Contains(s, "搜索/Search") }); e != nil {
+	if e = wait(out, 0, func(s string) bool {
+		return (strings.Contains(s, "搜索或编号") || strings.Contains(s, "Search or number"))
+	}); e != nil {
 		return nil, e
 	}
 	report["interactiveMenu"] = true
@@ -104,7 +106,7 @@ func run(in options) (map[string]any, error) {
 			offset := len(out.text())
 			_, _ = io.WriteString(input, "/"+query+"\r")
 			if e = wait(out, offset, func(s string) bool {
-				return strings.Contains(s, "SFTP: /"+in.AssetID+"/") && strings.Contains(s, "搜索/Search")
+				return strings.Contains(s, in.Title) && (strings.Contains(s, "搜索或编号") || strings.Contains(s, "Search or number"))
 			}); e != nil {
 				return nil, e
 			}
@@ -116,7 +118,7 @@ func run(in options) (map[string]any, error) {
 		offset := len(out.text())
 		_, _ = io.WriteString(input, "/"+in.Title+"\r")
 		if e = wait(out, offset, func(s string) bool {
-			return strings.Contains(s, "SFTP: /"+in.AssetID+"/") && strings.Contains(s, "搜索/Search")
+			return strings.Contains(s, in.Title) && (strings.Contains(s, "搜索或编号") || strings.Contains(s, "Search or number"))
 		}); e != nil {
 			return nil, e
 		}
@@ -133,7 +135,9 @@ func run(in options) (map[string]any, error) {
 		report["realLinuxSSH"] = true
 		offset = len(out.text())
 		_, _ = io.WriteString(input, "exit\r")
-		if e = wait(out, offset, func(s string) bool { return strings.Contains(s, "搜索/Search") }); e != nil {
+		if e = wait(out, offset, func(s string) bool {
+			return (strings.Contains(s, "搜索或编号") || strings.Contains(s, "Search or number"))
+		}); e != nil {
 			return nil, e
 		}
 		report["returnToMenu"] = true
@@ -154,11 +158,8 @@ func run(in options) (map[string]any, error) {
 	report["sftp"] = true
 	report["visibleAccountDirectories"] = len(rows)
 	if in.AssetID != "" {
-		found := false
-		for _, row := range rows {
-			found = found || row.Name() == in.AssetID || strings.HasSuffix(row.Name(), "@"+in.AssetID)
-		}
-		if !found {
+		info, e := client.Stat("/" + in.AssetID)
+		if e != nil || !info.IsDir() {
 			return nil, errors.New("target account is not SFTP-authorized")
 		}
 		folder := "/" + in.AssetID + "/.jms233-native-qa-" + fmt.Sprint(time.Now().UnixNano())

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	coreassets "github.com/neko233-com/jumpserver233/server/internal/core/assets"
 	"github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/fileaccess"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
@@ -22,6 +23,8 @@ type apiClient struct {
 	token        string
 	organization string
 	actor        string
+	target       targetBinding
+	execSlots    chan struct{}
 }
 type apiError struct {
 	Status   int
@@ -149,16 +152,18 @@ func (c *apiClient) fileOperation(ctx context.Context, method, endpoint, session
 type assetChoice struct {
 	ID, Title, Desc, IP, Account string
 	Connect, SFTP                bool
+	Monitor                      coreassets.MonitorStatus
 }
 
 func (c *apiClient) assets(ctx context.Context) ([]assetChoice, error) {
 	var rows []struct {
-		ID       string `json:"id"`
-		Name     string `json:"name"`
-		Remark   string `json:"remark"`
-		Host     string `json:"host"`
-		Protocol string `json:"protocol"`
-		Username string `json:"username"`
+		ID       string                   `json:"id"`
+		Name     string                   `json:"name"`
+		Remark   string                   `json:"remark"`
+		Host     string                   `json:"host"`
+		Protocol string                   `json:"protocol"`
+		Username string                   `json:"username"`
+		Monitor  coreassets.MonitorStatus `json:"monitor"`
 		Accounts []struct {
 			ID          string   `json:"id"`
 			Username    string   `json:"username"`
@@ -178,7 +183,7 @@ func (c *apiClient) assets(ctx context.Context) ([]assetChoice, error) {
 			if !account.Active {
 				continue
 			}
-			v := assetChoice{ID: account.ID, Title: a.Name, Desc: a.Remark, IP: a.Host, Account: account.Username}
+			v := assetChoice{ID: account.ID, Title: a.Name, Desc: a.Remark, IP: a.Host, Account: account.Username, Monitor: a.Monitor}
 			for _, p := range account.Permissions {
 				v.Connect = v.Connect || p == "connect"
 				v.SFTP = v.SFTP || p == "sftp"

@@ -2,6 +2,8 @@
 
 > [中文](./PROGRESS.md) | English
 
+Current maintenance reopens [native client compatibility](./NATIVE-SSH.en.md). The user's XTerminal screenshot shows that v0.3.0 protocol acceptance did not cover client monitoring or auxiliary channels. Five gates cover menu, exec policy, channel recycling, SFTP home and the actual monitor contract. Cases are authored; unified verification is pending. The earlier 8/8 remains a historical protocol baseline and cannot replace this client acceptance.
+
 New [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md): **ready 8/8, accepted 8/8 (100%), zero remaining items**. v0.3.0 was released and upgraded once. BuildWorld #7 (1014) passed 6/6 stages: root/root, search/selection, SSH relay, upload/download, monitoring and restart retention. The existing mini checklist remains **12/12**; the new entry is counted separately.
 
 [Current maintenance batch](./MAINTENANCE.en.md): v0.2.2 is published and deployed. BuildWorld #6 passed 6/6 stages, default login, real SSH, monitoring and restart persistence. The CI-discovered Playbook race is repaired in the running official artifact. One additional publication was explicitly authorized; that version was activated once.

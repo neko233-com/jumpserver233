@@ -19,6 +19,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/commandfilters"
 	"github.com/neko233-com/jumpserver233/server/internal/core/files"
 	"github.com/neko233-com/jumpserver233/server/internal/core/grants"
+	"github.com/neko233-com/jumpserver233/server/internal/core/jobs"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/nativeaccess"
@@ -39,6 +40,7 @@ type nativeFixture struct {
 	files           *files.Service
 	gate            *workgate.Gate
 	commands        chan string
+	jobs            *jobs.Service
 }
 
 func newNativeFixture(t *testing.T, real ...bool) *nativeFixture {
@@ -92,7 +94,19 @@ func newNativeFixture(t *testing.T, real ...bool) *nativeFixture {
 		}
 		return &nativeRemote{f.remote}, nil
 	}, audit)
-	handler := NewRouter("native-test", Dependencies{Auth: f.auth, Assets: assets, Grants: f.grants, RBAC: roles, CommandFilters: f.filters, Sessions: f.broker, Files: f.files})
+	f.jobs, e = jobs.Open(filepath.Join(dir, "jobs.enc"), []byte("0123456789abcdef0123456789abcdef"), nil, func(ctx context.Context, id, command string) (sshclient.ExecResult, error) {
+		if command == "aux-wait" {
+			<-ctx.Done()
+			return sshclient.ExecResult{ExitCode: -1}, ctx.Err()
+		}
+		if len(real) > 0 && real[0] {
+			return assets.Exec(ctx, id, command)
+		}
+		return sshclient.ExecResult{Stdout: "native-exec:" + command + "\n", ExitCode: 0}, nil
+	})
+	require.NoError(t, e)
+	t.Cleanup(f.jobs.Close)
+	handler := NewRouter("native-test", Dependencies{Auth: f.auth, Assets: assets, Grants: f.grants, RBAC: roles, CommandFilters: f.filters, Sessions: f.broker, Files: f.files, Jobs: f.jobs})
 	f.server, e = nativeaccess.New(handler, []byte("0123456789abcdef0123456789abcdef"), f.gate)
 	require.NoError(t, e)
 	listener, e := net.Listen("tcp", "127.0.0.1:0")
@@ -164,10 +178,10 @@ func TestNativeSSHDefaultLoginSearchRelayApprovalsAndAudit(t *testing.T) {
 	require.NoError(t, e)
 	require.NoError(t, session.RequestPty("xterm-256color", 24, 80, ssh.TerminalModes{}))
 	require.NoError(t, session.Shell())
-	waitNative(t, out, "搜索/Search")
+	waitNative(t, out, "搜索或编号")
 	_, e = io.WriteString(input, "/SHANGHAI\r")
 	require.NoError(t, e)
-	waitNative(t, out, "search=SHANGHAI")
+	waitNative(t, out, "SHANGHAI")
 	_, _ = io.WriteString(input, "1\r")
 	waitNative(t, out, "ops@native:~$ ")
 	require.NoError(t, session.WindowChange(32, 110))
@@ -183,13 +197,13 @@ func TestNativeSSHDefaultLoginSearchRelayApprovalsAndAudit(t *testing.T) {
 	require.Error(t, f.broker.ResolveCommandReview(review.ID, "root", true))
 	waitNative(t, out, "OK:reviewme")
 	_, _ = io.WriteString(input, "exit\r")
-	require.Eventually(t, func() bool { return out.count("servers / 服务器") >= 3 }, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return out.count("搜索或编号") >= 3 }, 5*time.Second, 10*time.Millisecond)
 	// Return to the menu and connect again without a stranded input reader.
 	prompts := out.count("ops@native:~$ ")
 	_, _ = io.WriteString(input, "1\r")
 	require.Eventually(t, func() bool { return out.count("ops@native:~$ ") > prompts }, 5*time.Second, 10*time.Millisecond)
 	_, _ = io.WriteString(input, "exit\r")
-	require.Eventually(t, func() bool { return out.count("servers / 服务器") >= 4 }, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return out.count("搜索或编号") >= 4 }, 5*time.Second, 10*time.Millisecond)
 	_, _ = io.WriteString(input, "q\r")
 	require.NoError(t, session.Wait())
 	records, total, active, e := f.broker.ListSessions(0, 20)
@@ -216,9 +230,8 @@ func TestNativeSFTPAtomicUploadDownloadRenameTraversalAndCleanup(t *testing.T) {
 	defer client.Close()
 	rows, e := client.ReadDir("/")
 	require.NoError(t, e)
-	require.Len(t, rows, 1)
-	require.True(t, strings.HasSuffix(rows[0].Name(), "@"+f.asset.ID))
-	base := "/" + rows[0].Name()
+	require.Empty(t, rows)
+	base := "/" + f.asset.ID
 	require.NoError(t, client.Mkdir(base+"/folder"))
 	data := bytes.Repeat([]byte("原生 SFTP byte-safe\n"), 12000)
 	file, e := client.Create(base + "/folder/test.bin")

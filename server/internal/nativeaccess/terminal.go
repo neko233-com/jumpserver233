@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"unicode"
@@ -15,13 +14,13 @@ import (
 	"github.com/coder/websocket"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/term"
 )
 
 type terminalState struct {
-	mu         sync.Mutex
-	cols, rows int
-	socket     *websocket.Conn
+	mu             sync.Mutex
+	cols, rows     int
+	socket         *websocket.Conn
+	english, plain bool
 }
 
 func (s *terminalState) resize(ctx context.Context, cols, rows int) {
@@ -46,73 +45,19 @@ func safeLabel(value string) string {
 	}
 	return value
 }
-func (s *terminalState) menu(ctx context.Context, c *apiClient, ch ssh.Channel, input *channelInput) error {
-	t := term.NewTerminal(input, "搜索/Search (编号/number, /关键词, r, q)> ")
-	_, _ = io.WriteString(t, "\r\nJumpServer233 · SSH / SFTP\r\n名称 title · 备注 desc · IP · 账号 account\r\n退出目标主机后返回列表 / Exit the target shell to return here.\r\nSFTP: sftp -P 2222 <platform-user>@<bastion>; ls /\r\n")
-	query := ""
-	page := 0
-	for {
-		rows, e := c.assets(ctx)
-		if e != nil {
-			return e
-		}
-		filtered := filterAssets(rows, query)
-		if page*15 >= len(filtered) {
-			page = 0
-		}
-		_, _ = fmt.Fprintf(t, "\r\n%d servers / 服务器; search=%s; page=%d\r\n", len(filtered), safeLabel(query), page+1)
-		for i := page * 15; i < len(filtered) && i < (page+1)*15; i++ {
-			a := filtered[i]
-			_, _ = fmt.Fprintf(t, "%d) %s | %s | %s\r\n   %s\r\n   SFTP: /%s/\r\n", i+1, safeLabel(a.Title), safeLabel(a.IP), safeLabel(a.Account), safeLabel(a.Desc), a.ID)
-		}
-		_, _ = io.WriteString(t, "r 刷新/refresh · n 下一页/next · p 上一页/previous · q 退出/quit\r\n")
-		line, e := t.ReadLine()
-		if e != nil {
-			return e
-		}
-		line = strings.TrimSpace(line)
-		switch line {
-		case "q", "quit", "exit":
-			return nil
-		case "r", "":
-			continue
-		case "n":
-			page++
-			continue
-		case "p":
-			if page > 0 {
-				page--
-			}
-			continue
-		}
-		if !strings.HasPrefix(line, "/") {
-			if n, e := strconv.Atoi(line); e == nil && n >= 1 && n <= len(filtered) {
-				selected := filtered[n-1]
-				if !selected.Connect {
-					_, _ = io.WriteString(t, "SSH access not granted / 未授予 SSH 连接权限\r\n")
-					continue
-				}
-				_, _ = fmt.Fprintf(t, "Connecting / 正在连接: %s (%s)\r\n", safeLabel(selected.Title), safeLabel(selected.Account))
-				if e = s.relay(ctx, c, ch, selected.ID, input); e != nil {
-					var denied *apiError
-					if errors.As(e, &denied) && denied.ReviewID != "" {
-						_, _ = fmt.Fprintf(t, "Login approval pending / 等待登录审批: %s; retry after approval / 批准后重试\r\n", safeLabel(denied.ReviewID))
-					} else {
-						_, _ = io.WriteString(t, "Connection closed or denied / 连接已关闭或拒绝\r\n")
-					}
-				}
-				continue
-			}
-		}
-		query = strings.TrimPrefix(line, "/")
-		page = 0
-	}
-}
 
 // Relay preserves the exact binary/control frame protocol used by Web SSH and
 // jms. All command capture, review, directory proof and recorder work stays in
 // the existing gateway. Raw direct-tcpip forwarding is intentionally rejected.
 func (s *terminalState) relay(ctx context.Context, c *apiClient, ch ssh.Channel, assetID string, input *channelInput) error {
+	id, release, e := c.holdTarget(ctx)
+	if e != nil {
+		return e
+	}
+	defer release()
+	if id != assetID {
+		return errTargetBusy
+	}
 	s.mu.Lock()
 	cols, rows := s.cols, s.rows
 	s.mu.Unlock()

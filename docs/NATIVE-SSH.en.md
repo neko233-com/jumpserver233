@@ -2,6 +2,18 @@
 
 > [中文](./NATIVE-SSH.md) | English
 
+## XTerminal compatibility and terminal UI maintenance
+
+This batch reopens acceptance for real-client gaps in v0.3.0: host selection, client exec, auxiliary channel recycling, monitor script installation and target binding. Implementation and cases are authored; unified verification is pending. The 8/8 below describes previous protocol acceptance, without claiming XTerminal acceptance or a new live upgrade.
+
+The native menu adapts to terminal dimensions, defaults to Chinese, and supports `en`/`zh`. Stable IDs and repeated instructions move behind `i`. Host rows show cached CPU/memory/disk/network metrics; `m` refreshes the selected host through existing monitor authorization without periodically scanning all assets. `TERM=dumb` disables color and screen controls.
+
+Client exec runs on the selected host through `/api/v1/ops/jobs`, preserving grants, source, pinned connections, directory controls, command denial/review and encrypted history. It never executes bastion OS commands. A single available host binds automatically. For multiple hosts use `platform-user#account-id` (optional `%organization-UUID` suffix) or select through the menu first. Active file/monitor/terminal channels prevent retargeting; open another connection for another host.
+
+Bound SFTP opens the account's authorized root and retains `/<account-id>/...` paths. Absolute home paths map to that same authorized root without expanding workspace boundaries. XTerminal can upload `.xterminal` scripts into its authorized home and invoke them through controlled exec, requiring both upload and command permissions. Custom workspaces must include the home actually used by the client's scripts; otherwise existing boundaries reject access. Unbound multi-host SFTP retains asset-directory browsing.
+
+Connections allow 16 session channels. Unstarted channels expire after ten seconds and invalid startup requests close immediately. Auxiliary exec queues serially per connection to respect backend job capacity. Each execution is audited; the existing 64 KiB output limit remains. Disconnects cancel jobs and revocation prevents further file access or jobs. Raw TCP/Agent forwarding stays denied.
+
 ## Scope and status
 
 Web remains on 8180, with SSH/SFTP embedded on 2222 in the Go process and no system sshd or external proxy. Unified verification followed the complete implementation. Official v0.3.0 was released and upgraded once on the intranet. [BuildWorld #7 (1014)](http://192.168.110.42:8080/builds/1014) passed 6/6 stages in 4m43s. New acceptance: **8/8**; existing mini checklist: **12/12**.

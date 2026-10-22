@@ -52,6 +52,17 @@ func NewService(open Opener, audit *AuditStore) *Service {
 	return &Service{open: open, audit: audit}
 }
 
+// Root returns the configured remote workspace, after the caller's normal file
+// authorization. It exposes no credentials or host-local filesystem paths.
+func (s *Service) Root(ctx context.Context, assetID string) (string, error) {
+	remote, err := s.open(ctx, assetID)
+	if err != nil {
+		return "", err
+	}
+	defer remote.Close()
+	return remote.Root(), nil
+}
+
 func (s *Service) List(ctx context.Context, assetID, relativePath string) ([]sshclient.FileInfo, error) {
 	remote, err := s.open(ctx, assetID)
 	if err != nil {

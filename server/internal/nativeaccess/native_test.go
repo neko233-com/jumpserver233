@@ -2,6 +2,7 @@ package nativeaccess
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -26,6 +27,33 @@ func TestNativeSearchTitleDescriptionIPAndAccount(t *testing.T) {
 	require.Empty(t, filterAssets(rows, "production root"))
 	require.NotContains(t, safeLabel("a\x1b[31m\r\nb"), "\x1b")
 	require.NotContains(t, safeLabel("x\n"), "\n")
+}
+
+func TestNativeTargetLeasesRefuseRetargetAndRevokeNewAccess(t *testing.T) {
+	allowed := true
+	transport := newHandlerTransport(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !allowed {
+			_ = json.NewEncoder(w).Encode([]any{})
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]any{map[string]any{"name": "a", "accounts": []any{map[string]any{"id": "a", "active": true, "permissions": []string{"connect"}}}}, map[string]any{"name": "b", "accounts": []any{map[string]any{"id": "b", "active": true, "permissions": []string{"sftp"}}}}})
+	}), &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 12345})
+	defer transport.Close()
+	c := &apiClient{transport: transport}
+	ctx := context.Background()
+	_, _, e := c.holdTarget(ctx)
+	require.ErrorIs(t, e, errChooseTarget)
+	require.NoError(t, c.selectTarget(ctx, "a"))
+	id, release, e := c.holdTarget(ctx)
+	require.NoError(t, e)
+	require.Equal(t, "a", id)
+	require.ErrorIs(t, c.selectTarget(ctx, "b"), errTargetBusy)
+	release()
+	release()
+	require.NoError(t, c.selectTarget(ctx, "b"))
+	allowed = false
+	_, _, e = c.holdTarget(ctx)
+	require.ErrorIs(t, e, errChooseTarget)
 }
 func TestNativeVirtualPathsAndIdentities(t *testing.T) {
 	for _, value := range []string{"/../secret", "/asset/../../etc/passwd", "/asset/..", "/asset/a\\b", "/asset/a\x00b", "/%bad/file"} {

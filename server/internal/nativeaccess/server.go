@@ -131,7 +131,7 @@ func (s *Server) serveConnection(raw net.Conn) {
 	defer cancel()
 	t := newHandlerTransport(s.handler, raw.RemoteAddr())
 	defer t.Close()
-	client := &apiClient{transport: t}
+	client := &apiClient{transport: t, execSlots: make(chan struct{}, 1)}
 	defer client.logout()
 	authenticate := func(meta ssh.ConnMetadata, password, otp string) (*ssh.Permissions, error) {
 		if s.gate.Closed() {
@@ -142,8 +142,18 @@ func (s *Server) serveConnection(raw net.Conn) {
 			return nil, e
 		}
 		client.organization = org
+		user, selected, _ := strings.Cut(user, "#")
+		if user == "" || len(selected) > 128 || strings.ContainsAny(selected, "/\\%?#\x00") {
+			return nil, os.ErrPermission
+		}
 		if e = client.login(ctx, user, password, otp); e != nil {
 			return nil, e
+		}
+		if selected != "" {
+			if e = client.selectTarget(ctx, selected); e != nil {
+				client.logout()
+				return nil, e
+			}
 		}
 		return &ssh.Permissions{}, nil
 	}
@@ -201,7 +211,7 @@ func (s *Server) serveConnection(raw net.Conn) {
 	}()
 	var channelWG sync.WaitGroup
 	defer func() { cancel(); _ = conn.Close(); channelWG.Wait() }()
-	capacity := make(chan struct{}, 4)
+	capacity := make(chan struct{}, 16)
 	for incoming := range channels {
 		if incoming.ChannelType() != "session" {
 			_ = incoming.Reject(ssh.Prohibited, "only audited terminal and SFTP channels are supported")
@@ -234,9 +244,23 @@ func (s *Server) serveChannel(parent context.Context, c *apiClient, ch ssh.Chann
 	defer cancel()
 	state := &terminalState{cols: 80, rows: 24}
 	started := false
+	startup := time.NewTimer(10 * time.Second)
+	defer startup.Stop()
 	var worker sync.WaitGroup
 	defer func() { cancel(); _ = ch.Close(); worker.Wait() }()
-	for req := range requests {
+	for {
+		var req *ssh.Request
+		select {
+		case <-ctx.Done():
+			return
+		case <-startup.C:
+			return
+		case r, ok := <-requests:
+			if !ok {
+				return
+			}
+			req = r
+		}
 		switch req.Type {
 		case "pty-req":
 			var p struct {
@@ -247,11 +271,15 @@ func (s *Server) serveChannel(parent context.Context, c *apiClient, ch ssh.Chann
 			ok := !started && ssh.Unmarshal(req.Payload, &p) == nil && validSize(p.Cols, p.Rows)
 			if ok {
 				state.cols, state.rows = int(p.Cols), int(p.Rows)
+				state.plain = p.Term == "dumb"
 			}
 			_ = req.Reply(ok, nil)
 		case "env":
 			var env struct{ Name, Value string }
 			ok := !started && ssh.Unmarshal(req.Payload, &env) == nil && (env.Name == "LANG" || env.Name == "LC_ALL") && len(env.Value) < 64
+			if ok {
+				state.english = strings.HasPrefix(strings.ToLower(env.Value), "en")
+			}
 			_ = req.Reply(ok, nil)
 		case "window-change":
 			var size struct{ Cols, Rows, Width, Height uint32 }
@@ -271,13 +299,14 @@ func (s *Server) serveChannel(parent context.Context, c *apiClient, ch ssh.Chann
 				ok = ok && command.Value == "sftp"
 			}
 			if req.Type == "exec" {
-				ok = ok && strings.HasPrefix(command.Value, "connect ") && len(strings.Fields(command.Value)) == 2
+				ok = ok && command.Value != "" && len(command.Value) <= 8192 && !strings.ContainsRune(command.Value, '\x00')
 			}
 			if !ok {
 				_ = req.Reply(false, nil)
-				continue
+				return
 			}
 			started = true
+			startup.Stop()
 			_ = req.Reply(true, nil)
 			worker.Add(1)
 			go func(kind, value string) {
@@ -289,8 +318,13 @@ func (s *Server) serveChannel(parent context.Context, c *apiClient, ch ssh.Chann
 					e = s.serveSFTP(ctx, c, ch)
 				} else {
 					input := inputFor(ctx, ch)
-					if kind == "exec" {
-						e = state.relay(ctx, c, ch, strings.Fields(value)[1], input)
+					if kind == "exec" && strings.HasPrefix(value, "connect ") && len(strings.Fields(value)) == 2 {
+						e = c.selectTarget(ctx, strings.Fields(value)[1])
+						if e == nil {
+							e = state.relay(ctx, c, ch, strings.Fields(value)[1], input)
+						}
+					} else if kind == "exec" {
+						e = s.exec(ctx, c, ch, value)
 					} else {
 						e = state.menu(ctx, c, ch, input)
 					}
@@ -298,7 +332,7 @@ func (s *Server) serveChannel(parent context.Context, c *apiClient, ch ssh.Chann
 				if e != nil && !errors.Is(e, io.EOF) && !errors.Is(e, context.Canceled) {
 					_, _ = io.WriteString(ch.Stderr(), "Access denied, session closed, or review required / 访问拒绝、会话结束或需要审批\r\n")
 					exitStatus(ch, 1)
-				} else {
+				} else if kind != "exec" || strings.HasPrefix(value, "connect ") {
 					exitStatus(ch, 0)
 				}
 			}(req.Type, command.Value)
