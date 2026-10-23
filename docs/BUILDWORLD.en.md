@@ -2,7 +2,7 @@
 
 > English | [中文](./BUILDWORLD.md)
 
-The source-build template is [Jenkinsfile_mac_single](../Jenkinsfile_mac_single) at the repository root. The live BuildWorld project [49 · 内网服务器/JumpServer233](http://192.168.110.42:8080/projects/49) uses the private `poke-game/deploy_devops_server` repository and entry `deploy_JumpServer233/JenkinsFile_JumpServer233`, identical to that repository's `Jenkinsfile_mac_single`. It verifies pinned official native artifacts rather than rebuilding source on the node. Startup builds, external HTTP triggers and distributed Workers are disabled. The defaults below describe the source-build template; the live entry uses public port 8180 and loopback backend 18180.
+The source-build template is [Jenkinsfile_mac_single](../Jenkinsfile_mac_single) at the repository root. The live BuildWorld project [49 · 内网服务器/JumpServer233](http://192.168.110.42:8080/projects/49) now uses the dedicated private [poke-game/deploy-jumpserver233](http://192.168.110.42:3000/poke-game/deploy-jumpserver233) repository and its root `Jenkinsfile_mac_single`. The former `deploy_devops_server` directory remains historical. The pipeline verifies pinned official native artifacts without rebuilding source on the node. Startup builds, external HTTP triggers and distributed Workers are disabled. The defaults below describe the source-build template; the live entry uses port 8180 and loopback backend 18180.
 
 ## Defaults
 
@@ -77,10 +77,18 @@ The original asset and all 11 pre-upgrade session audits survived. One graceful 
 
 Compact receipts and the release screenshot remain ignored under `.cache/qa-reports/native-client-live-20261022/`. Temporary local programs, script copies, downloaded archives and old node artifact cache were removed. Production data/audit, the existing monitor installation, formal rollback material and the current verified package remain.
 
-## Current v0.3.2 table workbench deployment
+## Previous v0.3.2 table workbench deployment
 
 [Build 1041, #9](http://192.168.110.42:8080/builds/1041) started at 2026-10-22 16:53:24 and finished at 16:56:15, passing 6/6 stages and 34/34 native Mac cases in 2m51s with one activation. Official source: `6e717232c607a6b2661ae4a189cd3272e5469a1d`; deployment pin: `222cc8f79599551801bd01c0f84fdff70a21e1d9`. Full CI passed six jobs and 70/70 production browser cases. The official Mac ARM archive is 28,138,076 bytes, SHA-256 `cbed946bf190743058594d9fb2536e77fce9b6d83deddf731c03099aae8d77b6`, matching the node cache and executed native CLI.
 
 The original asset and all 14 pre-upgrade audit IDs survived. One graceful restart retained all 16 pre-restart audit IDs, the Vault key and credentials, then reconnected for Linux metrics. Default login, real native SSH, title/desc/IP search, menu return, 55,296-byte file round trips/removal, and three monitoring samples passed before and after restart. Browser reauthentication and real Web SSH passed. The host fingerprint stayed unchanged. There was no second activation or replacement of earlier release artifacts.
 
 Browser acceptance used the authorized in-app browser; failures in both Edge connections required no application changes. Compact receipts and the successful-build capture are ignored under `.cache/qa-reports/native-workbench-live-20261022/`. Owned test files, downloads, temporary clients, Docker resources and obsolete node artifact cache are cleaned. The current official package, runtime data, audit and necessary rollback material remain; repeated cleanup is safe.
+
+## Current v0.4.0 Web workspace deployment
+
+[Build 1078 / #10](http://192.168.110.42:8080/builds/1078) started at 2026-10-23 14:22:47 and finished at 14:26:46, taking 239.653 seconds with 6/6 stages and 34/34 Mac deployment cases passed. One trigger produced one activation, followed only by an ordered retention restart. Application commit: `e21d403a0e78822803d9918fc63cd67e29a8aac3`; deployment lock commit: `d90a8c18596e47a7f0e855c93e4b761631d964b1`. Full CI passed 6/6 and production browser regression 72/72.
+
+The user authorized automatic connection handling for later upgrades, so SSH/SFTP entries need not reach zero. Snapshotting still waits for the old process to exit; authentication, authorization and audit remain enforced. Default login, real Web/native SSH, a 61,600-byte SFTP hash-verified round trip, an 8,960-byte Web content comparison, three monitoring observations and original data retention passed. The original asset, all 17 audit IDs, Vault key and host fingerprints survived. The ordered restart retained the then-current 18 audits and reconnected using stored credentials.
+
+Local BuildWorld HTTP Token API access is configured and verified without resetting passwords. Automatic default provisioning was separately pushed in its source repository; the BuildWorld service version was not replaced. Compact reports and two screenshots are in ignored `.cache/qa-reports/web-release-20261023/`. See [Web acceptance](./WEB-REDESIGN.en.md).

@@ -2,7 +2,7 @@
 
 > [中文](./PLAN.md) | English
 
-2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md): implemented and locally accepted 10/10, zero gates remaining. Shared UI, quick search, host/SSH/file workflows and mobile interactions are covered. Full regression followed by affected repairs closed all 72 cases. Edge and isolated Docker checks passed; owned test resources were cleaned twice. This redesign is unpublished; production remains v0.3.2. Earlier acceptance records are preserved below.
+2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md) is live in v0.4.0: implemented and accepted 10/10, zero remaining gates. Full CI passed 6/6 and production browser regression 72/72. BuildWorld [1078 / #10](http://192.168.110.42:8080/builds/1078) activated once; login, real Web/native SSH, file round trips, monitoring and original data retention passed. The dedicated `poke-game/deploy-jumpserver233` repository uses `Jenkinsfile_mac_single` and closes connections gracefully during upgrades. Historical acceptance follows.
 
 Current maintenance: [native SSH table workbench](./NATIVE-SSH.en.md) v0.3.2 is published and upgraded once, with all six UI gates implemented and accepted (6/6). Full CI, production browser 70/70, BuildWorld #9 (1041), and default login, real SSH/SFTP, monitoring and retention before/after restart passed. The fixed mini checklist remains 12/12. UI evidence uses actual Go frames and protocols, without native XTerminal UI automation.
 

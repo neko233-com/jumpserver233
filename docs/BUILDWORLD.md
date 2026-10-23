@@ -2,7 +2,7 @@
 
 > 中文 | [English](./BUILDWORLD.en.md)
 
-源码构建模板是仓库根的 [Jenkinsfile_mac_single](../Jenkinsfile_mac_single)。实际 BuildWorld 项目 [49 · 内网服务器/JumpServer233](http://192.168.110.42:8080/projects/49) 使用私有 `poke-game/deploy_devops_server` 仓库及 `deploy_JumpServer233/JenkinsFile_JumpServer233`，与该部署仓库根的 `Jenkinsfile_mac_single` 一致；校验固定正式原生制品，不在节点重编译。未配置启动自动构建、外部 HTTP 触发或分布式 Worker。下表为源码模板默认值；实际入口为 8180，loopback 后端为 18180。
+源码构建模板是仓库根的 [Jenkinsfile_mac_single](../Jenkinsfile_mac_single)。实际 BuildWorld 项目 [49 · 内网服务器/JumpServer233](http://192.168.110.42:8080/projects/49) 已迁入独立私有 [poke-game/deploy-jumpserver233](http://192.168.110.42:3000/poke-game/deploy-jumpserver233)，使用该仓库根的 `Jenkinsfile_mac_single`；原 `deploy_devops_server` 子目录保留历史记录。流水线校验固定正式原生制品，不在节点重编译。未配置启动自动构建、外部 HTTP 触发或分布式 Worker。下表为源码模板默认值；实际入口为 8180，loopback 后端为 18180。
 
 ## 默认配置
 
@@ -77,10 +77,18 @@ Edge root/root、真实 Web SSH 和主机监控通过；原生客户端完成 ti
 
 精简回执与发布截图保留在忽略的 `.cache/qa-reports/native-client-live-20261022/`。临时本地程序、监控脚本副本、下载归档和旧节点制品缓存已清理；线上数据、审计、现有监控安装、正式回滚资料和当前已验证包保留。
 
-## 当前 v0.3.2 表格工作台部署
+## 前序 v0.3.2 表格工作台部署
 
 [构建 1041，#9](http://192.168.110.42:8080/builds/1041) 于 2026-10-22 16:53:24 开始，16:56:15 完成，2 分 51 秒通过 6/6 阶段及原机 34/34 用例，只激活一次。正式源码 `6e717232c607a6b2661ae4a189cd3272e5469a1d`，部署锁定 `222cc8f79599551801bd01c0f84fdff70a21e1d9`。完整 CI 六组、生产浏览器 70/70 通过；官方 Mac ARM 包 28,138,076 bytes，SHA-256 `cbed946bf190743058594d9fb2536e77fce9b6d83deddf731c03099aae8d77b6`，与节点缓存及实际原生 CLI 一致。
 
 原有 1 个资产、升级前 14 条审计保留；一次有序重启保留重启前 16 条审计、Vault key 和凭据，重新采集 Linux 指标。重启前后默认登录、真实原生 SSH、title/desc/IP 搜索、返回菜单、55,296 bytes 文件往返与删除、各三次监控采样通过；浏览器重新登录与真实 Web SSH 通过。主机指纹保持。没有再次激活或覆盖旧版本制品。
 
 实际浏览器验收使用已授权的内置浏览器，Edge 两套连接故障没有引入应用改动。精简报告与成功截图位于忽略的 `.cache/qa-reports/native-workbench-live-20261022/`。自有测试文件、下载包、临时客户端、Docker 资源及旧节点制品缓存清理；当前正式包、运行数据、审计与必要回滚资料保留，重复清理安全。
+
+## 当前 v0.4.0 Web 工作台部署
+
+[构建 1078 / #10](http://192.168.110.42:8080/builds/1078) 于 2026-10-23 14:22:47 开始，14:26:46 完成，239.653 秒通过 6/6 阶段和 macOS 34/34 部署用例。只触发一次、激活一次，之后仅做一次有序保数重启。正式应用 commit `e21d403a0e78822803d9918fc63cd67e29a8aac3`；部署锁 commit `d90a8c18596e47a7f0e855c93e4b761631d964b1`。完整 CI 6/6 和生产浏览器 72/72 通过。
+
+用户授权后续升级自动处理连接，不再要求 SSH/SFTP 入口归零。流水线仍等待旧进程彻底退出后才快照；不修改认证、权限或审计。默认登录、真实 Web/原生 SSH、61,600 bytes SFTP 文件往返与散列、8,960 bytes Web 文件内容比对、三次监控与原数据保留通过。原 1 个资产、17 条审计、Vault key 和主机指纹均保留；流水线重启时保留 18 条审计并使用已保存凭据重连。
+
+BuildWorld 的本机 HTTP Token API 已配置并实测，无需重置密码；服务源码默认生成 Token 的改动独立推送，未替换 BuildWorld 服务版本。必要报告与两张截图在忽略的 `.cache/qa-reports/web-release-20261023/`。详见 [Web 验收](./WEB-REDESIGN.md)。
