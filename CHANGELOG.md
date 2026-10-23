@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/neko233-com/jumpserver233/compare/v0.3.2...v0.4.0) (2026-10-23)
+
+
+### Features
+
+* redesign the bilingual SSH operations web workspace ([c586eb4](https://github.com/neko233-com/jumpserver233/commit/c586eb44cf16999a669c190fd8ccb2a4df50bb3a))
+
 ## [0.3.2](https://github.com/neko233-com/jumpserver233/compare/v0.3.1...v0.3.2) (2026-10-22)
 
 
