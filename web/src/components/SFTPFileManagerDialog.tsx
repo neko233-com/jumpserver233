@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import Icon from "./ui/Icon";
 
 type Entry = {
   name: string;
@@ -50,7 +51,11 @@ export default function SFTPFileManagerDialog({
   const [reviewState, setReviewState] = useState<"pending" | "denied" | "expired" | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [folderName, setFolderName] = useState("");
+  const [filter, setFilter] = useState("");
+  const [pathDraft, setPathDraft] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
   const sessionToken = useRef<string | null>(null);
+  const directoryRequest = useRef<AbortController | null>(null);
 
   const request = useCallback(
     (url: string, init?: RequestInit, sessionOverride?: string | null) => {
@@ -65,30 +70,36 @@ export default function SFTPFileManagerDialog({
 
   const loadDirectory = useCallback(
     async (directory: string, sessionOverride?: string | null) => {
+      directoryRequest.current?.abort();
+      const controller = new AbortController();
+      directoryRequest.current = controller;
       setLoading(true);
       setFailed(false);
       try {
         const query = new URLSearchParams({ path: directory });
         const response = await request(
           `/api/v1/assets/${encodeURIComponent(assetId)}/files?${query}`,
-          undefined,
+          { signal: controller.signal },
           sessionOverride,
         );
         if (!response.ok) throw new Error("directory request failed");
         const result = (await response.json()) as DirectoryResult;
+        if (controller.signal.aborted) return;
         const sorted = result.entries.sort(
           (a, b) => Number(b.is_dir) - Number(a.is_dir) || a.name.localeCompare(b.name),
         );
         setCurrentPath(result.path);
         setEntries(sorted);
       } catch {
-        setFailed(true);
+        if (!controller.signal.aborted) setFailed(true);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [assetId, request],
   );
+
+  useEffect(() => () => directoryRequest.current?.abort(), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -238,6 +249,7 @@ export default function SFTPFileManagerDialog({
       anchor.download = entry.name;
       anchor.click();
       URL.revokeObjectURL(objectURL);
+      setNotice(t("ui.files.downloaded", { name: entry.name }));
     } catch {
       setFailed(true);
     } finally {
@@ -271,6 +283,17 @@ export default function SFTPFileManagerDialog({
     : "";
   const segments = currentPath ? currentPath.split("/") : [];
   const locale = i18n.language === "zh-CN" ? "zh-CN" : "en";
+  const filteredEntries = entries.filter((entry) =>
+    entry.name.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()),
+  );
+
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [onClose, busy]);
 
   return (
     <div
@@ -298,9 +321,75 @@ export default function SFTPFileManagerDialog({
             aria-label={t("assets.cancel")}
             onClick={onClose}
           >
-            ×
+            <Icon name="close" />
           </button>
         </div>
+
+        <div className="sftp-search-row">
+          <label className="ui-search-field">
+            <Icon name="search" size={16} />
+            <input
+              type="search"
+              aria-label={t("ui.files.search")}
+              placeholder={t("ui.files.search")}
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={!sessionReady || loading || busy}
+            onClick={() => {
+              setPathDraft(currentPath);
+            }}
+          >
+            {t("ui.files.goTo")}
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={t("assets.refresh")}
+            disabled={!sessionReady || loading || busy}
+            onClick={() => void loadDirectory(currentPath)}
+          >
+            <Icon name="refresh" />
+          </button>
+        </div>
+        {pathDraft !== null && (
+          <form
+            className="sftp-path-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!busy && sessionReady) {
+                void loadDirectory(pathDraft.replace(/^\/+/, ""));
+                setPathDraft(null);
+                setFilter("");
+              }
+            }}
+          >
+            <label>
+              <span>{t("ui.files.path")}</span>
+              <input
+                autoFocus
+                value={pathDraft}
+                onChange={(event) => setPathDraft(event.target.value)}
+                aria-label={t("ui.files.path")}
+                maxLength={4096}
+              />
+            </label>
+            <button
+              type="submit"
+              className="button-primary"
+              disabled={!sessionReady || busy || loading}
+            >
+              {t("ui.files.open")}
+            </button>
+            <button type="button" className="button-secondary" onClick={() => setPathDraft(null)}>
+              {t("assets.cancel")}
+            </button>
+          </form>
+        )}
 
         <div className="sftp-toolbar">
           <button
@@ -377,6 +466,14 @@ export default function SFTPFileManagerDialog({
         {failed && (
           <p className="asset-error" role="alert">
             {t("files.operationFailed")}
+            <button
+              type="button"
+              className="button-secondary"
+              disabled={!sessionReady || busy || loading}
+              onClick={() => void loadDirectory(currentPath)}
+            >
+              {t("ui.retry")}
+            </button>
           </p>
         )}
         <div className="sftp-list-wrap">
@@ -390,7 +487,7 @@ export default function SFTPFileManagerDialog({
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => (
+              {filteredEntries.map((entry) => (
                 <tr key={entry.name}>
                   <td>
                     <button
@@ -403,9 +500,7 @@ export default function SFTPFileManagerDialog({
                           : void downloadFile(entry)
                       }
                     >
-                      <span aria-hidden="true">
-                        {entry.is_symlink ? "↗" : entry.is_dir ? "▰" : "▤"}
-                      </span>
+                      <Icon name={entry.is_dir ? "folder" : "file"} size={17} />
                       {entry.name}
                     </button>
                     {entry.is_symlink && <small>{t("files.symlink")}</small>}
@@ -442,8 +537,24 @@ export default function SFTPFileManagerDialog({
           {!loading && entries.length === 0 && !failed && (
             <div className="session-empty">{t("files.empty")}</div>
           )}
+          {!loading && entries.length > 0 && filteredEntries.length === 0 && (
+            <div className="session-empty">
+              {t("ui.files.noMatches")}
+              <button type="button" className="button-text" onClick={() => setFilter("")}>
+                {t("ui.clearFilters")}
+              </button>
+            </div>
+          )}
         </div>
         <div className="asset-modal-actions">
+          <span className="sftp-count">
+            {t("ui.files.count", { count: filteredEntries.length, total: entries.length })}
+          </span>
+          {notice && (
+            <span className="sftp-notice" role="status">
+              {notice}
+            </span>
+          )}
           <button type="button" className="button-secondary" onClick={onClose}>
             {t("assets.cancel")}
           </button>

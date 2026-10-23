@@ -2,6 +2,8 @@
 
 > [中文](./PROGRESS.md) | English
 
+2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md): implemented and locally accepted 10/10, zero gates remaining. Shared UI, quick search, host/SSH/file workflows and mobile interactions are covered. Full regression followed by affected repairs closed all 72 cases. Edge and isolated Docker checks passed; owned test resources were cleaned twice. This redesign is unpublished; production remains v0.3.2. Earlier acceptance records are preserved below.
+
 v0.3.2's [SSH table workbench](./NATIVE-SSH.en.md) is published and upgraded once: **implemented 6/6, accepted 6/6 (100%), zero items remaining in this batch**. Contrast, keyboard/search, asynchronous feedback, responsive dimensions, bilingual/paste behavior and authority/audit regression passed. Full CI passed six jobs, production browser 70/70, and BuildWorld #9 (1041) six stages. Default login, real SSH/SFTP, 55,296-byte file round trips and three monitoring samples passed both before and after restart. The original asset, 14 pre-upgrade and 16 pre-restart audit IDs, Vault key, credentials and host fingerprint survived. Acceptance used actual Go frames, protocols and the in-app browser; no native XTerminal UI automation. The fixed mini checklist remains 12/12; historical entry acceptance stays separate at 8/8.
 
 New [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md): **ready 8/8, accepted 8/8 (100%), zero remaining items**. v0.3.0 was released and upgraded once. BuildWorld #7 (1014) passed 6/6 stages: root/root, search/selection, SSH relay, upload/download, monitoring and restart retention. The existing mini checklist remains **12/12**; the new entry is counted separately.

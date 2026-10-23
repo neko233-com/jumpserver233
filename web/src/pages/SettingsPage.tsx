@@ -3,6 +3,7 @@ import "../i18n/locales/features/workspaces/register";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
+import Icon from "../components/ui/Icon";
 const PasswordSecuritySettings = lazy(() => import("../components/PasswordSecuritySettings"));
 const SessionSecuritySettings = lazy(() => import("../components/SessionSecuritySettings"));
 const UpdateSettings = lazy(() => import("../components/UpdateSettings"));
@@ -166,6 +167,11 @@ function nodeDescendants(nodes: AssetNode[], nodeID: string) {
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { accessToken, setAccessToken } = useAuth();
+  const [sectionSearch, setSectionSearch] = useState("");
+  const tabLabel = (key: keyof typeof settingPermissions) =>
+    t(
+      `settings.${{ users: "usersTab", groups: "groupsTab", grants: "grantsTab", nodes: "nodesTab", filters: "commandFiltersTab", reviews: "commandReviewsTab", loginReviews: "loginReviewsTab", security: "securityTab" }[key]}`,
+    );
   const [tokenDraft, setTokenDraft] = useState("");
   const [tokenRequired, setTokenRequired] = useState(false);
   const [tokenRejected, setTokenRejected] = useState(false);
@@ -832,9 +838,25 @@ export default function SettingsPage() {
 
       {canSettings && (
         <>
+          <label className="ui-search-field settings-section-search">
+            <Icon name="search" size={16} />
+            <input
+              type="search"
+              aria-label={t("ui.settings.search")}
+              placeholder={t("ui.settings.search")}
+              value={sectionSearch}
+              onChange={(event) => setSectionSearch(event.target.value)}
+            />
+          </label>
+          {sectionSearch && !(Object.keys(settingPermissions) as Array<keyof typeof settingPermissions>).some(key => allows(settingPermissions[key]) && tabLabel(key).toLocaleLowerCase().includes(sectionSearch.trim().toLocaleLowerCase())) && <p className="settings-notice" role="status">{t("ui.settings.empty")}</p>}
           <div className="audit-tabs settings-tabs" role="tablist" aria-label={t("settings.title")}>
             {(Object.keys(settingPermissions) as Array<keyof typeof settingPermissions>)
               .filter((key) => allows(settingPermissions[key]))
+              .filter((key) =>
+                tabLabel(key)
+                  .toLocaleLowerCase()
+                  .includes(sectionSearch.trim().toLocaleLowerCase()),
+              )
               .map((key) => (
                 <button
                   key={key}
@@ -848,9 +870,7 @@ export default function SettingsPage() {
                     if (key === "loginReviews") void refreshLoginReviews();
                   }}
                 >
-                  {t(
-                    `settings.${{ users: "usersTab", groups: "groupsTab", grants: "grantsTab", nodes: "nodesTab", filters: "commandFiltersTab", reviews: "commandReviewsTab", loginReviews: "loginReviewsTab", security: "securityTab" }[key]}`,
-                  )}
+                  {tabLabel(key)}
                   {key === "reviews" && (
                     <span className="settings-review-count">{pendingReviews.length}</span>
                   )}

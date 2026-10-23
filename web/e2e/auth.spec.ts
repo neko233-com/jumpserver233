@@ -998,7 +998,7 @@ test("routes monitoring, Web SSH and Agent CLI through a pinned gateway with tar
   await expectAPIStatus(created, 201, "gateway creation");
   const gateway = (await created.json()) as { id: string };
   await page.reload();
-  await page.getByRole("button", { name: "+ Add asset", exact: true }).click();
+  await page.getByRole("button", { name: "Add asset", exact: true }).click();
   const form = page.locator(".asset-modal");
   await form.getByLabel("Name", { exact: true }).fill("Private routed host");
   await form.getByLabel("Host address", { exact: true }).fill("private.synthetic.invalid");
@@ -1160,7 +1160,7 @@ test("imports an encrypted SSH key for target and gateway, preserves it on edit 
   await expectAPIStatus(gatewayResponse, 201, "private-key gateway import");
   const gateway = (await gatewayResponse.json()) as { id: string };
   await page.reload();
-  await page.getByRole("button", { name: "+ Add asset", exact: true }).click();
+  await page.getByRole("button", { name: "Add asset", exact: true }).click();
   const form = page.locator(".asset-modal");
   await form.getByLabel("Name", { exact: true }).fill("Key-auth host");
   await form.getByLabel("Host address", { exact: true }).fill("private.synthetic.invalid");
@@ -1286,7 +1286,7 @@ test("installs and rotates a real Linux OpenSSH key through the gateway with ser
   await expectAPIStatus(gatewayResponse, 201, "Linux lifecycle gateway");
   const gateway = (await gatewayResponse.json()) as { id: string };
   await page.reload();
-  await page.getByRole("button", { name: "+ Add asset", exact: true }).click();
+  await page.getByRole("button", { name: "Add asset", exact: true }).click();
   const form = page.locator(".asset-modal");
   await form.getByLabel("Name", { exact: true }).fill("Linux key lifecycle");
   await form.getByLabel("Host address", { exact: true }).fill("keyhost.synthetic.invalid");

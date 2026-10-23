@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { BrandingProvider } from "./branding/BrandingContext";
+import DialogFocus from "./components/ui/DialogFocus";
+import PageLoading from "./components/ui/PageLoading";
 
 const PasswordChangePage = lazy(() => import("./pages/PasswordChangePage"));
 const ConsoleLayout = lazy(() => import("./layouts/ConsoleLayout"));
@@ -34,7 +36,7 @@ const SessionSharePage = lazy(() => import("./pages/SessionSharePage"));
 function RequireAuth({ children }: { children: ReactNode }) {
   const { authenticated, sessionReady } = useAuth();
   const location = useLocation();
-  if (!sessionReady) return null;
+  if (!sessionReady) return <PageLoading />;
   const target = location.pathname.startsWith("/share/")
     ? `/login?next=${encodeURIComponent(location.pathname + location.search)}`
     : "/login";
@@ -47,7 +49,8 @@ export default function App() {
   return (
     <BrandingProvider>
       <AuthProvider>
-        <Suspense fallback={<div className="placeholder">{t("placeholder.skeleton")}</div>}>
+        <DialogFocus />
+        <Suspense fallback={<PageLoading />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/password-change" element={<PasswordChangePage />} />

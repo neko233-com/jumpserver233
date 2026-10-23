@@ -2,6 +2,8 @@
 
 > [中文](./PLAN.md) | English
 
+2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md): implemented and locally accepted 10/10, zero gates remaining. Shared UI, quick search, host/SSH/file workflows and mobile interactions are covered. Full regression followed by affected repairs closed all 72 cases. Edge and isolated Docker checks passed; owned test resources were cleaned twice. This redesign is unpublished; production remains v0.3.2. Earlier acceptance records are preserved below.
+
 Current maintenance: [native SSH table workbench](./NATIVE-SSH.en.md) v0.3.2 is published and upgraded once, with all six UI gates implemented and accepted (6/6). Full CI, production browser 70/70, BuildWorld #9 (1041), and default login, real SSH/SFTP, monitoring and retention before/after restart passed. The fixed mini checklist remains 12/12. UI evidence uses actual Go frames and protocols, without native XTerminal UI automation.
 
 The [native SSH/SFTP 2222 batch](./NATIVE-SSH.en.md) is complete: unified verification followed the full implementation, with 8/8 new gates accepted. v0.3.0 was released and upgraded once. BuildWorld #7 (1014) passed all six stages, including root/root, search, relay, file round trips, monitoring and restart retention. The existing mini checklist remains independently counted at 12/12.

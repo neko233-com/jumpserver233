@@ -1,9 +1,20 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import "../i18n/locales/features/workspaces/register";
 import { Link, useSearchParams } from "react-router-dom";
 import { usePermissions } from "../auth/usePermissions";
 import { useAuth } from "../auth/AuthContext";
+import Icon from "../components/ui/Icon";
+import ActionMenu from "../components/ui/ActionMenu";
 import type {
   AccountChoice,
   PasswordRotation,
@@ -293,6 +304,13 @@ export default function AssetInventoryPage() {
   const [search, setSearch] = useState(() => params.get("asset_id") || "");
   const [selectedLabel, setSelectedLabel] = useState(() => params.get("label") || "");
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sortBy, setSortBy] = useState("name");
+  const [groupsOpen, setGroupsOpen] = useState(
+    () => window.matchMedia("(min-width: 1500px)").matches,
+  );
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [tokenRequired, setTokenRequired] = useState(false);
   const [tokenRejected, setTokenRejected] = useState(false);
@@ -300,6 +318,8 @@ export default function AssetInventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [form, setForm] = useState<AssetForm>(emptyForm);
+  const initialForm = useRef("");
+  const inventoryRequest = useRef<AbortController | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [saveConflict, setSaveConflict] = useState(false);
@@ -340,10 +360,13 @@ export default function AssetInventoryPage() {
   );
 
   const loadAssets = useCallback(async () => {
+    inventoryRequest.current?.abort();
+    const controller = new AbortController();
+    inventoryRequest.current = controller;
     try {
       const [response, nodeResponse] = await Promise.all([
-        request("/api/v1/assets"),
-        request("/api/v1/assets/nodes"),
+        request("/api/v1/assets", { signal: controller.signal }),
+        request("/api/v1/assets/nodes", { signal: controller.signal }),
       ]);
       if (response.status === 401) {
         setTokenRequired(true);
@@ -358,15 +381,17 @@ export default function AssetInventoryPage() {
         response.json() as Promise<Asset[]>,
         nodeResponse.json() as Promise<AssetNode[]>,
       ]);
+      if (controller.signal.aborted) return;
       setAssets(result);
       setNodes(nextNodes);
+      setUpdatedAt(new Date());
       setTokenRequired(false);
       setTokenRejected(false);
       setLoadFailed(false);
     } catch {
-      setLoadFailed(true);
+      if (!controller.signal.aborted) setLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [accessToken, request]);
 
@@ -374,9 +399,21 @@ export default function AssetInventoryPage() {
     // The initial fetch synchronizes the page with server-owned inventory state.
     // eslint-disable-next-line react/set-state-in-effect
     void loadAssets();
-    const timer = window.setInterval(() => void loadAssets(), 15_000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "hidden") void loadAssets();
+    }, 15_000);
+    return () => {
+      window.clearInterval(timer);
+      inventoryRequest.current?.abort();
+    };
   }, [loadAssets]);
+
+  const linkedAsset = params.get("asset_id") || "";
+  useEffect(() => {
+    // Synchronize a new command-search destination without reloading the page.
+    // eslint-disable-next-line react/set-state-in-effect
+    setSearch(linkedAsset);
+  }, [linkedAsset]);
 
   const groups = useMemo(() => {
     const counts = new Map<string, number>();
@@ -405,33 +442,63 @@ export default function AssetInventoryPage() {
   );
   const visibleAssets = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return assets.filter((asset) => {
-      if (selectedGroup && asset.group !== selectedGroup) return false;
-      if (selectedLabel && !asset.labels?.some((l) => l.id === selectedLabel)) return false;
-      if (selectedNode === unassignedNode && asset.node_id) return false;
-      if (
-        selectedNode &&
-        selectedNode !== unassignedNode &&
-        (!asset.node_id || !descendantIDs(nodes, selectedNode).has(asset.node_id))
-      )
-        return false;
-      if (!query) return true;
-      return `${asset.id} ${asset.name} ${asset.host} ${asset.remark} ${(asset.labels || []).map((l) => `${l.name}:${l.value}`).join(" ")}`
-        .toLocaleLowerCase()
-        .includes(query);
-    });
-  }, [assets, nodes, search, selectedGroup, selectedNode, selectedLabel]);
+    return assets
+      .filter((asset) => {
+        if (statusFilter && asset.monitor.state !== statusFilter) return false;
+        if (selectedGroup && asset.group !== selectedGroup) return false;
+        if (selectedLabel && !asset.labels?.some((l) => l.id === selectedLabel)) return false;
+        if (selectedNode === unassignedNode && asset.node_id) return false;
+        if (
+          selectedNode &&
+          selectedNode !== unassignedNode &&
+          (!asset.node_id || !descendantIDs(nodes, selectedNode).has(asset.node_id))
+        )
+          return false;
+        if (!query) return true;
+        return `${asset.id} ${asset.name} ${asset.host} ${asset.remark} ${(asset.labels || []).map((l) => `${l.name}:${l.value}`).join(" ")}`
+          .toLocaleLowerCase()
+          .includes(query);
+      })
+      .sort((a, b) =>
+        sortBy === "latency"
+          ? (a.monitor.metrics?.latency_ms ?? a.monitor.latency_ms ?? Infinity) -
+            (b.monitor.metrics?.latency_ms ?? b.monitor.latency_ms ?? Infinity)
+          : sortBy === "cpu"
+            ? (b.monitor.metrics?.cpu_percent ?? -1) - (a.monitor.metrics?.cpu_percent ?? -1)
+            : a.name.localeCompare(b.name, i18n.language, { numeric: true }),
+      );
+  }, [
+    assets,
+    nodes,
+    search,
+    selectedGroup,
+    selectedNode,
+    selectedLabel,
+    statusFilter,
+    sortBy,
+    i18n.language,
+  ]);
+
+  const resetFilters = () => {
+    setSearch("");
+    setSelectedGroup("");
+    setSelectedNode("");
+    setSelectedLabel("");
+    setStatusFilter("");
+  };
+  const hasFilters = !!(search || selectedGroup || selectedNode || selectedLabel || statusFilter);
 
   function openCreate() {
     setEditingAsset(null);
     setForm(emptyForm);
+    initialForm.current = JSON.stringify(emptyForm);
     setSaveFailed(false);
     setDialogOpen(true);
   }
 
   function openEdit(asset: Asset) {
     setEditingAsset(asset);
-    setForm({
+    const nextForm: AssetForm = {
       protocol: asset.protocol ?? "ssh",
       kubernetes_settings: asset.kubernetes ?? defaultKubernetes,
       telnet_settings: asset.telnet ?? defaultTelnet,
@@ -460,7 +527,9 @@ export default function AssetInventoryPage() {
       remark: asset.remark,
       login_review_required: Boolean(asset.login_review_required),
       ssh_workspace: asset.ssh_workspace ?? "",
-    });
+    };
+    setForm(nextForm);
+    initialForm.current = JSON.stringify(nextForm);
     setSaveFailed(false);
     setDialogOpen(true);
   }
@@ -536,6 +605,11 @@ export default function AssetInventoryPage() {
     setDialogOpen(false);
     setForm(emptyForm);
     setEditingAsset(null);
+  }
+  function requestCloseAssetDialog() {
+    if (saving) return;
+    if (initialForm.current !== JSON.stringify(form) && !window.confirm(t("ui.unsaved"))) return;
+    closeAssetDialog();
   }
   async function probeAsset(asset: Asset) {
     setProbingId(asset.id);
@@ -653,8 +727,8 @@ export default function AssetInventoryPage() {
   const canManage = allows("assets.manage");
 
   return (
-    <section className="asset-inventory">
-      <aside className="asset-groups">
+    <section className="asset-inventory" data-groups-open={groupsOpen} aria-busy={loading}>
+      <aside className="asset-groups" hidden={!groupsOpen} id="asset-collections">
         <div className="asset-groups-heading">{t("assets.nodes")}</div>
         <button
           type="button"
@@ -722,7 +796,27 @@ export default function AssetInventoryPage() {
             <h2>{t("assets.title")}</h2>
             <p>{t("assets.subtitle")}</p>
           </div>
-          <div className="asset-toolbar">
+          <div className="asset-toolbar" data-filters-open={filtersOpen}>
+            <button
+              type="button"
+              className="asset-filter-toggle icon-button"
+              aria-label={t("ui.assets.filters")}
+              title={t("ui.assets.filters")}
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((value) => !value)}
+            >
+              <Icon name="filter" />
+            </button>
+            <button
+              type="button"
+              className="button-secondary"
+              aria-controls="asset-collections"
+              aria-expanded={groupsOpen}
+              onClick={() => setGroupsOpen((value) => !value)}
+            >
+              <Icon name="folder" size={16} />
+              {t("ui.assets.collections")}
+            </button>
             <select
               aria-label={t("assets.labels")}
               value={selectedLabel}
@@ -740,13 +834,24 @@ export default function AssetInventoryPage() {
               ))}
             </select>
             <label className="asset-search">
-              <span aria-hidden="true">⌕</span>
+              <Icon name="search" size={17} />
               <input
+                type="search"
+                aria-label={t("assets.search")}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t("assets.search")}
               />
             </label>
+            <select
+              aria-label={t("ui.assets.sort")}
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value)}
+            >
+              <option value="name">{t("ui.assets.sortName")}</option>
+              <option value="latency">{t("ui.assets.sortLatency")}</option>
+              <option value="cpu">{t("ui.assets.sortCPU")}</option>
+            </select>
             <button
               type="button"
               className="button-secondary"
@@ -756,6 +861,7 @@ export default function AssetInventoryPage() {
               }}
               disabled={loading}
             >
+              <Icon name="refresh" size={16} className={loading ? "ui-spinning" : undefined} />
               {t("assets.refresh")}
             </button>
             {canManage && (
@@ -765,7 +871,8 @@ export default function AssetInventoryPage() {
                 onClick={openCreate}
                 disabled={tokenRequired}
               >
-                + {t("assets.add")}
+                <Icon name="plus" size={16} />
+                {t("assets.add")}
               </button>
             )}
             {allows("accounts.manage") && allows("accounts.import") && (
@@ -779,6 +886,32 @@ export default function AssetInventoryPage() {
               </button>
             )}
           </div>
+        </div>
+
+        <div className="asset-status-strip" aria-label={t("ui.assets.statusFilters")}>
+          {["", "online", "offline", "unknown"].map((status) => (
+            <button
+              type="button"
+              key={status}
+              aria-pressed={statusFilter === status}
+              className={statusFilter === status ? "active" : ""}
+              onClick={() => setStatusFilter(status)}
+            >
+              <span className={`status-dot ${status || "all"}`} />
+              <span>{status ? t(`assets.${status}`) : t("ui.assets.total")}</span>
+              <strong>
+                {status
+                  ? assets.filter((asset) => asset.monitor.state === status).length
+                  : assets.length}
+              </strong>
+            </button>
+          ))}
+          {hasFilters && (
+            <button type="button" className="clear-filters" onClick={resetFilters}>
+              <Icon name="close" size={14} />
+              {t("ui.clearFilters")}
+            </button>
+          )}
         </div>
 
         {keyFailed && (
@@ -857,6 +990,11 @@ export default function AssetInventoryPage() {
                     </td>
                     <td>
                       <div className="asset-name">{asset.name}</div>
+                      {asset.remark && (
+                        <div className="asset-description" title={asset.remark}>
+                          {asset.remark}
+                        </div>
+                      )}
                       <div className="asset-labels">
                         {(physicalAsset.labels || []).map((l) => (
                           <Link
@@ -1058,7 +1196,7 @@ export default function AssetInventoryPage() {
                         )}
                         <button
                           type="button"
-                          className="button-primary button-small"
+                          className="button-primary button-small asset-connect-action"
                           disabled={tokenRequired || !asset.permissions?.includes("connect")}
                           title={
                             !asset.permissions?.includes("connect")
@@ -1083,6 +1221,7 @@ export default function AssetInventoryPage() {
                             className="button-text"
                             disabled={tokenRequired}
                             onClick={() => setFileAsset(asset)}
+                            data-file-action="true"
                           >
                             {t("files.open")}
                           </button>
@@ -1114,6 +1253,7 @@ export default function AssetInventoryPage() {
                           </button>
                         )}
                         {(canManage ||
+                          asset.permissions?.includes("view") ||
                           allows("assets.probe") ||
                           allows("assets.rotate") ||
                           allows("assets.backups") ||
@@ -1121,138 +1261,178 @@ export default function AssetInventoryPage() {
                             (allows("accounts.view") ||
                               Boolean(physicalAsset.accounts?.length)))) && (
                           <>
-                            <details className="asset-more">
-                              <summary className="button-text asset-more-trigger">
-                                {t("assets.more")}
-                              </summary>
-                              <div className="asset-more-menu">
-                                {isSSHProtocol(asset.protocol) &&
-                                  Boolean(physicalAsset.accounts?.length) && (
-                                    <button
-                                      type="button"
-                                      className="button-text"
-                                      onClick={(event) => {
-                                        closeDetails(event.currentTarget);
-                                        setManagedAccountsAsset(physicalAsset);
-                                      }}
-                                    >
-                                      {t("managedAccounts.open")}
-                                    </button>
-                                  )}
-                                {isSSHProtocol(asset.protocol) && allows("accounts.view") && (
+                            <ActionMenu label={t("assets.more")}>
+                              {isSSHProtocol(asset.protocol) &&
+                                asset.permissions?.includes("view") && (
+                                  <button
+                                    type="button"
+                                    className="button-text mobile-only-action"
+                                    onClick={(event) => {
+                                      closeDetails(event.currentTarget);
+                                      setHistoryAsset(asset);
+                                    }}
+                                  >
+                                    {t("assets.monitorHistory")}
+                                  </button>
+                                )}
+                              {isSSHProtocol(asset.protocol) &&
+                                asset.permissions?.includes("connect") &&
+                                (allows("plugins.inspect") ||
+                                  allows("plugins.manage") ||
+                                  allows("plugins.protect")) && (
+                                  <button
+                                    type="button"
+                                    className="button-text mobile-only-action"
+                                    onClick={(event) => {
+                                      closeDetails(event.currentTarget);
+                                      setPluginAsset(asset);
+                                    }}
+                                  >
+                                    {t("hostPlugins.open")}
+                                  </button>
+                                )}
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  className="button-text mobile-only-action"
+                                  disabled={
+                                    Boolean(asset.ssh_key_rotation?.pending) ||
+                                    keyBusyId === asset.id
+                                  }
+                                  onClick={(event) => {
+                                    closeDetails(event.currentTarget);
+                                    openEdit(physicalAsset);
+                                  }}
+                                >
+                                  {t("assets.edit")}
+                                </button>
+                              )}
+                              {isSSHProtocol(asset.protocol) &&
+                                Boolean(physicalAsset.accounts?.length) && (
                                   <button
                                     type="button"
                                     className="button-text"
                                     onClick={(event) => {
                                       closeDetails(event.currentTarget);
-                                      setDiscoveryAsset(asset);
+                                      setManagedAccountsAsset(physicalAsset);
                                     }}
                                   >
-                                    {t("accountDiscovery.open")}
+                                    {t("managedAccounts.open")}
                                   </button>
                                 )}
-                                {allows("assets.probe") && (
-                                  <button
-                                    type="button"
-                                    className="button-text"
-                                    disabled={probingId === asset.id}
-                                    onClick={(event) => {
-                                      closeDetails(event.currentTarget);
-                                      void probeAsset(asset);
-                                    }}
-                                  >
-                                    {probingId === asset.id ? "…" : t("assets.probe")}
-                                  </button>
-                                )}
-                                {allows("assets.rotate") && asset.password_rotation && (
+                              {isSSHProtocol(asset.protocol) && allows("accounts.view") && (
+                                <button
+                                  type="button"
+                                  className="button-text"
+                                  onClick={(event) => {
+                                    closeDetails(event.currentTarget);
+                                    setDiscoveryAsset(asset);
+                                  }}
+                                >
+                                  {t("accountDiscovery.open")}
+                                </button>
+                              )}
+                              {allows("assets.probe") && (
+                                <button
+                                  type="button"
+                                  className="button-text"
+                                  disabled={probingId === asset.id}
+                                  onClick={(event) => {
+                                    closeDetails(event.currentTarget);
+                                    void probeAsset(asset);
+                                  }}
+                                >
+                                  {probingId === asset.id ? "…" : t("assets.probe")}
+                                </button>
+                              )}
+                              {allows("assets.rotate") && asset.password_rotation && (
+                                <button
+                                  type="button"
+                                  className="button-text"
+                                  disabled={
+                                    rotationBusyId === asset.id ||
+                                    keyBusyId === asset.id ||
+                                    Boolean(asset.ssh_key_rotation?.pending) ||
+                                    asset.password_rotation?.state === "rotating" ||
+                                    asset.password_rotation?.state === "recovery_required"
+                                  }
+                                  onClick={(event) => {
+                                    closeDetails(event.currentTarget);
+                                    void rotateAssetPassword(asset);
+                                  }}
+                                >
+                                  {rotationBusyId === asset.id
+                                    ? t("assets.rotating")
+                                    : t("assets.rotatePassword")}
+                                </button>
+                              )}
+                              {isSSHProtocol(asset.protocol) && allows("assets.rotate") && (
+                                <>
                                   <button
                                     type="button"
                                     className="button-text"
                                     disabled={
-                                      rotationBusyId === asset.id ||
                                       keyBusyId === asset.id ||
-                                      Boolean(asset.ssh_key_rotation?.pending) ||
+                                      rotationBusyId === asset.id ||
                                       asset.password_rotation?.state === "rotating" ||
                                       asset.password_rotation?.state === "recovery_required"
                                     }
                                     onClick={(event) => {
                                       closeDetails(event.currentTarget);
-                                      void rotateAssetPassword(asset);
+                                      void changeSSHKey(asset);
                                     }}
                                   >
-                                    {rotationBusyId === asset.id
-                                      ? t("assets.rotating")
-                                      : t("assets.rotatePassword")}
+                                    {keyBusyId === asset.id
+                                      ? t("assets.keyBusy")
+                                      : t(
+                                          asset.ssh_key_rotation?.pending
+                                            ? "assets.keyResume"
+                                            : asset.credential_type === "ssh_key"
+                                              ? "assets.keyRotate"
+                                              : "assets.keyInstall",
+                                        )}
                                   </button>
-                                )}
-                                {isSSHProtocol(asset.protocol) && allows("assets.rotate") && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      className="button-text"
-                                      disabled={
-                                        keyBusyId === asset.id ||
-                                        rotationBusyId === asset.id ||
-                                        asset.password_rotation?.state === "rotating" ||
-                                        asset.password_rotation?.state === "recovery_required"
-                                      }
-                                      onClick={(event) => {
-                                        closeDetails(event.currentTarget);
-                                        void changeSSHKey(asset);
-                                      }}
-                                    >
-                                      {keyBusyId === asset.id
-                                        ? t("assets.keyBusy")
-                                        : t(
-                                            asset.ssh_key_rotation?.pending
-                                              ? "assets.keyResume"
-                                              : asset.credential_type === "ssh_key"
-                                                ? "assets.keyRotate"
-                                                : "assets.keyInstall",
-                                          )}
-                                    </button>
-                                    {asset.ssh_key_rotation?.pending &&
-                                      asset.ssh_key_rotation.can_cancel && (
-                                        <button
-                                          type="button"
-                                          className="button-text"
-                                          disabled={keyBusyId === asset.id}
-                                          onClick={(event) => {
-                                            closeDetails(event.currentTarget);
-                                            void changeSSHKey(asset, true);
-                                          }}
-                                        >
-                                          {t("assets.keyCancel")}
-                                        </button>
-                                      )}
-                                  </>
-                                )}
-                                {isSSHProtocol(asset.protocol) && allows("assets.backups") && (
-                                  <button
-                                    type="button"
-                                    className="button-text"
-                                    onClick={(event) => {
-                                      closeDetails(event.currentTarget);
-                                      setCredentialBackupsAsset(asset);
-                                    }}
-                                  >
-                                    {t("assets.manageBackups")}
-                                  </button>
-                                )}
-                                {canManage && (
-                                  <button
-                                    type="button"
-                                    className="button-text danger"
-                                    onClick={(event) => {
-                                      closeDetails(event.currentTarget);
-                                      void deleteAsset(physicalAsset);
-                                    }}
-                                  >
-                                    {t("assets.delete")}
-                                  </button>
-                                )}
-                              </div>
-                            </details>
+                                  {asset.ssh_key_rotation?.pending &&
+                                    asset.ssh_key_rotation.can_cancel && (
+                                      <button
+                                        type="button"
+                                        className="button-text"
+                                        disabled={keyBusyId === asset.id}
+                                        onClick={(event) => {
+                                          closeDetails(event.currentTarget);
+                                          void changeSSHKey(asset, true);
+                                        }}
+                                      >
+                                        {t("assets.keyCancel")}
+                                      </button>
+                                    )}
+                                </>
+                              )}
+                              {isSSHProtocol(asset.protocol) && allows("assets.backups") && (
+                                <button
+                                  type="button"
+                                  className="button-text"
+                                  onClick={(event) => {
+                                    closeDetails(event.currentTarget);
+                                    setCredentialBackupsAsset(asset);
+                                  }}
+                                >
+                                  {t("assets.manageBackups")}
+                                </button>
+                              )}
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  className="button-text danger"
+                                  onClick={(event) => {
+                                    closeDetails(event.currentTarget);
+                                    void deleteAsset(physicalAsset);
+                                  }}
+                                >
+                                  {t("assets.delete")}
+                                </button>
+                              )}
+                            </ActionMenu>
                           </>
                         )}
                       </div>
@@ -1264,9 +1444,15 @@ export default function AssetInventoryPage() {
           </table>
           {!loading && !loadFailed && !tokenRequired && visibleAssets.length === 0 && (
             <div className="asset-empty">
-              <h3>{t("assets.empty")}</h3>
-              <p>{t("assets.emptyHint")}</p>
-              {canManage && !tokenRequired && (
+              <Icon name={hasFilters ? "search" : "server"} size={32} />
+              <h3>{t(hasFilters ? "ui.assets.noMatches" : "assets.empty")}</h3>
+              <p>{t(hasFilters ? "ui.assets.noMatchesHint" : "assets.emptyHint")}</p>
+              {hasFilters && (
+                <button type="button" className="button-secondary" onClick={resetFilters}>
+                  {t("ui.clearFilters")}
+                </button>
+              )}
+              {canManage && !tokenRequired && !hasFilters && (
                 <button type="button" className="button-primary" onClick={openCreate}>
                   + {t("assets.add")}
                 </button>
@@ -1274,6 +1460,20 @@ export default function AssetInventoryPage() {
             </div>
           )}
         </div>
+        <footer className="asset-list-footer">
+          <span role="status">
+            {t("ui.assets.showing", { count: visibleAssets.length, total: assets.length })}
+          </span>
+          <span>
+            {updatedAt &&
+              t("ui.assets.updated", {
+                time: updatedAt.toLocaleTimeString(i18n.language, {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              })}
+          </span>
+        </footer>
       </div>
 
       {dialogOpen && (
@@ -1281,7 +1481,7 @@ export default function AssetInventoryPage() {
           className="asset-modal-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !saving) closeAssetDialog();
+            if (event.target === event.currentTarget && !saving) requestCloseAssetDialog();
           }}
         >
           <form
@@ -1290,6 +1490,13 @@ export default function AssetInventoryPage() {
             aria-modal="true"
             aria-labelledby="asset-editor-title"
             onSubmit={(event) => void saveAsset(event)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                event.stopPropagation();
+                requestCloseAssetDialog();
+              }
+            }}
           >
             <h3 id="asset-editor-title">
               {editingAsset ? t("assets.dialogEdit") : t("assets.dialogCreate")}

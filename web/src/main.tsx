@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./i18n";
 import "./styles.css";
+import "./design-system.css";
 import { installOrganizationFetch } from "./auth/organization";
 
 installOrganizationFetch();

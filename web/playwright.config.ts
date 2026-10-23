@@ -5,7 +5,9 @@ import { defineConfig } from "@playwright/test";
 const webDir = fileURLToPath(new URL(".", import.meta.url));
 const serverDir = resolve(webDir, "../server");
 const testDataDir = process.env.JMS_E2E_DATA_DIR;
-const navigationOnly = process.env.JMS_E2E_NAVIGATION_ONLY === "true";
+const workspaceOnly = process.env.JMS_E2E_WORKSPACE_ONLY === "true";
+const workspaceRepair = process.env.JMS_E2E_WORKSPACE_REPAIR === "true";
+const navigationOnly = process.env.JMS_E2E_NAVIGATION_ONLY === "true" || workspaceOnly;
 const frontend =
   process.env.JMS_E2E_PRODUCTION === "true"
     ? "pnpm exec vite preview --config e2e/preview.vite.config.ts"
@@ -17,7 +19,13 @@ if (!testDataDir)
 
 const config = defineConfig({
   testDir: "./e2e",
-  testMatch: navigationOnly ? "**/console-navigation.spec.ts" : undefined,
+  testMatch: workspaceRepair
+    ? ["**/console-navigation.spec.ts", "**/web-workspace.spec.ts", "**/host-plugins.spec.ts"]
+    : workspaceOnly
+      ? ["**/console-navigation.spec.ts", "**/web-workspace.spec.ts"]
+      : navigationOnly
+        ? "**/console-navigation.spec.ts"
+        : undefined,
   // Archived Enterprise UI cases remain as source references. The shipped mini
   // graph has no routes for these pages, and needs no corresponding fixtures.
   testIgnore: [
@@ -28,7 +36,10 @@ const config = defineConfig({
   fullyParallel: false,
   // Explicit repair profile only; default pushes and production suites remain
   // complete. Reuse the recorded full baseline when repairing this UI case.
-  grep: process.env.JMS_E2E_NATIVE_AUDIT_ONLY === "true" ? /renders native SFTP rename audit/ : undefined,
+  grep:
+    process.env.JMS_E2E_NATIVE_AUDIT_ONLY === "true"
+      ? /renders native SFTP rename audit/
+      : undefined,
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
@@ -348,7 +359,7 @@ const config = defineConfig({
 // particular no cloud, SQL, Kubernetes, RDP or external IdP service is started.
 const miniPorts = new Set(
   navigationOnly
-    ? ["12223", "8083", "5177"]
+    ? ["12223", "8083", "5177", ...(workspaceOnly ? ["12242"] : [])]
     : [
         "12326",
         "12604",

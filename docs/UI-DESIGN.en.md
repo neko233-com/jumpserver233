@@ -2,6 +2,8 @@
 
 > English | [中文](./UI-DESIGN.md)
 
+2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md): implemented and locally accepted 10/10, zero gates remaining. Shared UI, quick search, host/SSH/file workflows and mobile interactions are covered. Full regression followed by affected repairs closed all 72 cases. Edge and isolated Docker checks passed; owned test resources were cleaned twice. This redesign is unpublished; production remains v0.3.2. Earlier acceptance records are preserved below.
+
 ## Installation and provenance
 
 At the user's request, the bundled `skills/oil-ui` from [oil-oil/dsh-oil-ui](https://github.com/oil-oil/dsh-oil-ui) is installed at `.agents/skills/oil-ui/` for this project. The source is pinned to commit `b67ae2df6c2c9d65e177aaa1ce703e65457b24d7`; the declared skill version is `0.23.8`. `.agents/skills/oil-ui.source.json` records provenance and each file's SHA-256. Upstream text, `LICENSE` and font licensing remain intact.

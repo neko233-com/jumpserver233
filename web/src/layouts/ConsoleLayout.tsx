@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -7,7 +7,31 @@ import NotificationBell from "../components/NotificationBell";
 import { usePermissions } from "../auth/usePermissions";
 import { toggleLang } from "../i18n";
 import { BrandFooter, BrandMark } from "../branding/BrandingContext";
+import Icon, { type IconName } from "../components/ui/Icon";
+import QuickSearch from "../components/ui/QuickSearch";
+import "../i18n/locales/features/workspace-ui/register";
 import "./console-shell.css";
+
+const routeIcons: Record<string, IconName> = {
+  "": "server",
+  monitoring: "activity",
+  "rotation-plans": "key",
+  "account-risks": "shield",
+  "access-tickets": "key",
+  "access-policies": "shield",
+  "login-reviews": "shield",
+  "ssh-certificates": "key",
+  reports: "activity",
+  "login-audit": "history",
+  "agent-audit": "terminal",
+  users: "users",
+  "organization-roles": "users",
+  roles: "shield",
+  passkeys: "key",
+  organizations: "layers",
+  labels: "folder",
+  settings: "settings",
+};
 
 // The shipped console contains the standalone SSH workflow. Enterprise page
 // sources remain in the repository; they are outside the mini production graph.
@@ -45,6 +69,30 @@ export default function ConsoleLayout({ title }: { title: string }) {
   const { allows, systemAllows } = usePermissions();
   const isZh = i18n.language !== "en";
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [quickSearchOpen, setQuickSearchOpen] = useState(false);
+  const quickSearchButton = useRef<HTMLButtonElement>(null);
+  const [density, setDensity] = useState(() => {
+    try {
+      return localStorage.getItem("jms.ui.density") === "comfortable" ? "comfortable" : "compact";
+    } catch {
+      return "compact";
+    }
+  });
+  useEffect(() => {
+    const shortcut = (event: globalThis.KeyboardEvent) => {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === "k" &&
+        !document.querySelector('[aria-modal="true"],dialog[open]')
+      ) {
+        event.preventDefault();
+        setQuickSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", shortcut);
+    return () => window.removeEventListener("keydown", shortcut);
+  }, []);
   const [search, setSearch] = useState("");
   const [moreState, setMoreState] = useState(() => ({
     path: location.pathname,
@@ -142,7 +190,8 @@ export default function ConsoleLayout({ title }: { title: string }) {
               onClick={closeNavigation}
               onKeyDown={navigationKeyDown}
             >
-              {item.label}
+              <Icon name={routeIcons[item.to.replace(/^\/console\/?/, "")] || "layers"} size={17} />
+              <span>{item.label}</span>
             </NavLink>
           ))}
         </section>
@@ -152,6 +201,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
   function closeNavigation() {
     if (navigationOpen) document.getElementById("console-main")?.focus();
     setNavigationOpen(false);
+    setAccountMenuOpen(false);
     setSearch("");
     setMoreState({ path: location.pathname, open: false });
   }
@@ -176,7 +226,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
   }
 
   return (
-    <div className="layout">
+    <div className="layout" data-density={density}>
       <a
         className="console-skip-link"
         href="#console-main"
@@ -188,11 +238,14 @@ export default function ConsoleLayout({ title }: { title: string }) {
       >
         {t("nav.skipToContent")}
       </a>
-      <header className="layout-header">
+      <header className="layout-header" data-account-open={accountMenuOpen}>
         <span className="brand">
+          <span className="brand-emblem">
+            <Icon name="terminal" size={21} />
+          </span>
           <BrandMark />
         </span>
-        <nav className="view-switch" aria-label={t("nav.views")}>
+        <nav className="view-switch" id={`${navigationID}-views`} aria-label={t("nav.views")}>
           {views.map((v) => (
             <NavLink
               key={v.to}
@@ -205,8 +258,35 @@ export default function ConsoleLayout({ title }: { title: string }) {
             </NavLink>
           ))}
         </nav>
-        <OrganizationSwitcher />
-        <NotificationBell />
+        <button
+          ref={quickSearchButton}
+          type="button"
+          className="quick-search-trigger"
+          aria-label={t("ui.search.title")}
+          onClick={() => setQuickSearchOpen(true)}
+          aria-keyshortcuts="Control+k Meta+k"
+        >
+          <Icon name="search" size={16} />
+          <span>{t("ui.search.title")}</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button
+          type="button"
+          className="header-account-toggle icon-button"
+          aria-label={t("ui.headerMenu")}
+          aria-expanded={accountMenuOpen}
+          aria-controls={`${navigationID}-views ${navigationID}-account`}
+          onClick={() => setAccountMenuOpen((open) => !open)}
+        >
+          <Icon name="layers" />
+        </button>
+        <div className="console-header-account" id={`${navigationID}-account`}>
+          <OrganizationSwitcher />
+          <NotificationBell />
+          <NavLink to="/profile" className="profile-link" onClick={() => setAccountMenuOpen(false)}>
+            {t("nav.profile")}
+          </NavLink>
+        </div>
         <button
           type="button"
           className="lang-switch"
@@ -215,17 +295,16 @@ export default function ConsoleLayout({ title }: { title: string }) {
         >
           {isZh ? "EN" : "中文"}
         </button>
-        <NavLink to="/profile" className="profile-link">
-          {t("nav.profile")}
-        </NavLink>
         <button
           type="button"
           className="profile-link sign-out-button"
+          aria-label={t("nav.signOut")}
           onClick={() => {
             void signOut();
           }}
         >
-          {t("nav.signOut")}
+          <Icon name="logout" size={17} />
+          <span>{t("nav.signOut")}</span>
         </button>
       </header>
       <div className="layout-body">
@@ -242,7 +321,10 @@ export default function ConsoleLayout({ title }: { title: string }) {
             {t(navigationOpen ? "nav.closeNavigation" : "nav.openNavigation")}
           </button>
           <div className="console-sidebar-content" id={navigationID}>
-            <div className="sidebar-title">{title}</div>
+            <div className="sidebar-title">
+              <Icon name="layers" size={15} />
+              {title}
+            </div>
             <label className="console-nav-search">
               <span className="console-sr-only">{t("nav.search")}</span>
               <input
@@ -301,10 +383,50 @@ export default function ConsoleLayout({ title }: { title: string }) {
           </div>
         </aside>
         <main className="layout-main" id="console-main" tabIndex={-1}>
+          <div className="workspace-context">
+            <div>
+              <span>{t("nav.console")}</span>
+              <Icon name="chevron" size={13} />
+              <strong>
+                {consoleNav.find((item) => item.to === location.pathname)?.label || title}
+              </strong>
+            </div>
+            <button
+              type="button"
+              className="density-toggle"
+              aria-label={t("ui.density.label")}
+              title={t("ui.density.label")}
+              aria-pressed={density === "comfortable"}
+              onClick={() => {
+                const next = density === "compact" ? "comfortable" : "compact";
+                setDensity(next);
+                try {
+                  localStorage.setItem("jms.ui.density", next);
+                } catch {
+                  /* Optional preference. */
+                }
+              }}
+            >
+              <Icon name="list" size={15} />
+              <span>{t(`ui.density.${density}`)}</span>
+            </button>
+          </div>
           <Outlet />
         </main>
       </div>
       <BrandFooter />
+      {quickSearchOpen && (
+        <QuickSearch
+          destinations={[
+            ...views,
+            ...consoleNav.filter((item) => !views.some((view) => view.to === item.to)),
+          ]}
+          onClose={() => {
+            setQuickSearchOpen(false);
+            quickSearchButton.current?.focus();
+          }}
+        />
+      )}
     </div>
   );
 }

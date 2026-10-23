@@ -5,6 +5,7 @@ import "../i18n/locales/features/workspaces/register";
 import { useTranslation } from "react-i18next";
 import { toggleLang } from "../i18n";
 import "@xterm/xterm/css/xterm.css";
+import Icon from "./ui/Icon";
 const SessionSharePanel = lazy(() => import("./SessionSharePanel"));
 
 type Props = {
@@ -44,6 +45,12 @@ export default function SSHTerminalDialog({
       ? "telnet"
       : "terminal";
   const hostRef = useRef<HTMLDivElement>(null);
+  const terminalRef = useRef<Terminal | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const fitRef = useRef<(() => void) | null>(null);
+  const [fontSize, setFontSize] = useState(14);
+  const [expanded, setExpanded] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<ConnectionState>("connecting");
   const [watermark, setWatermark] = useState("");
   const [currentID, setCurrentID] = useState("");
@@ -59,11 +66,11 @@ export default function SSHTerminalDialog({
     let socket: WebSocket | null = null;
     let previousSize = "";
     const controller = new AbortController();
-    const fontSize = 13;
     const terminal = new Terminal({
       cursorBlink: true,
       fontFamily: "Cascadia Code, Consolas, monospace",
-      fontSize,
+      fontSize: 14,
+      lineHeight: 1.2,
       theme: {
         background: "#080d14",
         foreground: "#dbe7f5",
@@ -72,6 +79,15 @@ export default function SSHTerminalDialog({
       },
     });
     terminal.open(host);
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (event.ctrlKey && event.shiftKey && event.code === "Space") {
+        event.preventDefault();
+        closeButtonRef.current?.focus();
+        return false;
+      }
+      return true;
+    });
+    terminalRef.current = terminal;
     terminal.focus();
 
     const sendResize = () => {
@@ -83,8 +99,16 @@ export default function SSHTerminalDialog({
         Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
       const contentWidth = host.clientWidth - horizontalPadding;
       const contentHeight = host.clientHeight - verticalPadding;
-      const cols = Math.max(24, Math.min(500, Math.floor(contentWidth / (fontSize * 0.6))));
-      const rows = Math.max(8, Math.min(500, Math.floor(contentHeight / (fontSize + 2))));
+      const sizeInPixels = terminal.options.fontSize || 14;
+      const screen = host.querySelector<HTMLElement>(".xterm-screen");
+      const cellWidth = screen?.clientWidth
+        ? screen.clientWidth / terminal.cols
+        : sizeInPixels * 0.62;
+      const cellHeight = screen?.clientHeight
+        ? screen.clientHeight / terminal.rows
+        : sizeInPixels * 1.2;
+      const cols = Math.max(24, Math.min(500, Math.floor(contentWidth / cellWidth)));
+      const rows = Math.max(8, Math.min(500, Math.floor(contentHeight / cellHeight)));
       const size = `${cols}x${rows}`;
       if (size === previousSize) return;
       previousSize = size;
@@ -93,6 +117,7 @@ export default function SSHTerminalDialog({
         socket.send(JSON.stringify({ type: "resize", cols, rows }));
       }
     };
+    fitRef.current = sendResize;
     let resizeFrame = 0;
     const observer = new ResizeObserver(() => {
       if (resizeFrame) return;
@@ -277,13 +302,25 @@ export default function SSHTerminalDialog({
       inputSubscription.dispose();
       socket?.close(1000, "terminal closed");
       terminal.dispose();
+      if (terminalRef.current === terminal) {
+        terminalRef.current = null;
+        fitRef.current = null;
+      }
       if (sessionId) void closeSession(sessionId);
     };
-  }, [accessToken, assetId, kubernetesSelection, terminalPrefix, protocol]);
+  }, [accessToken, assetId, kubernetesSelection, terminalPrefix, protocol, attempt]);
+
+  useEffect(() => {
+    if (terminalRef.current) terminalRef.current.options.fontSize = fontSize;
+    const frame = requestAnimationFrame(() => fitRef.current?.());
+    return () => cancelAnimationFrame(frame);
+  }, [fontSize, attempt]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      // Escape belongs to the remote shell while its terminal has focus (vim,
+      // less, shell completion). Closing the dialog must not steal that input.
+      if (event.key === "Escape" && !hostRef.current?.contains(event.target as Node)) onClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -306,7 +343,7 @@ export default function SSHTerminalDialog({
       }}
     >
       <section
-        className="ssh-terminal-dialog"
+        className={`ssh-terminal-dialog${expanded ? " is-expanded" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="ssh-terminal-title"
@@ -320,6 +357,36 @@ export default function SSHTerminalDialog({
               {statusLabel}
             </span>
           </div>
+          <div className="terminal-tools">
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("ui.terminal.smaller")}
+              disabled={fontSize <= 11}
+              onClick={() => setFontSize((size) => Math.max(11, size - 1))}
+            >
+              A−
+            </button>
+            <output aria-label={t("ui.terminal.fontSize")}>{fontSize}</output>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("ui.terminal.larger")}
+              disabled={fontSize >= 24}
+              onClick={() => setFontSize((size) => Math.min(24, size + 1))}
+            >
+              A+
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t(expanded ? "ui.terminal.restore" : "ui.terminal.expand")}
+              aria-pressed={expanded}
+              onClick={() => setExpanded((value) => !value)}
+            >
+              <Icon name={expanded ? "collapse" : "expand"} />
+            </button>
+          </div>
           <button type="button" className="lang-switch" onClick={() => void toggleLang()}>
             {t("sharing.language")}
           </button>
@@ -332,7 +399,7 @@ export default function SSHTerminalDialog({
               {t("sharing.manage")}
             </button>
           )}
-          <button type="button" className="button-secondary" onClick={onClose}>
+          <button ref={closeButtonRef} type="button" className="button-secondary" onClick={onClose}>
             {t("terminal.close")}
           </button>
         </header>
@@ -362,6 +429,16 @@ export default function SSHTerminalDialog({
         {state === "failed" && (
           <p className="ssh-terminal-error" role="alert">
             {t(`${terminalPrefix}.connectFailed`)}
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => {
+                setState("connecting");
+                setAttempt((value) => value + 1);
+              }}
+            >
+              {t("ui.retry")}
+            </button>
           </p>
         )}
         <div className="session-monitor-surface">
@@ -372,6 +449,13 @@ export default function SSHTerminalDialog({
             </div>
           )}
         </div>
+        <footer className="terminal-footer">
+          <span>
+            <Icon name="shield" size={13} />
+            {t("ui.terminal.audited")}
+          </span>
+          <span>{t("ui.terminal.escapeHint")}</span>
+        </footer>
       </section>
     </div>
   );

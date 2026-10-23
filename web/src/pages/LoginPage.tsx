@@ -12,8 +12,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { loginReturnPath, clearLoginReturn } from "../auth/loginReturn";
-import BlurText from "../components/BlurText";
-import ShaderCanvas from "../components/ShaderCanvas";
+import Icon from "../components/ui/Icon";
+import "../i18n/locales/features/workspace-ui/register";
 import { toggleLang } from "../i18n";
 import { getPasskey, passkeysSupported, type PasskeyRequestOptions } from "../auth/passkeys";
 import OIDCLogin from "../components/OIDCLogin";
@@ -453,12 +453,33 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <ShaderCanvas
-        className="login-shader"
-        background={brand.settings.colors.bg}
-        accent={brand.settings.colors.accent}
-      />
       <div className="login-content">
+        <aside className="login-introduction">
+          <div className="login-wordmark">
+            <span className="brand-emblem">
+              <Icon name="terminal" size={24} />
+            </span>
+            <BrandMark />
+          </div>
+          <h2>{t("ui.login.heading")}</h2>
+          <p>{t("ui.login.description")}</p>
+          <ul>
+            {(["access", "observe", "protect"] as const).map((feature, index) => (
+              <li key={feature}>
+                <Icon name={(["terminal", "activity", "shield"] as const)[index]} size={21} />
+                <div>
+                  <strong>{t(`ui.login.${feature}`)}</strong>
+                  <span>{t(`ui.login.${feature}Hint`)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="login-connection-mark" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        </aside>
         <div className="login-card">
           <h1
             aria-label={
@@ -466,17 +487,10 @@ export default function LoginPage() {
             }
           >
             <BrandMark>
-              <BlurText
-                key={brand.name + brand.settings.login_title_en + brand.settings.login_title_zh}
-                text={
-                  (isZh ? brand.settings.login_title_zh : brand.settings.login_title_en) ||
-                  brand.name
-                }
-                animateBy="letters"
-                delay={60}
-              />
+              {(isZh ? brand.settings.login_title_zh : brand.settings.login_title_en) || brand.name}
             </BrandMark>
           </h1>
+          <p className="login-welcome">{t("ui.login.welcome")}</p>
           {brand.settings.logo_digest &&
             (isZh ? brand.settings.login_title_zh : brand.settings.login_title_en) && (
               <p className="login-brand-title">

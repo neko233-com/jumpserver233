@@ -2,6 +2,8 @@
 
 > 中文 | [English](./UI-DESIGN.en.md)
 
+2026-10-23 [Web 全面改版](./WEB-REDESIGN.md)：实现与本地验收 10/10，剩余 0 项。本批覆盖共享界面、快捷搜索、主机/SSH/文件及移动交互；完整回归后修复补验，72 项用例已闭环。Edge 与隔离 Docker 验证通过，测试资源已重复清理。当前改版未发布，线上仍为 v0.3.2；下方保留之前的验收记录。
+
 ## 安装与来源
 
 按用户要求，将 [oil-oil/dsh-oil-ui](https://github.com/oil-oil/dsh-oil-ui) 内附的 `skills/oil-ui` 安装到 `.agents/skills/oil-ui/`，供本项目使用。固定上游 commit `b67ae2df6c2c9d65e177aaa1ce703e65457b24d7`，技能声明版本 `0.23.8`。来源和逐文件 SHA-256 记录在 `.agents/skills/oil-ui.source.json`；保留上游 `LICENSE`、字体许可和原文。

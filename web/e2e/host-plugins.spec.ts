@@ -461,6 +461,9 @@ test("host tools and console navigation fit narrow English and Chinese viewports
       ).toBeVisible();
       const row = page.getByRole("row").filter({ hasText: "Native host agents QA" });
       await row
+        .getByRole("button", { name: language === "en" ? "More" : "更多", exact: true })
+        .click();
+      await row
         .getByRole("button", {
           name: language === "en" ? "Tools & agents" : "工具与 Agent",
           exact: true,
