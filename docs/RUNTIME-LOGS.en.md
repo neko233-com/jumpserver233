@@ -2,18 +2,18 @@
 
 > [中文](./RUNTIME-LOGS.md) | English
 
-This batch adds standalone operational log management and private-IP HTTP compatibility. Implementation and cases are authored; unified verification, official artifacts and one intranet upgrade remain. Historical mini acceptance stays 12/12; this batch is counted separately.
+This batch is released as v0.5.0 and upgraded once on the intranet: implemented 6/6, accepted 6/6, no remaining batch gate. Historical mini acceptance stays 12/12 and is counted separately.
 
 ## Acceptance gates
 
 | Item | Implementation | Acceptance |
 |---|---|---|
-| Native Go size/UTC-day rotation and quiet expiry | Ready | Pending unified verification |
-| Disk usage, archive/day limits and private file safety | Ready | Pending unified verification |
-| Admin status, manual rotation, conflicts and idempotent retries | Ready | Pending unified verification |
-| IP HTTP operation request IDs without randomUUID | Ready | Pending unified verification |
-| macOS legacy log adoption, CI and official artifacts | Ready | Pending unified verification |
-| One upgrade, real login/SSH/files/monitoring/data retention/cleanup | Pending release | Pending live acceptance |
+| Native Go size/UTC-day rotation and quiet expiry | Ready | Passed |
+| Disk usage, archive/day limits and private file safety | Ready | Passed |
+| Admin status, manual rotation, conflicts and idempotent retries | Ready | Passed |
+| IP HTTP operation request IDs without randomUUID | Ready | Passed |
+| macOS legacy log adoption, CI and official artifacts | Ready | Passed |
+| One upgrade, real login/SSH/files/monitoring/data retention/cleanup | Published | Passed |
 
 ## Works with defaults
 
@@ -39,6 +39,19 @@ Global-admin endpoints are `GET /api/v1/settings/security/runtime-logs` and `POS
 
 Operation buttons use `crypto.getRandomValues` to generate UUID v4 request IDs on private HTTP origins. They do not use Math.random or weaken credentials/review enforcement. SSH, file and approval contracts remain intact.
 
-Evidence belongs in ignored `.cache/qa-reports/`. Actual CI, BuildWorld, retention, rotation and cleanup results will be recorded after publication.
+Actual CI, BuildWorld, retention, rotation and cleanup results follow; compact evidence is retained in ignored `.cache/qa-reports/`.
 
 Unified CI found long permission codes expanding the roles page at 375px. Fieldset shrinking, permission wrapping and narrow-screen cases address it. For a frontend-only repair, the manual `frontend_only` CI entry still runs the entire production browser suite. Unchanged backend, race, integrations and Docker reuse their passed source evidence; skipped jobs are not counted as passes.
+
+## Formal delivery — 2026-10-26
+
+- Version `v0.5.0`, tag/artifact source `f9220160b9ad8ff49610d517332b6af5d8398988`; the [release workflow](https://github.com/neko233-com/jumpserver233/actions/runs/40342469844) passed with 12 immutable archives/checksums for six platforms. Only release metadata differs from frontend-verified source `8efd03f`.
+- [Full CI](https://github.com/neko233-com/jumpserver233/actions/runs/40332577507) passed backend, Linux race, three external integration groups and Docker. Its browser run found a 12px roles-page overflow. After repair, [complete frontend verification](https://github.com/neko233-com/jumpserver233/actions/runs/40338533455) passed **73/73**. Skipped backend jobs reuse passing evidence against identical Go sources; they are not new passes.
+- Local Go: 2249 passed, 137 skipped. Repaired package/browser cases passed three consecutive runs. macOS deployment: 34/34, zero skips. Content, vet, lint and builds passed, retaining five existing lint warnings. Initial JS: 498349 bytes, gzip 160815; total JS 1651195. Budgets remain unchanged.
+- Dedicated deployment lock commit `cacaa0f`, root `Jenkinsfile_mac_single`; [BuildWorld 1127 / #11](http://192.168.110.42:8080/builds/1127) submitted and activated once, **6/6 stages in 83.35 seconds**. The subsequent ordered restart verifies retention.
+- root/root login worked across upgrade/restart. Real Web/native SSH returned Linux/root; Web command audit and asciinema replay contain this batch's markers. Native SFTP transferred 65280 bytes and browser upload/actual download 8640 bytes, with byte/SHA-256 equality. Owned remote files were removed and checked again; repeated Web deletion returned 204 then 404.
+- Three real monitoring samples passed. The original asset, 25 old session audits, Vault key, saved credentials and target/entry host fingerprints survived. Retention restart preserved 26 audits; final count is 29. Acceptance audit records remain.
+- The original 10476522-byte operational-log prefix matches SHA-256 and remains archived intact. The current file is below 10 MiB with 3/5 archives. Real manual rotation and request replay passed; permissions are 0700/0600 and launchd duplication is disabled. Date/14-day expiry uses clock-controlled cases; this is not a 14-day soak or native XTerminal UI automation. HTTP authentication sessions require sign-in after restart; accounts and business data survive.
+- Owned temporary services, files, archive copies, containers/volumes and QA caches were cleaned. The old v0.4.0 download cache was removed. Keep the current verified cache, previous installed release, two stopped-data snapshots and compact reports, with only two essential screenshots. Evidence: `.cache/qa-reports/runtime-logs-20261026/`.
+
+Access: [HTTP workspace](http://192.168.110.42:8180/), SSH/SFTP 2222 on the same intranet host. Logs: Settings → Security → Runtime logs.

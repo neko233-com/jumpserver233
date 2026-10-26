@@ -2,15 +2,15 @@
 
 > [中文](./README.md) | English
 
-2026-10-26 [runtime logs and convenient operations](./RUNTIME-LOGS.en.md): six separate gates, authored before unified verification and one upgrade. Automatic rotation, admin status and private-IP HTTP request IDs are authored; acceptance is pending.
+2026-10-26 [runtime logs and convenient operations](./RUNTIME-LOGS.en.md) is live in v0.5.0 after one upgrade: this batch **6/6 implemented and accepted**, complete frontend repair 73/73, backend/race/integrations/Docker passed. [BuildWorld #11 / 1127](http://192.168.110.42:8080/builds/1127) passed 6/6 stages in 83.35 seconds. Real login, Web/native SSH, files, monitoring, legacy logs and business data retention passed; owned QA resources were cleaned. The mini checklist remains 12/12.
 
-[Native SSH/SFTP batch](./NATIVE-SSH.en.md): embedded 2222, platform identity, search and selection, terminal relay and file transfer with shared authorization, approval and audit. Authored; unified verification and one official publication remain. Preserve the accepted v0.2.2 baseline.
+[Native SSH/SFTP entry](./NATIVE-SSH.en.md): embedded 2222, platform identity, host search/selection, terminal relay, file transfer, shared authority, review and audit are shipped. See [current delivery](./RUNTIME-LOGS.en.md) for v0.5.0 acceptance.
 
 [Mini release acceptance](./MINI-ACCEPTANCE.en.md): 12/12 accepted, verified source, results, reports and limits. The Enterprise entries below retain historical design notes; their old 42-group gate is superseded.
 
 [Current product scope](./PRODUCT-SCOPE.en.md): a standalone mini SSH bastion for small and medium businesses, with few dependencies, usability, security and efficiency. Finish S01–S12. Enterprise entries below describe existing work/historical research rather than automatic requirements; the user's correction supersedes the former 42-group gate.
 
-[Project UI skill and design direction](./UI-DESIGN.en.md): project-local oil-ui, pinned provenance, compact operational navigation and bilingual/narrow-screen cases; awaiting unified verification.
+[Project UI skill and design direction](./UI-DESIGN.en.md): pinned project-local oil-ui, compact operational navigation and bilingual/narrow-screen cases. The Web redesign and current maintenance are accepted; see [progress](./PROGRESS.en.md).
 
 This batch's unverified PDF/email reports, report scheduling and permanent statistics warehouse have been withdrawn. Preserve existing statistics/CSV without adding mini runtime/maintenance burden. Retain [encrypted job/operation history](./EXECUTION-HISTORY.en.md), with standalone upgrade preflight and backup/recovery coverage.
 

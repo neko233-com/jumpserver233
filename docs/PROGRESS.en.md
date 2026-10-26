@@ -2,7 +2,7 @@
 
 > [中文](./PROGRESS.md) | English
 
-2026-10-26 [runtime logs and convenient operations](./RUNTIME-LOGS.en.md): six separate gates, authored before unified verification and one upgrade. Automatic rotation, admin status and private-IP HTTP request IDs are authored; acceptance is pending.
+2026-10-26 [runtime logs and convenient operations](./RUNTIME-LOGS.en.md) is live in v0.5.0 after one upgrade: this batch **6/6 implemented and accepted**, complete frontend repair 73/73, backend/race/integrations/Docker passed. [BuildWorld #11 / 1127](http://192.168.110.42:8080/builds/1127) passed 6/6 stages in 83.35 seconds. Real login, Web/native SSH, files, monitoring, legacy logs and business data retention passed; owned QA resources were cleaned. The mini checklist remains 12/12.
 
 2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md) is live in v0.4.0: implemented and accepted 10/10, zero remaining gates. Full CI passed 6/6 and production browser regression 72/72. BuildWorld [1078 / #10](http://192.168.110.42:8080/builds/1078) activated once; login, real Web/native SSH, file round trips, monitoring and original data retention passed. The dedicated `poke-game/deploy-jumpserver233` repository uses `Jenkinsfile_mac_single` and closes connections gracefully during upgrades. Historical acceptance follows.
 
