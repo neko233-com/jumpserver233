@@ -152,3 +152,17 @@ func TestRuntimeLogsInvalidOptionsAndClosedWriter(t *testing.T) {
 	_, err = w.Write([]byte("closed"))
 	require.ErrorIs(t, err, os.ErrClosed)
 }
+
+func TestRuntimeLogsCrashOutputRebindsAcrossRotation(t *testing.T) {
+	w := openTest(t, t.TempDir())
+	require.NoError(t, w.CaptureCrashes())
+	for i := 0; i < 4; i++ {
+		_, err := w.Write([]byte(strings.Repeat("a", 90)))
+		require.NoError(t, err)
+	}
+	s := w.Snapshot()
+	require.Equal(t, 3, s.Backups)
+	_, err := w.Rotate(Input{s.Instance, s.Revision, "crash-rebind-request"})
+	require.NoError(t, err)
+	require.Empty(t, w.Snapshot().ErrorCode)
+}

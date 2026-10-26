@@ -242,6 +242,13 @@ func (w *Writer) rotate() error {
 	if err := w.file.Sync(); err != nil {
 		return err
 	}
+	// Windows cannot rename a file while the runtime's duplicate handle remains
+	// open. Release it before moving the file, then rebind in openCurrent.
+	if w.captureCrashes {
+		if err := debug.SetCrashOutput(nil, debug.CrashOptions{}); err != nil {
+			return err
+		}
+	}
 	if err := w.file.Close(); err != nil {
 		return err
 	}
