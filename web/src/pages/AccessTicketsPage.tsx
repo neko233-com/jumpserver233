@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
@@ -382,7 +383,7 @@ export default function AccessTicketsPage() {
         start: "",
         end: localTime(new Date(Date.now() + 3600_000).toISOString()),
         selected: {},
-        requestID: crypto.randomUUID(),
+        requestID: newRequestID(),
       });
     });
   const openPolicy = (p?: Policy) =>
@@ -583,7 +584,7 @@ export default function AccessTicketsPage() {
                                 ).toISOString(),
                               ),
                               selected: {},
-                              requestID: crypto.randomUUID(),
+                              requestID: newRequestID(),
                             });
                           })
                         }
@@ -735,7 +736,7 @@ export default function AccessTicketsPage() {
                   disabled={busy}
                   onClick={() => {
                     setComment("");
-                    setConfirm({ action, ticket: detail, requestID: crypto.randomUUID() });
+                    setConfirm({ action, ticket: detail, requestID: newRequestID() });
                   }}
                 >
                   {t(`tickets.${action}`)}
@@ -759,7 +760,7 @@ export default function AccessTicketsPage() {
                       start: localTime(detail.starts_at),
                       end: localTime(detail.ends_at),
                       selected: Object.fromEntries(detail.targets.map((v) => [key(v), v])),
-                      requestID: crypto.randomUUID(),
+                      requestID: newRequestID(),
                     });
                   })
                 }

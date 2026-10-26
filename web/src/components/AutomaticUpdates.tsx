@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -105,7 +106,7 @@ export default function AutomaticUpdates() {
     e.preventDefault();
     if (!form || !state) return;
     pending.current ||= {
-      request_id: crypto.randomUUID(),
+      request_id: newRequestID(),
       policy: { ...form, revision: state.policy.revision },
     };
     setBusy(true);

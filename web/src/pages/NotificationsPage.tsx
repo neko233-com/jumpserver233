@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -598,7 +599,7 @@ export default function NotificationsPage({ platform = false }: { platform?: boo
               onClick={() =>
                 void act(async () => {
                   if (dirty) await savePrefs();
-                  await request("test", "POST", { request_id: crypto.randomUUID() });
+                  await request("test", "POST", { request_id: newRequestID() });
                 })
               }
             >
@@ -697,7 +698,7 @@ export default function NotificationsPage({ platform = false }: { platform?: boo
               const payload = { ...settings, ...fields };
               const body = JSON.stringify(payload);
               if (settingsOperation.current?.body !== body)
-                settingsOperation.current = { body, id: crypto.randomUUID() };
+                settingsOperation.current = { body, id: newRequestID() };
               setSettings(
                 await request<Settings>("settings", "PUT", {
                   ...payload,

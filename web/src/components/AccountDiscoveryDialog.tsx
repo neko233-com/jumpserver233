@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toggleLang } from "../i18n";
@@ -166,7 +167,7 @@ export default function AccountDiscoveryDialog({
   async function collect() {
     setBusy(true);
     setFailed(false);
-    if (!requestID.current) requestID.current = crypto.randomUUID();
+    if (!requestID.current) requestID.current = newRequestID();
     try {
       const r = await request(`${base}/account-discovery/jobs`, {
         method: "POST",

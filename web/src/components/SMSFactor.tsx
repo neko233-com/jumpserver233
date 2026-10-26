@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { loginChallengeRedirect } from "../auth/passwordRedirect";
@@ -72,7 +73,7 @@ export default function SMSFactor({
       else {
         const body = action === "bind" ? phone : "";
         if (requestID.current?.action !== action || requestID.current?.body !== body)
-          requestID.current = { action, body, id: crypto.randomUUID() };
+          requestID.current = { action, body, id: newRequestID() };
         data = { request_id: requestID.current.id, ...(action === "bind" ? { phone } : {}) };
       }
       const { response, result } = await request(action, data);

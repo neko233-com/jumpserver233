@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -225,7 +226,7 @@ export default function AccountRisksPage() {
     setMessage(null);
     const input = pendingRequest.current || {
       revision: policy.revision,
-      request_id: crypto.randomUUID(),
+      request_id: newRequestID(),
     };
     pendingRequest.current = input;
     setLastRequest(input.request_id);

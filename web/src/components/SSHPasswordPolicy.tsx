@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -73,7 +74,7 @@ export default function SSHPasswordPolicy({ view, manage }: { view: boolean; man
     const input =
       pending.current?.policy && JSON.stringify(pending.current.policy) === JSON.stringify(draft)
         ? pending.current
-        : { request_id: crypto.randomUUID(), policy: draft };
+        : { request_id: newRequestID(), policy: draft };
     pending.current = input;
     try {
       const result = await request({ method: "PUT", body: JSON.stringify(input) });

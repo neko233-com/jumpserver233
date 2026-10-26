@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -101,10 +102,10 @@ export default function InstallationSchedule() {
       pending.current = {
         cancel,
         body: cancel
-          ? { revision: status.revision, request_id: crypto.randomUUID(), plan_id: status.plan?.id }
+          ? { revision: status.revision, request_id: newRequestID(), plan_id: status.plan?.id }
           : {
               revision: status.revision,
-              request_id: crypto.randomUUID(),
+              request_id: newRequestID(),
               installation_revision: status.installation_revision,
               archive_sha256: sha,
               not_before: new Date(when).toISOString(),

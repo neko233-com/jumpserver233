@@ -2,6 +2,8 @@
 
 > [中文](./PROGRESS.md) | English
 
+2026-10-26 [runtime logs and convenient operations](./RUNTIME-LOGS.en.md): six separate gates, authored before unified verification and one upgrade. Automatic rotation, admin status and private-IP HTTP request IDs are authored; acceptance is pending.
+
 2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md) is live in v0.4.0: implemented and accepted 10/10, zero remaining gates. Full CI passed 6/6 and production browser regression 72/72. BuildWorld [1078 / #10](http://192.168.110.42:8080/builds/1078) activated once; login, real Web/native SSH, file round trips, monitoring and original data retention passed. The dedicated `poke-game/deploy-jumpserver233` repository uses `Jenkinsfile_mac_single` and closes connections gracefully during upgrades. Historical acceptance follows.
 
 v0.3.2's [SSH table workbench](./NATIVE-SSH.en.md) is published and upgraded once: **implemented 6/6, accepted 6/6 (100%), zero items remaining in this batch**. Contrast, keyboard/search, asynchronous feedback, responsive dimensions, bilingual/paste behavior and authority/audit regression passed. Full CI passed six jobs, production browser 70/70, and BuildWorld #9 (1041) six stages. Default login, real SSH/SFTP, 55,296-byte file round trips and three monitoring samples passed both before and after restart. The original asset, 14 pre-upgrade and 16 pre-restart audit IDs, Vault key, credentials and host fingerprint survived. Acceptance used actual Go frames, protocols and the in-app browser; no native XTerminal UI automation. The fixed mini checklist remains 12/12; historical entry acceptance stays separate at 8/8.

@@ -2,6 +2,8 @@
 
 > [中文](./README.md) | English
 
+2026-10-26 [runtime logs and convenient operations](./RUNTIME-LOGS.en.md): six separate gates, authored before unified verification and one upgrade. Automatic rotation, admin status and private-IP HTTP request IDs are authored; acceptance is pending.
+
 [Native SSH/SFTP batch](./NATIVE-SSH.en.md): embedded 2222, platform identity, search and selection, terminal relay and file transfer with shared authorization, approval and audit. Authored; unified verification and one official publication remain. Preserve the accepted v0.2.2 baseline.
 
 [Mini release acceptance](./MINI-ACCEPTANCE.en.md): 12/12 accepted, verified source, results, reports and limits. The Enterprise entries below retain historical design notes; their old 42-group gate is superseded.

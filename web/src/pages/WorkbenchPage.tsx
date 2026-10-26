@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
@@ -163,7 +164,7 @@ export default function WorkbenchPage() {
     setBusy(true);
     setError(false);
     setReviewPending(false);
-    if (!requestID.current) requestID.current = crypto.randomUUID();
+    if (!requestID.current) requestID.current = newRequestID();
     try {
       const response = await request("/api/v1/ops/jobs", {
         method: "POST",

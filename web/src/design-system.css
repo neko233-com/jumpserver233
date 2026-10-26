@@ -1964,3 +1964,7 @@ svg {
     padding: 0;
   }
 }
+/* Operational log status shares the settings page's compact visual language. */
+.runtime-log-summary { display: flex; flex-wrap: wrap; gap: 1rem 2.5rem; margin: .25rem 0; }
+.runtime-log-summary dt { color: var(--muted); font-size: .82rem; }
+.runtime-log-summary dd { margin: .3rem 0 0; font-size: 1.3rem; font-variant-numeric: tabular-nums; }

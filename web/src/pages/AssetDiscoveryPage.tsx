@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import {
   useCallback,
   useEffect,
@@ -168,7 +169,7 @@ const fresh = (): Draft => ({
   session_token: "",
   replace_cloud_credential: false,
   revision: 0,
-  request_id: crypto.randomUUID(),
+  request_id: newRequestID(),
   name: "",
   description: "",
   enabled: true,
@@ -383,7 +384,7 @@ export default function AssetDiscoveryPage() {
         ? {
             ...fresh(),
             ...source,
-            request_id: crypto.randomUUID(),
+            request_id: newRequestID(),
             template: { ...source.template },
           }
         : fresh(),
@@ -401,7 +402,7 @@ export default function AssetDiscoveryPage() {
         ? {
             ...policy,
             source_revision: source.revision,
-            request_id: crypto.randomUUID(),
+            request_id: newRequestID(),
             migrate_cloud_ssh_address:
               source.provider !== "lan" &&
               source.template.protocol === "ssh" &&
@@ -411,7 +412,7 @@ export default function AssetDiscoveryPage() {
             revision: 0,
             source_id: source.id,
             source_revision: source.revision,
-            request_id: crypto.randomUUID(),
+            request_id: newRequestID(),
             name: "",
             enabled: true,
             name_prefix: "",
@@ -525,7 +526,7 @@ export default function AssetDiscoveryPage() {
       policy = policies.find((p) => p.id === policyID);
     if (!source) return;
     const key = `${source.id}:${source.revision}:${policy?.id}:${policy?.revision}`;
-    if (runRequest.current?.key !== key) runRequest.current = { key, value: crypto.randomUUID() };
+    if (runRequest.current?.key !== key) runRequest.current = { key, value: newRequestID() };
     await mutate(async () => {
       await json<Run>(`${root}/runs`, {
         method: "POST",
@@ -563,7 +564,7 @@ export default function AssetDiscoveryPage() {
             })),
         }),
       });
-      importRequest.current = crypto.randomUUID();
+      importRequest.current = newRequestID();
       setPreviewExpired(false);
       setPreview(result);
       setConfirmTrust(false);

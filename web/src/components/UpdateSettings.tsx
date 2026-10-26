@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import "../i18n/locales/features/updates/register";
 import "./update-settings.css";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -129,7 +130,7 @@ export default function UpdateSettings() {
   }
   function check() {
     if (!status) return;
-    request.current ||= crypto.randomUUID();
+    request.current ||= newRequestID();
     void change("POST", { revision: status.settings.revision, request_id: request.current });
   }
   const date = (value: string) =>

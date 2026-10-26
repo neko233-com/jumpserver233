@@ -32,7 +32,12 @@ type Config struct {
 	// ShutdownTimeout bounds graceful shutdown.
 	ShutdownTimeout time.Duration
 	// DataDir contains the encrypted standalone inventory and vault key.
-	DataDir string
+	DataDir    string
+	LogDir     string
+	LogMaxMB   int
+	LogBackups int
+	LogDays    int
+	LogConsole bool
 	// WebDir optionally serves a production frontend on the API listener.
 	WebDir      string
 	ReleaseRoot string
@@ -111,6 +116,32 @@ func FromEnv() (*Config, error) {
 	if cfg.DataDir == "" {
 		return nil, fmt.Errorf("JMS_DATA_DIR must not be empty")
 	}
+	cfg.LogDir = getEnv("JMS_LOG_DIR", filepath.Join(cfg.DataDir, "logs"))
+	if cfg.LogDir == "" {
+		return nil, fmt.Errorf("JMS_LOG_DIR must be a directory or - for console only")
+	}
+	for _, option := range []struct {
+		name              string
+		target            *int
+		fallback, maximum int
+	}{
+		{"JMS_LOG_MAX_MB", &cfg.LogMaxMB, 10, 100},
+		{"JMS_LOG_BACKUPS", &cfg.LogBackups, 5, 30},
+		{"JMS_LOG_DAYS", &cfg.LogDays, 14, 365},
+	} {
+		value, e := strconv.Atoi(getEnv(option.name, strconv.Itoa(option.fallback)))
+		if e != nil || value < 1 || value > option.maximum {
+			return nil, fmt.Errorf("%s must be between 1 and %d", option.name, option.maximum)
+		}
+		*option.target = value
+	}
+	cfg.LogConsole, err = parseBoolEnv("JMS_LOG_CONSOLE", true)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.LogDir == "-" && !cfg.LogConsole {
+		return nil, fmt.Errorf("console-only logs require JMS_LOG_CONSOLE=true")
+	}
 	if interval := getEnv("JMS_MONITOR_INTERVAL", ""); interval != "" {
 		parsed, err := time.ParseDuration(interval)
 		if err != nil || parsed < 15*time.Second {
@@ -132,6 +163,9 @@ func FromEnv() (*Config, error) {
 		return nil, err
 	}
 	cfg.ClusterMode = clusterMode
+	if clusterMode && os.Getenv("JMS_LOG_DIR") == "" {
+		cfg.LogDir = "-"
+	}
 	if cfg.ReleaseRoot != "" && (!filepath.IsAbs(cfg.ReleaseRoot) || cfg.ClusterMode) {
 		return nil, fmt.Errorf("JMS_RELEASE_ROOT requires an absolute standalone managed release root")
 	}

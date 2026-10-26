@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import {
   lazy,
   Suspense,
@@ -665,7 +666,7 @@ export default function AssetInventoryPage() {
             cancel
               ? { operation_id: pending?.operation_id }
               : {
-                  request_id: pending?.pending ? pending.request_id : crypto.randomUUID(),
+                  request_id: pending?.pending ? pending.request_id : newRequestID(),
                   expected_revision: pending?.pending
                     ? pending.expected_revision
                     : asset.credential_revision,

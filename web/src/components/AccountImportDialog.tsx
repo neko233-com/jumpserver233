@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toggleLang } from "../i18n";
@@ -187,7 +188,7 @@ export default function AccountImportDialog({
       setError("file_size");
       return;
     }
-    const id = crypto.randomUUID(),
+    const id = newRequestID(),
       r = new FileReader();
     reader.current = r;
     setBusy(true);

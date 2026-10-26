@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "../i18n/locales/features/operations/register";
@@ -195,7 +196,7 @@ export default function HostPluginsDialog({
         : {
             plugin,
             action,
-            request_id: crypto.randomUUID(),
+            request_id: newRequestID(),
             ...(protection ? { protection } : {}),
           };
     pending.current = plan;

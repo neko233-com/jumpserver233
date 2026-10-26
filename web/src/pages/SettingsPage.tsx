@@ -7,6 +7,7 @@ import Icon from "../components/ui/Icon";
 const PasswordSecuritySettings = lazy(() => import("../components/PasswordSecuritySettings"));
 const SessionSecuritySettings = lazy(() => import("../components/SessionSecuritySettings"));
 const UpdateSettings = lazy(() => import("../components/UpdateSettings"));
+const RuntimeLogs = lazy(() => import("../components/RuntimeLogs"));
 
 type User = { id: string; username: string; role: "admin" | "operator"; created_at: string };
 type MFAEnforcementMode = "disabled" | "admins" | "all";
@@ -887,6 +888,7 @@ export default function SettingsPage() {
                 <SessionSecuritySettings />
                 <PasswordSecuritySettings />
                 <UpdateSettings />
+                <RuntimeLogs />
               </Suspense>
               <form
                 className="settings-card settings-form"

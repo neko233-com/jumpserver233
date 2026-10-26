@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -80,7 +81,7 @@ export default function ServiceMaintenance({ onChanged }: { onChanged?: () => vo
       pending.current = {
         instance: status.instance,
         revision: status.revision,
-        request_id: crypto.randomUUID(),
+        request_id: newRequestID(),
         draining,
       };
     try {

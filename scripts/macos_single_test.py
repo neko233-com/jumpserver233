@@ -147,6 +147,10 @@ class DeploymentTests(unittest.TestCase):
         plist = plistlib.loads((self.launch / (ci.LABEL + '.plist')).read_bytes())
         self.assertEqual(str(self.root / 'data'), plist['EnvironmentVariables']['JMS_DATA_DIR'])
         self.assertEqual('0.0.0.0:8180', plist['EnvironmentVariables']['JMS_ADDR'])
+        self.assertEqual(str(self.root / 'logs'), plist['EnvironmentVariables']['JMS_LOG_DIR'])
+        self.assertEqual('false', plist['EnvironmentVariables']['JMS_LOG_CONSOLE'])
+        self.assertEqual('/dev/null', plist['StandardOutPath'])
+        self.assertEqual('/dev/null', plist['StandardErrorPath'])
 
     def test_failed_upgrade_restores_previous_binary_data_and_health(self):
         try:

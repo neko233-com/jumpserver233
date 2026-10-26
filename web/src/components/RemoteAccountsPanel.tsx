@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePermissions } from "../auth/usePermissions";
@@ -173,7 +174,7 @@ export default function RemoteAccountsPanel({
       )
         throw new RemoteError("uid");
       const key = JSON.stringify([assetId, collectorId, action, username, resolvedUID, shell]);
-      if (intent.current.key !== key) intent.current = { key, id: crypto.randomUUID() };
+      if (intent.current.key !== key) intent.current = { key, id: newRequestID() };
       await post(base, {
         action,
         username,

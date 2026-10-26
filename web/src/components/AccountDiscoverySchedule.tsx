@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import "../i18n/locales/features/operations/register";
@@ -109,7 +110,7 @@ export default function AccountDiscoverySchedule({
     if (!Number.isInteger(interval) || interval < 60 || interval > 86400) return;
     setBusy(true);
     setError("");
-    if (!requestID.current) requestID.current = crypto.randomUUID();
+    if (!requestID.current) requestID.current = newRequestID();
     try {
       const response = await request(
         editing

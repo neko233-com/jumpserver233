@@ -54,9 +54,11 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/updates"
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
+	"github.com/neko233-com/jumpserver233/server/internal/runtimelog"
 )
 
 type Dependencies struct {
+	RuntimeLogs           *runtimelog.Writer
 	Assistant             *assistant.Service
 	EnterpriseLogin       *enterpriselogin.Service
 	DirectorySync         *directorysync.Store
@@ -154,6 +156,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		registerUpdateRoutes(mux, dependencies[0])
 		registerInstallationScheduleRoutes(mux, dependencies[0])
 		registerMaintenanceRoutes(mux, dependencies[0])
+		registerRuntimeLogRoutes(mux, dependencies[0])
 		registerBrandingRoutes(mux, dependencies[0])
 		registerAnnouncementRoutes(mux, dependencies[0])
 	} else {

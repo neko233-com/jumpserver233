@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -74,7 +75,7 @@ export default function SMSMFASettingsPage() {
         user_ids: config.policy === "selected" ? users.split(/\s+/).filter(Boolean) : [],
       };
       const raw = JSON.stringify(body);
-      if (pending.current?.body !== raw) pending.current = { body: raw, id: crypto.randomUUID() };
+      if (pending.current?.body !== raw) pending.current = { body: raw, id: newRequestID() };
       const result = await request<Config>("", {
         method: "PUT",
         body: JSON.stringify({ ...body, request_id: pending.current.id }),

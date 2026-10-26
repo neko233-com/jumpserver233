@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"github.com/neko233-com/jumpserver233/server/internal/nativeaccess"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -71,6 +72,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/desktop"
 	"github.com/neko233-com/jumpserver233/server/internal/gateway"
 	"github.com/neko233-com/jumpserver233/server/internal/maintenance"
+	"github.com/neko233-com/jumpserver233/server/internal/runtimelog"
 	"github.com/neko233-com/jumpserver233/server/internal/storage"
 	"github.com/neko233-com/jumpserver233/server/internal/webui"
 	"github.com/neko233-com/jumpserver233/server/internal/workgate"
@@ -113,7 +115,7 @@ func main() {
 	}
 }
 
-func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error {
+func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) (runErr error) {
 	ctx, stopService := context.WithCancel(ctx)
 	defer stopService()
 	admission := workgate.New()
@@ -151,6 +153,34 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 		if err = maintenance.Recover(ctx, cfg.DataDir); err != nil {
 			return err
 		}
+	}
+	var runtimeLogs *runtimelog.Writer
+	if !cfg.CheckData && cfg.LogDir != "" && cfg.LogDir != "-" {
+		logLock, err := maintenance.Acquire(cfg.LogDir)
+		if err != nil {
+			return err
+		}
+		defer logLock.Close()
+		runtimeLogs, err = runtimelog.Open(runtimelog.Options{Dir: logLock.DataDir, MaxBytes: int64(cfg.LogMaxMB) * 1024 * 1024, Backups: cfg.LogBackups, Days: cfg.LogDays})
+		if err != nil {
+			return err
+		}
+		defer runtimeLogs.Close()
+		if err = runtimeLogs.CaptureCrashes(); err != nil {
+			return err
+		}
+		previousLogger := slog.Default()
+		defer slog.SetDefault(previousLogger)
+		var output io.Writer = runtimeLogs
+		if cfg.LogConsole {
+			output = io.MultiWriter(runtimeLogs, os.Stderr)
+		}
+		slog.SetDefault(slog.New(slog.NewTextHandler(output, &slog.HandlerOptions{Level: slog.LevelInfo})))
+		defer func() {
+			if runErr != nil && !errors.Is(runErr, context.Canceled) {
+				slog.Error("server stopped", "err", runErr)
+			}
+		}()
 	}
 	if err := maintenance.RecordMode(cfg.DataDir, cfg.ClusterMode); err != nil {
 		return err
@@ -443,6 +473,7 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) error
 	}
 	root := api.Dependencies{AgentEvents: agentEvents, HostPlugins: pluginService, Desktops: desktopBroker, LoginReviews: loginReviewStore, AccessPolicies: policyStore, TrustedProxies: cfg.TrustedProxies, Assets: assetService, AccessReviews: accessReviewStore, Auth: identityService, Grants: grantStore, CommandFilters: commandFilterStore, Groups: groupStore, Nodes: nodeStore, Sessions: sessionBroker, Files: fileService, SFTPSessions: sftpSessions, Jobs: jobService, Operations: operationService, RBAC: roleStore, OIDC: oidcService, LDAP: ldapService, CAS: casService, SAML: samlService, Passkeys: passkeyService, RADIUS: radiusService, PublicURL: cfg.PublicURL, AdminToken: cfg.AdminToken}
 	root.AccessMu = &sync.RWMutex{}
+	root.RuntimeLogs = runtimeLogs
 	root.IdentitySources, err = identitysources.Open(filepath.Join(cfg.DataDir, "identity-sources.json"), vaultKey, documents, cfg.PublicURL, identityService)
 	if err != nil {
 		return err

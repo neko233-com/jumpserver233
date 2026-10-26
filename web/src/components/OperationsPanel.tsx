@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import {
   lazy,
   Suspense,
@@ -255,7 +256,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
     event.preventDefault();
     setBusy(true);
     setError(false);
-    if (!requestID.current) requestID.current = crypto.randomUUID();
+    if (!requestID.current) requestID.current = newRequestID();
     try {
       const body = {
         name,
@@ -327,7 +328,7 @@ export default function OperationsPanel({ assets, request, onJob }: Props) {
     try {
       const response = await request(`/api/v1/ops/plans/${encodeURIComponent(plan.id)}/runs`, {
         method: "POST",
-        body: JSON.stringify({ request_id: crypto.randomUUID() }),
+        body: JSON.stringify({ request_id: newRequestID() }),
       });
       if (!response.ok) throw Error();
       await load();

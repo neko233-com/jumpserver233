@@ -170,7 +170,7 @@ def runtime_config(root):
         write_private(path, json.dumps({'JMS_ADMIN_TOKEN': secrets.token_urlsafe(48)}).encode())
     path.chmod(0o600)
     config = json.loads(path.read_text(encoding='utf-8'))
-    allowed = {'JMS_ADMIN_TOKEN', 'JMS_PUBLIC_URL', 'JMS_TRUSTED_PROXIES', 'JMS_MONITOR_INTERVAL', 'JMS_DEFAULT_ADMIN_ENABLED', 'JMS_SSH_ADDR'}
+    allowed = {'JMS_ADMIN_TOKEN', 'JMS_PUBLIC_URL', 'JMS_TRUSTED_PROXIES', 'JMS_MONITOR_INTERVAL', 'JMS_DEFAULT_ADMIN_ENABLED', 'JMS_SSH_ADDR', 'JMS_LOG_MAX_MB', 'JMS_LOG_BACKUPS', 'JMS_LOG_DAYS'}
     if not isinstance(config, dict) or set(config) - allowed or not all(isinstance(v, str) for v in config.values()):
         raise RuntimeError('Unsupported runtime configuration fields')
     if len(config.get('JMS_ADMIN_TOKEN', '')) < 32:
@@ -305,7 +305,8 @@ def activate(staging, root, port, manifest, launch_dir=None):
             raise RuntimeError('Changing an existing deployment port requires explicit service migration')
     old_pids = assert_owned_listener(port, previous)
     env = {**config, 'JMS_ADDR': '0.0.0.0:' + str(port), 'JMS_DATA_DIR': str(root / 'data'),
-           'JMS_WEB_DIR': str(current / 'web'), 'JMS_VERSION': manifest['version']}
+           'JMS_WEB_DIR': str(current / 'web'), 'JMS_VERSION': manifest['version'],
+           'JMS_LOG_DIR': str(root / 'logs'), 'JMS_LOG_CONSOLE': 'false'}
     # Same immutable artifact + healthy process is a no-op: preserve PID, data and keys.
     if previous and old_plist and old.get('EnvironmentVariables') == env and (previous / 'manifest.json').read_bytes() == (staging / 'manifest.json').read_bytes():
         try:
@@ -334,7 +335,7 @@ def activate(staging, root, port, manifest, launch_dir=None):
                'EnvironmentVariables': env, 'WorkingDirectory': str(root),
                'LimitLoadToSessionType': 'Background', 'RunAtLoad': True,
                'KeepAlive': {'SuccessfulExit': False}, 'ThrottleInterval': 10, 'ExitTimeOut': 30,
-               'StandardOutPath': str(root / 'logs/server.log'), 'StandardErrorPath': str(root / 'logs/server.log')}
+               'StandardOutPath': '/dev/null', 'StandardErrorPath': '/dev/null'}
     command('/bin/launchctl', 'bootout', target, check=False)
     wait_stopped(port, old_pids)
     # Snapshot only after the old writer exits. Never mix old/new document writers.

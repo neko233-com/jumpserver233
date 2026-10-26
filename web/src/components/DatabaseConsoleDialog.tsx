@@ -1,3 +1,4 @@
+import { requestID as newRequestID } from "../utils/requestID";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {BrandMark} from "../branding/BrandingContext";
@@ -305,7 +306,7 @@ export default function DatabaseConsoleDialog({
           read_only: readOnly,
           row_limit: rowLimit,
           timeout_seconds: timeout,
-          request_id: crypto.randomUUID(),
+          request_id: newRequestID(),
         }),
       });
       if (!r.ok) throw new Error();
