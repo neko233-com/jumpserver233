@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/neko233-com/jumpserver233/compare/v0.4.0...v0.5.0) (2026-10-26)
+
+
+### Features
+
+* add bounded runtime logs and reliable private HTTP operations ([e58ec08](https://github.com/neko233-com/jumpserver233/commit/e58ec085971fbfcae3f6fc603c822f9c4f7fcf01))
+
+
+### Bug Fixes
+
+* keep role permissions within narrow layouts [skip ci] ([8efd03f](https://github.com/neko233-com/jumpserver233/commit/8efd03fa9469cc3f655c2e05ea60c324f3725c14))
+* release Windows crash log handles before rotation ([90739c0](https://github.com/neko233-com/jumpserver233/commit/90739c0b74212a1a20b4f738ef2b6b7a687ccef3))
+
 ## [0.4.0](https://github.com/neko233-com/jumpserver233/compare/v0.3.2...v0.4.0) (2026-10-23)
 
 
