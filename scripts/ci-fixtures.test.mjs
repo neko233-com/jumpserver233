@@ -47,10 +47,12 @@ test('all shards are mandatory, bounded, and clean only owned fixture records', 
   assert.match(ci, /go test -count=3 -timeout 20m -p 1 \.\/internal\/core\/operations \.\/internal\/api/);
 });
 
-test('native browser repair is explicit and cannot narrow ordinary CI', () => {
+test('frontend repair runs the complete browser suite and cannot narrow ordinary CI', () => {
  const ci=readFileSync(new URL('../.github/workflows/ci.yml',import.meta.url),'utf8').replaceAll('\r\n','\n');
  assert.match(ci,/frontend_only:\n\s+type: boolean\n\s+default: false/);
- assert.match(ci,/JMS_E2E_NATIVE_AUDIT_ONLY: \$\{\{ github.event_name == 'workflow_dispatch' && inputs.frontend_only && 'true' \|\| 'false' \}\}/);
+ assert.match(ci,/JMS_E2E_NATIVE_AUDIT_ONLY: "false"/);
+ assert.match(ci,/run: pnpm test:e2e:production/);
+ assert.doesNotMatch(ci,/JMS_E2E_NATIVE_AUDIT_ONLY:.*inputs\.frontend_only/);
  const config=readFileSync(new URL('../web/playwright.config.ts',import.meta.url),'utf8');
  assert.match(config,/JMS_E2E_NATIVE_AUDIT_ONLY === "true"\s*\?\s*\/renders native SFTP rename audit\/\s*:\s*undefined/);
 });

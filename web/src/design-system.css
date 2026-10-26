@@ -543,8 +543,17 @@ svg {
   font-variant-numeric: tabular-nums;
 }
 .layout .rbac-form fieldset {
+  min-width: 0;
   border-color: var(--ui-line);
   border-radius: 7px;
+}
+.layout .rbac-check,
+.layout .rbac-check > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.layout .rbac-check > input {
+  flex-shrink: 0;
 }
 .layout .rbac-form legend {
   color: var(--ui-muted);

@@ -42,4 +42,11 @@ test("runtime logs rotate and replay safely without secure-context randomUUID", 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(section.getByRole("button", { name: "Refresh status", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // Permission codes must wrap inside fieldsets on the same narrow layouts.
+  await page.goto("/console/roles");
+  await expect(page.locator(".rbac-check small").first()).toBeVisible();
+  for (const width of [375, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+  }
 });

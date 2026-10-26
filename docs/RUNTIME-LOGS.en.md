@@ -40,3 +40,5 @@ Global-admin endpoints are `GET /api/v1/settings/security/runtime-logs` and `POS
 Operation buttons use `crypto.getRandomValues` to generate UUID v4 request IDs on private HTTP origins. They do not use Math.random or weaken credentials/review enforcement. SSH, file and approval contracts remain intact.
 
 Evidence belongs in ignored `.cache/qa-reports/`. Actual CI, BuildWorld, retention, rotation and cleanup results will be recorded after publication.
+
+Unified CI found long permission codes expanding the roles page at 375px. Fieldset shrinking, permission wrapping and narrow-screen cases address it. For a frontend-only repair, the manual `frontend_only` CI entry still runs the entire production browser suite. Unchanged backend, race, integrations and Docker reuse their passed source evidence; skipped jobs are not counted as passes.

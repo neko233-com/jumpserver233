@@ -40,3 +40,5 @@ Go 服务自行写入 `JMS_DATA_DIR/logs/server.log`，不依赖系统 `logrotat
 运维按钮统一使用 `crypto.getRandomValues` 生成 UUID v4 请求标识，兼容内网 HTTP；不使用 `Math.random`，不降低凭据与审批校验。SSH、文件和审批接口契约保持原样。
 
 证据放在忽略的 `.cache/qa-reports/`，发布后补充实际 CI、BuildWorld、保数、日志轮转和清理结果。
+
+统一 CI 发现角色管理页的长权限代码撑开 375px 布局，已补充 fieldset 收缩、权限文本换行和窄屏用例。仅有前端修复时，CI 的 `frontend_only` 手动入口现在仍运行完整生产浏览器套件；后端、race、集成与 Docker 复用源码未变化的已通过结果，不把跳过项算通过。

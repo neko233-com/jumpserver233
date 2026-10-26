@@ -23,7 +23,7 @@ on:
       frontend_only:
         type: boolean
         default: false
-        description: Repair native SFTP browser audit against the unchanged full-suite baseline
+        description: Rerun the complete frontend after a UI-only repair, reusing unchanged backend evidence
 
 permissions:
   contents: read
@@ -255,7 +255,7 @@ jobs:
       - name: Production browser end-to-end tests (includes build)
         working-directory: web
         env:
-          JMS_E2E_NATIVE_AUDIT_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.frontend_only && 'true' || 'false' }}
+          JMS_E2E_NATIVE_AUDIT_ONLY: "false"
         run: pnpm test:e2e:production
       - name: Retain compact browser reports
         if: always()
