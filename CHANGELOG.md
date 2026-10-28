@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/neko233-com/jumpserver233/compare/v0.5.0...v0.6.0) (2026-10-28)
+
+
+### Features
+
+* import SSH configuration and monitor macOS assets ([c349e26](https://github.com/neko233-com/jumpserver233/commit/c349e268b4097c4dc83aa4a5f9af671d0008a8ad))
+
 ## [0.5.0](https://github.com/neko233-com/jumpserver233/compare/v0.4.0...v0.5.0) (2026-10-26)
 
 
