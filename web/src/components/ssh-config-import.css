@@ -1,0 +1,8 @@
+.ssh-config-import {
+  box-sizing: border-box;
+  width: min(620px, calc(100vw - 32px));
+  color: var(--text);
+}
+.ssh-config-import::backdrop { background: #050a12b8; }
+.ssh-config-import label { margin-block: 12px; }
+.ssh-config-import pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: var(--bg); }

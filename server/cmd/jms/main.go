@@ -44,6 +44,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "ssh-config" {
+		return runSSHConfig(args[1:])
+	}
 	if len(args) > 0 && args[0] == "update" {
 		return runUpdate(args[1:])
 	}

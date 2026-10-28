@@ -175,6 +175,28 @@ func waitNative(t *testing.T, out *nativeOutput, text string) {
 	t.Helper()
 	require.Eventually(t, func() bool { return out.contains(text) }, 5*time.Second, 10*time.Millisecond, "missing native output: %s", text)
 }
+
+func TestNativeSSHSelectedAccountOpensDirectShell(t *testing.T) {
+	f := newNativeFixture(t)
+	c := f.connect(t, "root#"+f.asset.ID, "root")
+	session, err := c.NewSession()
+	require.NoError(t, err)
+	defer session.Close()
+	out := &nativeOutput{}
+	session.Stdout, session.Stderr = out, out
+	input, err := session.StdinPipe()
+	require.NoError(t, err)
+	require.NoError(t, session.RequestPty("xterm-256color", 24, 80, ssh.TerminalModes{}))
+	require.NoError(t, session.Shell())
+	waitNative(t, out, "ops@native:~$ ")
+	require.False(t, out.contains("搜索或编号"))
+	_, err = io.WriteString(input, "hello\r")
+	require.NoError(t, err)
+	waitNative(t, out, "OK:hello")
+	_, err = io.WriteString(input, "exit\r")
+	require.NoError(t, err)
+	require.NoError(t, session.Wait())
+}
 func TestNativeSSHDefaultLoginSearchRelayApprovalsAndAudit(t *testing.T) {
 	f := newNativeFixture(t)
 	for _, rule := range []commandfilters.Input{{Name: "native-deny", Match: "exact", Pattern: "forbidden", Action: "deny", Account: "*", Priority: 100}, {Name: "native-review", Match: "exact", Pattern: "reviewme", Action: "review", Account: "*", Priority: 100}} {

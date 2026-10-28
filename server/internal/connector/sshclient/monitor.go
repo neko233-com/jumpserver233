@@ -13,7 +13,7 @@ import (
 	xssh "golang.org/x/crypto/ssh"
 )
 
-// Target identifies a Linux SSH endpoint and its out-of-band verified host key.
+// Target identifies an SSH endpoint and its out-of-band verified host key.
 type Target struct {
 	Admission          *workgate.Gate `json:"-"`
 	Gateways           []Hop          `json:"-"`
@@ -47,7 +47,7 @@ type Metrics struct {
 	DiskUsedBytes        int64     `json:"disk_used_bytes"`
 }
 
-// Probe collects real Linux host metrics over SSH. It requires a pinned host-key
+// Probe collects Linux or macOS host metrics over SSH. It requires a pinned host-key
 // fingerprint; unknown or changed host keys fail closed.
 func Probe(ctx context.Context, target Target, credentials Credentials, timeout time.Duration) (Metrics, error) {
 	if timeout <= 0 {
@@ -84,7 +84,7 @@ func Probe(ctx context.Context, target Target, credentials Credentials, timeout 
 		return Metrics{}, ctx.Err()
 	case command := <-result:
 		if command.err != nil {
-			return Metrics{}, fmt.Errorf("collect Linux SSH metrics: %w", command.err)
+			return Metrics{}, fmt.Errorf("collect SSH metrics: %w", command.err)
 		}
 		output = command.output
 	}
@@ -158,6 +158,24 @@ func pinnedHostKey(expected string) xssh.HostKeyCallback {
 }
 
 const metricsCommand = `set -eu
+export LC_ALL=C
+case "$(uname -s)" in
+Darwin)
+cores=$(sysctl -n hw.ncpu)
+memory_total=$(sysctl -n hw.memsize)
+cpu_percent=$(top -l 2 -s 1 -n 0 | awk '/^CPU usage:/ {gsub("%", "", $7); idle=$7} END {if (idle == "") exit 1; printf "%.2f", 100-idle}')
+set -- $(vm_stat | awk 'NR==1 {page=$8} /^Pages free:/ {free=$3} /^Pages inactive:/ {inactive=$3} /^Pages speculative:/ {speculative=$3} END {gsub(/\./,"",free); gsub(/\./,"",inactive); gsub(/\./,"",speculative); if (page<=0) exit 1; printf "%.0f", (free+inactive+speculative)*page}')
+memory_used=$(awk -v total="$memory_total" -v available="$1" 'BEGIN {used=total-available; if (used<0) used=0; if (used>total) used=total; printf "%.0f", used}')
+memory_percent=$(awk -v used="$memory_used" -v total="$memory_total" 'BEGIN {if (total<=0) exit 1; printf "%.2f", 100*used/total}')
+set -- $(netstat -ibn | awk '$1 != "lo0" && $3 ~ /^<Link#/ && $4 ~ /:/ {rx += $7; tx += $10} END {printf "%.0f %.0f", rx, tx}')
+network_received=$1
+network_sent=$2
+set -- $(df -k /System/Volumes/Data | awk 'NR==2 {gsub(/%/, "", $5); printf "%.0f %.0f %s", $2*1024, $3*1024, $5}')
+disk_total=$1
+disk_used=$2
+disk_percent=$3
+;;
+Linux)
 cores=$(getconf _NPROCESSORS_ONLN)
 set -- $(awk '/^cpu / { total=0; for (i=2; i<=NF; i++) total += $i; print total, $5+$6 }' /proc/stat)
 before_total=$1
@@ -176,6 +194,9 @@ set -- $(df -P -B1 / | awk 'NR==2 { gsub(/%/, "", $5); print $2, $3, $5 }')
 disk_total=$1
 disk_used=$2
 disk_percent=$3
+;;
+*) exit 1 ;;
+esac
 printf 'cpu_cores=%s\ncpu_percent=%s\nmemory_total_bytes=%s\nmemory_used_bytes=%s\nmemory_percent=%s\nnetwork_received_bytes=%s\nnetwork_sent_bytes=%s\ndisk_total_bytes=%s\ndisk_used_bytes=%s\ndisk_percent=%s\n' "$cores" "$cpu_percent" "$memory_total" "$memory_used" "$memory_percent" "$network_received" "$network_sent" "$disk_total" "$disk_used" "$disk_percent"`
 
 func parseMetrics(reader *strings.Reader) (Metrics, error) {

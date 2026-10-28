@@ -154,6 +154,7 @@ func (s *Server) serveConnection(raw net.Conn) {
 				client.logout()
 				return nil, e
 			}
+			client.directTarget = selected
 		}
 		return &ssh.Permissions{}, nil
 	}
@@ -325,6 +326,8 @@ func (s *Server) serveChannel(parent context.Context, c *apiClient, ch ssh.Chann
 						}
 					} else if kind == "exec" {
 						e = s.exec(ctx, c, ch, value)
+					} else if c.directTarget != "" {
+						e = state.relay(ctx, c, ch, c.directTarget, input)
 					} else {
 						e = state.menu(ctx, c, ch, input)
 					}

@@ -23,6 +23,8 @@ type apiClient struct {
 	token        string
 	organization string
 	actor        string
+	// directTarget is fixed at authentication when the username specifies an account ID.
+	directTarget string
 	target       targetBinding
 	execSlots    chan struct{}
 }

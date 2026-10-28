@@ -81,6 +81,14 @@ Single-account or bound SFTP opens the remote authorized root. Only unbound mult
 
 Append `%<organization-UUID>` to the SSH username to select an existing organization. Membership and resource isolation still apply. Ordinary standalone users need no organization configuration.
 
+### Sync to local OpenSSH
+
+The asset page offers “Import local SSH config” in an HTTPS secure context on browsers with File System Access. Select the existing `~/.ssh/config` to update its managed block. On intranet HTTP pages where browsers cannot access local files, the page presents the client workflow below and does not claim an import happened.
+
+With the installed `jms` client and an existing platform identity, run `jms ssh-config sync --host <bastion-host> --port 2222`. Set `JMS_SERVER_URL` to the management API and use `JMS_TOKEN_FILE`, `JMS_TOKEN`, or the existing AccessKey authentication; `JMS_ORG_ID` is optional. Add `--preview` to display aliases without writing. Sync reads active SSH accounts with `connect` permission and creates stable aliases in a dedicated managed block in local `~/.ssh/config`. It stores no target passwords and preserves existing configuration. Conflicts or concurrent changes fail closed. Run again to sync changes; an empty inventory never deletes existing aliases.
+
+Connections still require platform SSH authentication and the existing grants, review, and audit. Verify the bastion host key through the normal OpenSSH first-connection flow. Interactive SSH using `platform-user#account-id` enters that account's terminal directly; remote commands and SFTP continue to use the same target.
+
 ## Security, performance and cleanup
 
 Login, search and session creation use process-local HTTP pipes and the full existing identity, source IP, rate limit, organization, RBAC, grant, login review and session policy chain. The native entry has no superuser API token. Terminal bytes pass through the existing WebSocket gateway, preserving command reviews, blocking, directory proofs and encrypted replay. SFTP uses a process-local callback that HTTP clients cannot forge to enter the same file authorization middleware. Every read/write packet rechecks access and the connection binding; target credentials stay server-side.

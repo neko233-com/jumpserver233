@@ -7,12 +7,39 @@ import (
 	"fmt"
 	"github.com/neko233-com/jumpserver233/server/testsupport/sshidentity"
 	"net"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
 	xssh "golang.org/x/crypto/ssh"
 )
+
+func TestMacMetricsCommandParsesDarwinUtilities(t *testing.T) {
+	shell, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("POSIX shell unavailable")
+	}
+	fixture := `
+uname() { echo Darwin; }
+sysctl() { case "$2" in hw.ncpu) echo 10;; hw.memsize) echo 17179869184;; esac; }
+top() { printf '%s\n' 'CPU usage: 8.82% user, 14.70% sys, 76.47% idle'; }
+vm_stat() { printf '%s\n' 'Mach Virtual Memory Statistics: (page size of 16384 bytes)' 'Pages free: 1000.' 'Pages inactive: 2000.' 'Pages speculative: 100.'; }
+netstat() { printf '%s\n' 'en0 1500 <Link#7> d0:11:e5:d4:9c:05 100 0 1234 200 0 5678 0' 'lo0 16384 <Link#1> 100 0 999 100 0 999 0'; }
+df() { printf '%s\n' 'Filesystem 1024-blocks Used Available Capacity Mounted' '/dev/disk 100000 60000 40000 60% /System/Volumes/Data'; }
+`
+	output, err := exec.Command(shell, "-c", fixture+metricsCommand).CombinedOutput()
+	if err != nil {
+		t.Fatalf("Darwin fixture: %v: %s", err, output)
+	}
+	got, err := parseMetrics(strings.NewReader(string(output)))
+	if err != nil {
+		t.Fatalf("invalid Darwin metrics: %v: %s", err, output)
+	}
+	if got.CPUCores != 10 || got.CPUPercent != 23.53 || got.MemoryTotalBytes != 17179869184 || got.NetworkReceivedBytes != 1234 || got.NetworkSentBytes != 5678 || got.DiskUsedBytes != 60000*1024 || got.DiskPercent != 60 {
+		t.Fatalf("unexpected Darwin metrics: %+v", got)
+	}
+}
 
 func TestProbeCollectsMetricsAndPinsHostKey(t *testing.T) {
 	listener, fingerprint := startMetricsServer(t)

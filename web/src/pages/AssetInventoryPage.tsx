@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import "../i18n/locales/features/workspaces/register";
+import "../i18n/locales/features/ssh-config/register";
 import { Link, useSearchParams } from "react-router-dom";
 import { usePermissions } from "../auth/usePermissions";
 import { useAuth } from "../auth/AuthContext";
@@ -27,6 +28,7 @@ const HostPluginsDialog = lazy(() => import("../components/HostPluginsDialog"));
 const AccountDiscoveryDialog = lazy(() => import("../components/AccountDiscoveryDialog"));
 const ManagedAccountsDialog = lazy(() => import("../components/ManagedAccountsDialog"));
 const AccountImportDialog = lazy(() => import("../components/AccountImportDialog"));
+const SSHConfigImportDialog = lazy(() => import("../components/SSHConfigImportDialog"));
 const RDPDesktopDialog = lazy(() => import("../components/RDPDesktopDialog"));
 const DatabaseConsoleDialog = lazy(() => import("../components/DatabaseConsoleDialog"));
 const KubernetesTerminalDialog = lazy(() => import("../components/KubernetesTerminalDialog"));
@@ -336,6 +338,7 @@ export default function AssetInventoryPage() {
   const [discoveryAsset, setDiscoveryAsset] = useState<Asset | null>(null);
   const [managedAccountsAsset, setManagedAccountsAsset] = useState<Asset | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [sshConfigOpen, setSSHConfigOpen] = useState(false);
   const [managedFinding, setManagedFinding] = useState<
     { id: string; username: string } | undefined
   >();
@@ -886,6 +889,9 @@ export default function AssetInventoryPage() {
                 {t("accountImport.title")}
               </button>
             )}
+            <button type="button" className="button-secondary" disabled={tokenRequired} onClick={() => setSSHConfigOpen(true)}>
+              {t("sshConfigImport.title")}
+            </button>
           </div>
         </div>
 
@@ -2191,6 +2197,11 @@ export default function AssetInventoryPage() {
             onChanged={() => void loadAssets()}
             onClose={() => setImportOpen(false)}
           />
+        </Suspense>
+      )}
+      {sshConfigOpen && (
+        <Suspense fallback={null}>
+          <SSHConfigImportDialog request={request} onClose={() => setSSHConfigOpen(false)} />
         </Suspense>
       )}
       {discoveryAsset && (
