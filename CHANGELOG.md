@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/neko233-com/jumpserver233/compare/v0.6.0...v0.7.0) (2026-10-31)
+
+
+### Features
+
+* add shared password vault for external agents ([ee626fc](https://github.com/neko233-com/jumpserver233/commit/ee626fc03b1f2dc61bd254fcdda9c9efdcec41cc))
+
 ## [0.6.0](https://github.com/neko233-com/jumpserver233/compare/v0.5.0...v0.6.0) (2026-10-28)
 
 
