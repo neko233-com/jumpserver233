@@ -126,7 +126,7 @@ func TestFromEnvRejectsInvalidClusterModeAndEmptyClusterID(t *testing.T) {
 
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"JMS_LOG_DIR", "JMS_LOG_MAX_MB", "JMS_LOG_BACKUPS", "JMS_LOG_DAYS", "JMS_LOG_CONSOLE", "JMS_SSH_ADDR", "JMS_ADDR", "JMS_WEB_DIR", "JMS_VERSION", "JMS_DATA_DIR", "JMS_VAULT_KEY", "JMS_ADMIN_TOKEN", "JMS_MONITOR_INTERVAL", "JMS_CLUSTER_MODE", "JMS_DATABASE_URL", "JMS_CLUSTER_ID", "JMS_CLUSTER_HEALTH_ADDR", "JMS_PUBLIC_URL", "JMS_TRUSTED_PROXIES", "JMS_DEFAULT_ADMIN_ENABLED"} {
+	for _, name := range []string{"JMS_LOG_DIR", "JMS_LOG_MAX_MB", "JMS_LOG_BACKUPS", "JMS_LOG_DAYS", "JMS_LOG_CONSOLE", "JMS_SSH_ADDR", "JMS_ADDR", "JMS_WEB_DIR", "JMS_VERSION", "JMS_DATA_DIR", "JMS_VAULT_KEY", "JMS_ADMIN_TOKEN", "JMS_MONITOR_INTERVAL", "JMS_CLUSTER_MODE", "JMS_DATABASE_URL", "JMS_CLUSTER_ID", "JMS_CLUSTER_HEALTH_ADDR", "JMS_PUBLIC_URL", "JMS_ADDITIONAL_HTTPS_ORIGIN", "JMS_TRUSTED_PROXIES", "JMS_DEFAULT_ADMIN_ENABLED"} {
 		value, existed := os.LookupEnv(name)
 		if err := os.Unsetenv(name); err != nil {
 			t.Fatal(err)
@@ -138,6 +138,19 @@ func clearConfigEnv(t *testing.T) {
 				_ = os.Unsetenv(name)
 			}
 		})
+	}
+}
+
+func TestAdditionalHTTPSOriginRequiresAnOrigin(t *testing.T) {
+	clearConfigEnv(t)
+	t.Setenv("JMS_ADDITIONAL_HTTPS_ORIGIN", "https://vault.example.invalid:18443")
+	c, err := FromEnv()
+	require.NoError(t, err)
+	require.Equal(t, "https://vault.example.invalid:18443", c.AdditionalHTTPSOrigin)
+	for _, value := range []string{"http://127.0.0.1:18443", "https://vault.example.invalid/path", "https://user:password@vault.example.invalid"} {
+		t.Setenv("JMS_ADDITIONAL_HTTPS_ORIGIN", value)
+		_, err = FromEnv()
+		require.Error(t, err)
 	}
 }
 

@@ -19,13 +19,16 @@ if (!testDataDir)
 
 const config = defineConfig({
   testDir: "./e2e",
-  testMatch: workspaceRepair
-    ? ["**/console-navigation.spec.ts", "**/web-workspace.spec.ts", "**/host-plugins.spec.ts"]
-    : workspaceOnly
-      ? ["**/console-navigation.spec.ts", "**/web-workspace.spec.ts"]
-      : navigationOnly
-        ? "**/console-navigation.spec.ts"
-        : undefined,
+  testMatch:
+    process.env.JMS_E2E_VAULT_ONLY === "true"
+      ? "**/password-vault.spec.ts"
+      : workspaceRepair
+        ? ["**/console-navigation.spec.ts", "**/web-workspace.spec.ts", "**/host-plugins.spec.ts"]
+        : workspaceOnly
+          ? ["**/console-navigation.spec.ts", "**/web-workspace.spec.ts"]
+          : navigationOnly
+            ? "**/console-navigation.spec.ts"
+            : undefined,
   // Archived Enterprise UI cases remain as source references. The shipped mini
   // graph has no routes for these pages, and needs no corresponding fixtures.
   testIgnore: [

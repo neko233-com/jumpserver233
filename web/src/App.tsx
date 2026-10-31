@@ -10,6 +10,7 @@ const PasswordChangePage = lazy(() => import("./pages/PasswordChangePage"));
 const ConsoleLayout = lazy(() => import("./layouts/ConsoleLayout"));
 const SSHCertificatesPage = lazy(() => import("./pages/SSHCertificatesPage"));
 const LabelsPage = lazy(() => import("./pages/LabelsPage"));
+const PasswordVaultPage = lazy(() => import("./pages/PasswordVaultPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const AgentAuditPage = lazy(() => import("./pages/AgentAuditPage"));
@@ -72,6 +73,7 @@ export default function App() {
             >
               <Route index element={<ConsolePage />} />
               <Route path="labels" element={<LabelsPage />} />
+              <Route path="password-vault" element={<PasswordVaultPage />} />
               <Route path="agent-audit" element={<AgentAuditPage />} />
               <Route path="account-risks" element={<AccountRisksPage />} />
               <Route path="rotation-plans" element={<RotationPlansPage />} />

@@ -2,7 +2,7 @@
 
 > 中文 | [English](./UI-DESIGN.en.md)
 
-2026-10-23 [Web 全面改版](./WEB-REDESIGN.md) 已随 v0.4.0 上线：本批实现与验收 10/10，剩余 0 项。完整 CI 6/6、生产浏览器 72/72；BuildWorld [1078 / #10](http://192.168.110.42:8080/builds/1078) 只激活一次，登录、真实 Web/原生 SSH、文件往返、监控与原数据保留通过。独立部署仓库为 `poke-game/deploy-jumpserver233`，使用 `Jenkinsfile_mac_single`，升级自动收尾连接。历史验收记录保留如下。
+2026-10-23 [Web 全面改版](./WEB-REDESIGN.md) 已随 v0.4.0 上线：本批实现与验收 10/10，剩余 0 项。完整 CI 6/6、生产浏览器 72/72；BuildWorld 1078 / #10 只激活一次，登录、真实 Web/原生 SSH、文件往返、监控与原数据保留通过。独立部署仓库为 `poke-game/deploy-jumpserver233`，使用 `Jenkinsfile_mac_single`，升级自动收尾连接。历史验收记录保留如下。
 
 ## 安装与来源
 

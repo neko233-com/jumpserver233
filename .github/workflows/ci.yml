@@ -83,6 +83,8 @@ jobs:
           python-version: "3.11"
       - name: Test macOS deployment state machine
         run: python3 -B -m unittest discover -s scripts -p macos_single_test.py
+      - name: Test secure credential import
+        run: python3 -B -m unittest discover -s scripts -p password_vault_import_test.py
       - name: Build embedded native recovery agents
         working-directory: server
         run: go generate ./internal/agentbundle

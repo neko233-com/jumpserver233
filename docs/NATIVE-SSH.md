@@ -2,15 +2,17 @@
 
 > 中文 | [English](./NATIVE-SSH.en.md)
 
+命令中的 `deployment-host.invalid` 是占位符，实际地址从组织私有配置获取。
+
 ## XTerminal 兼容与终端界面维护
 
-**v0.3.2 已发布并单次升级，表格工作台 6/6 已验收。** [BuildWorld #9（1041）](http://192.168.110.42:8080/builds/1041) 用 2 分 51 秒通过六阶段和原机 34/34 用例。[完整 CI](https://github.com/neko233-com/jumpserver233/actions/runs/39746482439) 六组通过、生产浏览器 70/70。默认登录、真实 Web/原生 SSH、三个字段搜索、返回菜单、55,296 bytes SFTP 往返及删除通过；有序重启前后各三次 CPU/内存/磁盘/网络采样通过，主机指纹保持。原有 1 个资产、升级前 14 条审计、重启前 16 条审计、Vault key 与保存凭据保留。
+**v0.3.2 已发布并单次升级，表格工作台 6/6 已验收。** BuildWorld #9（1041） 用 2 分 51 秒通过六阶段和原机 34/34 用例。[完整 CI](https://github.com/neko233-com/jumpserver233/actions/runs/39746482439) 六组通过、生产浏览器 70/70。默认登录、真实 Web/原生 SSH、三个字段搜索、返回菜单、55,296 bytes SFTP 往返及删除通过；有序重启前后各三次 CPU/内存/磁盘/网络采样通过，主机指纹保持。原有 1 个资产、升级前 14 条审计、重启前 16 条审计、Vault key 与保存凭据保留。
 
 运行源码为 `6e717232c607a6b2661ae4a189cd3272e5469a1d`，部署锁定 `222cc8f79599551801bd01c0f84fdff70a21e1d9`。官方 Mac ARM 包 28,138,076 bytes，SHA-256 `cbed946bf190743058594d9fb2536e77fce9b6d83deddf731c03099aae8d77b6`。精简回执和成功截图位于忽略的 `.cache/qa-reports/native-workbench-live-20261022/`；实现及视觉证据在相邻 `native-workbench-20261022/`。浏览器验收使用已授权的内置浏览器；没有通过原生应用 UI 自动操作 XTerminal。
 
 ### 前序 v0.3.1
 
-v0.3.1 已正式发布并单次内网升级：[BuildWorld #8（1022）](http://192.168.110.42:8080/builds/1022) 六阶段通过，原机 34/34 用例通过。[完整 CI](https://github.com/neko233-com/jumpserver233/actions/runs/39735942366) 六组通过，生产浏览器 70/70；本机 Linux race、隔离 Docker 和真实 XTerminal 脚本三次采样通过。线上 root/root、Web/原生 SSH、55,296 bytes 文件往返及重启后重复验收通过。原有 1 个资产、升级前 11 条审计及重启前 13 条审计、凭据、Vault key 和主机指纹保留。
+v0.3.1 已正式发布并单次内网升级：BuildWorld #8（1022） 六阶段通过，原机 34/34 用例通过。[完整 CI](https://github.com/neko233-com/jumpserver233/actions/runs/39735942366) 六组通过，生产浏览器 70/70；本机 Linux race、隔离 Docker 和真实 XTerminal 脚本三次采样通过。线上 root/root、Web/原生 SSH、55,296 bytes 文件往返及重启后重复验收通过。原有 1 个资产、升级前 11 条审计及重启前 13 条审计、凭据、Vault key 和主机指纹保留。
 
 运行源码为 `d4a2fb7eec694ba453285bb12c0151bb9baee874`，部署锁定为 `8108be93a8f58cda8191fe1098233dd9c16ec99f`。官方 Mac ARM 包 28,104,267 bytes，SHA-256 `6f4ed63129ee76e9251b1d5affe0ba43f8a77face176d9c2425fbcb5867d8734`。线上现有 `.xterminal` 与本机副本不同，验证保留原安装，使用现有脚本在重启前后各采样三次；没有覆盖原文件。用户截图证实文件面板和监控显示，但退回菜单的对比度与交互，要求改为可选择的表格。
 
@@ -41,7 +43,7 @@ SSH 客户端的远程 `exec` 在所选主机执行，复用 `/api/v1/ops/jobs` 
 
 ## 历史 v0.3.0 目标与状态
 
-网页保留 8180，Go 主程序内置 SSH/SFTP 2222，不依赖系统 sshd 或外部代理。完整实现后统一验证，正式 v0.3.0 已发布并在内网升级一次。[BuildWorld #7（1014）](http://192.168.110.42:8080/builds/1014) 以 4 分 43 秒通过 6/6 阶段；新增验收 **8/8**，既有 mini 清单 **12/12**。
+网页保留 8180，Go 主程序内置 SSH/SFTP 2222，不依赖系统 sshd 或外部代理。完整实现后统一验证，正式 v0.3.0 已发布并在内网升级一次。BuildWorld #7（1014） 以 4 分 43 秒通过 6/6 阶段；新增验收 **8/8**，既有 mini 清单 **12/12**。
 
 | 本批验收项 | 当前状态 |
 |---|---|
@@ -69,8 +71,8 @@ TOTP、撤权、审批、重放和目录拒绝以自动化及真实 OpenSSH 夹�
 原生独立运行显式设置 `JMS_SSH_ADDR=0.0.0.0:2222`；开发与多实例测试默认不监听 SSH，避免抢占同机端口。外部 SSH 监听遵循现有非 loopback 配置要求，需要服务器已有的 `JMS_ADMIN_TOKEN`，它不发给 SSH 客户端。Docker 和 `Jenkinsfile_mac_single` 开启 2222。网页和 SSH 使用不同端口，不做协议嗅探。
 
 ```sh
-ssh -p 2222 root@192.168.110.42
-sftp -P 2222 root@192.168.110.42
+ssh -p 2222 root@deployment-host.invalid
+sftp -P 2222 root@deployment-host.invalid
 ```
 
 首次安装默认平台身份为 root/root；旧实例保留现有账号与密码，启动和升级都不重置。用户名不是 macOS 的系统用户。TOTP 使用 keyboard-interactive；可通过 `ssh -o PreferredAuthentications=keyboard-interactive -p 2222 ...` 选择。需要首次 MFA 登记、短信/RADIUS 或平台登录复核的身份继续使用 Web 完成相应流程，原生入口不能绕过它们。

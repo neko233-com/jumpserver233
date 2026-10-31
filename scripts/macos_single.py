@@ -77,6 +77,7 @@ def verify():
         print('RUN_TESTS=false: tests omitted; production compilation still required', flush=True)
         return
     run(['python3', '-B', '-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'macos_single_test.py'])
+    run(['python3', '-B', '-m', 'unittest', 'discover', '-s', 'scripts', '-p', 'password_vault_import_test.py'])
     run(['node', '--test', 'scripts/docker-qa.test.mjs', 'scripts/qa-lifecycle.test.mjs', 'scripts/qa-retention.test.mjs', 'scripts/publish-release.test.mjs', 'scripts/native-browser-logs.test.mjs', 'scripts/ci-cache.test.mjs',
          'server/testsupport/docker-qa.test.mjs', 'server/testsupport/ci-health.test.mjs'])
     run(['node', 'scripts/check-content.mjs'])
@@ -170,7 +171,7 @@ def runtime_config(root):
         write_private(path, json.dumps({'JMS_ADMIN_TOKEN': secrets.token_urlsafe(48)}).encode())
     path.chmod(0o600)
     config = json.loads(path.read_text(encoding='utf-8'))
-    allowed = {'JMS_ADMIN_TOKEN', 'JMS_PUBLIC_URL', 'JMS_TRUSTED_PROXIES', 'JMS_MONITOR_INTERVAL', 'JMS_DEFAULT_ADMIN_ENABLED', 'JMS_SSH_ADDR', 'JMS_LOG_MAX_MB', 'JMS_LOG_BACKUPS', 'JMS_LOG_DAYS'}
+    allowed = {'JMS_ADMIN_TOKEN', 'JMS_PUBLIC_URL', 'JMS_ADDITIONAL_HTTPS_ORIGIN', 'JMS_TRUSTED_PROXIES', 'JMS_MONITOR_INTERVAL', 'JMS_DEFAULT_ADMIN_ENABLED', 'JMS_SSH_ADDR', 'JMS_LOG_MAX_MB', 'JMS_LOG_BACKUPS', 'JMS_LOG_DAYS'}
     if not isinstance(config, dict) or set(config) - allowed or not all(isinstance(v, str) for v in config.values()):
         raise RuntimeError('Unsupported runtime configuration fields')
     if len(config.get('JMS_ADMIN_TOKEN', '')) < 32:

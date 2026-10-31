@@ -2,15 +2,17 @@
 
 > [中文](./NATIVE-SSH.md) | English
 
+`deployment-host.invalid` in commands is a placeholder; obtain the actual address from the organization's private configuration.
+
 ## XTerminal compatibility and terminal UI maintenance
 
-**v0.3.2 is published and upgraded once; the table workbench passed 6/6 gates.** [BuildWorld #9 (1041)](http://192.168.110.42:8080/builds/1041) passed six stages and 34/34 native Mac cases in 2m51s. [Full CI](https://github.com/neko233-com/jumpserver233/actions/runs/39746482439) passed six jobs and 70/70 production browser cases. Default login, real Web/native SSH, search across all three fields, return to menu, a 55,296-byte SFTP round trip and removal passed. Three CPU/memory/disk/network samples passed both before and after the graceful restart; the host fingerprint remained stable. The original asset, 14 pre-upgrade audit IDs, 16 pre-restart audit IDs, Vault key and stored credentials survived.
+**v0.3.2 is published and upgraded once; the table workbench passed 6/6 gates.** BuildWorld #9 (1041) passed six stages and 34/34 native Mac cases in 2m51s. [Full CI](https://github.com/neko233-com/jumpserver233/actions/runs/39746482439) passed six jobs and 70/70 production browser cases. Default login, real Web/native SSH, search across all three fields, return to menu, a 55,296-byte SFTP round trip and removal passed. Three CPU/memory/disk/network samples passed both before and after the graceful restart; the host fingerprint remained stable. The original asset, 14 pre-upgrade audit IDs, 16 pre-restart audit IDs, Vault key and stored credentials survived.
 
 Running source: `6e717232c607a6b2661ae4a189cd3272e5469a1d`; deployment pin: `222cc8f79599551801bd01c0f84fdff70a21e1d9`. The official Mac ARM archive is 28,138,076 bytes, SHA-256 `cbed946bf190743058594d9fb2536e77fce9b6d83deddf731c03099aae8d77b6`. Compact receipts and the successful-build capture are ignored under `.cache/qa-reports/native-workbench-live-20261022/`; implementation and visual evidence are in neighboring `native-workbench-20261022/`. Browser acceptance used the authorized in-app browser; XTerminal was not driven through native application UI automation.
 
 ### Previous v0.3.1
 
-v0.3.1 is published and upgraded once: [BuildWorld #8 (1022)](http://192.168.110.42:8080/builds/1022) passed six stages and 34/34 native Mac cases. [Full CI](https://github.com/neko233-com/jumpserver233/actions/runs/39735942366) passed six jobs and 70/70 production browser cases. Local Linux race, isolated Docker and three samples from the actual XTerminal scripts passed. Live root/root, Web/native SSH, a 55,296-byte file round trip and repeated post-restart acceptance passed. The original asset, all 11 pre-upgrade audit IDs and 13 pre-restart audit IDs, credentials, Vault key and host fingerprint survived.
+v0.3.1 is published and upgraded once: BuildWorld #8 (1022) passed six stages and 34/34 native Mac cases. [Full CI](https://github.com/neko233-com/jumpserver233/actions/runs/39735942366) passed six jobs and 70/70 production browser cases. Local Linux race, isolated Docker and three samples from the actual XTerminal scripts passed. Live root/root, Web/native SSH, a 55,296-byte file round trip and repeated post-restart acceptance passed. The original asset, all 11 pre-upgrade audit IDs and 13 pre-restart audit IDs, credentials, Vault key and host fingerprint survived.
 
 The running source is `d4a2fb7eec694ba453285bb12c0151bb9baee874`; deployment is pinned to `8108be93a8f58cda8191fe1098233dd9c16ec99f`. The official Mac ARM archive is 28,104,267 bytes, SHA-256 `6f4ed63129ee76e9251b1d5affe0ba43f8a77face176d9c2425fbcb5867d8734`. The target's existing `.xterminal` differs from the local copy. Acceptance preserved that installation and collected three samples before and after restart without replacing files. The user's screenshot confirms file browsing and monitoring, but rejects menu contrast and interaction and requests a selectable table.
 
@@ -41,7 +43,7 @@ Connections allow 16 session channels. Unstarted channels expire after ten secon
 
 ## Historical v0.3.0 scope and status
 
-Web remains on 8180, with SSH/SFTP embedded on 2222 in the Go process and no system sshd or external proxy. Unified verification followed the complete implementation. Official v0.3.0 was released and upgraded once on the intranet. [BuildWorld #7 (1014)](http://192.168.110.42:8080/builds/1014) passed 6/6 stages in 4m43s. New acceptance: **8/8**; existing mini checklist: **12/12**.
+Web remains on 8180, with SSH/SFTP embedded on 2222 in the Go process and no system sshd or external proxy. Unified verification followed the complete implementation. Official v0.3.0 was released and upgraded once on the intranet. BuildWorld #7 (1014) passed 6/6 stages in 4m43s. New acceptance: **8/8**; existing mini checklist: **12/12**.
 
 | Acceptance item | Current state |
 |---|---|
@@ -69,8 +71,8 @@ TOTP, revocation, approvals, replay rejection and directory denial are supported
 For direct standalone execution, explicitly set `JMS_SSH_ADDR=0.0.0.0:2222`. Development and concurrent test instances leave SSH disabled by default to avoid port conflicts. An external SSH listener follows the existing non-loopback configuration rules and needs the server's existing `JMS_ADMIN_TOKEN`; that token is never sent to SSH clients. Docker and `Jenkinsfile_mac_single` enable 2222. HTTP and SSH use separate ports without protocol sniffing.
 
 ```sh
-ssh -p 2222 root@192.168.110.42
-sftp -P 2222 root@192.168.110.42
+ssh -p 2222 root@deployment-host.invalid
+sftp -P 2222 root@deployment-host.invalid
 ```
 
 The initial platform identity is root/root. Existing accounts and passwords survive startup and upgrades without reset. This username is not a macOS system account. TOTP uses keyboard-interactive; select it with `ssh -o PreferredAuthentications=keyboard-interactive -p 2222 ...`. Identities requiring initial MFA enrollment, SMS/RADIUS or platform login review continue using the Web flow for those steps; native login cannot bypass them.

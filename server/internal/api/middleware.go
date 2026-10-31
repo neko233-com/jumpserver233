@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"strings"
 	"time"
 
@@ -210,6 +212,47 @@ func isAllowedOrigin(origin string) bool {
 }
 
 type publicOriginKey struct{}
+type additionalHTTPSOriginKey struct{}
+type additionalHTTPSOrigin struct {
+	origin  string
+	proxies []string
+}
+
+func withAdditionalHTTPSOrigin(next http.Handler, origin string, proxies []string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), additionalHTTPSOriginKey{}, additionalHTTPSOrigin{origin: origin, proxies: proxies})))
+	})
+}
+
+// Only direct TLS or a configured immediate proxy that overwrites the scheme
+// can assert the optional second HTTPS origin. Host and Origin remain exact.
+func additionalHTTPSRequest(r *http.Request) bool {
+	config, _ := r.Context().Value(additionalHTTPSOriginKey{}).(additionalHTTPSOrigin)
+	u, err := url.Parse(config.origin)
+	if err != nil || u.Scheme != "https" || u.Host == "" || !strings.EqualFold(u.Host, r.Host) {
+		return false
+	}
+	if r.TLS != nil {
+		return true
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return false
+	}
+	peer, err := netip.ParseAddr(host)
+	if err != nil || peer.Zone() != "" {
+		return false
+	}
+	if len(r.Header.Values("X-Forwarded-Proto")) != 1 || !strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		return false
+	}
+	for _, raw := range config.proxies {
+		if prefix, e := netip.ParsePrefix(raw); e == nil && prefix.Contains(peer.Unmap()) {
+			return true
+		}
+	}
+	return false
+}
 
 func withPublicOrigin(next http.Handler, origin string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -224,6 +267,10 @@ func allowedRequestOrigin(r *http.Request) bool {
 	if isAllowedOrigin(origin) {
 		return true
 	}
+	additional, _ := r.Context().Value(additionalHTTPSOriginKey{}).(additionalHTTPSOrigin)
+	if origin == additional.origin && origin != "" && additionalHTTPSRequest(r) {
+		return true
+	}
 	public, _ := r.Context().Value(publicOriginKey{}).(string)
 	if public != "" {
 		return origin == public
@@ -236,7 +283,7 @@ func rejectRequestOrigin(w http.ResponseWriter) {
 }
 func secureSessionCookie(r *http.Request) bool {
 	public, _ := r.Context().Value(publicOriginKey{}).(string)
-	return r.TLS != nil || strings.HasPrefix(public, "https://")
+	return r.TLS != nil || additionalHTTPSRequest(r) || strings.HasPrefix(public, "https://")
 }
 
 func isLoopbackRemote(remote string) bool {

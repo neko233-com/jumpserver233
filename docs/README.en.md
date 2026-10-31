@@ -2,7 +2,9 @@
 
 > [中文](./README.md) | English
 
-2026-10-26 [runtime logs and convenient operations](./RUNTIME-LOGS.en.md) is live in v0.5.0 after one upgrade: this batch **6/6 implemented and accepted**, complete frontend repair 73/73, backend/race/integrations/Docker passed. [BuildWorld #11 / 1127](http://192.168.110.42:8080/builds/1127) passed 6/6 stages in 83.35 seconds. Real login, Web/native SSH, files, monitoring, legacy logs and business data retention passed; owned QA resources were cleaned. The mini checklist remains 12/12.
+[Website, game, and service account vault](./PASSWORD-VAULT.en.md): encrypted storage, per-item Agent authorization, and secure transport requirements.
+
+2026-10-26 [runtime logs and convenient operations](./RUNTIME-LOGS.en.md) is live in v0.5.0 after one upgrade: this batch **6/6 implemented and accepted**, complete frontend repair 73/73, backend/race/integrations/Docker passed. BuildWorld #11 / 1127 passed 6/6 stages in 83.35 seconds. Real login, Web/native SSH, files, monitoring, legacy logs and business data retention passed; owned QA resources were cleaned. The mini checklist remains 12/12.
 
 [Native SSH/SFTP entry](./NATIVE-SSH.en.md): embedded 2222, platform identity, host search/selection, terminal relay, file transfer, shared authority, review and audit are shipped. See [current delivery](./RUNTIME-LOGS.en.md) for v0.5.0 acceptance.
 

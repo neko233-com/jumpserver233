@@ -77,6 +77,7 @@ Put generated evidence in ignored `.cache/qa-reports/`; put reusable QA entrypoi
 - Plain language: state the point first, concrete over abstract, no filler ("in short", "it's worth noting", contrastive "X, not Y").
 
 **Git**
+- This repository is public: never commit or embed real private accounts, passwords, API tokens, private keys, private domains, internal addresses or other confidential deployment data in source, tests, examples, documentation, generated artifacts, logs, screenshots or commit messages. Use synthetic reserved examples and keep real values only in authorized private runtime storage. Review staged files and generated artifacts for disclosures before committing; do not copy production configuration values from other projects into this repository.
 - Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:` …), Chinese or English both fine.
 - Never hand-edit `CHANGELOG.md`; it is generated only at release time by release-please.
 

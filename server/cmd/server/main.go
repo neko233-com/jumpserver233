@@ -58,6 +58,7 @@ import (
 	coreoperations "github.com/neko233-com/jumpserver233/server/internal/core/operations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
+	"github.com/neko233-com/jumpserver233/server/internal/core/passwordvault"
 	"github.com/neko233-com/jumpserver233/server/internal/core/radiuslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/reporting"
@@ -519,6 +520,11 @@ func runNode(ctx context.Context, cfg *config.Config, setReady func(bool)) (runE
 	root.MonitorAlerts = monitorAlertService
 	root.LoginAudit = loginAuditStore
 	root.Reports = reportStore
+	root.PasswordVault, err = passwordvault.Open(filepath.Join(cfg.DataDir, "password-vault.json"), vaultKey, documents)
+	if err != nil {
+		return err
+	}
+	root.AdditionalHTTPSOrigin = cfg.AdditionalHTTPSOrigin
 	root.Assistant, err = assistant.Open(filepath.Join(cfg.DataDir, "assistant.json"), vaultKey, documents)
 	if err != nil {
 		return err

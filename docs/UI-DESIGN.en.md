@@ -2,7 +2,7 @@
 
 > English | [中文](./UI-DESIGN.md)
 
-2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md) is live in v0.4.0: implemented and accepted 10/10, zero remaining gates. Full CI passed 6/6 and production browser regression 72/72. BuildWorld [1078 / #10](http://192.168.110.42:8080/builds/1078) activated once; login, real Web/native SSH, file round trips, monitoring and original data retention passed. The dedicated `poke-game/deploy-jumpserver233` repository uses `Jenkinsfile_mac_single` and closes connections gracefully during upgrades. Historical acceptance follows.
+2026-10-23 [complete Web redesign](./WEB-REDESIGN.en.md) is live in v0.4.0: implemented and accepted 10/10, zero remaining gates. Full CI passed 6/6 and production browser regression 72/72. BuildWorld 1078 / #10 activated once; login, real Web/native SSH, file round trips, monitoring and original data retention passed. The dedicated `poke-game/deploy-jumpserver233` repository uses `Jenkinsfile_mac_single` and closes connections gracefully during upgrades. Historical acceptance follows.
 
 ## Installation and provenance
 

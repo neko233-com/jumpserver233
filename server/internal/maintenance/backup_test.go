@@ -23,6 +23,7 @@ import (
 	"github.com/neko233-com/jumpserver233/server/internal/core/assistant"
 	"github.com/neko233-com/jumpserver233/server/internal/core/auth"
 	"github.com/neko233-com/jumpserver233/server/internal/core/labels"
+	"github.com/neko233-com/jumpserver233/server/internal/core/passwordvault"
 	"github.com/neko233-com/jumpserver233/server/testsupport/enterpriseprovider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,6 +55,10 @@ func TestBackupPreservesIdentityVaultCiphertextOrganizationsAndAudit(t *testing.
 	identity, e := auth.OpenServiceWithVaultKey(filepath.Join(opt.DataDir, "users.json"), key)
 	require.NoError(t, e)
 	user, e := identity.Bootstrap("backup.admin", "synthetic-admin-password-233")
+	require.NoError(t, e)
+	passwordStore, e := passwordvault.Open(filepath.Join(opt.DataDir, "password-vault.json"), key, nil)
+	require.NoError(t, e)
+	storedLogin, e := passwordStore.Create(user.ID, "0123456789abcdef0123456789abcdef", passwordvault.Item{Kind: "game", Title: "Backup game", Username: "fixture"}, "synthetic-game-password")
 	require.NoError(t, e)
 	labelStore, e := labels.Open(filepath.Join(opt.DataDir, "labels.json"), key, nil)
 	require.NoError(t, e)
@@ -92,6 +97,7 @@ func TestBackupPreservesIdentityVaultCiphertextOrganizationsAndAudit(t *testing.
 	require.NoError(t, e)
 	assert.NotContains(t, string(raw), "synthetic-remote-password")
 	assert.NotContains(t, string(raw), "synthetic-admin-password-233")
+	assert.NotContains(t, string(raw), "synthetic-game-password")
 	assert.NotContains(t, string(raw), "replay.json.gz")
 	assert.NotContains(t, string(raw), string(key))
 	verified, e := Verify(context.Background(), opt)
@@ -107,6 +113,11 @@ func TestBackupPreservesIdentityVaultCiphertextOrganizationsAndAudit(t *testing.
 	key2, e := assets.LoadOrCreateVaultKey(opt.DataDir, "")
 	require.NoError(t, e)
 	assert.Equal(t, key, key2)
+	restoredVault, e := passwordvault.Open(filepath.Join(opt.DataDir, "password-vault.json"), key2, nil)
+	require.NoError(t, e)
+	_, gamePassword, e := restoredVault.Reveal(user.ID, storedLogin.ID)
+	require.NoError(t, e)
+	assert.Equal(t, "synthetic-game-password", gamePassword)
 	assistantCopy, e := os.ReadFile(filepath.Join(opt.DataDir, "assistant.json"))
 	require.NoError(t, e)
 	assert.Equal(t, assistantBytes, assistantCopy)

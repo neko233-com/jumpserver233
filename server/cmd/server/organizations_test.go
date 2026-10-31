@@ -84,6 +84,29 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	var org organizations.Organization
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "POST", "/api/v1/organizations", token, "", organizations.Input{Name: "Isolated operations", Enabled: true}, 201), &org))
 	require.NotEqual(t, organizations.DefaultID, org.ID)
+	var sharedVaultItem struct {
+		ID string `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "POST", "/api/v1/password-vault/items", token, org.ID, map[string]any{"kind": "service", "title": "Synthetic organization vault entry", "username": "fixture", "password": "synthetic-organization-vault-secret", "shared": true, "request_id": "4123456789abcdef0123456789abcdef"}, 201), &sharedVaultItem))
+	readVault := func(bearer, orgID string) (int, string) {
+		req, e := http.NewRequest("GET", "http://"+address+"/api/v1/password-vault/items", nil)
+		require.NoError(t, e)
+		req.AddCookie(&http.Cookie{Name: "jms_sessionid", Value: bearer})
+		if orgID != "" {
+			req.Header.Set("X-JMS-ORG", orgID)
+		}
+		resp, e := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+		require.NoError(t, e)
+		defer resp.Body.Close()
+		body, e := io.ReadAll(resp.Body)
+		require.NoError(t, e)
+		return resp.StatusCode, string(body)
+	}
+	status, defaultVault := readVault(token, "")
+	assert.Equal(t, 200, status)
+	assert.NotContains(t, defaultVault, sharedVaultItem.ID)
+	status, _ = readVault(operator.AccessToken, org.ID)
+	assert.Equal(t, 403, status)
 	assistantSecret := "synthetic-organization-assistant-key"
 	orgAssistantInput := assistant.SettingsInput{Settings: aichat.Settings{Endpoint: "https://provider.example/v1/chat/completions", Model: "organization-model", MaxTokens: 512}, Secret: &assistantSecret, RequestID: "organization-assistant-settings"}
 	var orgAssistant assistant.SettingsView
@@ -129,6 +152,10 @@ func TestStandaloneOrganizationsIsolateResourcesRolesAndSessions(t *testing.T) {
 	orgHTTP(t, address, "GET", "/api/v1/assets", token, "11111111-1111-4111-8111-111111111111", nil, 404)
 	var member organizations.Member
 	require.NoError(t, json.Unmarshal(orgHTTP(t, address, "PUT", "/api/v1/organizations/"+org.ID+"/members", token, "", organizations.MemberInput{UserID: user.ID, Role: "member"}, 200), &member))
+	status, memberVault := readVault(operator.AccessToken, org.ID)
+	assert.Equal(t, 200, status)
+	assert.Contains(t, memberVault, sharedVaultItem.ID)
+	assert.NotContains(t, memberVault, "synthetic-organization-vault-secret")
 	assert.JSONEq(t, "[]", string(orgHTTP(t, address, "GET", "/api/v1/assets", operator.AccessToken, org.ID, nil, 200)))
 	orgHTTP(t, address, "POST", "/api/v1/grants", token, org.ID, map[string]any{"user_id": user.ID, "asset_id": b.ID, "account": "ops", "actions": []string{"view", "connect"}}, 201)
 	inventory := string(orgHTTP(t, address, "GET", "/api/v1/assets", operator.AccessToken, org.ID, nil, 200))

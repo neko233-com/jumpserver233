@@ -55,9 +55,10 @@ type Config struct {
 	// ClusterID identifies the application cluster's advisory lock.
 	ClusterID string
 	// ClusterHealthAddr serves liveness and readiness probes on every node.
-	ClusterHealthAddr string
-	PublicURL         string
-	TrustedProxies    []string
+	ClusterHealthAddr     string
+	PublicURL             string
+	AdditionalHTTPSOrigin string
+	TrustedProxies        []string
 }
 
 // FromEnv builds a Config from environment variables with safe defaults.
@@ -112,6 +113,12 @@ func FromEnv() (*Config, error) {
 			return nil, fmt.Errorf("JMS_PUBLIC_URL must be an HTTPS origin or an HTTP loopback/private-IP origin")
 		}
 		cfg.PublicURL = u.String()
+	}
+	if value := strings.TrimRight(strings.TrimSpace(getEnv("JMS_ADDITIONAL_HTTPS_ORIGIN", "")), "/"); value != "" {
+		if !originpolicy.ValidPublic(value) || !strings.HasPrefix(value, "https://") {
+			return nil, fmt.Errorf("JMS_ADDITIONAL_HTTPS_ORIGIN must be an HTTPS origin")
+		}
+		cfg.AdditionalHTTPSOrigin = value
 	}
 	if cfg.DataDir == "" {
 		return nil, fmt.Errorf("JMS_DATA_DIR must not be empty")

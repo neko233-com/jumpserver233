@@ -10,10 +10,12 @@ import { BrandFooter, BrandMark } from "../branding/BrandingContext";
 import Icon, { type IconName } from "../components/ui/Icon";
 import QuickSearch from "../components/ui/QuickSearch";
 import "../i18n/locales/features/workspace-ui/register";
+import "../i18n/locales/features/password-vault/register";
 import "./console-shell.css";
 
 const routeIcons: Record<string, IconName> = {
   "": "server",
+  "password-vault": "key",
   monitoring: "activity",
   "rotation-plans": "key",
   "account-risks": "shield",
@@ -36,7 +38,10 @@ const routeIcons: Record<string, IconName> = {
 // The shipped console contains the standalone SSH workflow. Enterprise page
 // sources remain in the repository; they are outside the mini production graph.
 const navigationGroups = [
-  { id: "operations", routes: ["", "monitoring", "rotation-plans", "account-risks"] },
+  {
+    id: "operations",
+    routes: ["", "password-vault", "monitoring", "rotation-plans", "account-risks"],
+  },
   {
     id: "access",
     routes: ["access-tickets", "access-policies", "login-reviews", "ssh-certificates"],
@@ -50,6 +55,7 @@ const groupedRoutes = new Set(navigationGroups.flatMap((group) => group.routes))
 // never grants or revokes API authority.
 const primaryRoutes = new Set([
   "",
+  "password-vault",
   "monitoring",
   "rotation-plans",
   "agent-audit",
@@ -110,6 +116,7 @@ export default function ConsoleLayout({ title }: { title: string }) {
   const consoleNav = [
     { to: "/console/labels", label: t("nav.labels"), end: false },
     { to: "/console", label: t("assets.title"), end: true },
+    { to: "/console/password-vault", label: t("passwordVault.title"), end: false },
     ...(allows("monitoring.view") || allows("monitoring.manage")
       ? [{ to: "/console/monitoring", label: t("nav.monitoring"), end: false }]
       : []),

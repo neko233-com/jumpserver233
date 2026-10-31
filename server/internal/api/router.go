@@ -40,6 +40,7 @@ import (
 	coreoperations "github.com/neko233-com/jumpserver233/server/internal/core/operations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/organizations"
 	"github.com/neko233-com/jumpserver233/server/internal/core/passkeys"
+	"github.com/neko233-com/jumpserver233/server/internal/core/passwordvault"
 	"github.com/neko233-com/jumpserver233/server/internal/core/radiuslogin"
 	"github.com/neko233-com/jumpserver233/server/internal/core/rbac"
 	"github.com/neko233-com/jumpserver233/server/internal/core/replayarchive"
@@ -58,6 +59,7 @@ import (
 )
 
 type Dependencies struct {
+	PasswordVault         *passwordvault.Store
 	RuntimeLogs           *runtimelog.Writer
 	Assistant             *assistant.Service
 	EnterpriseLogin       *enterpriselogin.Service
@@ -104,31 +106,32 @@ type Dependencies struct {
 	OrganizationCounts    func(context.Context, string) (organizations.ResourceCounts, error)
 	OrganizationChanged   func(string)
 
-	LoginReviews   *loginreviews.Store
-	AccessPolicies *accesspolicies.Store
-	TrustedProxies []string
-	Assets         *coreassets.Service
-	AccessReviews  *coreaccessreviews.Store
-	Auth           *coreauth.Service
-	Grants         *coregrants.Store
-	CommandFilters *corecommandfilters.Store
-	Groups         *coregroups.Store
-	Nodes          *corenodes.Store
-	Sessions       *gateway.Broker
-	Files          *corefiles.Service
-	SFTPSessions   *corefiles.AccessSessionStore
-	AdminToken     string
-	Jobs           *corejobs.Service
-	Operations     *coreoperations.Service
-	RBAC           *rbac.Store
-	OIDC           *oidclogin.Service
-	LDAP           *ldaplogin.Service
-	CAS            *caslogin.Service
-	SAML           *samllogin.Service
-	Passkeys       *passkeys.Service
-	RADIUS         *radiuslogin.Service
-	SMSMFA         *smsmfa.Service
-	PublicURL      string
+	LoginReviews          *loginreviews.Store
+	AccessPolicies        *accesspolicies.Store
+	TrustedProxies        []string
+	Assets                *coreassets.Service
+	AccessReviews         *coreaccessreviews.Store
+	Auth                  *coreauth.Service
+	Grants                *coregrants.Store
+	CommandFilters        *corecommandfilters.Store
+	Groups                *coregroups.Store
+	Nodes                 *corenodes.Store
+	Sessions              *gateway.Broker
+	Files                 *corefiles.Service
+	SFTPSessions          *corefiles.AccessSessionStore
+	AdminToken            string
+	Jobs                  *corejobs.Service
+	Operations            *coreoperations.Service
+	RBAC                  *rbac.Store
+	OIDC                  *oidclogin.Service
+	LDAP                  *ldaplogin.Service
+	CAS                   *caslogin.Service
+	SAML                  *samllogin.Service
+	Passkeys              *passkeys.Service
+	RADIUS                *radiuslogin.Service
+	SMSMFA                *smsmfa.Service
+	PublicURL             string
+	AdditionalHTTPSOrigin string
 }
 
 // NewRouter builds the HTTP routing tree.
@@ -173,6 +176,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 		registerReportRoutes(mux, dependencies[0], accessMu)
 		registerPAMRoutes(mux, dependencies[0], accessMu)
 		registerAssistantRoutes(mux, dependencies[0], accessMu)
+		registerPasswordVaultRoutes(mux, dependencies[0], accessMu)
 		registerMonitorAlertRoutes(mux, dependencies[0], accessMu)
 		registerMonitorHistoryRoutes(mux, dependencies[0], accessMu)
 		registerTicketRoutes(mux, dependencies[0], accessMu)
@@ -304,6 +308,7 @@ func NewRouter(version string, dependencies ...Dependencies) http.Handler {
 	h = WithAccessLog(h)
 	h = WithRecover(h)
 	if len(dependencies) > 0 {
+		h = withAdditionalHTTPSOrigin(h, dependencies[0].AdditionalHTTPSOrigin, dependencies[0].TrustedProxies)
 		h = withPublicOrigin(h, dependencies[0].PublicURL)
 		h = withLoginAudit(h, dependencies[0])
 		h = withMaintenance(h, dependencies[0].Maintenance)
